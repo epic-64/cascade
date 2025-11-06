@@ -1,6 +1,5 @@
-import cask.MainRoutes
-
-import scala.util.{Success, Try, Failure}
+import cask.main.MainRoutes
+import cascade.shared.{User, SharedGreeter}
 
 object WebServer extends MainRoutes:
   @cask.get("/hello")
@@ -11,6 +10,13 @@ object WebServer extends MainRoutes:
 
   @cask.get("/user/:userName")
   def getUserProfile(userName: String) = s"User $userName"
+
+  // New route demonstrating use of a shared cross-compiled type
+  // GET /greet/42/Alice => Hello, Alice! (#42)
+  @cask.get("/greet/:id/:name")
+  def greet(id: Int, name: String): String =
+    val user = User(id, name)
+    SharedGreeter.greet(user)
 
   @cask.get("/user2/:userName") // allow unknown params, e.g. HOST/user2/foo?foo=bar&qux=baz
   def getUserProfileAllowUnknown(userName: String, params: cask.QueryParams) =
