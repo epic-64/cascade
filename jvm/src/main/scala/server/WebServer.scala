@@ -1,5 +1,7 @@
+package server
+
 import cask.main.MainRoutes
-import cascade.shared.{User, SharedGreeter}
+import shared.{SharedGreeter, User}
 
 object WebServer extends MainRoutes:
   @cask.get("/hello")

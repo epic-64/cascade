@@ -1,4 +1,4 @@
-package cascade.shared
+package shared
 
 // Shared domain types between server (JVM) and client (Scala.js)
 case class User(id: Int, name: String)
