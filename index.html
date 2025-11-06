@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cascade Client</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem; }
+      #app-log { white-space: pre-wrap; padding: .5rem 1rem; background: #f6f6f6; border: 1px solid #ddd; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <h1>Cascade JS Client</h1>
+    <p>If you see a div below that says "Client started" and a console message with a greeting, the Scala.js app ran.</p>
+    <div id="app-log"></div>
+
+    <!-- Development build (fastLinkJS). Re-run `sbt ~cascadeJS/fastLinkJS` while editing. -->
+    <script src="js/target/scala-3.7.4/cascade-fastopt/main.js"></script>
+    <!-- For production, first run: `sbt cascadeJS/fullLinkJS` and then replace the script above with: -->
+    <!-- <script src="js/target/scala-3.7.4/cascade-opt/main.js"></script> -->
+  </body>
+</html>
+
