@@ -24,7 +24,5 @@ lazy val cascade = crossProject(JSPlatform, JVMPlatform)
   )
   .jsSettings(
     // Add JS-specific settings here
-    Compile / scalaSource := baseDirectory.value / "js" / "src" / "main" / "scala",
-    Test / scalaSource    := baseDirectory.value / "js" / "src" / "test" / "scala",
-    scalaJSUseMainModuleInitializer := true,
+    // scalaJSUseMainModuleInitializer := true,
   )
