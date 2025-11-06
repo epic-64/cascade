@@ -1,0 +1,70 @@
+name: Scala CI with Coverage
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Check out master and run tests
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'sbt'
+
+      - name: Install sbt
+        run: |
+          curl -L https://github.com/sbt/sbt/releases/download/v1.9.8/sbt-1.9.8.tgz | tar xz
+          echo "$(pwd)/sbt/bin" >> $GITHUB_PATH
+
+      - name: Run tests with coverage
+        run: ENABLE_COVERAGE=true sbt clean coverage test coverageReport
+
+      - name: Parse coverage percentage
+        id: coverage
+        run: |
+          COVERAGE=$(grep -oP '(?<=statement-rate=")[0-9.]+(?=")' target/scala-*/scoverage-report/scoverage.xml | head -1)
+          echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
+
+      # Step 2: Overwrite gh-pages with master + coverage report
+      - name: Deploy Coverage Report to GitHub Pages
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+          # Copy README.md from master
+          cp README.md temp_README.md
+
+          # Create a fresh gh-pages branch based on the latest master
+          git checkout --orphan gh-pages
+          git reset --hard
+
+          # Move README.md to index.md for GitHub Pages
+          mv temp_README.md index.md
+
+          # Copy the coverage report
+          mkdir -p coverage
+          cp -r target/scala-*/scoverage-report/* coverage/
+
+          # Generate the badge as an SVG
+          BADGE_URL="https://img.shields.io/badge/coverage-${{ env.COVERAGE }}%25-brightgreen.svg"
+          curl -o coverage/coverage-badge.svg "$BADGE_URL"
+
+          # Clean up unnecessary files in target folder
+          rm -rf target
+
+          # Commit and force-push to gh-pages
+          git add index.md coverage/
+          git commit -m "Update gh-pages with latest coverage report, badge, and homepage"
+          git push --force origin gh-pages
