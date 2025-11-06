@@ -1,6 +1,6 @@
 # cascade
 We are creating project cascade.
-It is a Scala 3 project that uses Cask, Tapir and ScalaJS.
+It is a Scala 3 project that uses Cask and ScalaJS.
 More parts of the stack may be added later.
 
 Preferred code style:
