@@ -23,6 +23,10 @@ lazy val cascade = crossProject(JSPlatform, JVMPlatform)
     )
   )
   .jsSettings(
-    // Add JS-specific settings here
-    // scalaJSUseMainModuleInitializer := true,
+    // Enable main module initializer so cascadeJS/run works and main.js is generated
+    scalaJSUseMainModuleInitializer := true,
   )
+
+// Convenience vals to reference subprojects explicitly
+lazy val cascadeJS  = cascade.js
+lazy val cascadeJVM = cascade.jvm
