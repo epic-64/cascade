@@ -9,4 +9,3 @@ object Endpoints:
       .out(stringBody.example("Hello, World!"))
       .description("Returns a 'Hello, World!' greeting.")
       .name("helloWorld")
-
