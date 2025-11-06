@@ -13,7 +13,7 @@ lazy val cascade = crossProject(JSPlatform, JVMPlatform)
     version := "0.1-SNAPSHOT",
   )
   .jvmSettings(
-    Compile / mainClass := Some("CascadeServer"),
+    Compile / mainClass := Some("server.WebServer"),
     libraryDependencies ++= Seq(
       "com.lihaoyi"       %% "cask"         % caskVersion,
       "org.scalatest"     %% "scalatest"    % "3.2.19"   % Test,
