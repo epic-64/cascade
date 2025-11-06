@@ -1,6 +1,6 @@
-package cascade.client
+package client
 
-import cascade.shared.{SharedGreeter, User}
+import shared.{SharedGreeter, User}
 import org.scalajs.dom.document
 
 @main def clientMain(): Unit =

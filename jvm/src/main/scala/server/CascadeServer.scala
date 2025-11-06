@@ -1,3 +1,5 @@
+package server
+
 import scala.util.Try
 
 object CascadeServer:
