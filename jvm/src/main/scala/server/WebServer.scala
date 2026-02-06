@@ -1,7 +1,19 @@
 package server
 
 import cask.main.MainRoutes
+import cask.model.Response
+import cask.router.Result
 import shared.{SharedGreeter, User}
+
+// CORS decorator to allow cross-origin requests
+class allowCors extends cask.RawDecorator:
+  def wrapFunction(ctx: cask.Request, delegate: Delegate): Result[cask.Response.Raw] =
+    delegate(ctx, Map.empty).map: response =>
+      response.copy(headers = response.headers ++ Seq(
+        "Access-Control-Allow-Origin" -> "*",
+        "Access-Control-Allow-Methods" -> "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers" -> "Content-Type"
+      ))
 
 object WebServer extends MainRoutes:
   // Counter state
@@ -13,14 +25,17 @@ object WebServer extends MainRoutes:
   @cask.get("/health")
   def health(): String = "OK"
 
+  @allowCors()
   @cask.get("/counter")
   def getCounter(): Int = counter
 
+  @allowCors()
   @cask.post("/counter/increment")
   def incrementCounter(): Int =
     counter += 1
     counter
 
+  @allowCors()
   @cask.post("/counter/decrement")
   def decrementCounter(): Int =
     counter -= 1
