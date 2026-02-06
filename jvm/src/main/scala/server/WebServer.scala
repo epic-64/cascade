@@ -4,11 +4,27 @@ import cask.main.MainRoutes
 import shared.{SharedGreeter, User}
 
 object WebServer extends MainRoutes:
+  // Counter state
+  private var counter: Int = 0
+
   @cask.get("/hello")
   def hello(): String = "Hello, World!"
 
   @cask.get("/health")
   def health(): String = "OK"
+
+  @cask.get("/counter")
+  def getCounter(): Int = counter
+
+  @cask.post("/counter/increment")
+  def incrementCounter(): Int =
+    counter += 1
+    counter
+
+  @cask.post("/counter/decrement")
+  def decrementCounter(): Int =
+    counter -= 1
+    counter
 
   @cask.get("/user/:userName")
   def getUserProfile(userName: String) = s"User $userName"
