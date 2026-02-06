@@ -71,6 +71,8 @@ sbt "cascadeJS / fullLinkJS"
 
 - `GET /` → HTML client
 - `GET /main.js` → Compiled Scala.js
+- `GET /health` → Server health and statistics (JSON)
+  - Status, uptime, counter state, memory usage, system info
 - `GET /counter` → Get counter value
 - `POST /counter/increment` → Increment counter
 - `POST /counter/decrement` → Decrement counter
@@ -85,3 +87,9 @@ sbt "cascadeJS / fullLinkJS"
 - ⏳ Database persistence
 - ⏳ CI pipeline
 - ⏳ Cloud deployment
+
+## Documentation
+
+- **[Health Endpoint](docs/HEALTH_ENDPOINT.md)** - Detailed documentation of the `/health` endpoint and its stats
+- **[Tech Review](docs/TECH_REVIEW.md)** - Comprehensive technical review and production readiness checklist
+
