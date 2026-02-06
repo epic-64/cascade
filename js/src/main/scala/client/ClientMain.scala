@@ -51,7 +51,11 @@ def buildCounterUI(): Unit =
   btnDecrement.addEventListener("click", _ => modifyCounter("decrement"))
 
 def connectWebSocket(): Unit =
-  val ws = new WebSocket("ws://localhost:8080/ws/counter")
+  // Use relative WebSocket URL - will connect to same host/port as the page
+  val protocol = if dom.window.location.protocol == "https:" then "wss:" else "ws:"
+  val wsUrl = s"$protocol//${dom.window.location.host}/ws/counter"
+  
+  val ws = new WebSocket(wsUrl)
   
   ws.onopen = (_: Event) =>
     println("[client] WebSocket connected")
@@ -73,7 +77,8 @@ def connectWebSocket(): Unit =
     println(s"[client] WebSocket error")
 
 def modifyCounter(action: String): Unit =
-  val url = s"http://localhost:8080/counter/$action"
+  // Use relative URL - will use same origin as the page
+  val url = s"/counter/$action"
   val init = js.Dynamic.literal(
     method = "POST"
   ).asInstanceOf[RequestInit]
