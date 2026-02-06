@@ -6,14 +6,20 @@ import shared.{SharedGreeter, User}
 import java.nio.file.{Files, Paths}
 import scala.util.Try
 
+// Configuration object - can be overridden via environment variables
+object Config:
+  val port: Int = sys.env.get("PORT").flatMap(_.toIntOption).getOrElse(8080)
+  val staticFilesDir: String = sys.env.getOrElse("STATIC_FILES_DIR", ".")
+  val cacheDuration: Int = sys.env.get("CACHE_MAX_AGE").flatMap(_.toIntOption).getOrElse(3600)
+  val isProd: Boolean = sys.env.get("ENVIRONMENT").contains("production")
 
 object WebServer extends MainRoutes:
   // Server start time for uptime calculation
   private val startTime = System.currentTimeMillis()
-  
+
   // Counter state - using AtomicInteger for thread-safe operations
   private val counter = new java.util.concurrent.atomic.AtomicInteger(0)
-  
+
   // WebSocket connections for broadcasting counter updates
   // Using concurrent collection for thread safety
   private val wsConnections = java.util.concurrent.ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
@@ -28,7 +34,7 @@ object WebServer extends MainRoutes:
     val uptimeSeconds = uptimeMs / 1000
     val uptimeMinutes = uptimeSeconds / 60
     val uptimeHours = uptimeMinutes / 60
-    
+
     ujson.Obj(
       "status" -> "healthy",
       "uptime" -> ujson.Obj(
@@ -75,19 +81,19 @@ object WebServer extends MainRoutes:
       // Add new connection
       wsConnections.add(channel)
       println(s"[WebSocket] Client connected. Total connections: ${wsConnections.size}")
-      
+
       // Send current counter value to newly connected client
       channel.send(cask.Ws.Text(counter.get().toString))
-      
+
       // Handle incoming messages
       cask.WsActor:
         case cask.Ws.Text(msg) =>
           println(s"[WebSocket] Received: $msg")
-        
+
         case cask.Ws.Close(_, _) =>
           wsConnections.remove(channel)
           println(s"[WebSocket] Client disconnected. Total connections: ${wsConnections.size}")
-        
+
         case cask.Ws.Error(ex) =>
           wsConnections.remove(channel)
           println(s"[WebSocket] Error: ${ex.getMessage}")
@@ -136,7 +142,7 @@ object WebServer extends MainRoutes:
   // Serve the main HTML page
   @cask.get("/")
   def index(): Response[String] =
-    val htmlPath = Paths.get("index.html")
+    val htmlPath = Paths.get(Config.staticFilesDir, "index.html")
     if Files.exists(htmlPath) then
       val content = new String(Files.readAllBytes(htmlPath))
       cask.Response(
@@ -144,17 +150,25 @@ object WebServer extends MainRoutes:
         headers = Seq("Content-Type" -> "text/html")
       )
     else
-      cask.Response("index.html not found", statusCode = 404)
+      val msg = s"index.html not found at ${htmlPath.toAbsolutePath}"
+      System.err.println(s"[ERROR] $msg")
+      cask.Response(msg, statusCode = 404)
 
   // Serve the compiled JavaScript file
   @cask.get("/main.js")
   def mainJs(request: cask.Request): Response[Array[Byte]] =
-    val jsPath = Paths.get("js/target/scala-3.7.4/cascade-fastopt/main.js")
+    // Support both development (fastopt) and production (opt) builds
+    val buildType = if Config.isProd then "opt" else "fastopt"
+    val jsPath = Paths.get(
+      Config.staticFilesDir,
+      "js", "target", "scala-3.7.4", s"cascade-$buildType", "main.js"
+    )
+    
     if Files.exists(jsPath) then
       val lastModified = Files.getLastModifiedTime(jsPath).toMillis
       val fileSize = Files.size(jsPath)
       val etag = s""""${lastModified}-${fileSize}""""
-      
+
       // Check if client has cached version (ETag validation)
       val clientETag = request.headers.get("if-none-match")
       if clientETag.contains(etag) then
@@ -164,7 +178,7 @@ object WebServer extends MainRoutes:
           statusCode = 304,
           headers = Seq(
             "ETag" -> etag,
-            "Cache-Control" -> "public, max-age=3600"
+            "Cache-Control" -> s"public, max-age=${Config.cacheDuration}"
           )
         )
       else
@@ -174,14 +188,16 @@ object WebServer extends MainRoutes:
           data = content,
           headers = Seq(
             "Content-Type" -> "application/javascript",
-            "Cache-Control" -> "public, max-age=3600", // Cache for 1 hour
+            "Cache-Control" -> s"public, max-age=${Config.cacheDuration}",
             "ETag" -> etag,
             "Last-Modified" -> formatHttpDate(lastModified)
           )
         )
     else
+      val msg = s"main.js not found at ${jsPath.toAbsolutePath}\nRun: sbt ~cascadeJS/${if Config.isProd then "fullLinkJS" else "fastLinkJS"}"
+      System.err.println(s"[ERROR] $msg")
       cask.Response(
-        data = "main.js not found - run: sbt ~cascadeJS/fastLinkJS".getBytes,
+        data = msg.getBytes,
         statusCode = 404
       )
 
@@ -192,6 +208,6 @@ object WebServer extends MainRoutes:
       .withZone(java.time.ZoneId.of("GMT"))
       .format(instant)
 
-  override def port: Int = sys.env.get("PORT").flatMap(_.toIntOption).getOrElse(8080)
+  override def port: Int = Config.port
 
   initialize()
