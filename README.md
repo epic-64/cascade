@@ -10,6 +10,7 @@ Full-stack web application using Scala 3, Scala.js, Cask, and WebSockets.
 - WebSocket broadcasts updates to all tabs in real-time 🎉
 - **Thread-safe** concurrent access using `AtomicInteger`
 - Shared types between client and server for type safety
+- **HTTP caching** with ETag validation for optimal performance
 
 ## Quick Start
 
@@ -91,5 +92,4 @@ sbt "cascadeJS / fullLinkJS"
 ## Documentation
 
 - **[Health Endpoint](docs/HEALTH_ENDPOINT.md)** - Detailed documentation of the `/health` endpoint and its stats
-- **[Tech Review](docs/TECH_REVIEW.md)** - Comprehensive technical review and production readiness checklist
 
