@@ -21,7 +21,7 @@ object WebServer extends MainRoutes:
     SharedGreeter.greet(user)
 
   @cask.get("/user2/:userName") // allow unknown params, e.g. HOST/user2/foo?foo=bar&qux=baz
-  def getUserProfileAllowUnknown(userName: String, params: cask.QueryParams) =
+  def getUserProfileAllowUnknown(userName: String, params: cask.QueryParams): String =
     s"User $userName " + params.value
 
   @cask.get("/article/:articleId") // Mandatory query param, e.g. HOST/article/foo?param=bar
