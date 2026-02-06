@@ -148,19 +148,49 @@ object WebServer extends MainRoutes:
 
   // Serve the compiled JavaScript file
   @cask.get("/main.js")
-  def mainJs(): Response[Array[Byte]] =
+  def mainJs(request: cask.Request): Response[Array[Byte]] =
     val jsPath = Paths.get("js/target/scala-3.7.4/cascade-fastopt/main.js")
     if Files.exists(jsPath) then
-      val content = Files.readAllBytes(jsPath)
-      cask.Response(
-        data = content,
-        headers = Seq("Content-Type" -> "application/javascript")
-      )
+      val lastModified = Files.getLastModifiedTime(jsPath).toMillis
+      val fileSize = Files.size(jsPath)
+      val etag = s""""${lastModified}-${fileSize}""""
+      
+      // Check if client has cached version (ETag validation)
+      val clientETag = request.headers.get("if-none-match")
+      if clientETag.contains(etag) then
+        // File hasn't changed - return 304 Not Modified
+        cask.Response(
+          data = Array.empty[Byte],
+          statusCode = 304,
+          headers = Seq(
+            "ETag" -> etag,
+            "Cache-Control" -> "public, max-age=3600"
+          )
+        )
+      else
+        // File changed or first request - send full content
+        val content = Files.readAllBytes(jsPath)
+        cask.Response(
+          data = content,
+          headers = Seq(
+            "Content-Type" -> "application/javascript",
+            "Cache-Control" -> "public, max-age=3600", // Cache for 1 hour
+            "ETag" -> etag,
+            "Last-Modified" -> formatHttpDate(lastModified)
+          )
+        )
     else
       cask.Response(
         data = "main.js not found - run: sbt ~cascadeJS/fastLinkJS".getBytes,
         statusCode = 404
       )
+
+  // Format timestamp as HTTP date (RFC 7231)
+  private def formatHttpDate(millis: Long): String =
+    val instant = java.time.Instant.ofEpochMilli(millis)
+    java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME
+      .withZone(java.time.ZoneId.of("GMT"))
+      .format(instant)
 
   override def port: Int = sys.env.get("PORT").flatMap(_.toIntOption).getOrElse(8080)
 
