@@ -8,6 +8,9 @@ import scala.util.Try
 
 
 object WebServer extends MainRoutes:
+  // Server start time for uptime calculation
+  private val startTime = System.currentTimeMillis()
+  
   // Counter state - using AtomicInteger for thread-safe operations
   private val counter = new java.util.concurrent.atomic.AtomicInteger(0)
   
@@ -19,7 +22,37 @@ object WebServer extends MainRoutes:
   def hello(): String = "Hello, World!"
 
   @cask.get("/health")
-  def health(): String = "OK"
+  def health(): ujson.Value =
+    val runtime = Runtime.getRuntime
+    val uptimeMs = System.currentTimeMillis() - startTime
+    val uptimeSeconds = uptimeMs / 1000
+    val uptimeMinutes = uptimeSeconds / 60
+    val uptimeHours = uptimeMinutes / 60
+    
+    ujson.Obj(
+      "status" -> "healthy",
+      "uptime" -> ujson.Obj(
+        "milliseconds" -> uptimeMs,
+        "seconds" -> uptimeSeconds,
+        "formatted" -> f"${uptimeHours}h ${uptimeMinutes % 60}m ${uptimeSeconds % 60}s"
+      ),
+      "counter" -> ujson.Obj(
+        "value" -> counter.get(),
+        "connections" -> wsConnections.size()
+      ),
+      "memory" -> ujson.Obj(
+        "total" -> runtime.totalMemory(),
+        "free" -> runtime.freeMemory(),
+        "used" -> (runtime.totalMemory() - runtime.freeMemory()),
+        "max" -> runtime.maxMemory()
+      ),
+      "system" -> ujson.Obj(
+        "availableProcessors" -> runtime.availableProcessors(),
+        "javaVersion" -> System.getProperty("java.version"),
+        "scalaVersion" -> scala.util.Properties.versionNumberString
+      ),
+      "timestamp" -> System.currentTimeMillis()
+    )
 
   @cask.get("/counter")
   def getCounter(): Int = counter.get()

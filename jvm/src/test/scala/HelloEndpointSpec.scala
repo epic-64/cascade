@@ -6,8 +6,17 @@ class HelloEndpointSpec extends AnyFunSuite:
   test("hello route returns Hello, World!"):
     assert(WebServer.hello() == "Hello, World!")
 
-  test("health route returns OK"):
-    assert(WebServer.health() == "OK")
+  test("health route returns JSON with status and stats"):
+    val healthResponse = WebServer.health()
+    assert(healthResponse("status").str == "healthy")
+    assert(healthResponse.obj.contains("uptime"))
+    assert(healthResponse.obj.contains("counter"))
+    assert(healthResponse.obj.contains("memory"))
+    assert(healthResponse.obj.contains("system"))
+    assert(healthResponse.obj.contains("timestamp"))
+    // Check counter stats
+    assert(healthResponse("counter")("value").num >= 0)
+    assert(healthResponse("counter")("connections").num >= 0)
 
   test("default server port is 8080 when PORT env missing"):
     assert(WebServer.port == 8080)
