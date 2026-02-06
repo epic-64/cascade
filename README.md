@@ -11,6 +11,7 @@ Scope:
 - A database for persistence.
 - A testsuite that covers both server and client code and generates code coverage reports.
 - A CI pipeline
+- git-based deployment to a cloud provider, hosting the server and client.
 
 ```bash
 sbt compile
