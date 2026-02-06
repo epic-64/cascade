@@ -5,6 +5,7 @@ import cask.model.Response
 import shared.{SharedGreeter, User}
 import java.nio.file.{Files, Paths}
 import scala.util.Try
+import org.slf4j.LoggerFactory
 
 // Configuration object - can be overridden via environment variables
 object Config:
@@ -14,6 +15,7 @@ object Config:
   val isProd: Boolean = sys.env.get("ENVIRONMENT").contains("production")
 
 object WebServer extends MainRoutes:
+  private val logger = LoggerFactory.getLogger(getClass)
   // Server start time for uptime calculation
   private val startTime = System.currentTimeMillis()
 
@@ -80,7 +82,7 @@ object WebServer extends MainRoutes:
     cask.WsHandler: channel =>
       // Add new connection
       wsConnections.add(channel)
-      println(s"[WebSocket] Client connected. Total connections: ${wsConnections.size}")
+      logger.info(s"WebSocket client connected. Total connections: ${wsConnections.size}")
 
       // Send current counter value to newly connected client
       channel.send(cask.Ws.Text(counter.get().toString))
@@ -88,22 +90,22 @@ object WebServer extends MainRoutes:
       // Handle incoming messages
       cask.WsActor:
         case cask.Ws.Text(msg) =>
-          println(s"[WebSocket] Received: $msg")
+          logger.debug(s"WebSocket received message: $msg")
 
         case cask.Ws.Close(_, _) =>
           wsConnections.remove(channel)
-          println(s"[WebSocket] Client disconnected. Total connections: ${wsConnections.size}")
+          logger.info(s"WebSocket client disconnected. Total connections: ${wsConnections.size}")
 
         case cask.Ws.Error(ex) =>
           wsConnections.remove(channel)
-          println(s"[WebSocket] Error: ${ex.getMessage}")
+          logger.error(s"WebSocket error: ${ex.getMessage}", ex)
 
   private def broadcastCounter(): Unit =
     val message = cask.Ws.Text(counter.get().toString)
     import scala.jdk.CollectionConverters.*
     wsConnections.asScala.foreach: channel =>
       Try(channel.send(message)).recover:
-        case ex => println(s"[WebSocket] Failed to send to client: ${ex.getMessage}")
+        case ex => logger.warn(s"Failed to send WebSocket message to client: ${ex.getMessage}")
 
   @cask.get("/user/:userName")
   def getUserProfile(userName: String) = s"User $userName"
@@ -151,7 +153,7 @@ object WebServer extends MainRoutes:
       )
     else
       val msg = s"index.html not found at ${htmlPath.toAbsolutePath}"
-      System.err.println(s"[ERROR] $msg")
+      logger.error(msg)
       cask.Response(msg, statusCode = 404)
 
   // Serve the compiled JavaScript file
@@ -223,7 +225,7 @@ object WebServer extends MainRoutes:
           )
       case None =>
         val msg = s"$filename not found. Searched in:\n${possiblePaths.map(p => s"  - ${p.toAbsolutePath}").mkString("\n")}"
-        System.err.println(s"[ERROR] $msg")
+        logger.error(msg)
         cask.Response(
           data = msg.getBytes,
           statusCode = 404
@@ -237,5 +239,14 @@ object WebServer extends MainRoutes:
       .format(instant)
 
   override def port: Int = Config.port
+
+  // Log startup configuration
+  logger.info("=" * 60)
+  logger.info("Starting Cascade Server")
+  logger.info(s"Port: ${Config.port}")
+  logger.info(s"Static files directory: ${Config.staticFilesDir}")
+  logger.info(s"Cache duration: ${Config.cacheDuration}s")
+  logger.info(s"Environment: ${if Config.isProd then "production" else "development"}")
+  logger.info("=" * 60)
 
   initialize()
