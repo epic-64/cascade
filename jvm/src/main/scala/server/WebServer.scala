@@ -4,6 +4,7 @@ import cask.main.MainRoutes
 import cask.model.Response
 import cask.router.Result
 import shared.{SharedGreeter, User}
+import scala.collection.mutable
 
 // CORS decorator to allow cross-origin requests
 class allowCors extends cask.RawDecorator:
@@ -18,6 +19,9 @@ class allowCors extends cask.RawDecorator:
 object WebServer extends MainRoutes:
   // Counter state
   private var counter: Int = 0
+  
+  // WebSocket connections for broadcasting counter updates
+  private val wsConnections = mutable.Set[cask.WsChannelActor]()
 
   @cask.get("/hello")
   def hello(): String = "Hello, World!"
@@ -33,13 +37,43 @@ object WebServer extends MainRoutes:
   @cask.post("/counter/increment")
   def incrementCounter(): Int =
     counter += 1
+    broadcastCounter()
     counter
 
   @allowCors()
   @cask.post("/counter/decrement")
   def decrementCounter(): Int =
     counter -= 1
+    broadcastCounter()
     counter
+
+  @cask.websocket("/ws/counter")
+  def counterWebSocket(): cask.WebsocketResult =
+    cask.WsHandler: channel =>
+      // Add new connection
+      wsConnections.add(channel)
+      println(s"[WebSocket] Client connected. Total connections: ${wsConnections.size}")
+      
+      // Send current counter value to newly connected client
+      channel.send(cask.Ws.Text(counter.toString))
+      
+      // Handle incoming messages (not needed for now, but good to have)
+      cask.WsActor:
+        case cask.Ws.Text(msg) =>
+          println(s"[WebSocket] Received: $msg")
+        
+        case cask.Ws.Close(_, _) =>
+          wsConnections.remove(channel)
+          println(s"[WebSocket] Client disconnected. Total connections: ${wsConnections.size}")
+        
+        case cask.Ws.Error(ex) =>
+          wsConnections.remove(channel)
+          println(s"[WebSocket] Error: ${ex.getMessage}")
+
+  private def broadcastCounter(): Unit =
+    val message = cask.Ws.Text(counter.toString)
+    wsConnections.foreach: channel =>
+      channel.send(message)
 
   @cask.get("/user/:userName")
   def getUserProfile(userName: String) = s"User $userName"
