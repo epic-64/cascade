@@ -157,49 +157,77 @@ object WebServer extends MainRoutes:
   // Serve the compiled JavaScript file
   @cask.get("/main.js")
   def mainJs(request: cask.Request): Response[Array[Byte]] =
-    // Support both development (fastopt) and production (opt) builds
-    val buildType = if Config.isProd then "opt" else "fastopt"
-    val jsPath = Paths.get(
-      Config.staticFilesDir,
-      "js", "target", "scala-3.7.4", s"cascade-$buildType", "main.js"
-    )
-    
-    if Files.exists(jsPath) then
-      val lastModified = Files.getLastModifiedTime(jsPath).toMillis
-      val fileSize = Files.size(jsPath)
-      val etag = s""""${lastModified}-${fileSize}""""
+    serveStaticFile(request, "main.js", "application/javascript")
 
-      // Check if client has cached version (ETag validation)
-      val clientETag = request.headers.get("if-none-match")
-      if clientETag.contains(etag) then
-        // File hasn't changed - return 304 Not Modified
-        cask.Response(
-          data = Array.empty[Byte],
-          statusCode = 304,
-          headers = Seq(
-            "ETag" -> etag,
-            "Cache-Control" -> s"public, max-age=${Config.cacheDuration}"
-          )
-        )
-      else
-        // File changed or first request - send full content
-        val content = Files.readAllBytes(jsPath)
-        cask.Response(
-          data = content,
-          headers = Seq(
-            "Content-Type" -> "application/javascript",
-            "Cache-Control" -> s"public, max-age=${Config.cacheDuration}",
-            "ETag" -> etag,
-            "Last-Modified" -> formatHttpDate(lastModified)
-          )
-        )
+  // Serve CSS files - primary stylesheet
+  @cask.get("/styles.css")
+  def serveStylesCss(request: cask.Request): Response[Array[Byte]] =
+    serveStaticFile(request, "styles.css", "text/css")
+
+  // Serve additional CSS files if needed
+  @cask.get("/css/:filename")
+  def serveCssFile(filename: String, request: cask.Request): Response[Array[Byte]] =
+    if filename.endsWith(".css") then
+      serveStaticFile(request, s"css/$filename", "text/css")
     else
-      val msg = s"main.js not found at ${jsPath.toAbsolutePath}\nRun: sbt ~cascadeJS/${if Config.isProd then "fullLinkJS" else "fastLinkJS"}"
-      System.err.println(s"[ERROR] $msg")
       cask.Response(
-        data = msg.getBytes,
-        statusCode = 404
+        data = s"Invalid CSS filename: $filename".getBytes,
+        statusCode = 400
       )
+
+  // Generic static file serving with caching
+  private def serveStaticFile(request: cask.Request, filename: String, contentType: String): Response[Array[Byte]] =
+    // Try multiple locations in order of preference
+    val possiblePaths = Seq(
+      // 1. Production/deployment location (static files copied here)
+      Paths.get(Config.staticFilesDir, filename),
+      // 2. Development - fastopt build
+      Paths.get(Config.staticFilesDir, "js", "target", "scala-3.7.4", "cascade-fastopt", filename),
+      // 3. Development - fullopt build
+      Paths.get(Config.staticFilesDir, "js", "target", "scala-3.7.4", "cascade-opt", filename),
+      // 4. Root directory (for CSS, images, etc.)
+      Paths.get(filename)
+    )
+
+    val filePath = possiblePaths.find(Files.exists(_))
+
+    filePath match
+      case Some(path) =>
+        val lastModified = Files.getLastModifiedTime(path).toMillis
+        val fileSize = Files.size(path)
+        val etag = s""""${lastModified}-${fileSize}""""
+
+        // Check if client has cached version (ETag validation)
+        val clientETag = request.headers.get("if-none-match")
+        if clientETag.contains(etag) then
+          // File hasn't changed - return 304 Not Modified
+          cask.Response(
+            data = Array.empty[Byte],
+            statusCode = 304,
+            headers = Seq(
+              "ETag" -> etag,
+              "Cache-Control" -> s"public, max-age=${Config.cacheDuration}"
+            )
+          )
+        else
+          // File changed or first request - send full content
+          val content = Files.readAllBytes(path)
+          cask.Response(
+            data = content,
+            headers = Seq(
+              "Content-Type" -> contentType,
+              "Cache-Control" -> s"public, max-age=${Config.cacheDuration}",
+              "ETag" -> etag,
+              "Last-Modified" -> formatHttpDate(lastModified)
+            )
+          )
+      case None =>
+        val msg = s"$filename not found. Searched in:\n${possiblePaths.map(p => s"  - ${p.toAbsolutePath}").mkString("\n")}"
+        System.err.println(s"[ERROR] $msg")
+        cask.Response(
+          data = msg.getBytes,
+          statusCode = 404
+        )
 
   // Format timestamp as HTTP date (RFC 7231)
   private def formatHttpDate(millis: Long): String =
