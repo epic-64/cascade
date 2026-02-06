@@ -12,6 +12,13 @@ Full-stack web application using Scala 3, Scala.js, Cask, and WebSockets.
 - Shared types between client and server for type safety
 - **HTTP caching** with ETag validation for optimal performance
 
+**Color Rush - Multiplayer Game**
+- Fast-paced color matching game
+- Real-time multiplayer with WebSocket synchronization
+- Type-safe client (ScalaJS) and server communication
+- Shared game models across client/server boundary
+- 10 rounds, speed bonuses, live scoreboard
+
 ## Quick Start
 
 **Terminal 1 - Transpile client (watch mode):**
@@ -70,14 +77,22 @@ sbt "cascadeJS / fullLinkJS"
 
 ## Endpoints
 
+**Counter Demo:**
 - `GET /` → HTML client
-- `GET /main.js` → Compiled Scala.js
-- `GET /health` → Server health and statistics (JSON)
-  - Status, uptime, counter state, memory usage, system info
+- `GET /main.js` → Compiled Scala.js (includes both apps)
 - `GET /counter` → Get counter value
 - `POST /counter/increment` → Increment counter
 - `POST /counter/decrement` → Decrement counter
 - `WS /ws/counter` → WebSocket for real-time updates
+
+**Color Rush Game:**
+- `GET /game.html` → Color Rush game client
+- `GET /game.css` → Game stylesheet
+- `WS /ws/game/:gameId` → Game WebSocket endpoint
+
+**System:**
+- `GET /health` → Server health and statistics (JSON)
+  - Status, uptime, counter state, memory usage, system info
 
 ## Project Goals
 
