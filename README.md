@@ -1,18 +1,29 @@
 # Cascade
 
-This is a learning project, aiming to build a full-stack web application using Scala.
+Full-stack web application using Scala 3, Scala.js, Cask, and WebSockets.
 
-Stack: Scala 3, sbt, Scala.js, Cask, (to be continued)
+## Running the App
 
-Scope:
-- A long-running web server that serves a REST API.
-- A JS client written in Scala.js that shares types with the server.
-- Real-time interaction via websockets.
-- A database for persistence.
-- A testsuite that covers both server and client code and generates code coverage reports.
-- A CI pipeline
-- git-based deployment to a cloud provider, hosting the server and client.
+**Terminal 1 - Transpile client (watch mode):**
+```bash
+sbt ~"cascadeJS / fastLinkJS"
+```
 
+**Terminal 2 - Start server:**
+```bash
+sbt "cascadeJVM / run"
+```
+
+**Browser:**
+```
+http://localhost:8080
+```
+
+**Open multiple tabs and watch them sync!**
+
+## Commands
+
+Compile:
 ```bash
 sbt compile
 ```
@@ -22,22 +33,46 @@ Clean compile:
 sbt clean compile
 ```
 
-Start server
+Run tests:
 ```bash
-sbt run cascadeJVM/run
+sbt "cascadeJVM / test"
 ```
 
-Transpile Client
+Start server:
 ```bash
-sbt cascadeJS/fastOptJS
+sbt "cascadeJVM / run"
 ```
 
-Transpile Client (Watch)
+Transpile client (dev):
 ```bash
-sbt ~cascadeJS/fastOptJS
+sbt "cascadeJS / fastLinkJS"
 ```
 
-Transpile Client (Production)
+Transpile client (watch):
 ```bash
-sbt cascadeJS/fullOptJS
+sbt ~"cascadeJS / fastLinkJS"
 ```
+
+Transpile client (production):
+```bash
+sbt "cascadeJS / fullLinkJS"
+```
+
+## Endpoints
+
+- `GET /` → HTML client
+- `GET /main.js` → Compiled Scala.js
+- `GET /counter` → Get counter value
+- `POST /counter/increment` → Increment counter
+- `POST /counter/decrement` → Decrement counter
+- `WS /ws/counter` → WebSocket for real-time updates
+
+## Project Goals
+
+- ✅ REST API server
+- ✅ Scala.js client with shared types
+- ✅ WebSocket real-time sync
+- ✅ Test suite (server)
+- ⏳ Database persistence
+- ⏳ CI pipeline
+- ⏳ Cloud deployment
