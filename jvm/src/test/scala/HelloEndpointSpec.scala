@@ -3,11 +3,6 @@ import server.WebServer
 import shared.{User, SharedGreeter}
 
 class HelloEndpointSpec extends AnyFunSuite:
-  // TODO: Create Endpoints object if needed for endpoint metadata
-  // test("hello endpoint definition renders path"):
-  //   val e = Endpoints.helloWorldEndpoint
-  //   assert(e.show.contains("GET /hello"))
-
   test("hello route returns Hello, World!"):
     assert(WebServer.hello() == "Hello, World!")
 
