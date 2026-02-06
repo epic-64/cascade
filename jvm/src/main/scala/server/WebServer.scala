@@ -142,7 +142,7 @@ object WebServer extends MainRoutes:
   // Serve the main HTML page
   @cask.get("/")
   def index(): Response[String] =
-    val htmlPath = Paths.get(Config.staticFilesDir, "index.html")
+    val htmlPath = Paths.get(Config.staticFilesDir, "static", "index.html")
     if Files.exists(htmlPath) then
       val content = new String(Files.readAllBytes(htmlPath))
       cask.Response(
@@ -179,14 +179,14 @@ object WebServer extends MainRoutes:
   private def serveStaticFile(request: cask.Request, filename: String, contentType: String): Response[Array[Byte]] =
     // Try multiple locations in order of preference
     val possiblePaths = Seq(
-      // 1. Production/deployment location (static files copied here)
+      // 1. Static directory (primary location)
+      Paths.get(Config.staticFilesDir, "static", filename),
+      // 2. Production/deployment location
       Paths.get(Config.staticFilesDir, filename),
-      // 2. Development - fastopt build
+      // 3. Development - fastopt build
       Paths.get(Config.staticFilesDir, "js", "target", "scala-3.7.4", "cascade-fastopt", filename),
-      // 3. Development - fullopt build
-      Paths.get(Config.staticFilesDir, "js", "target", "scala-3.7.4", "cascade-opt", filename),
-      // 4. Root directory (for CSS, images, etc.)
-      Paths.get(filename)
+      // 4. Development - fullopt build
+      Paths.get(Config.staticFilesDir, "js", "target", "scala-3.7.4", "cascade-opt", filename)
     )
 
     val filePath = possiblePaths.find(Files.exists(_))
