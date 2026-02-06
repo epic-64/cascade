@@ -26,6 +26,11 @@ object WebServer extends MainRoutes:
   // Using concurrent collection for thread safety
   private val wsConnections = java.util.concurrent.ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
 
+  // Color Rush game state management
+  private val colorRushGames = java.util.concurrent.ConcurrentHashMap[String, shared.ColorRushGame]()
+  private val gameConnections = java.util.concurrent.ConcurrentHashMap[String, java.util.Set[cask.WsChannelActor]]()
+  private val playerToGame = java.util.concurrent.ConcurrentHashMap[cask.WsChannelActor, (String, String)]() // (gameId, playerId)
+
   @cask.get("/hello")
   def hello(): String = "Hello, World!"
 
@@ -107,6 +112,188 @@ object WebServer extends MainRoutes:
       Try(channel.send(message)).recover:
         case ex => logger.warn(s"Failed to send WebSocket message to client: ${ex.getMessage}")
 
+  // Color Rush game WebSocket endpoint
+  @cask.websocket("/ws/game/:gameId")
+  def colorRushWebSocket(gameId: String): cask.WebsocketResult =
+    cask.WsHandler: channel =>
+      import scala.jdk.CollectionConverters.*
+      import upickle.default.*
+      
+      // Initialize game if it doesn't exist
+      colorRushGames.computeIfAbsent(gameId, _ => shared.ColorRush.createGame(gameId))
+      
+      // Add channel to game connections
+      val connections = gameConnections.computeIfAbsent(gameId, _ => 
+        java.util.concurrent.ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
+      )
+      connections.add(channel)
+      
+      logger.info(s"Player connected to game $gameId. Total players: ${connections.size()}")
+      
+      cask.WsActor:
+        case cask.Ws.Text(msg) =>
+          Try:
+            val json = ujson.read(msg)
+            val msgType = json("type").str
+            
+            msgType match
+              case "join" =>
+                val playerName = json("playerName").str
+                val playerId = java.util.UUID.randomUUID().toString
+                
+                playerToGame.put(channel, (gameId, playerId))
+                
+                val game = colorRushGames.get(gameId)
+                val updatedGame = shared.ColorRush.addPlayer(game, playerId, playerName)
+                colorRushGames.put(gameId, updatedGame)
+                
+                logger.info(s"Player $playerName ($playerId) joined game $gameId")
+                
+                // Broadcast game state to all players
+                broadcastGameState(gameId)
+                
+              case "start" =>
+                val game = colorRushGames.get(gameId)
+                if game.players.nonEmpty then
+                  val gameWithRound = shared.ColorRush.startNewRound(game)
+                  colorRushGames.put(gameId, gameWithRound)
+                  logger.info(s"Game $gameId started - Round ${gameWithRound.roundNumber}")
+                  broadcastGameState(gameId)
+                  
+                  // Schedule next round after 5 seconds
+                  scheduleNextRound(gameId, 5000)
+                  
+              case "click" =>
+                val color = json("color").str
+                val clickTime = json("time").num.toLong
+                
+                playerToGame.get(channel) match
+                  case (gId, pId) if gId == gameId =>
+                    val game = colorRushGames.get(gameId)
+                    val (updatedGame, winner) = shared.ColorRush.handleColorClick(game, pId, color, clickTime)
+                    colorRushGames.put(gameId, updatedGame)
+                    
+                    winner.foreach: (playerId, playerName, points) =>
+                      logger.info(s"Round winner: $playerName with $points points")
+                      broadcastRoundWinner(gameId, playerId, playerName, points)
+                      
+                      // Check if game should end
+                      if shared.ColorRush.shouldEndGame(updatedGame) then
+                        val finalWinner = shared.ColorRush.getWinner(updatedGame)
+                        broadcastGameEnd(gameId, finalWinner)
+                      else
+                        // Start next round after 3 seconds
+                        scheduleNextRound(gameId, 3000)
+                    
+                    broadcastGameState(gameId)
+                    
+                  case _ =>
+                    logger.warn(s"Click from unregistered player")
+                    
+              case _ =>
+                logger.warn(s"Unknown message type: $msgType")
+          .recover:
+            case ex =>
+              logger.error(s"Error processing game message: ${ex.getMessage}", ex)
+              
+        case cask.Ws.Close(_, _) =>
+          handlePlayerDisconnect(channel, gameId, connections)
+          
+        case cask.Ws.Error(ex) =>
+          logger.error(s"WebSocket error in game $gameId: ${ex.getMessage}", ex)
+          handlePlayerDisconnect(channel, gameId, connections)
+
+  private def broadcastGameState(gameId: String): Unit =
+    import scala.jdk.CollectionConverters.*
+    import upickle.default.*
+    
+    val game = colorRushGames.get(gameId)
+    if game != null then
+      val gameJson = write(game)
+      val message = ujson.Obj("type" -> "gameUpdate", "game" -> ujson.read(gameJson))
+      
+      gameConnections.get(gameId) match
+        case null =>
+        case connections =>
+          connections.asScala.foreach: channel =>
+            Try(channel.send(cask.Ws.Text(message.toString))).recover:
+              case ex => logger.warn(s"Failed to broadcast game state: ${ex.getMessage}")
+  
+  private def broadcastRoundWinner(gameId: String, playerId: String, playerName: String, points: Int): Unit =
+    import scala.jdk.CollectionConverters.*
+    
+    val message = ujson.Obj(
+      "type" -> "roundWinner",
+      "playerId" -> playerId,
+      "playerName" -> playerName,
+      "points" -> points
+    )
+    
+    gameConnections.get(gameId) match
+      case null =>
+      case connections =>
+        connections.asScala.foreach: channel =>
+          Try(channel.send(cask.Ws.Text(message.toString))).recover:
+            case ex => logger.warn(s"Failed to broadcast round winner: ${ex.getMessage}")
+  
+  private def broadcastGameEnd(gameId: String, winner: Option[shared.PlayerState]): Unit =
+    import scala.jdk.CollectionConverters.*
+    import upickle.default.*
+    
+    val message = winner match
+      case Some(w) =>
+        ujson.Obj(
+          "type" -> "gameEnd",
+          "winner" -> ujson.read(write(w))
+        )
+      case None =>
+        ujson.Obj("type" -> "gameEnd", "winner" -> ujson.Null)
+    
+    gameConnections.get(gameId) match
+      case null =>
+      case connections =>
+        connections.asScala.foreach: channel =>
+          Try(channel.send(cask.Ws.Text(message.toString))).recover:
+            case ex => logger.warn(s"Failed to broadcast game end: ${ex.getMessage}")
+  
+  private def scheduleNextRound(gameId: String, delayMs: Int): Unit =
+    val timer = new java.util.Timer()
+    timer.schedule(
+      new java.util.TimerTask:
+        def run(): Unit =
+          val game = colorRushGames.get(gameId)
+          if game != null && !shared.ColorRush.shouldEndGame(game) then
+            val gameWithRound = shared.ColorRush.startNewRound(game)
+            colorRushGames.put(gameId, gameWithRound)
+            logger.info(s"Auto-started round ${gameWithRound.roundNumber} for game $gameId")
+            broadcastGameState(gameId)
+            timer.cancel()
+      ,
+      delayMs.toLong
+    )
+  
+  private def handlePlayerDisconnect(
+    channel: cask.WsChannelActor, 
+    gameId: String, 
+    connections: java.util.Set[cask.WsChannelActor]
+  ): Unit =
+    import scala.jdk.CollectionConverters.*
+    
+    connections.remove(channel)
+    
+    playerToGame.get(channel) match
+      case (gId, pId) if gId == gameId =>
+        playerToGame.remove(channel)
+        val game = colorRushGames.get(gameId)
+        if game != null then
+          val updatedGame = shared.ColorRush.removePlayer(game, pId)
+          colorRushGames.put(gameId, updatedGame)
+          logger.info(s"Player $pId disconnected from game $gameId")
+          broadcastGameState(gameId)
+      case _ =>
+    
+    logger.info(s"Connection closed for game $gameId. Remaining players: ${connections.size()}")
+
   @cask.get("/user/:userName")
   def getUserProfile(userName: String) = s"User $userName"
 
@@ -165,6 +352,11 @@ object WebServer extends MainRoutes:
   @cask.get("/styles.css")
   def serveStylesCss(request: cask.Request): Response[Array[Byte]] =
     serveStaticFile(request, "styles.css", "text/css")
+
+  // Serve game.html
+  @cask.get("/game.html")
+  def serveGameHtml(request: cask.Request): Response[Array[Byte]] =
+    serveStaticFile(request, "game.html", "text/html")
 
   // Serve additional CSS files if needed
   @cask.get("/css/:filename")
