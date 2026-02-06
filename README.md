@@ -2,7 +2,16 @@
 
 Full-stack web application using Scala 3, Scala.js, Cask, and WebSockets.
 
-## Running the App
+## Features
+
+**Counter App with Real-Time Sync**
+- Server maintains counter state (Scala 3 + Cask)
+- Client displays and controls counter (Scala.js)
+- WebSocket broadcasts updates to all tabs in real-time 🎉
+- **Thread-safe** concurrent access using `AtomicInteger`
+- Shared types between client and server for type safety
+
+## Quick Start
 
 **Terminal 1 - Transpile client (watch mode):**
 ```bash
