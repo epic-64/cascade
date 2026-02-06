@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Color Rush - Multiplayer Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      * { box-sizing: border-box; }
+
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        color: white;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        text-align: center;
+        font-size: 3rem;
+        margin-bottom: 10px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+      }
+
+      .subtitle {
+        text-align: center;
+        opacity: 0.9;
+        margin-bottom: 30px;
+      }
+
+      /* Lobby */
+      .lobby {
+        background: white;
+        color: #333;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      }
+
+      .lobby input {
+        width: 100%;
+        padding: 15px;
+        font-size: 18px;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        margin-bottom: 15px;
+      }
+
+      .lobby button {
+        width: 100%;
+        padding: 15px;
+        font-size: 18px;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+
+      .lobby button:hover { background: #5568d3; }
+
+      /* Players List */
+      .players {
+        margin: 20px 0;
+      }
+
+      .player-card {
+        background: #f5f5f5;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .player-name { font-weight: bold; }
+      .player-score { color: #667eea; font-size: 1.2rem; }
+
+      /* Game Area */
+      .game-area {
+        text-align: center;
+      }
+
+      .round-info {
+        background: white;
+        color: #333;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+      }
+
+      .round-number {
+        font-size: 1.2rem;
+        color: #666;
+        margin-bottom: 10px;
+      }
+
+      .target-color-label {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 15px;
+      }
+
+      .target-color {
+        width: 150px;
+        height: 150px;
+        margin: 0 auto 20px;
+        border-radius: 12px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        border: 4px solid white;
+      }
+
+      .color-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        max-width: 500px;
+        margin: 0 auto;
+      }
+
+      .color-button {
+        aspect-ratio: 1;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: transform 0.1s, box-shadow 0.1s;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+      }
+
+      .color-button:hover {
+        transform: scale(1.05);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+      }
+
+      .color-button:active {
+        transform: scale(0.95);
+      }
+
+      /* Winner Announcement */
+      .winner-announcement {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        color: #333;
+        padding: 40px;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        z-index: 1000;
+        text-align: center;
+        animation: popIn 0.3s ease-out;
+      }
+
+      @keyframes popIn {
+        0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+        100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+      }
+
+      .winner-announcement h2 {
+        font-size: 2.5rem;
+        margin: 0 0 10px 0;
+        color: #667eea;
+      }
+
+      .winner-announcement .points {
+        font-size: 1.5rem;
+        color: #FFD700;
+        font-weight: bold;
+      }
+
+      .hidden { display: none; }
+
+      .start-button {
+        background: #28a745;
+        margin-top: 20px;
+      }
+
+      .start-button:hover { background: #218838; }
+
+      .timer {
+        font-size: 3rem;
+        font-weight: bold;
+        color: #667eea;
+        margin: 20px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🎨 Color Rush</h1>
+      <p class="subtitle">Be the fastest to click the matching color!</p>
+
+      <!-- Lobby -->
+      <div id="lobby" class="lobby">
+        <h2>Join Game</h2>
+        <input type="text" id="gameId" placeholder="Game ID (e.g., game123)" value="game1" />
+        <input type="text" id="playerName" placeholder="Your Name" />
+        <button onclick="joinGame()">Join Game</button>
+
+        <div id="waitingArea" class="hidden">
+          <h3>Players in Lobby:</h3>
+          <div id="playersList" class="players"></div>
+          <button class="start-button" onclick="startGame()">Start Game</button>
+        </div>
+      </div>
+
+      <!-- Game Area -->
+      <div id="gameArea" class="game-area hidden">
+        <div class="round-info">
+          <div class="round-number">Round <span id="roundNumber">1</span> of 10</div>
+          <div class="timer" id="timer"></div>
+          <div class="target-color-label">Click this color:</div>
+          <div id="targetColor" class="target-color"></div>
+        </div>
+
+        <div class="color-grid" id="colorGrid"></div>
+
+        <div class="players" id="gamePlayers"></div>
+      </div>
+
+      <!-- Winner Announcement -->
+      <div id="winnerAnnouncement" class="winner-announcement hidden">
+        <h2 id="winnerName"></h2>
+        <p class="points" id="winnerPoints"></p>
+      </div>
+    </div>
+
+    <script>
+      let ws = null;
+      let gameId = null;
+      let currentPlayerId = null;
+
+      function joinGame() {
+        gameId = document.getElementById('gameId').value;
+        const playerName = document.getElementById('playerName').value;
+
+        if (!gameId || !playerName) {
+          alert('Please enter both Game ID and your name');
+          return;
+        }
+
+        // Connect to WebSocket
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        ws = new WebSocket(`${protocol}//${window.location.host}/ws/game/${gameId}`);
+
+        ws.onopen = () => {
+          console.log('Connected to game');
+          ws.send(JSON.stringify({ type: 'join', playerName }));
+        };
+
+        ws.onmessage = (event) => {
+          const msg = JSON.parse(event.data);
+          handleMessage(msg);
+        };
+
+        ws.onerror = (error) => console.error('WebSocket error:', error);
+        ws.onclose = () => console.log('Disconnected from game');
+
+        // Hide join form
+        document.getElementById('lobby').querySelector('h2').textContent = 'Waiting for players...';
+        document.getElementById('gameId').disabled = true;
+        document.getElementById('playerName').disabled = true;
+        document.querySelector('.lobby button').style.display = 'none';
+        document.getElementById('waitingArea').classList.remove('hidden');
+      }
+
+      function startGame() {
+        if (ws) {
+          ws.send(JSON.stringify({ type: 'start' }));
+        }
+      }
+
+      function clickColor(color) {
+        if (ws) {
+          ws.send(JSON.stringify({
+            type: 'click',
+            color: color,
+            time: Date.now()
+          }));
+        }
+      }
+
+      function handleMessage(msg) {
+        console.log('Received:', msg);
+
+        if (msg.type === 'gameUpdate') {
+          updateGameState(msg.game);
+        } else if (msg.type === 'roundWinner') {
+          showRoundWinner(msg.playerName, msg.points);
+        } else if (msg.type === 'gameEnd') {
+          showGameWinner(msg.winner);
+        }
+      }
+
+      function updateGameState(game) {
+        // Update players list
+        const playersList = document.getElementById('playersList');
+        const gamePlayers = document.getElementById('gamePlayers');
+        const playersHTML = Object.values(game.players)
+          .sort((a, b) => b.score - a.score)
+          .map(p => `
+            <div class="player-card">
+              <span class="player-name">${p.name}</span>
+              <span class="player-score">${p.score} pts (${p.roundsWon} wins)</span>
+            </div>
+          `).join('');
+
+        playersList.innerHTML = playersHTML;
+        gamePlayers.innerHTML = playersHTML;
+
+        // Show game area if playing
+        if (game.status === 'playing' && game.currentRound) {
+          document.getElementById('lobby').classList.add('hidden');
+          document.getElementById('gameArea').classList.remove('hidden');
+
+          const round = game.currentRound;
+          document.getElementById('roundNumber').textContent = game.roundNumber;
+          document.getElementById('targetColor').style.backgroundColor = round.targetColor;
+
+          // Update color grid
+          const colorGrid = document.getElementById('colorGrid');
+          colorGrid.innerHTML = round.colorOptions.map(color => `
+            <button class="color-button"
+                    style="background-color: ${color}"
+                    onclick="clickColor('${color}')">
+            </button>
+          `).join('');
+
+          // Start timer
+          startTimer(round.roundDuration);
+        }
+      }
+
+      function startTimer(duration) {
+        let remaining = Math.floor(duration / 1000);
+        const timerEl = document.getElementById('timer');
+
+        const interval = setInterval(() => {
+          timerEl.textContent = remaining;
+          remaining--;
+
+          if (remaining < 0) {
+            clearInterval(interval);
+            timerEl.textContent = '⏱️';
+          }
+        }, 1000);
+      }
+
+      function showRoundWinner(playerName, points) {
+        const announcement = document.getElementById('winnerAnnouncement');
+        document.getElementById('winnerName').textContent = `${playerName} wins!`;
+        document.getElementById('winnerPoints').textContent = `+${points} points`;
+        announcement.classList.remove('hidden');
+
+        setTimeout(() => {
+          announcement.classList.add('hidden');
+        }, 2000);
+      }
+
+      function showGameWinner(winner) {
+        if (winner) {
+          alert(`🎉 GAME OVER!\n\nWinner: ${winner.name}\nScore: ${winner.score} points\nRounds Won: ${winner.roundsWon}`);
+        } else {
+          alert('Game Over!');
+        }
+
+        // Reload page
+        setTimeout(() => window.location.reload(), 3000);
+      }
+    </script>
+  </body>
+</html>
+
