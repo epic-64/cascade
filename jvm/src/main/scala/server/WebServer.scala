@@ -2,27 +2,18 @@ package server
 
 import cask.main.MainRoutes
 import cask.model.Response
-import cask.router.Result
 import shared.{SharedGreeter, User}
-import scala.collection.mutable
 import java.nio.file.{Files, Paths}
+import scala.util.Try
 
-// CORS decorator to allow cross-origin requests
-class allowCors extends cask.RawDecorator:
-  def wrapFunction(ctx: cask.Request, delegate: Delegate): Result[cask.Response.Raw] =
-    delegate(ctx, Map.empty).map: response =>
-      response.copy(headers = response.headers ++ Seq(
-        "Access-Control-Allow-Origin" -> "*",
-        "Access-Control-Allow-Methods" -> "GET, POST, PUT, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers" -> "Content-Type"
-      ))
 
 object WebServer extends MainRoutes:
-  // Counter state
-  private var counter: Int = 0
-
+  // Counter state - using AtomicInteger for thread-safe operations
+  private val counter = new java.util.concurrent.atomic.AtomicInteger(0)
+  
   // WebSocket connections for broadcasting counter updates
-  private val wsConnections = mutable.Set[cask.WsChannelActor]()
+  // Using concurrent collection for thread safety
+  private val wsConnections = java.util.concurrent.ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
 
   @cask.get("/hello")
   def hello(): String = "Hello, World!"
@@ -30,23 +21,20 @@ object WebServer extends MainRoutes:
   @cask.get("/health")
   def health(): String = "OK"
 
-  @allowCors()
   @cask.get("/counter")
-  def getCounter(): Int = counter
+  def getCounter(): Int = counter.get()
 
-  @allowCors()
   @cask.post("/counter/increment")
   def incrementCounter(): Int =
-    counter += 1
+    val newValue = counter.incrementAndGet()
     broadcastCounter()
-    counter
+    newValue
 
-  @allowCors()
   @cask.post("/counter/decrement")
   def decrementCounter(): Int =
-    counter -= 1
+    val newValue = counter.decrementAndGet()
     broadcastCounter()
-    counter
+    newValue
 
   @cask.websocket("/ws/counter")
   def counterWebSocket(): cask.WebsocketResult =
@@ -54,27 +42,29 @@ object WebServer extends MainRoutes:
       // Add new connection
       wsConnections.add(channel)
       println(s"[WebSocket] Client connected. Total connections: ${wsConnections.size}")
-
+      
       // Send current counter value to newly connected client
-      channel.send(cask.Ws.Text(counter.toString))
-
-      // Handle incoming messages (not needed for now, but good to have)
+      channel.send(cask.Ws.Text(counter.get().toString))
+      
+      // Handle incoming messages
       cask.WsActor:
         case cask.Ws.Text(msg) =>
           println(s"[WebSocket] Received: $msg")
-
+        
         case cask.Ws.Close(_, _) =>
           wsConnections.remove(channel)
           println(s"[WebSocket] Client disconnected. Total connections: ${wsConnections.size}")
-
+        
         case cask.Ws.Error(ex) =>
           wsConnections.remove(channel)
           println(s"[WebSocket] Error: ${ex.getMessage}")
 
   private def broadcastCounter(): Unit =
-    val message = cask.Ws.Text(counter.toString)
-    wsConnections.foreach: channel =>
-      channel.send(message)
+    val message = cask.Ws.Text(counter.get().toString)
+    import scala.jdk.CollectionConverters.*
+    wsConnections.asScala.foreach: channel =>
+      Try(channel.send(message)).recover:
+        case ex => println(s"[WebSocket] Failed to send to client: ${ex.getMessage}")
 
   @cask.get("/user/:userName")
   def getUserProfile(userName: String) = s"User $userName"
