@@ -85,14 +85,14 @@ sbt "cascadeJS / fullLinkJS"
 - `WS /ws/counter` → WebSocket for real-time updates
 
 **Color Rush Game:**
-- `GET /game` → Color Rush game client
-- `WS /ws/game/:gameId` → Game WebSocket endpoint
+- `GET /color-rush` → Color Rush game client
+- `WS /ws/color-rush/:gameId` → Game WebSocket endpoint
 
 **Static Assets:**
 - `GET /static/*` → Static files (HTML, CSS, JS)
   - `/static/js/main.js` → Compiled Scala.js (includes both apps)
-  - `/static/index.html`, `/static/game.html` → HTML files
-  - `/static/styles.css` → Stylesheet
+  - `/static/index.html`, `/static/color-rush.html` → HTML files
+  - `/static/styles.css`, `/static/color-rush.css` → Stylesheets
 
 **System:**
 - `GET /health` → Server health and statistics (JSON)
