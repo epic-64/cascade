@@ -424,7 +424,7 @@
         gamePlayers.innerHTML = playersHTML;
 
         // Show game area if playing or roundEnd
-        if ((game.status === 'playing' || game.status === 'roundEnd') && game.currentRound) {
+        if ((game.status === 'Playing' || game.status === 'RoundEnd') && game.currentRound) {
           document.getElementById('lobby').classList.add('hidden');
           document.getElementById('gameArea').classList.remove('hidden');
 
@@ -440,7 +440,7 @@
 
             // Update color grid
             const colorGrid = document.getElementById('colorGrid');
-            const isRoundEnd = game.status === 'roundEnd';
+            const isRoundEnd = game.status === 'RoundEnd';
             colorGrid.innerHTML = round.colorOptions.map(color => `
               <button class="color-button"
                       style="background-color: ${color}"
