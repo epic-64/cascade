@@ -73,109 +73,66 @@ def connectToGame(gameId: String, playerName: String): Unit =
 
 def sendMessage(ws: WebSocket, msg: ClientMessage): Unit =
   Try:
-    val json = msg match
-      case JoinMessage(name) =>
-        js.Dynamic.literal("type" -> "join", "playerName" -> name)
-      case StartMessage =>
-        js.Dynamic.literal("type" -> "start")
-      case ClickMessage(color, time) =>
-        js.Dynamic.literal("type" -> "click", "color" -> color, "time" -> time)
-      case NextRoundMessage =>
-        js.Dynamic.literal("type" -> "nextRound")
-
-    ws.send(js.JSON.stringify(json))
+    import upickle.default.*
+    val json = write(msg)
+    println(s"[ColorRush] Sending message: $json")
+    ws.send(json)
   .recover:
     case ex => println(s"[ColorRush] Failed to send message: ${ex.getMessage}")
 
-enum ServerMessageType:
-  case GameUpdate, RoundWinner, GameEnd, Unknown
-
-object ServerMessageType:
-  def fromString(s: String): ServerMessageType = s match
-    case "gameUpdate" => GameUpdate
-    case "roundWinner" => RoundWinner
-    case "gameEnd" => GameEnd
-    case _ => Unknown
-
-enum GameStatusType:
-  case Waiting, Playing, RoundEnd, GameOver, Unknown
-
-object GameStatusType:
-  def fromString(s: String): GameStatusType = s match
-    case "Waiting" => Waiting
-    case "Playing" => Playing
-    case "RoundEnd" => RoundEnd
-    case "GameOver" => GameOver
-    case _ => Unknown
-
 def handleWebSocketMessage(data: String): Unit =
   Try:
-    val json = js.JSON.parse(data)
-    val msgType = ServerMessageType.fromString(json.`type`.toString)
+    import upickle.default.*
+    val serverMsg = read[shared.ServerMessage](data)
     
-    msgType match
-      case ServerMessageType.GameUpdate =>
-        parseGameUpdate(json.game)
+    serverMsg match
+      case shared.GameUpdateMessage(game) =>
+        parseGameUpdate(game)
         
-      case ServerMessageType.RoundWinner =>
-        (getStringField(json, "playerName"), getIntField(json, "points")) match
-          case (Some(name), Some(pts)) => showRoundWinner(name, pts)
-          case _ => println("[ColorRush] Invalid round winner message")
+      case shared.RoundWinnerMessage(playerName, points) =>
+        showRoundWinner(playerName, points)
         
-      case ServerMessageType.GameEnd =>
-        val winner = Option(json.winner).filter(isDefined)
+      case shared.GameEndMessage(winner) =>
         showGameWinner(winner)
-        
-      case ServerMessageType.Unknown =>
-        println(s"[ColorRush] Unknown message type: ${json.`type`}")
   .recover:
     case ex => println(s"[ColorRush] Error handling message: ${ex.getMessage}")
 
-def parseGameUpdate(gameJson: js.Dynamic): Unit =
+def parseGameUpdate(game: shared.ColorRushGame): Unit =
   Try:
-    val gameId = getStringField(gameJson, "gameId").getOrElse("")
-    val status = GameStatusType.fromString(gameJson.status.toString)
-    val roundNumber = getIntField(gameJson, "roundNumber").getOrElse(0)
-
     // Update players list
-    updatePlayersList(gameJson.players)
+    updatePlayersList(game.players)
 
     // Show game area if playing or round end
-    status match
-      case GameStatusType.Playing | GameStatusType.RoundEnd =>
+    game.status match
+      case shared.GameStatus.Playing | shared.GameStatus.RoundEnd =>
         showGameArea()
 
-        Option(gameJson.currentRound).filter(isDefined).foreach: currentRound =>
-          val roundId = s"$gameId-$roundNumber"
+        game.currentRound.foreach: currentRound =>
+          val roundId = s"${game.gameId}-${game.roundNumber}"
 
           // Only update round display if this is a new round
           if !currentRoundId.contains(roundId) then
             currentRoundId = Some(roundId)
-            val isRoundEnd = status == GameStatusType.RoundEnd
-            updateRoundDisplay(roundNumber, currentRound, isRoundEnd)
+            val isRoundEnd = game.status == shared.GameStatus.RoundEnd
+            updateRoundDisplay(game.roundNumber, currentRound, isRoundEnd)
       
-      case _ => // Waiting or GameOver or Unknown - keep lobby visible
+      case _ => // Waiting or GameOver - keep lobby visible
   .recover:
     case ex => println(s"[ColorRush] Error parsing game update: ${ex.getMessage}")
 
-def updatePlayersList(playersObj: js.Dynamic): Unit =
+def updatePlayersList(players: Map[String, shared.PlayerState]): Unit =
   val playersListElem = getElementById("playersList")
   val gamePlayersElem = getElementById("gamePlayers")
   
   Try:
-    // Convert players object to dictionary and get values
-    val playersDict = playersObj.asInstanceOf[js.Dictionary[js.Dynamic]]
-    val playersArray = playersDict.values.toSeq
-      .sortBy(p => -getIntField(p, "score").getOrElse(0))
+    val playersArray = players.values.toSeq
+      .sortBy(-_.score)
     
     val playersHTML = playersArray.map: player =>
-      val name = getStringField(player, "name").getOrElse("Unknown")
-      val score = getIntField(player, "score").getOrElse(0)
-      val roundsWon = getIntField(player, "roundsWon").getOrElse(0)
       s"""
         <div class="player-card">
-          <span class="player-name">$name</span>
-          <span class="player-score">$score pts ($roundsWon wins)</span>
+          <span class="player-name">${player.name}</span>
+          <span class="player-score">${player.score} pts (${player.roundsWon} wins)</span>
         </div>
       """
     .mkString("")
@@ -185,23 +142,20 @@ def updatePlayersList(playersObj: js.Dynamic): Unit =
   .recover:
     case ex => println(s"[ColorRush] Error updating players list: ${ex.getMessage}")
 
-def updateRoundDisplay(roundNumber: Int, round: js.Dynamic, isRoundEnd: Boolean): Unit =
+def updateRoundDisplay(roundNumber: Int, round: shared.Round, isRoundEnd: Boolean): Unit =
   getElementById("roundNumber").foreach: elem =>
     elem.textContent = roundNumber.toString
   
-  getStringField(round, "targetColor").foreach: targetColor =>
-    getElementById("targetColor").foreach: elem =>
-      elem.style.backgroundColor = targetColor
+  getElementById("targetColor").foreach: elem =>
+    elem.style.backgroundColor = round.targetColor
   
   // Update color grid
   getElementById("colorGrid").foreach: grid =>
-    val colorOptions = round.colorOptions.asInstanceOf[js.Array[String]]
-    
     // Clear existing buttons
     grid.innerHTML = ""
     
     // Create buttons with proper event listeners
-    colorOptions.foreach: color =>
+    round.colorOptions.foreach: color =>
       val button = document.createElement("button").asInstanceOf[dom.HTMLButtonElement]
       button.className = "color-button"
       button.style.backgroundColor = color
@@ -214,7 +168,7 @@ def updateRoundDisplay(roundNumber: Int, round: js.Dynamic, isRoundEnd: Boolean)
 
 def startGame(): Unit =
   gameWebSocket.foreach: ws =>
-    sendMessage(ws, StartMessage)
+    sendMessage(ws, StartMessage())
 
 def clickColor(color: String): Unit =
   gameWebSocket.foreach: ws =>
@@ -235,15 +189,12 @@ def showRoundWinner(playerName: String, points: Int): Unit =
       announcement.classList.add("hidden")
       gameWebSocket.foreach: ws =>
         if ws.readyState == WebSocket.OPEN then
-          sendMessage(ws, NextRoundMessage)
+          sendMessage(ws, NextRoundMessage())
 
-def showGameWinner(winnerOpt: Option[js.Dynamic]): Unit =
+def showGameWinner(winnerOpt: Option[shared.PlayerState]): Unit =
   val message = winnerOpt match
     case Some(winner) =>
-      val name = getStringField(winner, "name").getOrElse("Unknown")
-      val score = getIntField(winner, "score").getOrElse(0)
-      val roundsWon = getIntField(winner, "roundsWon").getOrElse(0)
-      s"🎉 GAME OVER!\\n\\nWinner: $name\\nScore: $score points\\nRounds Won: $roundsWon"
+      s"🎉 GAME OVER!\\n\\nWinner: ${winner.name}\\nScore: ${winner.score} points\\nRounds Won: ${winner.roundsWon}"
     case None =>
       "Game Over!"
 
@@ -286,14 +237,5 @@ def getInputValue(id: String): Option[String] =
 def showAlert(message: String): Unit =
   window.alert(message)
 
-// Helper functions for safer JS value extraction
-def getIntField(obj: js.Dynamic, field: String): Option[Int] =
-  Try(obj.selectDynamic(field).toString.toInt).toOption
-
-def getStringField(obj: js.Dynamic, field: String): Option[String] =
-  Try(obj.selectDynamic(field).toString).toOption
-
-def isDefined(value: js.Dynamic): Boolean =
-  !js.isUndefined(value) && value != null
 
 
