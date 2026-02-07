@@ -2,9 +2,9 @@ name: Scala CI with Coverage
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "main" ]
 
 permissions:
   contents: write
@@ -13,7 +13,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Check out master and run tests
+      # Step 1: Check out main and run tests
       - uses: actions/checkout@v4
 
       - name: Set up JDK 21
@@ -37,16 +37,16 @@ jobs:
           COVERAGE=$(grep -oP '(?<=statement-rate=")[0-9.]+(?=")' target/scala-*/scoverage-report/scoverage.xml | head -1)
           echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
 
-      # Step 2: Overwrite gh-pages with master + coverage report
+      # Step 2: Overwrite gh-pages with main + coverage report
       - name: Deploy Coverage Report to GitHub Pages
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
 
-          # Copy README.md from master
+          # Copy README.md from main
           cp README.md temp_README.md
 
-          # Create a fresh gh-pages branch based on the latest master
+          # Create a fresh gh-pages branch based on the latest main
           git checkout --orphan gh-pages
           git reset --hard
 
