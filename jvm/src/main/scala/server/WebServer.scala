@@ -182,12 +182,12 @@ object WebServer extends MainRoutes:
               case "nextRound" =>
                 // Client confirms they've seen the winner announcement, advance to next round
                 val game = colorRushGames.get(gameId)
-                if game != null && game.status == "roundEnd" then
+                if game != null && game.status == shared.GameStatus.RoundEnd then
                   val nextGame = shared.ColorRush.advanceFromRoundEnd(game)
                   colorRushGames.put(gameId, nextGame)
                   logger.info(s"Game $gameId advancing from roundEnd to ${nextGame.status}")
                   
-                  if nextGame.status == "gameOver" then
+                  if nextGame.status == shared.GameStatus.GameOver then
                     val winner = shared.ColorRush.getWinner(nextGame)
                     broadcastGameEnd(gameId, winner)
                   

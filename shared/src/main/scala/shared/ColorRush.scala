@@ -4,12 +4,15 @@ import upickle.default.{ReadWriter, macroRW}
 
 // Color Rush - Fast-paced multiplayer color matching game
 
+enum GameStatus derives ReadWriter:
+  case Waiting, Playing, RoundEnd, GameOver
+
 case class ColorRushGame(
   gameId: String,
   players: Map[String, PlayerState],
   currentRound: Option[Round],
   roundNumber: Int,
-  status: String  // "waiting", "playing", "roundEnd", "gameOver"
+  status: GameStatus
 )
 
 object ColorRushGame:
@@ -42,7 +45,7 @@ object ColorRush:
   )
   
   def createGame(gameId: String): ColorRushGame =
-    ColorRushGame(gameId, Map.empty, None, 0, "waiting")
+    ColorRushGame(gameId, Map.empty, None, 0, GameStatus.Waiting)
 
   def addPlayer(game: ColorRushGame, playerId: String, playerName: String): ColorRushGame =
     val player = PlayerState(playerId, playerName, 0, 0)
@@ -62,7 +65,7 @@ object ColorRush:
     game.copy(
       currentRound = Some(round),
       roundNumber = game.roundNumber + 1,
-      status = "playing"
+      status = GameStatus.Playing
     )
 
   def handleColorClick(
@@ -88,7 +91,7 @@ object ColorRush:
           val updatedGame = updatedPlayer match
             case Some(p) => game.copy(
               players = game.players + (playerId -> p),
-              status = "roundEnd"
+              status = GameStatus.RoundEnd
             )
             case None => game
 
@@ -104,7 +107,7 @@ object ColorRush:
   
   def advanceFromRoundEnd(game: ColorRushGame): ColorRushGame =
     if shouldEndGame(game) then
-      game.copy(status = "gameOver")
+      game.copy(status = GameStatus.GameOver)
     else
       startNewRound(game)
 
