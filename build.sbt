@@ -28,6 +28,11 @@ lazy val cascade = crossProject(JSPlatform, JVMPlatform)
   .jsSettings(
     // Enable main module initializer so cascadeJS/run works and main.js is generated
     scalaJSUseMainModuleInitializer := true,
+    // Output compiled JS to JVM resources directory for conventional serving
+    Compile / fastLinkJS / scalaJSLinkerOutputDirectory := 
+      baseDirectory.value / ".." / "jvm" / "src" / "main" / "resources" / "static" / "js",
+    Compile / fullLinkJS / scalaJSLinkerOutputDirectory := 
+      baseDirectory.value / ".." / "jvm" / "src" / "main" / "resources" / "static" / "js",
     libraryDependencies ++= Seq(
       "org.scala-js" %%% "scalajs-dom" % "2.2.0"
     )
