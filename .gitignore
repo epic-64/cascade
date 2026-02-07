@@ -46,3 +46,5 @@ build/
 
 ### Scala ###
 .bsp/
+/jvm/src/main/resources/static/js/main.js
+/jvm/src/main/resources/static/js/main.js.map
