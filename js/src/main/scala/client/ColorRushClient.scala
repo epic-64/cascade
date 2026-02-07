@@ -174,7 +174,7 @@ def setupJoinForm(): Unit =
 
 def setupStartButton(): Unit =
   getElement("startButton").foreach: button =>
-    button.addEventListener("click", (_: Event) => startGame())
+    button.addEventListener("click", (e: Event) => startGame())
 
 def setupEnterKeyHandler(): Unit =
   document.addEventListener(
@@ -209,7 +209,7 @@ def connectToGame(gameId: String, playerName: String): Unit =
   val ws = new WebSocket(wsUrl)
   gameWebSocket = Some(ws)
 
-  ws.onopen = (_: Event) =>
+  ws.onopen = (e: Event) =>
     println(s"[ColorRush] Connected to game $gameId")
     sendMessage(ws, JoinMessage(playerName))
     updateLobbyUI()
@@ -218,7 +218,7 @@ def connectToGame(gameId: String, playerName: String): Unit =
 
   ws.onerror = (event: Event) => println(s"[ColorRush] WebSocket error")
 
-  ws.onclose = (_: CloseEvent) => println(s"[ColorRush] Disconnected from game")
+  ws.onclose = (e: CloseEvent) => println(s"[ColorRush] Disconnected from game")
 
 def sendMessage(ws: WebSocket, msg: ClientMessage): Unit =
   Try:
@@ -311,7 +311,7 @@ def updateRoundDisplay(roundNumber: Int, round: Round, isRoundEnd: Boolean): Uni
       button.style.backgroundColor = color
       button.disabled = isRoundEnd
 
-      if !isRoundEnd then button.addEventListener("click", (_: Event) => clickColor(color))
+      if !isRoundEnd then button.addEventListener("click", (e: Event) => clickColor(color))
 
       grid.appendChild(button)
 

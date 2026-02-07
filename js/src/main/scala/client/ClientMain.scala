@@ -21,13 +21,13 @@ import shared.{SharedGreeter, User}
       println("[client] Routing to Color Rush...")
       // Wait for DOM to be ready
       if document.readyState == "loading" then
-        document.addEventListener("DOMContentLoaded", (_: Event) => client.initializeGame())
+        document.addEventListener("DOMContentLoaded", (e: Event) => client.initializeGame())
       else client.initializeGame()
     case p if p.contains("counter.html") || p == "/counter" =>
       println("[client] Routing to Counter...")
       // Wait for DOM to be ready
       if document.readyState == "loading" then
-        document.addEventListener("DOMContentLoaded", (_: Event) => client.initializeCounter())
+        document.addEventListener("DOMContentLoaded", (e: Event) => client.initializeCounter())
       else client.initializeCounter()
     case _ =>
       println("[client] Landing page - no app initialization needed")
