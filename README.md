@@ -99,7 +99,7 @@ sbt "cascadeJS / fullLinkJS"
 
 **System:**
 - `GET /health` → Server health and statistics (JSON)
-  - Status, uptime, counter state, memory usage, system info
+  - Status, uptime, memory usage, system info
 
 ## Project Goals
 

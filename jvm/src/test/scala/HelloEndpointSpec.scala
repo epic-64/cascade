@@ -1,5 +1,5 @@
 import org.scalatest.funsuite.AnyFunSuite
-import server.WebServer
+import server.{WebServer, CounterHandler}
 import shared.{User, SharedGreeter}
 
 class HelloEndpointSpec extends AnyFunSuite:
@@ -10,13 +10,9 @@ class HelloEndpointSpec extends AnyFunSuite:
     val healthResponse = WebServer.health()
     assert(healthResponse("status").str == "healthy")
     assert(healthResponse.obj.contains("uptime"))
-    assert(healthResponse.obj.contains("counter"))
     assert(healthResponse.obj.contains("memory"))
     assert(healthResponse.obj.contains("system"))
     assert(healthResponse.obj.contains("timestamp"))
-    // Check counter stats
-    assert(healthResponse("counter")("value").num >= 0)
-    assert(healthResponse("counter")("connections").num >= 0)
 
   test("default server port is 8080 when PORT env missing"):
     assert(WebServer.port == 8080)
@@ -29,15 +25,15 @@ class HelloEndpointSpec extends AnyFunSuite:
     assert(WebServer.greet(7, "Bob") == "Hello, Bob! (#7)")
 
   test("counter starts at 0"):
-    assert(WebServer.getCounter() == 0)
+    assert(CounterHandler.getCounter() == 0)
 
   test("incrementCounter increases counter by 1"):
-    val before = WebServer.getCounter()
-    val after = WebServer.incrementCounter()
+    val before = CounterHandler.getCounter()
+    val after = CounterHandler.incrementCounter()
     assert(after == before + 1)
 
   test("decrementCounter decreases counter by 1"):
-    val before = WebServer.getCounter()
-    val after = WebServer.decrementCounter()
+    val before = CounterHandler.getCounter()
+    val after = CounterHandler.decrementCounter()
     assert(after == before - 1)
 

@@ -16,10 +16,6 @@ curl http://localhost:8080/health
     "seconds": 123456,
     "formatted": "34h 17m 36s"
   },
-  "counter": {
-    "value": 42,
-    "connections": 3
-  },
   "memory": {
     "total": 268435456,
     "free": 178435456,
@@ -42,9 +38,6 @@ curl http://localhost:8080/health
 - **seconds**: Time since server started (seconds)
 - **formatted**: Human-readable uptime (hours, minutes, seconds)
 
-### Counter
-- **value**: Current counter value
-- **connections**: Number of active WebSocket connections
 
 ### Memory
 - **total**: Total memory allocated to JVM (bytes)
@@ -69,9 +62,9 @@ watch -n 5 'curl -s http://localhost:8080/health | jq .'
 ```
 
 ### Debugging
-See current state and active connections:
+Check server uptime and system info:
 ```bash
-curl -s http://localhost:8080/health | jq '.counter'
+curl -s http://localhost:8080/health | jq '{status, uptime, system}'
 ```
 
 ### Alerting

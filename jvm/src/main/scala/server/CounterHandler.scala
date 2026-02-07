@@ -61,8 +61,4 @@ object CounterHandler:
       Try(channel.send(message)).recover:
         case ex => logger.warn(s"Failed to send WebSocket message to client: ${ex.getMessage}")
 
-  // Expose state for health endpoint
-  def getConnectionCount: Int = wsConnections.size
-  def getCounterForHealth: java.util.concurrent.atomic.AtomicInteger = counter
-  def getWebSocketConnections: java.util.concurrent.ConcurrentHashMap.KeySetView[cask.WsChannelActor, java.lang.Boolean] = wsConnections
 

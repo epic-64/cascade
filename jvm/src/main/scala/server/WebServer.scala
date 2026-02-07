@@ -27,7 +27,7 @@ object WebServer extends MainRoutes:
 
   @cask.get("/health")
   def health(): ujson.Value =
-    HealthEndpoint.health(startTime, CounterHandler.getCounterForHealth, CounterHandler.getWebSocketConnections)
+    HealthEndpoint.health(startTime)
 
   @cask.get("/api/counter")
   def getCounter(): Int = CounterHandler.getCounter()
