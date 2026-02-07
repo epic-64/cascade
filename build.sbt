@@ -34,6 +34,8 @@ lazy val cascade = crossProject(JSPlatform, JVMPlatform)
       baseDirectory.value / ".." / "jvm" / "src" / "main" / "resources" / "static" / "js",
     Compile / fullLinkJS / scalaJSLinkerOutputDirectory :=
       baseDirectory.value / ".." / "jvm" / "src" / "main" / "resources" / "static" / "js",
+    Compile / fullOptJS / scalaJSLinkerOutputDirectory :=
+      baseDirectory.value / ".." / "jvm" / "src" / "main" / "resources" / "static" / "js",
     libraryDependencies ++= Seq(
       "org.scala-js" %%% "scalajs-dom" % "2.2.0"
     )
