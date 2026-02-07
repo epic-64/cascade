@@ -11,6 +11,9 @@ lazy val cascade = crossProject(JSPlatform, JVMPlatform)
   .settings(
     name    := "cascade",
     version := "0.1-SNAPSHOT",
+    libraryDependencies ++= Seq(
+      "com.lihaoyi" %%% "upickle" % "4.0.2"
+    )
   )
   .jvmSettings(
     Compile / mainClass := Some("server.WebServer"),
