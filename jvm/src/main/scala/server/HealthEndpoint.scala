@@ -1,11 +1,7 @@
 package server
 
 object HealthEndpoint:
-  def health(
-    startTime: Long,
-    counter: java.util.concurrent.atomic.AtomicInteger,
-    wsConnections: java.util.concurrent.ConcurrentHashMap.KeySetView[cask.WsChannelActor, java.lang.Boolean]
-  ): ujson.Value =
+  def health(startTime: Long): ujson.Value =
     val runtime = Runtime.getRuntime
     val uptimeMs = System.currentTimeMillis() - startTime
     val uptimeSeconds = uptimeMs / 1000
@@ -18,10 +14,6 @@ object HealthEndpoint:
         "milliseconds" -> uptimeMs,
         "seconds" -> uptimeSeconds,
         "formatted" -> f"${uptimeHours}h ${uptimeMinutes % 60}m ${uptimeSeconds % 60}s"
-      ),
-      "counter" -> ujson.Obj(
-        "value" -> counter.get(),
-        "connections" -> wsConnections.size()
       ),
       "memory" -> ujson.Obj(
         "total" -> runtime.totalMemory(),
