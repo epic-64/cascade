@@ -18,7 +18,6 @@ object WebServer extends MainRoutes:
   // Server start time for uptime calculation
   private val startTime = System.currentTimeMillis()
 
-
   // Scheduled executor for periodic cleanup tasks
   private val cleanupScheduler = java.util.concurrent.Executors.newScheduledThreadPool(1)
 
@@ -45,7 +44,6 @@ object WebServer extends MainRoutes:
   @cask.websocket("/ws/color-rush/:gameId")
   def colorRushWebSocket(gameId: String): cask.WebsocketResult =
     ColorRushHandler.handleWebSocket(gameId)
-
 
   // Start periodic cleanup task
   private def startCleanupTask(): Unit =
@@ -107,7 +105,7 @@ object WebServer extends MainRoutes:
     )
 
   @cask.get("/counter")
-  def counterPage(): cask.Response[java.io.InputStream] = 
+  def counterPage(): cask.Response[java.io.InputStream] =
     cask.Response(
       data = getClass.getClassLoader.getResourceAsStream("static/counter.html"),
       statusCode = 200,
@@ -122,19 +120,18 @@ object WebServer extends MainRoutes:
       headers = Seq("Content-Type" -> "text/html")
     )
 
-
   // Serve static files (HTML, CSS, JS) from src/main/resources
   // Cask automatically handles content types, ETag, Last-Modified, and 304 Not Modified
   @cask.staticResources("/static", headers = Seq("Cache-Control" -> s"public, max-age=${Config.cacheDuration}"))
   def staticResourceRoutes() = "static"
 
-
-
-  override def port: Int = Config.port
+  override def port: Int    = Config.port
+  override def host: String = "0.0.0.0"
 
   // Log startup configuration
   logger.info("=" * 60)
   logger.info("Starting Cascade Server")
+  logger.info(s"Host: 0.0.0.0")
   logger.info(s"Port: ${Config.port}")
   logger.info(s"Static files directory: ${Config.staticFilesDir}")
   logger.info(s"Cache duration: ${Config.cacheDuration}s")
