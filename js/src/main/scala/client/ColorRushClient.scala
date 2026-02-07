@@ -102,7 +102,7 @@ def handleWebSocketMessage(data: String): Unit =
 
 def parseGameUpdate(game: shared.ColorRushGame): Unit =
   Try:
-    // Update players list
+    // Update players list for all game statuses
     updatePlayersList(game.players)
 
     // Show game area if playing or round end
