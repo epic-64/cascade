@@ -28,7 +28,7 @@
     <!-- Application logger -->
     <logger name="server" level="DEBUG" />
     <logger name="client" level="DEBUG" />
-    
+
     <!-- Suppress verbose third-party logs -->
     <logger name="io.undertow" level="WARN" />
     <logger name="org.eclipse.jetty" level="WARN" />
