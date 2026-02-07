@@ -16,9 +16,23 @@ import scala.util.{Try, Success, Failure}
   val msg    = SharedGreeter.greet(sample)
   println(s"[client] $msg")
 
-  // Build the counter UI and connect to WebSocket
-  buildCounterUI()
-  connectWebSocket()
+  // Determine which app to initialize based on the current page
+  val pathname = dom.window.location.pathname
+  println(s"[client] Current page: $pathname")
+  
+  pathname match
+    case "/game.html" | "/game" =>
+      println("[client] Initializing Color Rush game...")
+      // Wait for DOM to be ready
+      if document.readyState == "loading" then
+        document.addEventListener("DOMContentLoaded", (_: Event) => client.initializeGame())
+      else
+        client.initializeGame()
+    case _ =>
+      println("[client] Initializing Counter app...")
+      // Build the counter UI and connect to WebSocket
+      buildCounterUI()
+      connectWebSocket()
 
 def buildCounterUI(): Unit =
   val container = document.createElement("div")
