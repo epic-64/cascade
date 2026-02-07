@@ -9,13 +9,13 @@ import org.slf4j.LoggerFactory
 
 // Configuration object - can be overridden via environment variables
 object Config:
-  val port: Int = sys.env.get("PORT").flatMap(_.toIntOption).getOrElse(8080)
+  val port: Int              = sys.env.get("PORT").flatMap(_.toIntOption).getOrElse(8080)
   val staticFilesDir: String = sys.env.getOrElse("STATIC_FILES_DIR", ".")
-  val cacheDuration: Int = sys.env.get("CACHE_MAX_AGE").flatMap(_.toIntOption).getOrElse(3600)
-  val isProd: Boolean = sys.env.get("ENVIRONMENT").contains("production")
+  val cacheDuration: Int     = sys.env.get("CACHE_MAX_AGE").flatMap(_.toIntOption).getOrElse(3600)
+  val isProd: Boolean        = sys.env.get("ENVIRONMENT").contains("production")
 
 object WebServer extends MainRoutes:
-  private val logger = LoggerFactory.getLogger(getClass)
+  private val logger    = LoggerFactory.getLogger(getClass)
   // Server start time for uptime calculation
   private val startTime = System.currentTimeMillis()
 
@@ -27,9 +27,10 @@ object WebServer extends MainRoutes:
   private val wsConnections = java.util.concurrent.ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
 
   // Color Rush game state management
-  private val colorRushGames = java.util.concurrent.ConcurrentHashMap[String, shared.ColorRushGame]()
+  private val colorRushGames  = java.util.concurrent.ConcurrentHashMap[String, shared.ColorRushGame]()
   private val gameConnections = java.util.concurrent.ConcurrentHashMap[String, java.util.Set[cask.WsChannelActor]]()
-  private val playerToGame = java.util.concurrent.ConcurrentHashMap[cask.WsChannelActor, (String, String)]() // (gameId, playerId)
+  private val playerToGame    =
+    java.util.concurrent.ConcurrentHashMap[cask.WsChannelActor, (String, String)]() // (gameId, playerId)
 
   // Scheduled executor for periodic cleanup tasks
   private val cleanupScheduler = java.util.concurrent.Executors.newScheduledThreadPool(1)
@@ -94,8 +95,9 @@ object WebServer extends MainRoutes:
       colorRushGames.computeIfAbsent(gameId, _ => shared.ColorRush.createGame(gameId))
 
       // Add channel to game connections
-      val connections = gameConnections.computeIfAbsent(gameId, _ =>
-        java.util.concurrent.ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
+      val connections = gameConnections.computeIfAbsent(
+        gameId,
+        _ => java.util.concurrent.ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
       )
       connections.add(channel)
 
@@ -114,7 +116,7 @@ object WebServer extends MainRoutes:
 
                 playerToGame.put(channel, (gameId, playerId))
 
-                val game = colorRushGames.get(gameId)
+                val game        = colorRushGames.get(gameId)
                 val updatedGame = shared.ColorRush.addPlayer(game, playerId, playerName)
                 colorRushGames.put(gameId, updatedGame)
 
@@ -134,7 +136,7 @@ object WebServer extends MainRoutes:
               case shared.ClickMessage(color, clickTime) =>
                 playerToGame.get(channel) match
                   case (gId, pId) if gId == gameId =>
-                    val game = colorRushGames.get(gameId)
+                    val game                  = colorRushGames.get(gameId)
                     val (updatedGame, winner) = shared.ColorRush.handleColorClick(game, pId, color, clickTime)
                     colorRushGames.put(gameId, updatedGame)
 
@@ -177,11 +179,11 @@ object WebServer extends MainRoutes:
 
     val game = colorRushGames.get(gameId)
     if game != null then
-      val message = shared.GameUpdateMessage(game)
+      val message     = shared.GameUpdateMessage(game)
       val messageJson = write(message)
 
       gameConnections.get(gameId) match
-        case null =>
+        case null        =>
         case connections =>
           connections.asScala.foreach: channel =>
             Try(channel.send(cask.Ws.Text(messageJson))).recover:
@@ -191,11 +193,11 @@ object WebServer extends MainRoutes:
     import scala.jdk.CollectionConverters.*
     import upickle.default.*
 
-    val message = shared.RoundWinnerMessage(playerName, points)
+    val message     = shared.RoundWinnerMessage(playerName, points)
     val messageJson = write(message)
 
     gameConnections.get(gameId) match
-      case null =>
+      case null        =>
       case connections =>
         connections.asScala.foreach: channel =>
           Try(channel.send(cask.Ws.Text(messageJson))).recover:
@@ -205,20 +207,20 @@ object WebServer extends MainRoutes:
     import scala.jdk.CollectionConverters.*
     import upickle.default.*
 
-    val message = shared.GameEndMessage(winner)
+    val message     = shared.GameEndMessage(winner)
     val messageJson = write(message)
 
     gameConnections.get(gameId) match
-      case null =>
+      case null        =>
       case connections =>
         connections.asScala.foreach: channel =>
           Try(channel.send(cask.Ws.Text(messageJson))).recover:
             case ex => logger.warn(s"Failed to broadcast game end: ${ex.getMessage}")
 
   private def handlePlayerDisconnect(
-    channel: cask.WsChannelActor,
-    gameId: String,
-    connections: java.util.Set[cask.WsChannelActor]
+      channel: cask.WsChannelActor,
+      gameId: String,
+      connections: java.util.Set[cask.WsChannelActor]
   ): Unit =
     connections.remove(channel)
 
@@ -233,9 +235,8 @@ object WebServer extends MainRoutes:
           broadcastGameState(gameId)
 
           // Clean up game if it's GameOver and has no more connections
-          if updatedGame.status == shared.GameStatus.GameOver && connections.isEmpty then
-            cleanupGame(gameId)
-      case _ =>
+          if updatedGame.status == shared.GameStatus.GameOver && connections.isEmpty then cleanupGame(gameId)
+      case _                           =>
 
     logger.info(s"Connection closed for game $gameId. Remaining players: ${connections.size()}")
 
@@ -249,22 +250,23 @@ object WebServer extends MainRoutes:
     playerToGame.asScala.foreach:
       case (channel, (gId, _)) if gId == gameId =>
         playerToGame.remove(channel)
-      case _ =>
+      case _                                    =>
 
     logger.info(s"Cleaned up game $gameId")
 
   private[server] def cleanupEmptyGames(): Int =
     import scala.jdk.CollectionConverters.*
 
-    val gamesToCleanup = gameConnections.asScala.filter:
-      case (gameId, connections) => connections.isEmpty
-    .keys.toList
+    val gamesToCleanup = gameConnections.asScala
+      .filter:
+        case (gameId, connections) => connections.isEmpty
+      .keys
+      .toList
 
     gamesToCleanup.foreach: gameId =>
       cleanupGame(gameId)
 
-    if gamesToCleanup.nonEmpty then
-      logger.info(s"Periodic cleanup: removed ${gamesToCleanup.size} empty game(s)")
+    if gamesToCleanup.nonEmpty then logger.info(s"Periodic cleanup: removed ${gamesToCleanup.size} empty game(s)")
 
     gamesToCleanup.size
 
@@ -277,8 +279,9 @@ object WebServer extends MainRoutes:
 
   private[server] def createTestGame(gameId: String, game: shared.ColorRushGame): Unit =
     colorRushGames.put(gameId, game)
-    gameConnections.computeIfAbsent(gameId, _ =>
-      java.util.concurrent.ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
+    gameConnections.computeIfAbsent(
+      gameId,
+      _ => java.util.concurrent.ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
     )
 
   // Start periodic cleanup task
@@ -365,8 +368,7 @@ object WebServer extends MainRoutes:
   // Serve additional CSS files if needed
   @cask.get("/css/:filename")
   def serveCssFile(filename: String, request: cask.Request): Response[Array[Byte]] =
-    if filename.endsWith(".css") then
-      serveStaticFile(request, s"css/$filename", "text/css")
+    if filename.endsWith(".css") then serveStaticFile(request, s"css/$filename", "text/css")
     else
       cask.Response(
         data = s"Invalid CSS filename: $filename".getBytes,
@@ -392,8 +394,8 @@ object WebServer extends MainRoutes:
     filePath match
       case Some(path) =>
         val lastModified = Files.getLastModifiedTime(path).toMillis
-        val fileSize = Files.size(path)
-        val etag = s""""${lastModified}-${fileSize}""""
+        val fileSize     = Files.size(path)
+        val etag         = s""""${lastModified}-${fileSize}""""
 
         // Check if client has cached version (ETag validation)
         val clientETag = request.headers.get("if-none-match")
@@ -403,7 +405,7 @@ object WebServer extends MainRoutes:
             data = Array.empty[Byte],
             statusCode = 304,
             headers = Seq(
-              "ETag" -> etag,
+              "ETag"          -> etag,
               "Cache-Control" -> s"public, max-age=${Config.cacheDuration}"
             )
           )
@@ -413,14 +415,15 @@ object WebServer extends MainRoutes:
           cask.Response(
             data = content,
             headers = Seq(
-              "Content-Type" -> contentType,
+              "Content-Type"  -> contentType,
               "Cache-Control" -> s"public, max-age=${Config.cacheDuration}",
-              "ETag" -> etag,
+              "ETag"          -> etag,
               "Last-Modified" -> formatHttpDate(lastModified)
             )
           )
-      case None =>
-        val msg = s"$filename not found. Searched in:\n${possiblePaths.map(p => s"  - ${p.toAbsolutePath}").mkString("\n")}"
+      case None       =>
+        val msg =
+          s"$filename not found. Searched in:\n${possiblePaths.map(p => s"  - ${p.toAbsolutePath}").mkString("\n")}"
         logger.error(msg)
         cask.Response(
           data = msg.getBytes,
