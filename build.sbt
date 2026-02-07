@@ -1,5 +1,5 @@
 ThisBuild / version      := "0.1.0-SNAPSHOT"
-ThisBuild / scalaVersion := "3.7.4"
+ThisBuild / scalaVersion := "3.5.2"
 
 coverageEnabled      := sys.env.get("ENABLE_COVERAGE").contains("true")
 executableScriptName := "main" // required by nixpacks
@@ -29,9 +29,9 @@ lazy val cascade = crossProject(JSPlatform, JVMPlatform)
     // Enable main module initializer so cascadeJS/run works and main.js is generated
     scalaJSUseMainModuleInitializer := true,
     // Output compiled JS to JVM resources directory for conventional serving
-    Compile / fastLinkJS / scalaJSLinkerOutputDirectory := 
+    Compile / fastLinkJS / scalaJSLinkerOutputDirectory :=
       baseDirectory.value / ".." / "jvm" / "src" / "main" / "resources" / "static" / "js",
-    Compile / fullLinkJS / scalaJSLinkerOutputDirectory := 
+    Compile / fullLinkJS / scalaJSLinkerOutputDirectory :=
       baseDirectory.value / ".." / "jvm" / "src" / "main" / "resources" / "static" / "js",
     libraryDependencies ++= Seq(
       "org.scala-js" %%% "scalajs-dom" % "2.2.0"
