@@ -30,6 +30,9 @@ object WebServer extends MainRoutes:
   private val colorRushGames = java.util.concurrent.ConcurrentHashMap[String, shared.ColorRushGame]()
   private val gameConnections = java.util.concurrent.ConcurrentHashMap[String, java.util.Set[cask.WsChannelActor]]()
   private val playerToGame = java.util.concurrent.ConcurrentHashMap[cask.WsChannelActor, (String, String)]() // (gameId, playerId)
+  
+  // Scheduled executor for periodic cleanup tasks
+  private val cleanupScheduler = java.util.concurrent.Executors.newScheduledThreadPool(1)
 
   @cask.get("/hello")
   def hello(): String = "Hello, World!"
@@ -277,9 +280,57 @@ object WebServer extends MainRoutes:
           colorRushGames.put(gameId, updatedGame)
           logger.info(s"Player $pId disconnected from game $gameId")
           broadcastGameState(gameId)
+          
+          // Clean up game if it's GameOver and has no more connections
+          if updatedGame.status == shared.GameStatus.GameOver && connections.isEmpty then
+            cleanupGame(gameId)
       case _ =>
     
     logger.info(s"Connection closed for game $gameId. Remaining players: ${connections.size()}")
+  
+  private def cleanupGame(gameId: String): Unit =
+    import scala.jdk.CollectionConverters.*
+    
+    colorRushGames.remove(gameId)
+    gameConnections.remove(gameId)
+    
+    // Remove all player-to-game mappings for this game
+    playerToGame.asScala.foreach:
+      case (channel, (gId, _)) if gId == gameId =>
+        playerToGame.remove(channel)
+      case _ =>
+    
+    logger.info(s"Cleaned up game $gameId")
+  
+  private def cleanupEmptyGames(): Unit =
+    import scala.jdk.CollectionConverters.*
+    
+    val gamesToCleanup = gameConnections.asScala.filter:
+      case (gameId, connections) => connections.isEmpty
+    .keys.toList
+    
+    gamesToCleanup.foreach: gameId =>
+      cleanupGame(gameId)
+    
+    if gamesToCleanup.nonEmpty then
+      logger.info(s"Periodic cleanup: removed ${gamesToCleanup.size} empty game(s)")
+  
+  // Start periodic cleanup task
+  private def startCleanupTask(): Unit =
+    val cleanupTask = new Runnable:
+      def run(): Unit =
+        Try(cleanupEmptyGames()).recover:
+          case ex => logger.error(s"Error during periodic cleanup: ${ex.getMessage}", ex)
+    
+    // Run cleanup every 5 minutes
+    cleanupScheduler.scheduleAtFixedRate(
+      cleanupTask,
+      5, // initial delay in minutes
+      5, // period in minutes
+      java.util.concurrent.TimeUnit.MINUTES
+    )
+    
+    logger.info("Started periodic game cleanup task (runs every 5 minutes)")
 
   @cask.get("/user/:userName")
   def getUserProfile(userName: String) = s"User $userName"
@@ -428,4 +479,5 @@ object WebServer extends MainRoutes:
   logger.info(s"Environment: ${if Config.isProd then "production" else "development"}")
   logger.info("=" * 60)
 
+  startCleanupTask()
   initialize()
