@@ -1,6 +1,6 @@
 package shared
 
-import upickle.default.{ReadWriter, macroRW}
+import upickle.default.ReadWriter
 
 // Color Rush - Fast-paced multiplayer color matching game
 
@@ -13,29 +13,20 @@ case class ColorRushGame(
   currentRound: Option[Round],
   roundNumber: Int,
   status: GameStatus
-)
-
-object ColorRushGame:
-  implicit val rw: ReadWriter[ColorRushGame] = macroRW
+) derives ReadWriter
 
 case class PlayerState(
   playerId: String,
   name: String,
   score: Int,
   roundsWon: Int
-)
-
-object PlayerState:
-  implicit val rw: ReadWriter[PlayerState] = macroRW
+) derives ReadWriter
 
 case class Round(
   targetColor: String,      // Hex color code
   colorOptions: Vector[String], // 6 color options in a grid
   startTime: Long
-)
-
-object Round:
-  implicit val rw: ReadWriter[Round] = macroRW
+) derives ReadWriter
 
 object ColorRush:
   val colors = Vector(
