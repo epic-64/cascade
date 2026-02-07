@@ -1,8 +1,6 @@
 ThisBuild / version      := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "3.7.4"
 
-executableScriptName.withRank(KeyRanks.Invisible) := "main" // required by nixpacks
-
 coverageEnabled := sys.env.get("ENABLE_COVERAGE").contains("true")
 
 val caskVersion = "0.11.3"
@@ -18,6 +16,7 @@ lazy val cascade = crossProject(JSPlatform, JVMPlatform)
   )
   .jvmSettings(
     Compile / mainClass := Some("server.WebServer"),
+    executableScriptName := "main",
     libraryDependencies ++= Seq(
       "com.lihaoyi"       %% "cask"            % caskVersion,
       "ch.qos.logback"     % "logback-classic" % "1.5.28",
@@ -26,6 +25,7 @@ lazy val cascade = crossProject(JSPlatform, JVMPlatform)
       "org.scalamock"     %% "scalamock"       % "7.5.5"    % Test,
     )
   )
+  .jvmEnablePlugins(JavaAppPackaging)
   .jsSettings(
     // Enable main module initializer so cascadeJS/run works and main.js is generated
     scalaJSUseMainModuleInitializer                     := true,
