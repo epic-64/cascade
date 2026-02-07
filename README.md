@@ -77,11 +77,14 @@ sbt "cascadeJS / fullLinkJS"
 
 ## Endpoints
 
+**Landing Page:**
+- `GET /` → Landing page with overview of available apps
+
 **Counter Demo:**
-- `GET /` → Counter app (HTML client)
-- `GET /counter` → Get counter value
-- `POST /counter/increment` → Increment counter
-- `POST /counter/decrement` → Decrement counter
+- `GET /counter` → Counter app (HTML client)
+- `GET /api/counter` → Get counter value (JSON)
+- `POST /api/counter/increment` → Increment counter
+- `POST /api/counter/decrement` → Decrement counter
 - `WS /ws/counter` → WebSocket for real-time updates
 
 **Color Rush Game:**
@@ -91,7 +94,7 @@ sbt "cascadeJS / fullLinkJS"
 **Static Assets:**
 - `GET /static/*` → Static files (HTML, CSS, JS)
   - `/static/js/main.js` → Compiled Scala.js (includes both apps)
-  - `/static/index.html`, `/static/color-rush.html` → HTML files
+  - `/static/index.html`, `/static/counter.html`, `/static/color-rush.html` → HTML files
   - `/static/styles.css`, `/static/color-rush.css` → Stylesheets
 
 **System:**

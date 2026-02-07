@@ -36,16 +36,16 @@ object WebServer extends MainRoutes:
   def health(): ujson.Value =
     HealthEndpoint.health(startTime, counter, wsConnections)
 
-  @cask.get("/counter")
+  @cask.get("/api/counter")
   def getCounter(): Int = counter.get()
 
-  @cask.post("/counter/increment")
+  @cask.post("/api/counter/increment")
   def incrementCounter(): Int =
     val newValue = counter.incrementAndGet()
     broadcastCounter()
     newValue
 
-  @cask.post("/counter/decrement")
+  @cask.post("/api/counter/decrement")
   def decrementCounter(): Int =
     val newValue = counter.decrementAndGet()
     broadcastCounter()
@@ -139,15 +139,23 @@ object WebServer extends MainRoutes:
 
   // Serve HTML pages directly at clean URLs
   @cask.get("/")
-  def index(): cask.Response[java.io.InputStream] = 
+  def index(): cask.Response[java.io.InputStream] =
     cask.Response(
       data = getClass.getClassLoader.getResourceAsStream("static/index.html"),
       statusCode = 200,
       headers = Seq("Content-Type" -> "text/html")
     )
 
+  @cask.get("/counter")
+  def counterPage(): cask.Response[java.io.InputStream] = 
+    cask.Response(
+      data = getClass.getClassLoader.getResourceAsStream("static/counter.html"),
+      statusCode = 200,
+      headers = Seq("Content-Type" -> "text/html")
+    )
+
   @cask.get("/color-rush")
-  def colorRush(): cask.Response[java.io.InputStream] = 
+  def colorRush(): cask.Response[java.io.InputStream] =
     cask.Response(
       data = getClass.getClassLoader.getResourceAsStream("static/color-rush.html"),
       statusCode = 200,

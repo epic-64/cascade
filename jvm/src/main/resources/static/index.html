@@ -2,14 +2,104 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Cascade Client</title>
+    <title>Cascade - Multiplayer & Real-time Apps</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="/static/styles.css" />
+    <style>
+      .app-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-top: 2rem;
+      }
+      .app-card {
+        background: rgba(24, 24, 27, 0.6);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(63, 63, 70, 0.4);
+        padding: 2rem;
+        border-radius: 16px;
+        transition: all 0.2s;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+      }
+      .app-card:hover {
+        border-color: #818cf8;
+        transform: translateY(-4px);
+        box-shadow: 0 12px 40px rgba(129, 140, 248, 0.2);
+      }
+      .app-card h2 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .app-card p {
+        color: #a1a1aa;
+        line-height: 1.6;
+        margin-bottom: 0.5rem;
+      }
+      .app-card .features {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(63, 63, 70, 0.4);
+      }
+      .app-card .features li {
+        color: #d4d4d8;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+      }
+      .hero {
+        text-align: center;
+        margin-bottom: 3rem;
+      }
+      .hero h1 {
+        font-size: 3rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .hero p {
+        color: #a1a1aa;
+        font-size: 1.1rem;
+      }
+    </style>
   </head>
   <body>
-    <h1>Cascade JS Client</h1>
-    <p>Counter app demonstrating Scala.js client interacting with Cask server. Click the buttons to increment or decrement the counter.</p>
-    <div id="app-log"></div>
+    <div class="container">
+      <div class="hero">
+        <h1>Cascade</h1>
+        <p>Real-time multiplayer apps built with Scala 3, Cask & ScalaJS</p>
+      </div>
+
+      <div class="app-grid">
+        <a href="/color-rush" class="app-card">
+          <h2>🎨 Color Rush</h2>
+          <p>A fast-paced multiplayer color matching game. Be the first to click the matching color!</p>
+          <ul class="features">
+            <li>Real-time multiplayer gameplay</li>
+            <li>WebSocket synchronization</li>
+            <li>First to 10 points wins</li>
+          </ul>
+        </a>
+
+        <a href="/counter" class="app-card">
+          <h2>🔢 Counter Demo</h2>
+          <p>A simple real-time counter demonstrating client-server synchronization.</p>
+          <ul class="features">
+            <li>WebSocket live updates</li>
+            <li>Multi-client synchronization</li>
+            <li>REST API interactions</li>
+          </ul>
+        </a>
+      </div>
+    </div>
 
     <!-- Scala.js compiled output -->
     <script src="/static/js/main.js"></script>

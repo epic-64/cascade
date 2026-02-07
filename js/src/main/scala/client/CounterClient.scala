@@ -71,7 +71,7 @@ def connectWebSocket(): Unit =
 
 def modifyCounter(action: String): Unit =
   // Use relative URL - will use same origin as the page
-  val url  = s"/counter/$action"
+  val url  = s"/api/counter/$action"
   val init = js.Dynamic
     .literal(
       method = "POST"
