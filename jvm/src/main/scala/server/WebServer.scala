@@ -154,22 +154,6 @@ object WebServer extends MainRoutes:
       headers = Seq("Content-Type" -> "text/html")
     )
 
-  // Serve CSS files at root
-  @cask.get("/styles.css")
-  def stylesCSS(): cask.Response[java.io.InputStream] =
-    cask.Response(
-      data = getClass.getClassLoader.getResourceAsStream("static/styles.css"),
-      statusCode = 200,
-      headers = Seq("Content-Type" -> "text/css", "Cache-Control" -> s"public, max-age=${Config.cacheDuration}")
-    )
-
-  @cask.get("/game.css")
-  def gameCSS(): cask.Response[java.io.InputStream] =
-    cask.Response(
-      data = getClass.getClassLoader.getResourceAsStream("static/game.css"),
-      statusCode = 200,
-      headers = Seq("Content-Type" -> "text/css", "Cache-Control" -> s"public, max-age=${Config.cacheDuration}")
-    )
 
   // Serve static files (HTML, CSS, JS) from src/main/resources
   // Cask automatically handles content types, ETag, Last-Modified, and 304 Not Modified
