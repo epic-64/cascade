@@ -13,44 +13,50 @@
         margin-top: 2rem;
       }
       .app-card {
-        background: rgba(24, 24, 27, 0.6);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(63, 63, 70, 0.4);
+        background: rgba(17, 17, 23, 0.92);
+        /* darker, more opaque background for stronger contrast */
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(129, 140, 248, 0.35);
+        /* slightly brighter border for definition */
         padding: 2rem;
         border-radius: 16px;
-        transition: all 0.2s;
+        transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
         text-decoration: none;
-        color: inherit;
+        color: #e5e7eb;
+        /* default text color to light gray for readability */
         display: block;
       }
-      .app-card:hover {
-        border-color: #818cf8;
+      .app-card:hover,
+      .app-card:focus-visible {
+        border-color: #a5b4fc;
         transform: translateY(-4px);
-        box-shadow: 0 12px 40px rgba(129, 140, 248, 0.2);
+        box-shadow: 0 16px 48px rgba(165, 180, 252, 0.25);
+        outline: none;
       }
       .app-card h2 {
         font-size: 1.5rem;
-        font-weight: 600;
+        font-weight: 700;
         margin-bottom: 1rem;
-        background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+        background: linear-gradient(135deg, #a5b4fc 0%, #c084fc 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
       }
       .app-card p {
-        color: #a1a1aa;
-        line-height: 1.6;
+        color: #f3f4f6;
+        /* near-white for body text */
+        line-height: 1.7;
         margin-bottom: 0.5rem;
       }
       .app-card .features {
         margin-top: 1rem;
         padding-top: 1rem;
-        border-top: 1px solid rgba(63, 63, 70, 0.4);
+        border-top: 1px solid rgba(99, 102, 241, 0.35);
       }
       .app-card .features li {
-        color: #d4d4d8;
+        color: #e5e7eb;
         margin-bottom: 0.5rem;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
       }
       .hero {
         text-align: center;
@@ -58,16 +64,40 @@
       }
       .hero h1 {
         font-size: 3rem;
-        font-weight: 700;
+        font-weight: 800;
         margin-bottom: 1rem;
-        background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+        background: linear-gradient(135deg, #a5b4fc 0%, #c084fc 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
       }
       .hero p {
-        color: #a1a1aa;
+        color: #e5e7eb;
         font-size: 1.1rem;
+      }
+
+      /* Improve overall page contrast without assuming external CSS */
+      body {
+        background-color: #0b0b12;
+        color: #e5e7eb;
+      }
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 2rem;
+      }
+
+      /* Respect user contrast preferences */
+      @media (prefers-contrast: more) {
+        .app-card {
+          background: #0f0f16;
+          border-color: #c7d2fe;
+        }
+        .app-card p,
+        .app-card .features li,
+        .hero p {
+          color: #ffffff;
+        }
       }
     </style>
   </head>
