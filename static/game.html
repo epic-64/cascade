@@ -308,9 +308,11 @@
       <!-- Lobby -->
       <div id="lobby" class="lobby">
         <h2>Join Game</h2>
-        <input type="text" id="gameId" placeholder="Game ID (e.g., game123)" value="game1" />
-        <input type="text" id="playerName" placeholder="Your Name" />
-        <button onclick="joinGame()">Join Game</button>
+        <form id="joinForm" onsubmit="event.preventDefault(); joinGame();">
+          <input type="text" id="gameId" placeholder="Game ID (e.g., game123)" value="game1" />
+          <input type="text" id="playerName" placeholder="Your Name" />
+          <button type="submit">Join Game</button>
+        </form>
 
         <div id="waitingArea" class="hidden">
           <h3>Players in Lobby:</h3>
@@ -345,6 +347,20 @@
       let currentPlayerId = null;
       let currentRoundId = null;
 
+      // Add global Enter key handler
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          const waitingArea = document.getElementById('waitingArea');
+          const lobby = document.getElementById('lobby');
+
+          // If waiting area is visible and lobby is visible, start the game
+          if (!waitingArea.classList.contains('hidden') && !lobby.classList.contains('hidden')) {
+            event.preventDefault();
+            startGame();
+          }
+        }
+      });
+
       function joinGame() {
         gameId = document.getElementById('gameId').value;
         const playerName = document.getElementById('playerName').value;
@@ -375,7 +391,7 @@
         document.getElementById('lobby').querySelector('h2').textContent = 'Waiting for players...';
         document.getElementById('gameId').disabled = true;
         document.getElementById('playerName').disabled = true;
-        document.querySelector('.lobby button').style.display = 'none';
+        document.getElementById('joinForm').style.display = 'none';
         document.getElementById('waitingArea').classList.remove('hidden');
       }
 
