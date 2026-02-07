@@ -160,9 +160,6 @@ object WebServer extends MainRoutes:
                   logger.info(s"Game $gameId started - Round ${gameWithRound.roundNumber}")
                   broadcastGameState(gameId)
                   
-                  // Schedule next round after 5 seconds
-                  scheduleNextRound(gameId, 5000)
-                  
               case "click" =>
                 val color = json("color").str
                 val clickTime = json("time").num.toLong
@@ -182,8 +179,9 @@ object WebServer extends MainRoutes:
                         val finalWinner = shared.ColorRush.getWinner(updatedGame)
                         broadcastGameEnd(gameId, finalWinner)
                       else
-                        // Start next round after 3 seconds
-                        scheduleNextRound(gameId, 3000)
+                        // Start next round immediately
+                        val gameWithNextRound = shared.ColorRush.startNewRound(updatedGame)
+                        colorRushGames.put(gameId, gameWithNextRound)
                     
                     broadcastGameState(gameId)
                     
@@ -255,22 +253,6 @@ object WebServer extends MainRoutes:
         connections.asScala.foreach: channel =>
           Try(channel.send(cask.Ws.Text(message.toString))).recover:
             case ex => logger.warn(s"Failed to broadcast game end: ${ex.getMessage}")
-  
-  private def scheduleNextRound(gameId: String, delayMs: Int): Unit =
-    val timer = new java.util.Timer()
-    timer.schedule(
-      new java.util.TimerTask:
-        def run(): Unit =
-          val game = colorRushGames.get(gameId)
-          if game != null && !shared.ColorRush.shouldEndGame(game) then
-            val gameWithRound = shared.ColorRush.startNewRound(game)
-            colorRushGames.put(gameId, gameWithRound)
-            logger.info(s"Auto-started round ${gameWithRound.roundNumber} for game $gameId")
-            broadcastGameState(gameId)
-            timer.cancel()
-      ,
-      delayMs.toLong
-    )
   
   private def handlePlayerDisconnect(
     channel: cask.WsChannelActor, 
