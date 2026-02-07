@@ -343,6 +343,8 @@
       let ws = null;
       let gameId = null;
       let currentPlayerId = null;
+      let currentTimerInterval = null;
+      let currentRoundId = null;
 
       function joinGame() {
         gameId = document.getElementById('gameId').value;
@@ -428,33 +430,56 @@
           document.getElementById('gameArea').classList.remove('hidden');
 
           const round = game.currentRound;
-          document.getElementById('roundNumber').textContent = game.roundNumber;
-          document.getElementById('targetColor').style.backgroundColor = round.targetColor;
+          const roundId = `${game.gameId}-${game.roundNumber}`;
 
-          // Update color grid
-          const colorGrid = document.getElementById('colorGrid');
-          colorGrid.innerHTML = round.colorOptions.map(color => `
-            <button class="color-button"
-                    style="background-color: ${color}"
-                    onclick="clickColor('${color}')">
-            </button>
-          `).join('');
+          // Only update round display and start timer if this is a new round
+          if (currentRoundId !== roundId) {
+            currentRoundId = roundId;
 
-          // Start timer
-          startTimer(round.roundDuration);
+            document.getElementById('roundNumber').textContent = game.roundNumber;
+            document.getElementById('targetColor').style.backgroundColor = round.targetColor;
+
+            // Update color grid
+            const colorGrid = document.getElementById('colorGrid');
+            colorGrid.innerHTML = round.colorOptions.map(color => `
+              <button class="color-button"
+                      style="background-color: ${color}"
+                      onclick="clickColor('${color}')">
+              </button>
+            `).join('');
+
+            // Start timer (will clear any existing timer)
+            startTimer(round.roundDuration);
+          }
+        } else if (game.status === 'roundEnd') {
+          // Clear timer when round ends
+          clearTimer();
+        }
+      }
+
+      function clearTimer() {
+        if (currentTimerInterval) {
+          clearInterval(currentTimerInterval);
+          currentTimerInterval = null;
         }
       }
 
       function startTimer(duration) {
+        // Clear any existing timer first
+        clearTimer();
+
         let remaining = Math.floor(duration / 1000);
         const timerEl = document.getElementById('timer');
 
-        const interval = setInterval(() => {
-          timerEl.textContent = remaining;
+        // Set initial value
+        timerEl.textContent = remaining;
+
+        currentTimerInterval = setInterval(() => {
           remaining--;
+          timerEl.textContent = remaining;
 
           if (remaining < 0) {
-            clearInterval(interval);
+            clearTimer();
             timerEl.textContent = '⏱️';
           }
         }, 1000);
