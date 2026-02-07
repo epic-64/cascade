@@ -119,9 +119,6 @@ object WebServer extends MainRoutes:
   @cask.websocket("/ws/game/:gameId")
   def colorRushWebSocket(gameId: String): cask.WebsocketResult =
     cask.WsHandler: channel =>
-      import scala.jdk.CollectionConverters.*
-      import upickle.default.*
-      
       // Initialize game if it doesn't exist
       colorRushGames.computeIfAbsent(gameId, _ => shared.ColorRush.createGame(gameId))
       
@@ -135,13 +132,13 @@ object WebServer extends MainRoutes:
       
       cask.WsActor:
         case cask.Ws.Text(msg) =>
+          logger.info(s"Received WebSocket message: $msg")
           Try:
-            val json = ujson.read(msg)
-            val msgType = json("type").str
+            import upickle.default.*
+            val clientMsg = read[shared.ClientMessage](msg)
             
-            msgType match
-              case "join" =>
-                val playerName = json("playerName").str
+            clientMsg match
+              case shared.JoinMessage(playerName) =>
                 val playerId = java.util.UUID.randomUUID().toString
                 
                 playerToGame.put(channel, (gameId, playerId))
@@ -155,7 +152,7 @@ object WebServer extends MainRoutes:
                 // Broadcast game state to all players
                 broadcastGameState(gameId)
                 
-              case "start" =>
+              case shared.StartMessage() =>
                 val game = colorRushGames.get(gameId)
                 if game.players.nonEmpty then
                   val gameWithRound = shared.ColorRush.startNewRound(game)
@@ -163,10 +160,7 @@ object WebServer extends MainRoutes:
                   logger.info(s"Game $gameId started - Round ${gameWithRound.roundNumber}")
                   broadcastGameState(gameId)
                   
-              case "click" =>
-                val color = json("color").str
-                val clickTime = json("time").num.toLong
-                
+              case shared.ClickMessage(color, clickTime) =>
                 playerToGame.get(channel) match
                   case (gId, pId) if gId == gameId =>
                     val game = colorRushGames.get(gameId)
@@ -182,7 +176,7 @@ object WebServer extends MainRoutes:
                   case _ =>
                     logger.warn(s"Click from unregistered player")
               
-              case "nextRound" =>
+              case shared.NextRoundMessage() =>
                 // Client confirms they've seen the winner announcement, advance to next round
                 val game = colorRushGames.get(gameId)
                 if game != null && game.status == shared.GameStatus.RoundEnd then
@@ -195,9 +189,6 @@ object WebServer extends MainRoutes:
                     broadcastGameEnd(gameId, winner)
                   
                   broadcastGameState(gameId)
-                    
-              case _ =>
-                logger.warn(s"Unknown message type: $msgType")
           .recover:
             case ex =>
               logger.error(s"Error processing game message: ${ex.getMessage}", ex)
@@ -215,51 +206,42 @@ object WebServer extends MainRoutes:
     
     val game = colorRushGames.get(gameId)
     if game != null then
-      val gameJson = write(game)
-      val message = ujson.Obj("type" -> "gameUpdate", "game" -> ujson.read(gameJson))
+      val message = shared.GameUpdateMessage(game)
+      val messageJson = write(message)
       
       gameConnections.get(gameId) match
         case null =>
         case connections =>
           connections.asScala.foreach: channel =>
-            Try(channel.send(cask.Ws.Text(message.toString))).recover:
+            Try(channel.send(cask.Ws.Text(messageJson))).recover:
               case ex => logger.warn(s"Failed to broadcast game state: ${ex.getMessage}")
   
   private def broadcastRoundWinner(gameId: String, playerId: String, playerName: String, points: Int): Unit =
     import scala.jdk.CollectionConverters.*
+    import upickle.default.*
     
-    val message = ujson.Obj(
-      "type" -> "roundWinner",
-      "playerId" -> playerId,
-      "playerName" -> playerName,
-      "points" -> points
-    )
+    val message = shared.RoundWinnerMessage(playerName, points)
+    val messageJson = write(message)
     
     gameConnections.get(gameId) match
       case null =>
       case connections =>
         connections.asScala.foreach: channel =>
-          Try(channel.send(cask.Ws.Text(message.toString))).recover:
+          Try(channel.send(cask.Ws.Text(messageJson))).recover:
             case ex => logger.warn(s"Failed to broadcast round winner: ${ex.getMessage}")
   
   private def broadcastGameEnd(gameId: String, winner: Option[shared.PlayerState]): Unit =
     import scala.jdk.CollectionConverters.*
     import upickle.default.*
     
-    val message = winner match
-      case Some(w) =>
-        ujson.Obj(
-          "type" -> "gameEnd",
-          "winner" -> ujson.read(write(w))
-        )
-      case None =>
-        ujson.Obj("type" -> "gameEnd", "winner" -> ujson.Null)
+    val message = shared.GameEndMessage(winner)
+    val messageJson = write(message)
     
     gameConnections.get(gameId) match
       case null =>
       case connections =>
         connections.asScala.foreach: channel =>
-          Try(channel.send(cask.Ws.Text(message.toString))).recover:
+          Try(channel.send(cask.Ws.Text(messageJson))).recover:
             case ex => logger.warn(s"Failed to broadcast game end: ${ex.getMessage}")
   
   private def handlePlayerDisconnect(
@@ -267,8 +249,6 @@ object WebServer extends MainRoutes:
     gameId: String, 
     connections: java.util.Set[cask.WsChannelActor]
   ): Unit =
-    import scala.jdk.CollectionConverters.*
-    
     connections.remove(channel)
     
     playerToGame.get(channel) match
