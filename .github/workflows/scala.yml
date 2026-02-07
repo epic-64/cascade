@@ -29,7 +29,7 @@ jobs:
           echo "$(pwd)/sbt/bin" >> $GITHUB_PATH
 
       - name: Run tests with coverage
-        run: ENABLE_COVERAGE=true sbt clean coverage test coverageReport
+        run: ENABLE_COVERAGE=true sbt clean compile cascadeJS/compile coverage test coverageReport
 
       - name: Parse coverage percentage
         id: coverage
