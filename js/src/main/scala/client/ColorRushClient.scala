@@ -73,7 +73,6 @@ def connectToGame(gameId: String, playerName: String): Unit =
 
 def sendMessage(ws: WebSocket, msg: ClientMessage): Unit =
   Try:
-    // Convert to JSON format that matches server expectations
     val json = msg match
       case JoinMessage(name) =>
         js.Dynamic.literal("type" -> "join", "playerName" -> name)
@@ -88,55 +87,74 @@ def sendMessage(ws: WebSocket, msg: ClientMessage): Unit =
   .recover:
     case ex => println(s"[ColorRush] Failed to send message: ${ex.getMessage}")
 
+enum ServerMessageType:
+  case GameUpdate, RoundWinner, GameEnd, Unknown
+
+object ServerMessageType:
+  def fromString(s: String): ServerMessageType = s match
+    case "gameUpdate" => GameUpdate
+    case "roundWinner" => RoundWinner
+    case "gameEnd" => GameEnd
+    case _ => Unknown
+
+enum GameStatusType:
+  case Waiting, Playing, RoundEnd, GameOver, Unknown
+
+object GameStatusType:
+  def fromString(s: String): GameStatusType = s match
+    case "Waiting" => Waiting
+    case "Playing" => Playing
+    case "RoundEnd" => RoundEnd
+    case "GameOver" => GameOver
+    case _ => Unknown
+
 def handleWebSocketMessage(data: String): Unit =
   Try:
     val json = js.JSON.parse(data)
-    val msgType = json.`type`.toString
+    val msgType = ServerMessageType.fromString(json.`type`.toString)
     
     msgType match
-      case "gameUpdate" =>
-        val gameJson = json.game
-        parseGameUpdate(gameJson)
+      case ServerMessageType.GameUpdate =>
+        parseGameUpdate(json.game)
         
-      case "roundWinner" =>
-        val playerName = json.playerName.toString
-        val points = json.points.toString.toInt
-        showRoundWinner(playerName, points)
+      case ServerMessageType.RoundWinner =>
+        (getStringField(json, "playerName"), getIntField(json, "points")) match
+          case (Some(name), Some(pts)) => showRoundWinner(name, pts)
+          case _ => println("[ColorRush] Invalid round winner message")
         
-      case "gameEnd" =>
-        val winnerOpt = Try:
-          val winner = json.winner
-          if js.isUndefined(winner) || winner == null then None
-          else Some(winner)
-        .getOrElse(None)
-        showGameWinner(winnerOpt)
+      case ServerMessageType.GameEnd =>
+        val winner = Option(json.winner).filter(isDefined)
+        showGameWinner(winner)
         
-      case other =>
-        println(s"[ColorRush] Unknown message type: $other")
+      case ServerMessageType.Unknown =>
+        println(s"[ColorRush] Unknown message type: ${json.`type`}")
   .recover:
     case ex => println(s"[ColorRush] Error handling message: ${ex.getMessage}")
 
 def parseGameUpdate(gameJson: js.Dynamic): Unit =
   Try:
-    val gameId = gameJson.gameId.toString
-    val status = gameJson.status.toString
-    val roundNumber = gameJson.roundNumber.toString.toInt
+    val gameId = getStringField(gameJson, "gameId").getOrElse("")
+    val status = GameStatusType.fromString(gameJson.status.toString)
+    val roundNumber = getIntField(gameJson, "roundNumber").getOrElse(0)
 
     // Update players list
     updatePlayersList(gameJson.players)
 
     // Show game area if playing or round end
-    if status == "Playing" || status == "RoundEnd" then
-      showGameArea()
+    status match
+      case GameStatusType.Playing | GameStatusType.RoundEnd =>
+        showGameArea()
 
-      val currentRound = gameJson.currentRound
-      if !js.isUndefined(currentRound) && currentRound != null then
-        val roundId = s"$gameId-$roundNumber"
+        Option(gameJson.currentRound).filter(isDefined).foreach: currentRound =>
+          val roundId = s"$gameId-$roundNumber"
 
-        // Only update round display if this is a new round
-        if !currentRoundId.contains(roundId) then
-          currentRoundId = Some(roundId)
-          updateRoundDisplay(roundNumber, currentRound, status == "RoundEnd")
+          // Only update round display if this is a new round
+          if !currentRoundId.contains(roundId) then
+            currentRoundId = Some(roundId)
+            val isRoundEnd = status == GameStatusType.RoundEnd
+            updateRoundDisplay(roundNumber, currentRound, isRoundEnd)
+      
+      case _ => // Waiting or GameOver or Unknown - keep lobby visible
   .recover:
     case ex => println(s"[ColorRush] Error parsing game update: ${ex.getMessage}")
 
@@ -148,12 +166,12 @@ def updatePlayersList(playersObj: js.Dynamic): Unit =
     // Convert players object to dictionary and get values
     val playersDict = playersObj.asInstanceOf[js.Dictionary[js.Dynamic]]
     val playersArray = playersDict.values.toSeq
-      .sortBy(p => -p.score.toString.toInt)
+      .sortBy(p => -getIntField(p, "score").getOrElse(0))
     
     val playersHTML = playersArray.map: player =>
-      val name = player.name.toString
-      val score = player.score.toString
-      val roundsWon = player.roundsWon.toString
+      val name = getStringField(player, "name").getOrElse("Unknown")
+      val score = getIntField(player, "score").getOrElse(0)
+      val roundsWon = getIntField(player, "roundsWon").getOrElse(0)
       s"""
         <div class="player-card">
           <span class="player-name">$name</span>
@@ -171,9 +189,9 @@ def updateRoundDisplay(roundNumber: Int, round: js.Dynamic, isRoundEnd: Boolean)
   getElementById("roundNumber").foreach: elem =>
     elem.textContent = roundNumber.toString
   
-  val targetColor = round.targetColor.toString
-  getElementById("targetColor").foreach: elem =>
-    elem.style.backgroundColor = targetColor
+  getStringField(round, "targetColor").foreach: targetColor =>
+    getElementById("targetColor").foreach: elem =>
+      elem.style.backgroundColor = targetColor
   
   // Update color grid
   getElementById("colorGrid").foreach: grid =>
@@ -222,9 +240,9 @@ def showRoundWinner(playerName: String, points: Int): Unit =
 def showGameWinner(winnerOpt: Option[js.Dynamic]): Unit =
   val message = winnerOpt match
     case Some(winner) =>
-      val name = winner.name.toString
-      val score = winner.score.toString
-      val roundsWon = winner.roundsWon.toString
+      val name = getStringField(winner, "name").getOrElse("Unknown")
+      val score = getIntField(winner, "score").getOrElse(0)
+      val roundsWon = getIntField(winner, "roundsWon").getOrElse(0)
       s"🎉 GAME OVER!\\n\\nWinner: $name\\nScore: $score points\\nRounds Won: $roundsWon"
     case None =>
       "Game Over!"
@@ -252,7 +270,7 @@ def showGameArea(): Unit =
   getElementById("lobby").foreach(_.classList.add("hidden"))
   getElementById("gameArea").foreach(_.classList.remove("hidden"))
 
-// Helper functions
+// Helper functions for DOM manipulation
 def getElementById(id: String): Option[HTMLElement] =
   Option(document.getElementById(id).asInstanceOf[HTMLElement])
 
@@ -267,5 +285,15 @@ def getInputValue(id: String): Option[String] =
 
 def showAlert(message: String): Unit =
   window.alert(message)
+
+// Helper functions for safer JS value extraction
+def getIntField(obj: js.Dynamic, field: String): Option[Int] =
+  Try(obj.selectDynamic(field).toString.toInt).toOption
+
+def getStringField(obj: js.Dynamic, field: String): Option[String] =
+  Try(obj.selectDynamic(field).toString).toOption
+
+def isDefined(value: js.Dynamic): Boolean =
+  !js.isUndefined(value) && value != null
 
 
