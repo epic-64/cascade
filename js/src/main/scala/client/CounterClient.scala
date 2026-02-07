@@ -52,7 +52,7 @@ def connectWebSocket(): Unit =
   val ws = new WebSocket(wsUrl)
   counterWebSocket = Some(ws)
 
-  ws.onopen = (_: Event) => println("[Counter] WebSocket connected")
+  ws.onopen = (e: Event) => println("[Counter] WebSocket connected")
 
   ws.onmessage = (event: MessageEvent) =>
     val data = event.data.toString
