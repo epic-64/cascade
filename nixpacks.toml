@@ -1,0 +1,6 @@
+[phases.build]
+cmd = "sbt cascadeJVM/stage"
+
+[start]
+cmd = "./jvm/target/universal/stage/bin/main"
+
