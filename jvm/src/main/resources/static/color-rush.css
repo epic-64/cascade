@@ -12,6 +12,10 @@ body {
   padding: 2rem 1rem;
   position: relative;
   overflow-x: hidden;
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 2rem;
+  align-items: start;
 }
 
 body::before {
@@ -28,11 +32,24 @@ body::before {
   z-index: 0;
 }
 
+@media (min-width: 1200px) {
+  body {
+    justify-content: center;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    padding-left: calc((100vw - 1100px) / 2);
+    padding-right: calc((100vw - 1100px) / 2);
+  }
+}
+
 .container {
   max-width: 900px;
   margin: 0 auto;
   position: relative;
   z-index: 1;
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 2rem;
+  align-items: start;
 }
 
 h1 {
@@ -62,6 +79,7 @@ h1 {
   padding: 2.5rem;
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  grid-column: 1 / -1;
 }
 
 .lobby h2 {
@@ -117,12 +135,15 @@ h1 {
 }
 
 .players {
-  margin: 1.5rem 0;
+  margin: 0;
+  grid-column: 2;
+  position: sticky;
+  top: 1rem;
 }
 
 .player-card {
-  background: rgba(39, 39, 42, 0.4);
-  border: 1px solid rgba(63, 63, 70, 0.4);
+  background: rgba(39, 39, 42, 0.55);
+  border: 1px solid rgba(99, 102, 241, 0.25);
   padding: 1rem 1.25rem;
   margin: 0.75rem 0;
   border-radius: 10px;
@@ -133,8 +154,8 @@ h1 {
 }
 
 .player-card:hover {
-  background: rgba(39, 39, 42, 0.6);
-  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(39, 39, 42, 0.75);
+  border-color: rgba(129, 140, 248, 0.4);
 }
 
 .player-name {
@@ -151,12 +172,13 @@ h1 {
 
 .game-area {
   text-align: center;
+  grid-column: 1;
 }
 
 .round-info {
-  background: rgba(24, 24, 27, 0.6);
+  background: rgba(24, 24, 27, 0.7);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(63, 63, 70, 0.4);
+  border: 1px solid rgba(63, 63, 70, 0.45);
   padding: 2rem;
   border-radius: 16px;
   margin-bottom: 2rem;
@@ -288,3 +310,30 @@ h1 {
   box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
 }
 
+/* Responsive: stack on small screens */
+@media (max-width: 900px) {
+  body {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  .game-area,
+  .players,
+  .lobby {
+    grid-column: 1;
+  }
+  .players {
+    position: static;
+  }
+}
+
+/* Respect user high-contrast preference */
+@media (prefers-contrast: more) {
+  .players .player-card {
+    border-color: rgba(199, 210, 254, 0.6);
+    background: rgba(39, 39, 42, 0.8);
+  }
+  .round-info {
+    border-color: rgba(199, 210, 254, 0.6);
+    background: rgba(24, 24, 27, 0.9);
+  }
+}
