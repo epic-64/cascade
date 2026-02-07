@@ -23,9 +23,11 @@ import shared.{SharedGreeter, User}
       if document.readyState == "loading" then
         document.addEventListener("DOMContentLoaded", (_: Event) => client.initializeGame())
       else client.initializeGame()
-    case _                      =>
+    case p if p.contains("counter.html") || p == "/counter" =>
       println("[client] Routing to Counter...")
       // Wait for DOM to be ready
       if document.readyState == "loading" then
         document.addEventListener("DOMContentLoaded", (_: Event) => client.initializeCounter())
       else client.initializeCounter()
+    case _ =>
+      println("[client] Landing page - no app initialization needed")
