@@ -1,12 +1,12 @@
 package client
 
-import shared.{SharedGreeter, User}
 import org.scalajs.dom
-import org.scalajs.dom.{document, window, HTMLElement, RequestInit, HttpMethod, WebSocket, MessageEvent, Event, CloseEvent}
-import scala.scalajs.js
-import scala.scalajs.js.Thenable.Implicits.*
+import org.scalajs.dom.*
+import shared.{SharedGreeter, User}
+
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{Try, Success, Failure}
+import scala.scalajs.js
+import scala.util.{Failure, Success, Try}
 
 @main def clientMain(): Unit =
   println("[client] Starting Cascade client...")
@@ -19,16 +19,15 @@ import scala.util.{Try, Success, Failure}
   // Determine which app to initialize based on the current page
   val pathname = dom.window.location.pathname
   println(s"[client] Current page: $pathname")
-  
+
   pathname match
     case "/game.html" | "/game" =>
       println("[client] Initializing Color Rush game...")
       // Wait for DOM to be ready
       if document.readyState == "loading" then
         document.addEventListener("DOMContentLoaded", (_: Event) => client.initializeGame())
-      else
-        client.initializeGame()
-    case _ =>
+      else client.initializeGame()
+    case _                      =>
       println("[client] Initializing Counter app...")
       // Build the counter UI and connect to WebSocket
       buildCounterUI()
@@ -67,37 +66,38 @@ def buildCounterUI(): Unit =
 def connectWebSocket(): Unit =
   // Use relative WebSocket URL - will connect to same host/port as the page
   val protocol = if dom.window.location.protocol == "https:" then "wss:" else "ws:"
-  val wsUrl = s"$protocol//${dom.window.location.host}/ws/counter"
-  
+  val wsUrl    = s"$protocol//${dom.window.location.host}/ws/counter"
+
   val ws = new WebSocket(wsUrl)
-  
-  ws.onopen = (_: Event) =>
-    println("[client] WebSocket connected")
-  
+
+  ws.onopen = (_: Event) => println("[client] WebSocket connected")
+
   ws.onmessage = (event: MessageEvent) =>
     val data = event.data.toString
     Try(data.toInt) match
       case Success(counter) =>
         println(s"[client] Received counter update: $counter")
         updateCounterDisplay(counter)
-      case Failure(e) =>
+      case Failure(e)       =>
         println(s"[client] Error parsing WebSocket message: $e")
-  
+
   ws.onclose = (event: CloseEvent) =>
     println(s"[client] WebSocket disconnected: ${event.reason}")
     updateCounterDisplay("Disconnected")
-  
-  ws.onerror = (event: Event) =>
-    println(s"[client] WebSocket error")
+
+  ws.onerror = (event: Event) => println(s"[client] WebSocket error")
 
 def modifyCounter(action: String): Unit =
   // Use relative URL - will use same origin as the page
-  val url = s"/counter/$action"
-  val init = js.Dynamic.literal(
-    method = "POST"
-  ).asInstanceOf[RequestInit]
+  val url  = s"/counter/$action"
+  val init = js.Dynamic
+    .literal(
+      method = "POST"
+    )
+    .asInstanceOf[RequestInit]
 
-  dom.fetch(url, init)
+  dom
+    .fetch(url, init)
     .toFuture
     .flatMap: response =>
       response.text().toFuture
@@ -105,16 +105,15 @@ def modifyCounter(action: String): Unit =
       case Success(value) =>
         // No need to update display here - WebSocket will broadcast the update
         println(s"[client] Counter modified via $action")
-      case Failure(e) =>
+      case Failure(e)     =>
         println(s"[client] Error during $action: $e")
 
 def updateCounterDisplay(value: Int): Unit =
   document.getElementById("counter-display") match
     case el: HTMLElement => el.textContent = value.toString
-    case null => println("[client] counter-display element not found")
+    case null            => println("[client] counter-display element not found")
 
 def updateCounterDisplay(value: String): Unit =
   document.getElementById("counter-display") match
     case el: HTMLElement => el.textContent = value
-    case null => println("[client] counter-display element not found")
-
+    case null            => println("[client] counter-display element not found")

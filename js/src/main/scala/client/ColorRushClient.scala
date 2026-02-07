@@ -1,8 +1,9 @@
 package client
 
-import shared.*
 import org.scalajs.dom
-import org.scalajs.dom.{document, window, HTMLElement, HTMLInputElement, WebSocket, MessageEvent, Event, CloseEvent, KeyboardEvent}
+import org.scalajs.dom.*
+import shared.*
+
 import scala.scalajs.js
 import scala.util.Try
 
@@ -13,14 +14,16 @@ def initializeGame(): Unit =
   setupStartButton()
 
 var gameWebSocket: Option[WebSocket] = None
-var currentGameId: Option[String] = None
-var currentRoundId: Option[String] = None
+var currentGameId: Option[String]    = None
+var currentRoundId: Option[String]   = None
 
 def setupJoinForm(): Unit =
   getElement("joinForm").foreach: form =>
-    form.addEventListener("submit", (e: Event) =>
-      e.preventDefault()
-      joinGame()
+    form.addEventListener(
+      "submit",
+      (e: Event) =>
+        e.preventDefault()
+        joinGame()
     )
 
 def setupStartButton(): Unit =
@@ -28,31 +31,34 @@ def setupStartButton(): Unit =
     button.addEventListener("click", (_: Event) => startGame())
 
 def setupEnterKeyHandler(): Unit =
-  document.addEventListener("keydown", (event: KeyboardEvent) =>
-    if event.key == "Enter" then
-      val waitingArea = getElementById("waitingArea")
-      val lobby = getElementById("lobby")
+  document.addEventListener(
+    "keydown",
+    (event: KeyboardEvent) =>
+      if event.key == "Enter" then
+        val waitingArea = getElementById("waitingArea")
+        val lobby       = getElementById("lobby")
 
-      if !waitingArea.exists(_.classList.contains("hidden")) &&
-         !lobby.exists(_.classList.contains("hidden")) then
-        event.preventDefault()
-        startGame()
+        if !waitingArea.exists(_.classList.contains("hidden")) &&
+          !lobby.exists(_.classList.contains("hidden"))
+        then
+          event.preventDefault()
+          startGame()
   )
 
 def joinGame(): Unit =
-  val gameIdOpt = getInputValue("gameId")
+  val gameIdOpt     = getInputValue("gameId")
   val playerNameOpt = getInputValue("playerName")
 
   (gameIdOpt, playerNameOpt) match
     case (Some(gameId), Some(playerName)) if gameId.nonEmpty && playerName.nonEmpty =>
       currentGameId = Some(gameId)
       connectToGame(gameId, playerName)
-    case _ =>
+    case _                                                                          =>
       showAlert("Please enter both Game ID and your name")
 
 def connectToGame(gameId: String, playerName: String): Unit =
   val protocol = if window.location.protocol == "https:" then "wss:" else "ws:"
-  val wsUrl = s"$protocol//${window.location.host}/ws/game/$gameId"
+  val wsUrl    = s"$protocol//${window.location.host}/ws/game/$gameId"
 
   val ws = new WebSocket(wsUrl)
   gameWebSocket = Some(ws)
@@ -62,14 +68,11 @@ def connectToGame(gameId: String, playerName: String): Unit =
     sendMessage(ws, JoinMessage(playerName))
     updateLobbyUI()
 
-  ws.onmessage = (event: MessageEvent) =>
-    handleWebSocketMessage(event.data.toString)
+  ws.onmessage = (event: MessageEvent) => handleWebSocketMessage(event.data.toString)
 
-  ws.onerror = (event: Event) =>
-    println(s"[ColorRush] WebSocket error")
+  ws.onerror = (event: Event) => println(s"[ColorRush] WebSocket error")
 
-  ws.onclose = (_: CloseEvent) =>
-    println(s"[ColorRush] Disconnected from game")
+  ws.onclose = (_: CloseEvent) => println(s"[ColorRush] Disconnected from game")
 
 def sendMessage(ws: WebSocket, msg: ClientMessage): Unit =
   Try:
@@ -84,14 +87,14 @@ def handleWebSocketMessage(data: String): Unit =
   Try:
     import upickle.default.*
     val serverMsg = read[shared.ServerMessage](data)
-    
+
     serverMsg match
       case shared.GameUpdateMessage(game) =>
         parseGameUpdate(game)
-        
+
       case shared.RoundWinnerMessage(playerName, points) =>
         showRoundWinner(playerName, points)
-        
+
       case shared.GameEndMessage(winner) =>
         showGameWinner(winner)
   .recover:
@@ -115,7 +118,7 @@ def parseGameUpdate(game: shared.ColorRushGame): Unit =
             currentRoundId = Some(roundId)
             val isRoundEnd = game.status == shared.GameStatus.RoundEnd
             updateRoundDisplay(game.roundNumber, currentRound, isRoundEnd)
-      
+
       case _ => // Waiting or GameOver - keep lobby visible
   .recover:
     case ex => println(s"[ColorRush] Error parsing game update: ${ex.getMessage}")
@@ -123,20 +126,21 @@ def parseGameUpdate(game: shared.ColorRushGame): Unit =
 def updatePlayersList(players: Map[String, shared.PlayerState]): Unit =
   val playersListElem = getElementById("playersList")
   val gamePlayersElem = getElementById("gamePlayers")
-  
+
   Try:
     val playersArray = players.values.toSeq
       .sortBy(-_.score)
-    
-    val playersHTML = playersArray.map: player =>
-      s"""
+
+    val playersHTML = playersArray
+      .map: player =>
+        s"""
         <div class="player-card">
           <span class="player-name">${player.name}</span>
           <span class="player-score">${player.score} pts (${player.roundsWon} wins)</span>
         </div>
       """
-    .mkString("")
-    
+      .mkString("")
+
     playersListElem.foreach(_.innerHTML = playersHTML)
     gamePlayersElem.foreach(_.innerHTML = playersHTML)
   .recover:
@@ -145,25 +149,24 @@ def updatePlayersList(players: Map[String, shared.PlayerState]): Unit =
 def updateRoundDisplay(roundNumber: Int, round: shared.Round, isRoundEnd: Boolean): Unit =
   getElementById("roundNumber").foreach: elem =>
     elem.textContent = roundNumber.toString
-  
+
   getElementById("targetColor").foreach: elem =>
     elem.style.backgroundColor = round.targetColor
-  
+
   // Update color grid
   getElementById("colorGrid").foreach: grid =>
     // Clear existing buttons
     grid.innerHTML = ""
-    
+
     // Create buttons with proper event listeners
     round.colorOptions.foreach: color =>
       val button = document.createElement("button").asInstanceOf[dom.HTMLButtonElement]
       button.className = "color-button"
       button.style.backgroundColor = color
       button.disabled = isRoundEnd
-      
-      if !isRoundEnd then
-        button.addEventListener("click", (_: Event) => clickColor(color))
-      
+
+      if !isRoundEnd then button.addEventListener("click", (_: Event) => clickColor(color))
+
       grid.appendChild(button)
 
 def startGame(): Unit =
@@ -188,14 +191,13 @@ def showRoundWinner(playerName: String, points: Int): Unit =
     js.timers.setTimeout(2000):
       announcement.classList.add("hidden")
       gameWebSocket.foreach: ws =>
-        if ws.readyState == WebSocket.OPEN then
-          sendMessage(ws, NextRoundMessage())
+        if ws.readyState == WebSocket.OPEN then sendMessage(ws, NextRoundMessage())
 
 def showGameWinner(winnerOpt: Option[shared.PlayerState]): Unit =
   val message = winnerOpt match
     case Some(winner) =>
       s"🎉 GAME OVER!\\n\\nWinner: ${winner.name}\\nScore: ${winner.score} points\\nRounds Won: ${winner.roundsWon}"
-    case None =>
+    case None         =>
       "Game Over!"
 
   showAlert(message)
@@ -207,13 +209,13 @@ def showGameWinner(winnerOpt: Option[shared.PlayerState]): Unit =
 def updateLobbyUI(): Unit =
   getElementById("lobby").foreach: lobby =>
     lobby.querySelector("h2").asInstanceOf[HTMLElement].textContent = "Waiting for players..."
-  
+
   getInputElement("gameId").foreach(_.disabled = true)
   getInputElement("playerName").foreach(_.disabled = true)
-  
+
   getElementById("joinForm").foreach: form =>
     form.style.display = "none"
-  
+
   getElementById("waitingArea").foreach: area =>
     area.classList.remove("hidden")
 
@@ -236,6 +238,3 @@ def getInputValue(id: String): Option[String] =
 
 def showAlert(message: String): Unit =
   window.alert(message)
-
-
-

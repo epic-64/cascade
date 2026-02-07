@@ -121,37 +121,37 @@ object WebServer extends MainRoutes:
     cask.WsHandler: channel =>
       // Initialize game if it doesn't exist
       colorRushGames.computeIfAbsent(gameId, _ => shared.ColorRush.createGame(gameId))
-      
+
       // Add channel to game connections
-      val connections = gameConnections.computeIfAbsent(gameId, _ => 
+      val connections = gameConnections.computeIfAbsent(gameId, _ =>
         java.util.concurrent.ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
       )
       connections.add(channel)
-      
+
       logger.info(s"Player connected to game $gameId. Total players: ${connections.size()}")
-      
+
       cask.WsActor:
         case cask.Ws.Text(msg) =>
           logger.info(s"Received WebSocket message: $msg")
           Try:
             import upickle.default.*
             val clientMsg = read[shared.ClientMessage](msg)
-            
+
             clientMsg match
               case shared.JoinMessage(playerName) =>
                 val playerId = java.util.UUID.randomUUID().toString
-                
+
                 playerToGame.put(channel, (gameId, playerId))
-                
+
                 val game = colorRushGames.get(gameId)
                 val updatedGame = shared.ColorRush.addPlayer(game, playerId, playerName)
                 colorRushGames.put(gameId, updatedGame)
-                
+
                 logger.info(s"Player $playerName ($playerId) joined game $gameId")
-                
+
                 // Broadcast game state to all players
                 broadcastGameState(gameId)
-                
+
               case shared.StartMessage() =>
                 val game = colorRushGames.get(gameId)
                 if game.players.nonEmpty then
@@ -159,23 +159,23 @@ object WebServer extends MainRoutes:
                   colorRushGames.put(gameId, gameWithRound)
                   logger.info(s"Game $gameId started - Round ${gameWithRound.roundNumber}")
                   broadcastGameState(gameId)
-                  
+
               case shared.ClickMessage(color, clickTime) =>
                 playerToGame.get(channel) match
                   case (gId, pId) if gId == gameId =>
                     val game = colorRushGames.get(gameId)
                     val (updatedGame, winner) = shared.ColorRush.handleColorClick(game, pId, color, clickTime)
                     colorRushGames.put(gameId, updatedGame)
-                    
+
                     winner.foreach: (playerId, playerName, points) =>
                       logger.info(s"Round winner: $playerName with $points points")
                       broadcastRoundWinner(gameId, playerId, playerName, points)
-                    
+
                     broadcastGameState(gameId)
-                    
+
                   case _ =>
                     logger.warn(s"Click from unregistered player")
-              
+
               case shared.NextRoundMessage() =>
                 // Client confirms they've seen the winner announcement, advance to next round
                 val game = colorRushGames.get(gameId)
@@ -183,19 +183,19 @@ object WebServer extends MainRoutes:
                   val nextGame = shared.ColorRush.advanceFromRoundEnd(game)
                   colorRushGames.put(gameId, nextGame)
                   logger.info(s"Game $gameId advancing from roundEnd to ${nextGame.status}")
-                  
+
                   if nextGame.status == shared.GameStatus.GameOver then
                     val winner = shared.ColorRush.getWinner(nextGame)
                     broadcastGameEnd(gameId, winner)
-                  
+
                   broadcastGameState(gameId)
           .recover:
             case ex =>
               logger.error(s"Error processing game message: ${ex.getMessage}", ex)
-              
+
         case cask.Ws.Close(_, _) =>
           handlePlayerDisconnect(channel, gameId, connections)
-          
+
         case cask.Ws.Error(ex) =>
           logger.error(s"WebSocket error in game $gameId: ${ex.getMessage}", ex)
           handlePlayerDisconnect(channel, gameId, connections)
@@ -203,54 +203,54 @@ object WebServer extends MainRoutes:
   private def broadcastGameState(gameId: String): Unit =
     import scala.jdk.CollectionConverters.*
     import upickle.default.*
-    
+
     val game = colorRushGames.get(gameId)
     if game != null then
       val message = shared.GameUpdateMessage(game)
       val messageJson = write(message)
-      
+
       gameConnections.get(gameId) match
         case null =>
         case connections =>
           connections.asScala.foreach: channel =>
             Try(channel.send(cask.Ws.Text(messageJson))).recover:
               case ex => logger.warn(s"Failed to broadcast game state: ${ex.getMessage}")
-  
+
   private def broadcastRoundWinner(gameId: String, playerId: String, playerName: String, points: Int): Unit =
     import scala.jdk.CollectionConverters.*
     import upickle.default.*
-    
+
     val message = shared.RoundWinnerMessage(playerName, points)
     val messageJson = write(message)
-    
+
     gameConnections.get(gameId) match
       case null =>
       case connections =>
         connections.asScala.foreach: channel =>
           Try(channel.send(cask.Ws.Text(messageJson))).recover:
             case ex => logger.warn(s"Failed to broadcast round winner: ${ex.getMessage}")
-  
+
   private def broadcastGameEnd(gameId: String, winner: Option[shared.PlayerState]): Unit =
     import scala.jdk.CollectionConverters.*
     import upickle.default.*
-    
+
     val message = shared.GameEndMessage(winner)
     val messageJson = write(message)
-    
+
     gameConnections.get(gameId) match
       case null =>
       case connections =>
         connections.asScala.foreach: channel =>
           Try(channel.send(cask.Ws.Text(messageJson))).recover:
             case ex => logger.warn(s"Failed to broadcast game end: ${ex.getMessage}")
-  
+
   private def handlePlayerDisconnect(
-    channel: cask.WsChannelActor, 
-    gameId: String, 
+    channel: cask.WsChannelActor,
+    gameId: String,
     connections: java.util.Set[cask.WsChannelActor]
   ): Unit =
     connections.remove(channel)
-    
+
     playerToGame.get(channel) match
       case (gId, pId) if gId == gameId =>
         playerToGame.remove(channel)
@@ -265,7 +265,7 @@ object WebServer extends MainRoutes:
           if updatedGame.status == shared.GameStatus.GameOver && connections.isEmpty then
             cleanupGame(gameId)
       case _ =>
-    
+
     logger.info(s"Connection closed for game $gameId. Remaining players: ${connections.size()}")
 
   private[server] def cleanupGame(gameId: String): Unit =
