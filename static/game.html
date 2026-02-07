@@ -237,6 +237,18 @@
         transform: scale(0.96);
       }
 
+      .color-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .color-button:disabled:hover {
+        transform: none;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+
       /* Winner Announcement */
       .winner-announcement {
         position: fixed;
@@ -411,15 +423,15 @@
         playersList.innerHTML = playersHTML;
         gamePlayers.innerHTML = playersHTML;
 
-        // Show game area if playing
-        if (game.status === 'playing' && game.currentRound) {
+        // Show game area if playing or roundEnd
+        if ((game.status === 'playing' || game.status === 'roundEnd') && game.currentRound) {
           document.getElementById('lobby').classList.add('hidden');
           document.getElementById('gameArea').classList.remove('hidden');
 
           const round = game.currentRound;
           const roundId = `${game.gameId}-${game.roundNumber}`;
 
-          // Only update round display and start timer if this is a new round
+          // Only update round display if this is a new round
           if (currentRoundId !== roundId) {
             currentRoundId = roundId;
 
@@ -428,10 +440,12 @@
 
             // Update color grid
             const colorGrid = document.getElementById('colorGrid');
+            const isRoundEnd = game.status === 'roundEnd';
             colorGrid.innerHTML = round.colorOptions.map(color => `
               <button class="color-button"
                       style="background-color: ${color}"
-                      onclick="clickColor('${color}')">
+                      onclick="${isRoundEnd ? '' : `clickColor('${color}')`}"
+                      ${isRoundEnd ? 'disabled' : ''}>
               </button>
             `).join('');
           }
@@ -446,6 +460,10 @@
 
         setTimeout(() => {
           announcement.classList.add('hidden');
+          // Tell server we're ready for the next round
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'nextRound' }));
+          }
         }, 2000);
       }
 

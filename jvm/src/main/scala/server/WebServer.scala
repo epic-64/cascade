@@ -173,20 +173,25 @@ object WebServer extends MainRoutes:
                     winner.foreach: (playerId, playerName, points) =>
                       logger.info(s"Round winner: $playerName with $points points")
                       broadcastRoundWinner(gameId, playerId, playerName, points)
-                      
-                      // Check if game should end
-                      if shared.ColorRush.shouldEndGame(updatedGame) then
-                        val finalWinner = shared.ColorRush.getWinner(updatedGame)
-                        broadcastGameEnd(gameId, finalWinner)
-                      else
-                        // Start next round immediately
-                        val gameWithNextRound = shared.ColorRush.startNewRound(updatedGame)
-                        colorRushGames.put(gameId, gameWithNextRound)
                     
                     broadcastGameState(gameId)
                     
                   case _ =>
                     logger.warn(s"Click from unregistered player")
+              
+              case "nextRound" =>
+                // Client confirms they've seen the winner announcement, advance to next round
+                val game = colorRushGames.get(gameId)
+                if game != null && game.status == "roundEnd" then
+                  val nextGame = shared.ColorRush.advanceFromRoundEnd(game)
+                  colorRushGames.put(gameId, nextGame)
+                  logger.info(s"Game $gameId advancing from roundEnd to ${nextGame.status}")
+                  
+                  if nextGame.status == "gameOver" then
+                    val winner = shared.ColorRush.getWinner(nextGame)
+                    broadcastGameEnd(gameId, winner)
+                  
+                  broadcastGameState(gameId)
                     
               case _ =>
                 logger.warn(s"Unknown message type: $msgType")

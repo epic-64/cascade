@@ -101,4 +101,10 @@ object ColorRush:
 
   def getWinner(game: ColorRushGame): Option[PlayerState] =
     game.players.values.toSeq.sortBy(-_.score).headOption
+  
+  def advanceFromRoundEnd(game: ColorRushGame): ColorRushGame =
+    if shouldEndGame(game) then
+      game.copy(status = "gameOver")
+    else
+      startNewRound(game)
 
