@@ -137,13 +137,22 @@ object WebServer extends MainRoutes:
   def getArticleOptionalSeq(articleId: Int, param: Seq[String] = Nil) =
     s"Article $articleId $param"
 
-  // Serve root path to index.html
+  // Serve HTML pages directly at clean URLs
   @cask.get("/")
-  def index() = cask.Redirect("/static/index.html")
+  def index(): cask.Response[java.io.InputStream] = 
+    cask.Response(
+      data = getClass.getClassLoader.getResourceAsStream("static/index.html"),
+      statusCode = 200,
+      headers = Seq("Content-Type" -> "text/html")
+    )
 
-  // Convenience redirect
   @cask.get("/game")
-  def game() = cask.Redirect("/static/game.html")
+  def game(): cask.Response[java.io.InputStream] = 
+    cask.Response(
+      data = getClass.getClassLoader.getResourceAsStream("static/game.html"),
+      statusCode = 200,
+      headers = Seq("Content-Type" -> "text/html")
+    )
 
   // Serve static files (HTML, CSS, JS) from src/main/resources
   // Cask automatically handles content types, ETag, Last-Modified, and 304 Not Modified
