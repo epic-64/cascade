@@ -78,17 +78,21 @@ sbt "cascadeJS / fullLinkJS"
 ## Endpoints
 
 **Counter Demo:**
-- `GET /` → HTML client
-- `GET /main.js` → Compiled Scala.js (includes both apps)
+- `GET /` → Counter app (HTML client)
 - `GET /counter` → Get counter value
 - `POST /counter/increment` → Increment counter
 - `POST /counter/decrement` → Decrement counter
 - `WS /ws/counter` → WebSocket for real-time updates
 
 **Color Rush Game:**
-- `GET /game.html` → Color Rush game client
-- `GET /game.css` → Game stylesheet
+- `GET /game` → Color Rush game client
 - `WS /ws/game/:gameId` → Game WebSocket endpoint
+
+**Static Assets:**
+- `GET /static/*` → Static files (HTML, CSS, JS)
+  - `/static/js/main.js` → Compiled Scala.js (includes both apps)
+  - `/static/index.html`, `/static/game.html` → HTML files
+  - `/static/styles.css` → Stylesheet
 
 **System:**
 - `GET /health` → Server health and statistics (JSON)
