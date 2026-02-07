@@ -15,7 +15,7 @@ lazy val cascade = crossProject(JSPlatform, JVMPlatform)
     )
   )
   .jvmSettings(
-    Compile / mainClass := Some("server.WebServer"),
+    Compile / mainClass  := Some("server.WebServer"),
     executableScriptName := "main",
     libraryDependencies ++= Seq(
       "com.lihaoyi"       %% "cask"            % caskVersion,
@@ -28,14 +28,17 @@ lazy val cascade = crossProject(JSPlatform, JVMPlatform)
   .jvmEnablePlugins(JavaAppPackaging)
   .jsSettings(
     // Enable main module initializer so cascadeJS/run works and main.js is generated
-    scalaJSUseMainModuleInitializer                     := true,
+    scalaJSUseMainModuleInitializer := true,
+
     // Output compiled JS to JVM resources directory for conventional serving
     Compile / fastLinkJS / scalaJSLinkerOutputDirectory :=
       baseDirectory.value / ".." / "jvm" / "src" / "main" / "resources" / "static" / "js",
     Compile / fullLinkJS / scalaJSLinkerOutputDirectory :=
       baseDirectory.value / ".." / "jvm" / "src" / "main" / "resources" / "static" / "js",
-    Compile / fullOptJS / scalaJSLinkerOutputDirectory :=
+    Compile / fullOptJS / scalaJSLinkerOutputDirectory  :=
       baseDirectory.value / ".." / "jvm" / "src" / "main" / "resources" / "static" / "js",
+
+    // dependencies for Scala.js project
     libraryDependencies ++= Seq(
       "org.scala-js" %%% "scalajs-dom" % "2.2.0"
     )
