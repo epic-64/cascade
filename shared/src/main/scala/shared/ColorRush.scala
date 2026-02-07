@@ -28,8 +28,7 @@ object PlayerState:
 case class Round(
   targetColor: String,      // Hex color code
   colorOptions: Vector[String], // 6 color options in a grid
-  startTime: Long,
-  roundDuration: Int  // 5 seconds per round
+  startTime: Long
 )
 
 object Round:
@@ -59,7 +58,7 @@ object ColorRush:
     val shuffled = Random.shuffle(otherColors).take(5)
     val allColors = Random.shuffle(shuffled :+ target)
     
-    val round = Round(target, allColors, System.currentTimeMillis(), 5000)
+    val round = Round(target, allColors, System.currentTimeMillis())
     game.copy(
       currentRound = Some(round),
       roundNumber = game.roundNumber + 1,

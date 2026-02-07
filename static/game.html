@@ -286,17 +286,6 @@
       .start-button:hover {
         box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
       }
-
-      .timer {
-        font-size: 2.5rem;
-        font-weight: 700;
-        background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin: 1rem 0;
-        font-variant-numeric: tabular-nums;
-      }
     </style>
   </head>
   <body>
@@ -322,7 +311,6 @@
       <div id="gameArea" class="game-area hidden">
         <div class="round-info">
           <div class="round-number">Round <span id="roundNumber">1</span> of 10</div>
-          <div class="timer" id="timer"></div>
           <div class="target-color-label">Click this color:</div>
           <div id="targetColor" class="target-color"></div>
         </div>
@@ -343,7 +331,6 @@
       let ws = null;
       let gameId = null;
       let currentPlayerId = null;
-      let currentTimerInterval = null;
       let currentRoundId = null;
 
       function joinGame() {
@@ -447,42 +434,8 @@
                       onclick="clickColor('${color}')">
               </button>
             `).join('');
-
-            // Start timer (will clear any existing timer)
-            startTimer(round.roundDuration);
           }
-        } else if (game.status === 'roundEnd') {
-          // Clear timer when round ends
-          clearTimer();
         }
-      }
-
-      function clearTimer() {
-        if (currentTimerInterval) {
-          clearInterval(currentTimerInterval);
-          currentTimerInterval = null;
-        }
-      }
-
-      function startTimer(duration) {
-        // Clear any existing timer first
-        clearTimer();
-
-        let remaining = Math.floor(duration / 1000);
-        const timerEl = document.getElementById('timer');
-
-        // Set initial value
-        timerEl.textContent = remaining;
-
-        currentTimerInterval = setInterval(() => {
-          remaining--;
-          timerEl.textContent = remaining;
-
-          if (remaining < 0) {
-            clearTimer();
-            timerEl.textContent = '⏱️';
-          }
-        }, 1000);
       }
 
       function showRoundWinner(playerName, points) {
