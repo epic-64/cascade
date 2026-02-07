@@ -204,7 +204,7 @@ def joinGame(): Unit =
 
 def connectToGame(gameId: String, playerName: String): Unit =
   val protocol = if window.location.protocol == "https:" then "wss:" else "ws:"
-  val wsUrl    = s"$protocol//${window.location.host}/ws/game/$gameId"
+  val wsUrl    = s"$protocol//${window.location.host}/ws/color-rush/$gameId"
 
   val ws = new WebSocket(wsUrl)
   gameWebSocket = Some(ws)

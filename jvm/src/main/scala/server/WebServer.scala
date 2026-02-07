@@ -82,7 +82,7 @@ object WebServer extends MainRoutes:
         case ex => logger.warn(s"Failed to send WebSocket message to client: ${ex.getMessage}")
 
   // Color Rush game WebSocket endpoint
-  @cask.websocket("/ws/game/:gameId")
+  @cask.websocket("/ws/color-rush/:gameId")
   def colorRushWebSocket(gameId: String): cask.WebsocketResult =
     ColorRushHandler.handleWebSocket(gameId)
 
@@ -146,10 +146,10 @@ object WebServer extends MainRoutes:
       headers = Seq("Content-Type" -> "text/html")
     )
 
-  @cask.get("/game")
-  def game(): cask.Response[java.io.InputStream] = 
+  @cask.get("/color-rush")
+  def colorRush(): cask.Response[java.io.InputStream] = 
     cask.Response(
-      data = getClass.getClassLoader.getResourceAsStream("static/game.html"),
+      data = getClass.getClassLoader.getResourceAsStream("static/color-rush.html"),
       statusCode = 200,
       headers = Seq("Content-Type" -> "text/html")
     )

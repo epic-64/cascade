@@ -21,7 +21,7 @@ import scala.util.{Failure, Success, Try}
   println(s"[client] Current page: $pathname")
 
   pathname match
-    case p if p.contains("game.html") || p == "/game" =>
+    case p if p.contains("color-rush.html") || p == "/color-rush" =>
       println("[client] Initializing Color Rush game...")
       // Wait for DOM to be ready
       if document.readyState == "loading" then
