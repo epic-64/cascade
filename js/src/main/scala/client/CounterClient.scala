@@ -15,6 +15,9 @@ def initializeCounter(): Unit =
 var counterWebSocket: Option[WebSocket] = None
 
 def buildCounterUI(): Unit =
+  // Add navigation bar
+  document.body.appendChild(NavigationBar.render("Counter"))
+
   // Create main container
   val mainContainer = document.createElement("div").asInstanceOf[HTMLElement]
   mainContainer.className = "container"
