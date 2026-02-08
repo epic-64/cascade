@@ -1,7 +1,6 @@
 [phases.build]
 cmds = [
   "sbt cascadeJS/fullLinkJS",
-  "sbt cacheBust",
   "sbt cascadeJVM/stage",
   "mkdir -p target/universal",
   "cp -r jvm/target/universal/stage target/universal/"
