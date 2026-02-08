@@ -23,6 +23,9 @@ def buildGameUI(): Unit =
   // Clear existing content
   document.body.innerHTML = ""
 
+  // Add navigation bar
+  document.body.appendChild(NavigationBar.render("Color Rush"))
+
   // Create main container
   val container = document.createElement("div").asInstanceOf[HTMLElement]
   container.className = "container"

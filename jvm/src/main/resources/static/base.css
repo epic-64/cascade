@@ -211,6 +211,68 @@ textarea::placeholder {
   z-index: 1;
 }
 
+/* Navigation Bar */
+.nav-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  background: rgba(24, 24, 27, 0.8);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  margin: calc(-1 * var(--spacing-md));
+  margin-bottom: var(--spacing-lg);
+}
+
+@media (min-width: 768px) {
+  .nav-bar {
+    margin: calc(-1 * var(--spacing-xl));
+    margin-bottom: var(--spacing-xl);
+  }
+}
+
+.nav-home {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s;
+}
+
+.nav-home:hover {
+  transform: translateX(-2px);
+}
+
+.nav-logo {
+  font-size: 1.25rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-pink) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.02em;
+}
+
+.nav-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.nav-separator {
+  color: var(--text-muted);
+  font-weight: 300;
+}
+
+.nav-current {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
 /* Utility classes */
 .hidden {
   display: none;
