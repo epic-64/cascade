@@ -7,7 +7,7 @@ Full-stack web application using Scala 3, Scala.js, Cask, and WebSockets.
 **Counter App with Real-Time Sync**
 - Server maintains counter state (Scala 3 + Cask)
 - Client displays and controls counter (Scala.js)
-- WebSocket broadcasts updates to all tabs in real-time 🎉
+- WebSocket broadcasts updates to all tabs in real-time
 - **Thread-safe** concurrent access using `AtomicInteger`
 - Shared types between client and server for type safety
 - **HTTP caching** with ETag validation for optimal performance
@@ -75,6 +75,11 @@ Transpile client (production):
 sbt "cascadeJS / fullLinkJS"
 ```
 
+Cache bust assets (for deployment):
+```bash
+sbt cacheBust
+```
+
 ## Endpoints
 
 **Landing Page:**
@@ -114,4 +119,5 @@ sbt "cascadeJS / fullLinkJS"
 ## Documentation
 
 - **[Health Endpoint](docs/HEALTH_ENDPOINT.md)** - Detailed documentation of the `/health` endpoint and its stats
+- **[Cache Busting](docs/CACHE_BUSTING.md)** - Automatic asset versioning to prevent stale browser caches
 
