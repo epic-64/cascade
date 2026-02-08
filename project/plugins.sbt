@@ -2,4 +2,3 @@ addSbtPlugin("org.jetbrains.scala" % "sbt-ide-settings"         % "1.1.2")  // f
 addSbtPlugin("org.scoverage"       % "sbt-scoverage"            % "2.4.4")  // code coverage
 addSbtPlugin("com.github.sbt"      % "sbt-native-packager"      % "1.11.1") // create a native package
 addSbtPlugin("org.scala-js"        % "sbt-scalajs"              % "1.20.2") // Scala.js support
-addSbtPlugin("org.portable-scala"  % "sbt-scalajs-crossproject" % "1.3.2")
