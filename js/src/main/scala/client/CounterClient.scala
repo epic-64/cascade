@@ -19,19 +19,14 @@ def buildCounterUI(): Unit =
   document.body.appendChild(NavigationBar.render("Counter"))
 
   // Create main container
-  val mainContainer = document.createElement("div").asInstanceOf[HTMLElement]
-  mainContainer.className = "container"
+  val mainContainer = el("div", "container")
 
   // Create title
-  val title = document.createElement("h1").asInstanceOf[HTMLElement]
-  title.textContent = "Real-time Counter"
-  title.style.textAlign = "center"
+  val title = el("h1", "title text-center", "Real-time Counter", Some(el => el.style.textAlign = "center"))
   mainContainer.appendChild(title)
 
   // Create subtitle
-  val subtitle = document.createElement("p").asInstanceOf[HTMLElement]
-  subtitle.className = "subtitle text-center"
-  subtitle.textContent = "Synchronized across all connected clients"
+  val subtitle = el("p", "subtitle text-center", "Synchronized across all connected clients")
   subtitle.style.textAlign = "center"
   subtitle.style.color = "var(--text-secondary)"
   subtitle.style.marginBottom = "2rem"
@@ -123,4 +118,3 @@ def updateCounterDisplay(value: String): Unit =
   document.getElementById("counter-display") match
     case el: HTMLElement => el.textContent = value
     case null            => println("[Counter] counter-display element not found")
-
