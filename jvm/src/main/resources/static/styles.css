@@ -39,23 +39,29 @@
   padding: 0.75rem 2.5rem;
   min-width: 100px;
   border-radius: var(--radius-md);
+  font-weight: 600;
+  transition: all 0.2s;
 }
 
 #btn-decrement {
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  color: white;
 }
 
 #btn-decrement:hover {
+  transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
 }
 
 #btn-increment {
   background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  color: white;
 }
 
 #btn-increment:hover {
+  transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
 }
 
