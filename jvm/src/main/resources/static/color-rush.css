@@ -134,16 +134,14 @@
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: var(--shadow-md);
   position: relative;
+  /* Override base button styles - colors are set inline via JS */
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  font-weight: inherit;
 }
 
-.color-button::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 10px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 100%);
-  pointer-events: none;
-}
+/* Removed ::after overlay - it was covering the background colors */
 
 .color-button:hover {
   transform: scale(1.08);
