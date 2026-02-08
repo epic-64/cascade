@@ -10,7 +10,8 @@
   font-weight: 400;
 }
 
-.lobby {
+/* Join Form Container - shown initially */
+.join-form-container {
   background: var(--bg-card);
   backdrop-filter: blur(20px);
   border: 1px solid var(--border-subtle);
@@ -23,18 +24,18 @@
   margin-right: auto;
 }
 
-.lobby h2 {
+.join-form-container h2 {
   font-size: 1.25rem;
   font-weight: 600;
   margin-bottom: 1rem;
   color: var(--text-primary);
 }
 
-.lobby input {
+.join-form-container input {
   margin-bottom: 1rem;
 }
 
-.lobby button {
+.join-form-container button {
   width: 100%;
   font-size: 0.95rem;
   padding: 0.875rem;
@@ -47,13 +48,34 @@
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
-.lobby button:hover {
+.join-form-container button:hover {
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
 }
 
-.lobby button:active {
+.join-form-container button:active {
   transform: translateY(0);
+}
+
+/* Waiting Area Container - shown after joining */
+.waiting-area-container {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-subtle);
+  padding: 1.5rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  margin-bottom: 1rem;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.waiting-area-container h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
 }
 
 .players {
@@ -219,13 +241,26 @@
 }
 
 .start-button {
+  width: 100%;
+  font-size: 0.95rem;
+  padding: 0.875rem;
   background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  transition: all 0.2s;
   margin-top: 1.5rem;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
 .start-button:hover {
+  transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+.start-button:active {
+  transform: translateY(0);
 }
 
 /* Desktop layout: side-by-side */
@@ -249,12 +284,14 @@
     margin-bottom: 2rem;
   }
 
-  .lobby {
+  .join-form-container,
+  .waiting-area-container {
     grid-column: 1 / -1;
     padding: 2rem;
   }
 
-  .lobby h2 {
+  .join-form-container h2,
+  .waiting-area-container h3 {
     font-size: 1.5rem;
     margin-bottom: 1.5rem;
   }
