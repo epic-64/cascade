@@ -16,21 +16,21 @@ var counterWebSocket: Option[WebSocket] = None
 
 def buildCounterUI(): Unit =
   // Add navigation bar
-  document.body.appendChild(NavigationBar.render("Counter"))
+  val navBar = NavigationBar.render("Counter").append_to(document.body)
 
   // Create main container
   val mainContainer = el("div").with_classes("container").append_to(document.body)
 
   // Create title
   val title = el("h1")
-    .with_classes("title text-center")
+    .with_classes("title")
     .with_content("Real-time Counter")
     .tap_style(_.textAlign = "center")
     .append_to(mainContainer)
 
   // Create subtitle
   val subtitle = el("p")
-    .with_classes("subtitle text-center")
+    .with_classes("subtitle")
     .with_content("Synchronized across all connected clients")
     .tap_style: style =>
       style.textAlign = "center"
