@@ -1,67 +1,22 @@
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+/* Color Rush Game Styles */
+@import url('/static/base.css');
 
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: #0a0a0f;
-  color: #e4e4e7;
-  min-height: 100vh;
-  padding: 1rem;
-  position: relative;
-  overflow-x: hidden;
-}
-
-body::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background:
-    radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.15) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, rgba(99, 102, 241, 0.15) 0%, transparent 50%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  position: relative;
-  z-index: 1;
-}
-
-h1 {
-  text-align: center;
-  font-size: clamp(1.75rem, 5vw, 2.5rem);
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-  background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: -0.02em;
-}
-
+/* Game-specific overrides and additions */
 .subtitle {
   text-align: center;
-  color: #a1a1aa;
+  color: var(--text-secondary);
   margin-bottom: 1.5rem;
   font-size: 0.875rem;
   font-weight: 400;
 }
 
 .lobby {
-  background: rgba(24, 24, 27, 0.6);
+  background: var(--bg-card);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(63, 63, 70, 0.4);
+  border: 1px solid var(--border-subtle);
   padding: 1.5rem;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
   margin-bottom: 1rem;
 }
 
@@ -69,52 +24,15 @@ h1 {
   font-size: 1.25rem;
   font-weight: 600;
   margin-bottom: 1rem;
-  color: #e4e4e7;
+  color: var(--text-primary);
 }
 
 .lobby input {
-  width: 100%;
-  padding: 0.875rem 1rem;
-  font-size: 0.95rem;
-  background: rgba(39, 39, 42, 0.5);
-  border: 1px solid rgba(63, 63, 70, 0.6);
-  border-radius: 8px;
   margin-bottom: 1rem;
-  color: #e4e4e7;
-  transition: all 0.2s;
-}
-
-.lobby input:focus {
-  outline: none;
-  border-color: #818cf8;
-  background: rgba(39, 39, 42, 0.8);
-}
-
-.lobby input::placeholder {
-  color: #71717a;
 }
 
 .lobby button {
   width: 100%;
-  padding: 0.875rem;
-  font-size: 0.95rem;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-}
-
-.lobby button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
-}
-
-.lobby button:active {
-  transform: translateY(0);
 }
 
 .players {
@@ -123,10 +41,10 @@ h1 {
 
 .player-card {
   background: rgba(39, 39, 42, 0.55);
-  border: 1px solid rgba(99, 102, 241, 0.25);
+  border: 1px solid var(--border-medium);
   padding: 0.875rem 1rem;
   margin: 0.5rem 0;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -134,17 +52,17 @@ h1 {
 }
 
 .player-card:hover {
-  background: rgba(39, 39, 42, 0.75);
-  border-color: rgba(129, 140, 248, 0.4);
+  background: var(--bg-card-hover);
+  border-color: var(--border-bright);
 }
 
 .player-name {
   font-weight: 600;
-  color: #e4e4e7;
+  color: var(--text-primary);
 }
 
 .player-score {
-  color: #818cf8;
+  color: var(--accent-purple);
   font-size: 1.1rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -158,15 +76,15 @@ h1 {
 .round-info {
   background: rgba(24, 24, 27, 0.7);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(63, 63, 70, 0.45);
+  border: 1px solid var(--border-subtle);
   padding: 1.5rem;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   margin-bottom: 1.5rem;
 }
 
 .round-number {
   font-size: 0.875rem;
-  color: #a1a1aa;
+  color: var(--text-secondary);
   margin-bottom: 1rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -184,9 +102,9 @@ h1 {
   width: clamp(80px, 20vw, 120px);
   height: clamp(80px, 20vw, 120px);
   margin: 0 auto 1rem;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.3),
+    var(--shadow-lg),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   border: 2px solid rgba(255, 255, 255, 0.1);
 }
@@ -211,10 +129,10 @@ h1 {
 .color-button {
   aspect-ratio: 1;
   border: 2px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-md);
   position: relative;
 }
 
@@ -245,7 +163,7 @@ h1 {
 
 .color-button:disabled:hover {
   transform: none;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-md);
   border-color: rgba(255, 255, 255, 0.1);
 }
 
@@ -258,8 +176,8 @@ h1 {
   backdrop-filter: blur(20px);
   border: 1px solid rgba(99, 102, 241, 0.3);
   padding: 2rem;
-  border-radius: 20px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
   z-index: 1000;
   text-align: center;
   animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -274,7 +192,7 @@ h1 {
 .winner-announcement h2 {
   font-size: clamp(1.5rem, 5vw, 2rem);
   margin: 0 0 1rem 0;
-  background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+  background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-pink) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -283,14 +201,12 @@ h1 {
 
 .winner-announcement .points {
   font-size: clamp(1rem, 4vw, 1.25rem);
-  color: #fbbf24;
+  color: var(--accent-yellow);
   font-weight: 600;
 }
 
-.hidden { display: none; }
-
 .start-button {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
   margin-top: 1.5rem;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
