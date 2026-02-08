@@ -19,49 +19,39 @@ def buildCounterUI(): Unit =
   document.body.appendChild(NavigationBar.render("Counter"))
 
   // Create main container
-  val mainContainer = el("div", "container")
+  val mainContainer = el("div").with_classes("container").append_to(document.body)
 
   // Create title
-  val title = el("h1", "title text-center", "Real-time Counter", Some(el => el.style.textAlign = "center"))
-  mainContainer.appendChild(title)
+  val title = el("h1")
+    .with_classes("title text-center")
+    .with_content("Real-time Counter")
+    .tap_style(_.textAlign = "center")
+    .append_to(mainContainer)
 
   // Create subtitle
-  val subtitle = el("p", "subtitle text-center", "Synchronized across all connected clients")
-  subtitle.style.textAlign = "center"
-  subtitle.style.color = "var(--text-secondary)"
-  subtitle.style.marginBottom = "2rem"
-  mainContainer.appendChild(subtitle)
+  val subtitle = el("p")
+    .with_classes("subtitle text-center")
+    .with_content("Synchronized across all connected clients")
+    .tap_style: style =>
+      style.textAlign = "center"
+      style.color = "var(--text-secondary)"
+      style.marginBottom = "2rem"
+    .append_to(mainContainer)
 
   // Create counter container
-  val container = document.createElement("div").asInstanceOf[HTMLElement]
-  container.id = "counter-container"
-
-  val counterDisplay = document.createElement("div").asInstanceOf[HTMLElement]
-  counterDisplay.id = "counter-display"
-  counterDisplay.textContent = "Connecting..."
-
-  val btnDecrement = document.createElement("button").asInstanceOf[HTMLButtonElement]
-  btnDecrement.textContent = "-"
-  btnDecrement.id = "btn-decrement"
-
-  val btnIncrement = document.createElement("button").asInstanceOf[HTMLButtonElement]
-  btnIncrement.textContent = "+"
-  btnIncrement.id = "btn-increment"
-
-  val btnContainer = document.createElement("div").asInstanceOf[HTMLElement]
-  btnContainer.id = "btn-container"
-  btnContainer.appendChild(btnDecrement)
-  btnContainer.appendChild(btnIncrement)
-
-  container.appendChild(counterDisplay)
-  container.appendChild(btnContainer)
-
-  mainContainer.appendChild(container)
-  document.body.appendChild(mainContainer)
-
-  // Set up event listeners
-  btnIncrement.addEventListener("click", _ => modifyCounter("increment"))
-  btnDecrement.addEventListener("click", _ => modifyCounter("decrement"))
+  val container      = el("div").with_id("counter-container").append_to(mainContainer)
+  val counterDisplay = el("div").with_id("counter-display").with_content("Connecting...").append_to(container)
+  val btnContainer   = el("div").with_id("btn-container").append_to(container)
+  val btnDecrement   = el("button")
+    .with_id("btn-decrement")
+    .with_content("-")
+    .with_click(_ => modifyCounter("decrement"))
+    .append_to(btnContainer)
+  val btnIncrement   = el("button")
+    .with_id("btn-increment")
+    .with_content("+")
+    .with_click(_ => modifyCounter("increment"))
+    .append_to(btnContainer)
 
 def connectWebSocket(): Unit =
   // Use relative WebSocket URL - will connect to same host/port as the page
