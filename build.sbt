@@ -5,6 +5,9 @@ coverageEnabled := sys.env.get("ENABLE_COVERAGE").contains("true")
 
 val caskVersion = "0.11.3"
 
+// Import cache busting settings
+lazy val cacheBustingSettings = CacheBusting.settings
+
 lazy val cascade = crossProject(JSPlatform, JVMPlatform)
   .in(file("."))
   .settings(
@@ -45,3 +48,9 @@ lazy val cascade = crossProject(JSPlatform, JVMPlatform)
 // Convenience vals to reference subprojects explicitly
 lazy val cascadeJS  = cascade.js
 lazy val cascadeJVM = cascade.jvm
+
+// Add cache busting settings to root project
+lazy val root = (project in file("."))
+  .aggregate(cascadeJS, cascadeJVM)
+  .settings(cacheBustingSettings)
+
