@@ -6,6 +6,7 @@ import shared.*
 
 import scala.scalajs.js
 import scala.util.Try
+import scala.util.chaining.scalaUtilChainingOps
 
 def initializeColorRush(): Unit =
   println("[ColorRush] Starting Color Rush client...")
@@ -29,15 +30,17 @@ def buildGameUI(): Unit =
   val container = el("div").with_classes("container")
 
   // Create title
-  val title = document.createElement("h1").asInstanceOf[HTMLElement]
-  title.textContent = "Color Rush"
-  container.appendChild(title)
+  val title = el("h1")
+    .with_classes("title")
+    .with_content("Color Rush")
+    .tap_style(_.textAlign = "center")
+    .append_to(container)
 
   // Create subtitle
-  val subtitle = document.createElement("p").asInstanceOf[HTMLElement]
-  subtitle.className = "subtitle"
-  subtitle.textContent = "Be the fastest to click the matching color"
-  container.appendChild(subtitle)
+  val subtitle = el("p")
+    .with_classes("subtitle")
+    .with_content("Be the fastest to click the matching color")
+    .append_to(container)
 
   // Create lobby
   container.appendChild(createLobby())
@@ -51,44 +54,37 @@ def buildGameUI(): Unit =
   // Create winner announcement
   container.appendChild(createWinnerAnnouncement())
 
-  document.body.appendChild(container)
+  container.append_to(document.body)
 
 def createLobby(): HTMLElement =
-  val lobbyWrapper = document.createElement("div").asInstanceOf[HTMLElement]
-  lobbyWrapper.id = "lobby"
+  val lobbyWrapper = el("div").with_id("lobby")
 
   // Create join form container
-  val joinFormContainer = document.createElement("div").asInstanceOf[HTMLElement]
-  joinFormContainer.id = "joinFormContainer"
-  joinFormContainer.className = "join-form-container"
-
-  val heading = document.createElement("h2").asInstanceOf[HTMLElement]
-  heading.textContent = "Join Game"
-  joinFormContainer.appendChild(heading)
+  val joinFormContainer = el("div").with_id("joinFormContainer").with_classes("join-form-container")
+  val heading           = el("h2").with_content("Join Game").append_to(joinFormContainer)
 
   // Create join form
-  val form = document.createElement("form").asInstanceOf[HTMLFormElement]
-  form.id = "joinForm"
+  val joinForm = form().with_id("joinForm")
 
-  val gameIdInput = document.createElement("input").asInstanceOf[HTMLInputElement]
-  gameIdInput.`type` = "text"
-  gameIdInput.id = "gameId"
-  gameIdInput.placeholder = "Game ID (e.g., game123)"
-  gameIdInput.value = "game1"
-  form.appendChild(gameIdInput)
+  val gameIdInput = input("text")
+    .tap: el =>
+      el.id = "gameId"
+      el.placeholder = "Game ID (e.g., game123)"
+      el.value = "game1"
+    .append_to(joinForm)
 
-  val playerNameInput = document.createElement("input").asInstanceOf[HTMLInputElement]
-  playerNameInput.`type` = "text"
-  playerNameInput.id = "playerName"
-  playerNameInput.placeholder = "Your Name"
-  form.appendChild(playerNameInput)
+  val playerNameInput = input("text")
+    .tap: el =>
+      el.id = "playerName"
+      el.placeholder = "Your Name"
+    .append_to(joinForm)
 
   val submitButton = document.createElement("button").asInstanceOf[HTMLButtonElement]
   submitButton.`type` = "submit"
   submitButton.textContent = "Join Game"
-  form.appendChild(submitButton)
+  joinForm.appendChild(submitButton)
 
-  joinFormContainer.appendChild(form)
+  joinFormContainer.appendChild(joinForm)
   lobbyWrapper.appendChild(joinFormContainer)
 
   // Create waiting area container (separate from join form)
@@ -230,8 +226,7 @@ def connectToGame(gameId: String, playerName: String): Unit =
 
 def sendMessage(ws: WebSocket, msg: ClientMessage): Unit =
   Try:
-    import upickle.default.*
-    val json = write(msg)
+    val json = upickle.default.write(msg)
     println(s"[ColorRush] Sending message: $json")
     ws.send(json)
   .recover:
@@ -239,8 +234,7 @@ def sendMessage(ws: WebSocket, msg: ClientMessage): Unit =
 
 def handleWebSocketMessage(data: String): Unit =
   Try:
-    import upickle.default.*
-    val serverMsg = read[ServerMessage](data)
+    val serverMsg = upickle.default.read[ServerMessage](data)
 
     serverMsg match
       case GameUpdateMessage(game)                => parseGameUpdate(game)
@@ -277,8 +271,7 @@ def updatePlayersList(players: Map[String, PlayerState]): Unit =
   val gamePlayersElem = getElementById("gamePlayers")
 
   Try:
-    val playersArray = players.values.toSeq
-      .sortBy(p => -p.score)
+    val playersArray = players.values.toSeq.sortBy(p => -p.score)
 
     val playersHTML = playersArray
       .map: player =>
