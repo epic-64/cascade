@@ -7,7 +7,7 @@ import shared.*
 import scala.scalajs.js
 import scala.util.Try
 
-def initializeGame(): Unit =
+def initializeColorRush(): Unit =
   println("[ColorRush] Starting Color Rush client...")
   buildGameUI()
   setupJoinForm()
