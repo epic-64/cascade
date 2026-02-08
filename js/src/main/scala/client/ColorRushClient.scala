@@ -31,16 +31,21 @@ def buildGameUI(): Unit =
 
   // Create title
   val title = el("h1")
-    .with_classes("title")
-    .with_content("Color Rush")
-    .tap_style(_.textAlign = "center")
-    .append_to(container)
+    .tap: el =>
+      el.className = "title"
+      el.textContent = "Color Rush"
+      el.style.textAlign = "center"
+      container.appendChild(el)
 
   // Create subtitle
   val subtitle = el("p")
-    .with_classes("subtitle")
-    .with_content("Be the fastest to click the matching color")
-    .append_to(container)
+    .tap: el =>
+      el.className = "subtitle"
+      el.textContent = "Be the fastest to click the matching color"
+      el.style.textAlign = "center"
+      el.style.color = "var(--text-secondary)"
+      el.style.marginBottom = "2rem"
+      container.appendChild(el)
 
   // Create lobby
   container.appendChild(createLobby())
