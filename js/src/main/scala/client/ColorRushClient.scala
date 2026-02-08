@@ -29,7 +29,6 @@ def buildGameUI(): Unit =
   // Create main container
   val container = el("div").with_classes("container")
 
-
   // Create lobby
   container.appendChild(createLobby())
 
@@ -59,12 +58,14 @@ def createLobby(): HTMLElement =
       el.id = "gameId"
       el.placeholder = "Game ID (e.g., game123)"
       el.value = "game1"
+      el.setAttribute("autocomplete", "off")
     .append_to(joinForm)
 
   val playerNameInput = input("text")
     .tap: el =>
       el.id = "playerName"
       el.placeholder = "Your Name"
+      el.setAttribute("autocomplete", "off")
     .append_to(joinForm)
 
   val submitButton = document.createElement("button").asInstanceOf[HTMLButtonElement]
