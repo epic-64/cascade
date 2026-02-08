@@ -51,27 +51,24 @@ def createLobby(): HTMLElement =
   val heading           = el("h2").with_content("Join Game").append_to(joinFormContainer)
 
   // Create join form
-  val joinForm = form().with_id("joinForm")
+  val joinForm = form(Some("joinForm"))
 
-  val gameIdInput = input("text")
-    .tap: el =>
-      el.id = "gameId"
-      el.placeholder = "Game ID (e.g., game123)"
-      el.value = "game1"
-      el.setAttribute("autocomplete", "off")
-    .append_to(joinForm)
+  val gameIdInput = input("text").tap: el =>
+    el.id = "gameId"
+    el.placeholder = "Game ID (e.g., game123)"
+    el.value = "game1"
+    el.setAttribute("autocomplete", "off")
+    joinForm.appendChild(el)
 
-  val playerNameInput = input("text")
-    .tap: el =>
-      el.id = "playerName"
-      el.placeholder = "Your Name"
-      el.setAttribute("autocomplete", "off")
-    .append_to(joinForm)
+  val playerNameInput = input("text").tap: el =>
+    el.id = "playerName"
+    el.placeholder = "Your Name"
+    el.setAttribute("autocomplete", "off")
+    joinForm.appendChild(el)
 
-  val submitButton = document.createElement("button").asInstanceOf[HTMLButtonElement]
-  submitButton.`type` = "submit"
-  submitButton.textContent = "Join Game"
-  joinForm.appendChild(submitButton)
+  val submitButton = button("submit").tap: btn =>
+    btn.textContent = "Join Game"
+    joinForm.appendChild(btn)
 
   joinFormContainer.appendChild(joinForm)
   lobbyWrapper.appendChild(joinFormContainer)
