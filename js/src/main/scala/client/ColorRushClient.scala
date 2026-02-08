@@ -18,7 +18,6 @@ var gameWebSocket: Option[WebSocket] = None
 var currentGameId: Option[String]    = None
 var currentRoundId: Option[String]   = None
 
-
 def buildGameUI(): Unit =
   // Clear existing content
   document.body.innerHTML = ""
@@ -27,8 +26,7 @@ def buildGameUI(): Unit =
   document.body.appendChild(NavigationBar.render("Color Rush"))
 
   // Create main container
-  val container = document.createElement("div").asInstanceOf[HTMLElement]
-  container.className = "container"
+  val container = el("div").with_classes("container")
 
   // Create title
   val title = document.createElement("h1").asInstanceOf[HTMLElement]
@@ -173,7 +171,6 @@ def createWinnerAnnouncement(): HTMLElement =
 
   announcement
 
-
 def setupJoinForm(): Unit =
   getElement("joinForm").foreach: form =>
     form.addEventListener(
@@ -246,14 +243,9 @@ def handleWebSocketMessage(data: String): Unit =
     val serverMsg = read[ServerMessage](data)
 
     serverMsg match
-      case GameUpdateMessage(game) =>
-        parseGameUpdate(game)
-
-      case RoundWinnerMessage(playerName, points) =>
-        showRoundWinner(playerName, points)
-
-      case GameEndMessage(winner) =>
-        showGameWinner(winner)
+      case GameUpdateMessage(game)                => parseGameUpdate(game)
+      case RoundWinnerMessage(playerName, points) => showRoundWinner(playerName, points)
+      case GameEndMessage(winner)                 => showGameWinner(winner)
   .recover:
     case ex => println(s"[ColorRush] Error handling message: ${ex.getMessage}")
 
