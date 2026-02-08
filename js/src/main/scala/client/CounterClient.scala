@@ -15,22 +15,42 @@ def initializeCounter(): Unit =
 var counterWebSocket: Option[WebSocket] = None
 
 def buildCounterUI(): Unit =
-  val container = document.createElement("div")
+  // Create main container
+  val mainContainer = document.createElement("div").asInstanceOf[HTMLElement]
+  mainContainer.className = "container"
+
+  // Create title
+  val title = document.createElement("h1").asInstanceOf[HTMLElement]
+  title.textContent = "Real-time Counter"
+  title.style.textAlign = "center"
+  mainContainer.appendChild(title)
+
+  // Create subtitle
+  val subtitle = document.createElement("p").asInstanceOf[HTMLElement]
+  subtitle.className = "subtitle text-center"
+  subtitle.textContent = "Synchronized across all connected clients"
+  subtitle.style.textAlign = "center"
+  subtitle.style.color = "var(--text-secondary)"
+  subtitle.style.marginBottom = "2rem"
+  mainContainer.appendChild(subtitle)
+
+  // Create counter container
+  val container = document.createElement("div").asInstanceOf[HTMLElement]
   container.id = "counter-container"
 
-  val counterDisplay = document.createElement("div")
+  val counterDisplay = document.createElement("div").asInstanceOf[HTMLElement]
   counterDisplay.id = "counter-display"
   counterDisplay.textContent = "Connecting..."
 
-  val btnDecrement = document.createElement("button")
+  val btnDecrement = document.createElement("button").asInstanceOf[HTMLButtonElement]
   btnDecrement.textContent = "-"
   btnDecrement.id = "btn-decrement"
 
-  val btnIncrement = document.createElement("button")
+  val btnIncrement = document.createElement("button").asInstanceOf[HTMLButtonElement]
   btnIncrement.textContent = "+"
   btnIncrement.id = "btn-increment"
 
-  val btnContainer = document.createElement("div")
+  val btnContainer = document.createElement("div").asInstanceOf[HTMLElement]
   btnContainer.id = "btn-container"
   btnContainer.appendChild(btnDecrement)
   btnContainer.appendChild(btnIncrement)
@@ -38,7 +58,8 @@ def buildCounterUI(): Unit =
   container.appendChild(counterDisplay)
   container.appendChild(btnContainer)
 
-  document.body.appendChild(container)
+  mainContainer.appendChild(container)
+  document.body.appendChild(mainContainer)
 
   // Set up event listeners
   btnIncrement.addEventListener("click", _ => modifyCounter("increment"))
