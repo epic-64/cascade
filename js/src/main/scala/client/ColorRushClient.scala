@@ -47,11 +47,18 @@ def createLobby(): HTMLElement =
   val lobbyWrapper = el("div").with_id("lobby")
 
   // Create join form container
-  val joinFormContainer = el("div").with_id("joinFormContainer").with_classes("join-form-container")
-  val heading           = el("h2").with_content("Join Game").append_to(joinFormContainer)
+  val joinFormContainer = el("div").tap: el =>
+    el.id = "joinFormContainer"
+    el.className = "join-form-container"
+    lobbyWrapper.appendChild(el)
+  
+  val heading = el("h2").tap: el =>
+    el.textContent = "Join Game"
+    joinFormContainer.appendChild(el)
 
   // Create join form
-  val joinForm = form(Some("joinForm"))
+  val joinForm = form(Some("joinForm")).tap: form =>
+    joinFormContainer.appendChild(form)
 
   val gameIdInput = input("text").tap: el =>
     el.id = "gameId"
@@ -70,7 +77,6 @@ def createLobby(): HTMLElement =
     btn.textContent = "Join Game"
     joinForm.appendChild(btn)
 
-  joinFormContainer.appendChild(joinForm)
   lobbyWrapper.appendChild(joinFormContainer)
 
   // Create waiting area container (separate from join form)
