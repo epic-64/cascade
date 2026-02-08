@@ -51,7 +51,7 @@ def createLobby(): HTMLElement =
     el.id = "joinFormContainer"
     el.className = "join-form-container"
     lobbyWrapper.appendChild(el)
-  
+
   val heading = el("h2").tap: el =>
     el.textContent = "Join Game"
     joinFormContainer.appendChild(el)
