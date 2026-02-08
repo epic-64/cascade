@@ -5,16 +5,34 @@ coverageEnabled := sys.env.get("ENABLE_COVERAGE").contains("true")
 
 val caskVersion = "0.11.3"
 
-lazy val cascade = crossProject(JSPlatform, JVMPlatform)
+// Root project that aggregates JS and JVM subprojects
+lazy val root = project
   .in(file("."))
+  .aggregate(js, jvm, shared)
   .settings(
-    name    := "cascade",
+    name           := "cascade",
+    publish / skip := true
+  )
+
+// Shared code project (cross-compiled for both JS and JVM)
+lazy val shared = project
+  .in(file("shared"))
+  .enablePlugins(ScalaJSPlugin)
+  .settings(
+    name    := "cascade-shared",
     version := "0.1-SNAPSHOT",
     libraryDependencies ++= Seq(
       "com.lihaoyi" %%% "upickle" % "4.0.2"
     )
   )
-  .jvmSettings(
+
+// JVM subproject
+lazy val jvm = project
+  .in(file("jvm"))
+  .dependsOn(shared)
+  .settings(
+    name    := "cascade",
+    version := "0.1-SNAPSHOT",
     Compile / mainClass  := Some("server.WebServer"),
     executableScriptName := "main",
     libraryDependencies ++= Seq(
@@ -25,9 +43,17 @@ lazy val cascade = crossProject(JSPlatform, JVMPlatform)
       "org.scalamock"     %% "scalamock"       % "7.5.5"    % Test,
     )
   )
-  .jvmEnablePlugins(JavaAppPackaging)
-  .jsSettings(
-    // Enable main module initializer so cascadeJS/run works and main.js is generated
+  .enablePlugins(JavaAppPackaging)
+
+// JS subproject
+lazy val js = project
+  .in(file("js"))
+  .enablePlugins(ScalaJSPlugin)
+  .dependsOn(shared)
+  .settings(
+    name    := "cascade",
+    version := "0.1-SNAPSHOT",
+    // Enable main module initializer so js/run works and main.js is generated
     scalaJSUseMainModuleInitializer := true,
 
     // Output compiled JS to JVM resources directory for conventional serving
@@ -42,6 +68,3 @@ lazy val cascade = crossProject(JSPlatform, JVMPlatform)
     )
   )
 
-// Convenience vals to reference subprojects explicitly
-lazy val cascadeJS  = cascade.js
-lazy val cascadeJVM = cascade.jvm

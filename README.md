@@ -23,12 +23,12 @@ Full-stack web application using Scala 3, Scala.js, Cask, and WebSockets.
 
 **Terminal 1 - Transpile client (watch mode):**
 ```bash
-sbt ~"cascadeJS / fastLinkJS"
+sbt ~"js/fastLinkJS"
 ```
 
 **Terminal 2 - Start server:**
 ```bash
-sbt "cascadeJVM / run"
+sbt "jvm/run"
 ```
 
 **Browser:**
@@ -52,27 +52,27 @@ sbt clean compile
 
 Run tests:
 ```bash
-sbt "cascadeJVM / test"
+sbt "jvm/test"
 ```
 
 Start server:
 ```bash
-sbt "cascadeJVM / run"
+sbt "jvm/run"
 ```
 
 Transpile client (dev):
 ```bash
-sbt "cascadeJS / fastLinkJS"
+sbt "js/fastLinkJS"
 ```
 
 Transpile client (watch):
 ```bash
-sbt ~"cascadeJS / fastLinkJS"
+sbt ~"js/fastLinkJS"
 ```
 
 Transpile client (production):
 ```bash
-sbt "cascadeJS / fullLinkJS"
+sbt "js/fullLinkJS"
 ```
 
 ## Endpoints
