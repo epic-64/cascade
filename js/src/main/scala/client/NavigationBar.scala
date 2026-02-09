@@ -4,16 +4,16 @@ import org.scalajs.dom.*
 
 object NavigationBar:
   def render(currentPage: String): HTMLElement =
-    el("nav").with_classes("nav-bar")(
-      div().with_classes("nav-bar-content")(
+    el("nav", cls = "nav-bar")(
+      div(cls ="nav-bar-content")(
         // Left side - Home link
-        a("/").with_classes("nav-home")(
-          span().with_classes("nav-logo").with_content("Cascade")
+        a("/", cls = "nav-home")(
+          span(cls ="nav-logo", content = "Cascade")
         ),
         // Right side - Breadcrumb
-        div().with_classes("nav-breadcrumb")(
-          span().with_classes("nav-separator").with_content("/"),
-          span().with_classes("nav-current").with_content(currentPage)
+        div(cls ="nav-breadcrumb")(
+          span(cls ="nav-separator", content = "/"),
+          span(cls ="nav-current", content = currentPage)
         )
       )
     )
