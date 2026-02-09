@@ -13,10 +13,10 @@ import org.scalajs.dom.{
 import scala.scalajs.js
 import scala.util.chaining.*
 
-def el(tag: String, id: String = "", classes: String = "", content: String = ""): HTMLElement =
+def el(tag: String, id: String = "", cls: String = "", content: String = ""): HTMLElement =
   document.createElement(tag).asInstanceOf[HTMLElement].tap: element =>
     if id.nonEmpty then element.id = id
-    if classes.nonEmpty then element.className = classes
+    if cls.nonEmpty then element.className = cls
     if content.nonEmpty then element.textContent = content
 
 def form(id: String = ""): HTMLFormElement =

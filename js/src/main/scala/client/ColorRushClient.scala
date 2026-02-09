@@ -26,7 +26,7 @@ def buildGameUI(): Unit =
   document.body.appendChild(NavigationBar.render("Color Rush"))
 
   // Create main container
-  val container = el("div", classes = "container")
+  val container = el("div", cls = "container")
 
   // Create lobby
   container.appendChild(createLobby())
@@ -49,7 +49,7 @@ def createLobby(): HTMLElement =
     joinGame()
 
   el("div", id = "lobby")(
-    el("div", id = "joinFormContainer", classes = "join-form-container")(
+    el("div", id = "joinFormContainer", cls = "join-form-container")(
       el("h2", content = "Join Game"),
       form(id = "joinForm").tap { formEl =>
         formEl.addEventListener("submit", joinGameListener)
@@ -82,19 +82,19 @@ def createLobby(): HTMLElement =
   )
 
 def createGameArea(): HTMLElement =
-  el("div").with_id("gameArea").with_classes("game-area hidden")(
+  el("div", id = "gameArea", cls = "game-area hidden")(
     // Round info
-    el("div").with_classes("round-info")(
-      el("div").with_classes("round-number")(
-        el("span").with_content("Round "),
-        el("span").with_id("roundNumber").with_content("1"),
-        el("span").with_content(" of 10")
+    el("div", cls = "round-info")(
+      el("div", cls = "round-number")(
+        el("span", content = "Round "),
+        el("span", id = "roundNumber", content = "1"),
+        el("span", content = " of 10")
       ),
-      el("div").with_classes("target-color-label").with_content("Click this color:"),
-      el("div").with_id("targetColor").with_classes("target-color")
+      el("div", cls = "target-color-label", content = "Click this color:"),
+      el("div", id = "targetColor", cls = "target-color")
     ),
     // Color grid
-    el("div").with_id("colorGrid").with_classes("color-grid")
+    el("div", id = "colorGrid", cls = "color-grid")
   )
 
 def createPlayersSidebar(): HTMLElement =
