@@ -28,10 +28,11 @@ def input(input_type: String, id: String = ""): HTMLInputElement =
     input.`type` = input_type
     if id.nonEmpty then input.id = id
 
-def button(button_type: String = "button", id: String = ""): HTMLButtonElement =
+def button(button_type: String = "button", id: String = "", cls: String = ""): HTMLButtonElement =
   document.createElement("button").asInstanceOf[HTMLButtonElement].tap: button =>
     button.`type` = button_type
     if id.nonEmpty then button.id = id
+    if cls.nonEmpty then button.className = cls
 
 def a(href: String = "#", id: Option[String] = None, block: HTMLAnchorElement => Unit = _ => ()): HTMLAnchorElement =
   document
