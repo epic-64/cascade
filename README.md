@@ -3,8 +3,8 @@
 Full-stack web application using Scala 3, Scala.js, Cask, and WebSockets.
 
 # Live Environments
-- nightly (main branch): https://cascade-main.up.railway.app/
-- production: https://cascade-prod.up.railway.app/
+- main branch: https://cascade-main.up.railway.app/
+- production branch: https://cascade-prod.up.railway.app/
 
 ## Features
 
@@ -99,7 +99,7 @@ sbt "js/fullLinkJS"
 - `GET /static/*` → Static files (HTML, CSS, JS)
   - `/static/js/main.js` → Compiled Scala.js (includes both apps)
   - `/static/index.html`, `/static/counter.html`, `/static/color-rush.html` → HTML files
-  - `/static/styles.css`, `/static/color-rush.css` → Stylesheets
+  - `/static/base.css`, `/static/counter.css`, `/static/color-rush.css` → Stylesheets
 
 **System:**
 - `GET /health` → Server health and statistics (JSON)
