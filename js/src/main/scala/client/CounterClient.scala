@@ -17,8 +17,14 @@ def initializeCounter(): Unit =
 var counterWebSocket: Option[WebSocket] = None
 
 def buildCounterUI(): Unit =
-  document.appendChild(NavigationBar.render("Counter"))
-  document.appendChild(createCounterContainer())
+  // Clear existing content
+  document.body.innerHTML = ""
+
+  // Add navigation bar
+  document.body.appendChild(NavigationBar.render("Counter"))
+
+  // Add counter container
+  document.body.appendChild(createCounterContainer())
 
 def createCounterContainer(): HTMLElement =
   el("div").with_classes("container")(
@@ -35,9 +41,7 @@ def createCounterContainer(): HTMLElement =
       el.style.marginBottom = "2rem"
     ,
     el("div").with_id("counter-container")(
-      el("div")
-        .with_id("counter-display")
-        .with_content("Connecting..."),
+      el("div").with_id("counter-display").with_content("Connecting..."),
       el("div").with_id("btn-container")(
         button()
           .with_id("btn-decrement")
