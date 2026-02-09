@@ -29,43 +29,81 @@ jobs:
           echo "$(pwd)/sbt/bin" >> $GITHUB_PATH
 
       - name: Run tests with coverage
-        # run: ENABLE_COVERAGE=true sbt clean compile cascadeJS/compile coverage test coverageReport
-        run: ENABLE_COVERAGE=false sbt clean compile test
+        run: ENABLE_COVERAGE=true sbt clean coverage test coverageReport
 
-#      - name: Parse coverage percentage
-#        id: coverage
-#        run: |
-#          COVERAGE=$(grep -oP '(?<=statement-rate=")[0-9.]+(?=")' target/scala-*/scoverage-report/scoverage.xml | head -1)
-#          echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
+      - name: Parse coverage percentage
+        id: coverage
+        run: |
+          # Extract statement counts from both projects
+          JVM_COVERED=$(grep -oP '(?<=statements-covered=")[0-9]+(?=")' jvm/target/scala-*/scoverage-report/scoverage.xml | head -1)
+          JVM_TOTAL=$(grep -oP '(?<=statements-count=")[0-9]+(?=")' jvm/target/scala-*/scoverage-report/scoverage.xml | head -1)
+          SHARED_COVERED=$(grep -oP '(?<=statements-covered=")[0-9]+(?=")' shared/target/scala-*/scoverage-report/scoverage.xml | head -1)
+          SHARED_TOTAL=$(grep -oP '(?<=statements-count=")[0-9]+(?=")' shared/target/scala-*/scoverage-report/scoverage.xml | head -1)
+          
+          # Calculate combined coverage
+          TOTAL_COVERED=$((JVM_COVERED + SHARED_COVERED))
+          TOTAL_STATEMENTS=$((JVM_TOTAL + SHARED_TOTAL))
+          COVERAGE=$(echo "scale=2; $TOTAL_COVERED * 100 / $TOTAL_STATEMENTS" | bc)
+          
+          echo "JVM Coverage: $JVM_COVERED/$JVM_TOTAL"
+          echo "Shared Coverage: $SHARED_COVERED/$SHARED_TOTAL"
+          echo "Combined Coverage: $COVERAGE%"
+          echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
 
       # Step 2: Overwrite gh-pages with main + coverage report
-#      - name: Deploy Coverage Report to GitHub Pages
-#        run: |
-#          git config --global user.name "github-actions"
-#          git config --global user.email "github-actions@github.com"
-#
-#          # Copy README.md from main
-#          cp README.md temp_README.md
-#
-#          # Create a fresh gh-pages branch based on the latest main
-#          git checkout --orphan gh-pages
-#          git reset --hard
-#
-#          # Move README.md to index.md for GitHub Pages
-#          mv temp_README.md index.md
-#
-#          # Copy the coverage report
-#          mkdir -p coverage
-#          cp -r target/scala-*/scoverage-report/* coverage/
-#
-#          # Generate the badge as an SVG
-#          BADGE_URL="https://img.shields.io/badge/coverage-${{ env.COVERAGE }}%25-brightgreen.svg"
-#          curl -o coverage/coverage-badge.svg "$BADGE_URL"
-#
-#          # Clean up unnecessary files in target folder
-#          rm -rf target
-#
-#          # Commit and force-push to gh-pages
-#          git add index.md coverage/
-#          git commit -m "Update gh-pages with latest coverage report, badge, and homepage"
-#          git push --force origin gh-pages
+      - name: Deploy Coverage Report to GitHub Pages
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+          # Copy README.md from main
+          cp README.md temp_README.md
+
+          # Create a fresh gh-pages branch based on the latest main
+          git checkout --orphan gh-pages
+          git reset --hard
+
+          # Move README.md to index.md for GitHub Pages
+          mv temp_README.md index.md
+
+          # Copy the coverage reports from both projects
+          mkdir -p coverage/jvm
+          mkdir -p coverage/shared
+          cp -r jvm/target/scala-*/scoverage-report/* coverage/jvm/
+          cp -r shared/target/scala-*/scoverage-report/* coverage/shared/
+          
+          # Create a simple index.html for the coverage folder
+          cat > coverage/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Coverage Reports</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 40px; }
+              h1 { color: #333; }
+              .coverage-links { margin: 20px 0; }
+              .coverage-links a { display: block; margin: 10px 0; font-size: 18px; }
+            </style>
+          </head>
+          <body>
+            <h1>Coverage Reports</h1>
+            <div class="coverage-links">
+              <a href="jvm/index.html">JVM Project Coverage Report</a>
+              <a href="shared/index.html">Shared Project Coverage Report</a>
+            </div>
+            <p>Combined Coverage: ${{ env.COVERAGE }}%</p>
+          </body>
+          </html>
+          EOF
+
+          # Generate the badge as an SVG
+          BADGE_URL="https://img.shields.io/badge/coverage-${{ env.COVERAGE }}%25-brightgreen.svg"
+          curl -o coverage/coverage-badge.svg "$BADGE_URL"
+
+          # Clean up unnecessary files in target folder
+          rm -rf target jvm/target shared/target js/target
+
+          # Commit and force-push to gh-pages
+          git add index.md coverage/
+          git commit -m "Update gh-pages with latest coverage report, badge, and homepage"
+          git push --force origin gh-pages

@@ -1,16 +1,15 @@
-ThisBuild / version      := "0.1.0-SNAPSHOT"
+ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "3.7.4"
 
-coverageEnabled := sys.env.get("ENABLE_COVERAGE").contains("true")
-
 val caskVersion = "0.11.3"
+val enableCoverage = sys.env.get("ENABLE_COVERAGE").contains("true")
 
 // Root project that aggregates JS and JVM subprojects
 lazy val root = project
   .in(file("."))
   .aggregate(js, jvm, shared)
   .settings(
-    name           := "cascade",
+    name := "cascade",
     publish / skip := true
   )
 
@@ -19,8 +18,10 @@ lazy val shared = project
   .in(file("shared"))
   .enablePlugins(ScalaJSPlugin)
   .settings(
-    name    := "cascade-shared",
+    name := "cascade-shared",
     version := "0.1-SNAPSHOT",
+    // Enable coverage for shared project (may have issues with ScalaJS plugin)
+    coverageEnabled := enableCoverage,
     libraryDependencies ++= Seq(
       "com.lihaoyi" %%% "upickle" % "4.0.2"
     )
@@ -31,16 +32,18 @@ lazy val jvm = project
   .in(file("jvm"))
   .dependsOn(shared)
   .settings(
-    name    := "cascade",
+    name := "cascade",
     version := "0.1-SNAPSHOT",
-    Compile / mainClass  := Some("server.WebServer"),
+    Compile / mainClass := Some("server.WebServer"),
     executableScriptName := "main",
+    // Enable coverage for JVM project via environment variable
+    coverageEnabled := enableCoverage,
     libraryDependencies ++= Seq(
-      "com.lihaoyi"       %% "cask"            % caskVersion,
-      "ch.qos.logback"     % "logback-classic" % "1.5.28",
-      "org.scalatest"     %% "scalatest"       % "3.2.19"   % Test,
-      "org.scalatestplus" %% "mockito-5-12"    % "3.2.19.0" % Test,
-      "org.scalamock"     %% "scalamock"       % "7.5.5"    % Test,
+      "com.lihaoyi" %% "cask" % caskVersion,
+      "ch.qos.logback" % "logback-classic" % "1.5.28",
+      "org.scalatest" %% "scalatest" % "3.2.19" % Test,
+      "org.scalatestplus" %% "mockito-5-12" % "3.2.19.0" % Test,
+      "org.scalamock" %% "scalamock" % "7.5.5" % Test,
     )
   )
   .enablePlugins(JavaAppPackaging)
@@ -51,8 +54,10 @@ lazy val js = project
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(shared)
   .settings(
-    name    := "cascade",
+    name := "cascade",
     version := "0.1-SNAPSHOT",
+    // Disable coverage for JS project (not supported in Scala 3)
+    coverageEnabled := false,
     // Enable main module initializer so js/run works and main.js is generated
     scalaJSUseMainModuleInitializer := true,
 
@@ -67,4 +72,3 @@ lazy val js = project
       "org.scala-js" %%% "scalajs-dom" % "2.2.0"
     )
   )
-
