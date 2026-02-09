@@ -27,12 +27,12 @@ def buildCounterUI(): Unit =
   document.body.appendChild(createCounterContainer())
 
 def createCounterContainer(): HTMLElement =
-  el("div").with_classes("container")(
+  div().with_classes("container")(
     el("h1").with_classes("title").with_content("Real-time Counter"),
-    el("p").with_classes("subtitle").with_content("Synchronized across all connected clients"),
-    el("div").with_id("counter-container")(
-      el("div").with_id("counter-display").with_content("Connecting..."),
-      el("div").with_id("btn-container")(
+    div().with_classes("subtitle").with_content("Synchronized across all connected clients"),
+    div().with_id("counter-container")(
+      div().with_id("counter-display").with_content("Connecting..."),
+      div().with_id("btn-container")(
         button()
           .with_id("btn-decrement")
           .with_content("-")
