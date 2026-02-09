@@ -12,9 +12,7 @@ import scala.util.chaining.scalaUtilChainingOps
 def initializeColorRush(): Unit =
   println("[ColorRush] Starting Color Rush client...")
   buildGameUI()
-  setupJoinForm()
   setupEnterKeyHandler()
-  setupStartButton()
 
 var gameWebSocket: Option[WebSocket] = None
 var currentGameId: Option[String]    = None
@@ -49,7 +47,12 @@ def createLobby(): HTMLElement =
   el("div").with_id("lobby")(
     el("div").with_id("joinFormContainer").with_classes("join-form-container")(
       el("h2").with_content("Join Game"),
-      form().with_id("joinForm")(
+      form().with_id("joinForm").tap { formEl =>
+        val listener = (e: Event) =>
+          e.preventDefault()
+          joinGame()
+        formEl.addEventListener("submit", listener)
+      }(
         input("text").tap: el =>
           el.id = "gameId"
           el.placeholder = "Game ID (e.g., game123)"
@@ -73,6 +76,7 @@ def createLobby(): HTMLElement =
         btn.id = "startButton"
         btn.className = "start-button"
         btn.textContent = "Start Game"
+        btn.addEventListener("click", (e: Event) => startGame())
     )
   )
 
@@ -97,19 +101,6 @@ def createWinnerAnnouncement(): HTMLElement =
     el("h2").with_id("winnerName"),
     el("p").with_id("winnerPoints").with_classes("points")
   )
-
-def setupJoinForm(): Unit =
-  getElement("joinForm").foreach: form =>
-    form.addEventListener(
-      "submit",
-      (e: Event) =>
-        e.preventDefault()
-        joinGame()
-    )
-
-def setupStartButton(): Unit =
-  getElement("startButton").foreach: button =>
-    button.addEventListener("click", (e: Event) => startGame())
 
 def setupEnterKeyHandler(): Unit =
   document.addEventListener(
