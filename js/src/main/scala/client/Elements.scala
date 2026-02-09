@@ -1,7 +1,15 @@
 package client
 
 import org.scalajs.dom
-import org.scalajs.dom.{CSSStyleDeclaration, HTMLAnchorElement, HTMLButtonElement, HTMLElement, HTMLFormElement, HTMLInputElement, document}
+import org.scalajs.dom.{
+  CSSStyleDeclaration,
+  HTMLAnchorElement,
+  HTMLButtonElement,
+  HTMLElement,
+  HTMLFormElement,
+  HTMLInputElement,
+  document
+}
 
 import scala.scalajs.js
 import scala.util.chaining.*
@@ -12,13 +20,19 @@ def el(tag: String, id: String = "", cls: String = "", content: String = ""): HT
     if cls.nonEmpty then element.className = cls
     if content.nonEmpty then element.textContent = content
 
-def form(id: String = ""): HTMLFormElement =
+def div(id: String = "", cls: String = "", content: String = ""): HTMLElement  = el("div", id, cls, content)
+def span(id: String = "", cls: String = "", content: String = ""): HTMLElement = el("span", id, cls, content)
+def p(id: String = "", cls: String = "", content: String = ""): HTMLElement    = el("p", id, cls, content)
+
+def form(id: String = "", cls: String = ""): HTMLFormElement =
   document.createElement("form").asInstanceOf[HTMLFormElement].tap: form =>
+    if cls.nonEmpty then form.className = cls
     if id.nonEmpty then form.id = id
 
-def input(input_type: String, id: String = ""): HTMLInputElement =
+def input(input_type: String, id: String = "", cls: String = ""): HTMLInputElement =
   document.createElement("input").asInstanceOf[HTMLInputElement].tap: input =>
     input.`type` = input_type
+    if cls.nonEmpty then input.className = cls
     if id.nonEmpty then input.id = id
 
 def button(button_type: String = "button", id: String = "", cls: String = ""): HTMLButtonElement =
@@ -27,10 +41,11 @@ def button(button_type: String = "button", id: String = "", cls: String = ""): H
     if id.nonEmpty then button.id = id
     if cls.nonEmpty then button.className = cls
 
-def a(href: String = "#", id: String = ""): HTMLAnchorElement =
+def a(href: String = "#", id: String = "", cls: String = ""): HTMLAnchorElement =
   document.createElement("a").asInstanceOf[HTMLAnchorElement].tap: anchor =>
-      anchor.href = href
-      if id.nonEmpty then anchor.id = id
+    anchor.href = href
+    if cls.nonEmpty then anchor.className = cls
+    if id.nonEmpty then anchor.id = id
 
 extension [T <: HTMLElement](elem: T)
   def apply(children: HTMLElement*): T =
