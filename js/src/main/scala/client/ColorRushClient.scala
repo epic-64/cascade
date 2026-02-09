@@ -28,7 +28,8 @@ def buildGameUI(): Unit =
       createLobby(),
       createGameArea(),
       createPlayersSidebar(),
-      createWinnerAnnouncement()
+      createWinnerAnnouncement(),
+      createGameWinnerAnnouncement()
     )
   )
 
@@ -89,6 +90,16 @@ def createWinnerAnnouncement(): HTMLElement =
   el("div").with_id("winnerAnnouncement").with_classes("winner-announcement hidden")(
     el("h2").with_id("winnerName"),
     el("p").with_id("winnerPoints").with_classes("points")
+  )
+
+def createGameWinnerAnnouncement(): HTMLElement =
+  el("div").with_id("gameWinnerAnnouncement").with_classes("game-winner-announcement hidden")(
+    el("h1").with_id("gameWinnerTitle"),
+    el("div").with_classes("game-winner-details")(
+      el("p").with_id("gameWinnerName").with_classes("winner-name"),
+      el("p").with_id("gameWinnerScore").with_classes("winner-score"),
+      el("p").with_id("gameWinnerRounds").with_classes("winner-rounds")
+    )
   )
 
 def setupEnterKeyHandler(): Unit =
@@ -246,17 +257,34 @@ def showRoundWinner(playerName: String, points: Int): Unit =
         if ws.readyState == WebSocket.OPEN then sendMessage(ws, NextRoundMessage())
 
 def showGameWinner(winnerOpt: Option[PlayerState]): Unit =
-  val message = winnerOpt match
-    case Some(winner) =>
-      s"🎉 GAME OVER!\\n\\nWinner: ${winner.name}\\nScore: ${winner.score} points\\nRounds Won: ${winner.roundsWon}"
-    case None         =>
-      "Game Over!"
+  getElementById("gameWinnerAnnouncement").foreach: announcement =>
+    announcement.classList.remove("hidden")
 
-  showAlert(message)
+    winnerOpt match
+      case Some(winner) =>
+        getElementById("gameWinnerTitle").foreach: elem =>
+          elem.textContent = "🎉 GAME OVER!"
 
-  // Reload page after 3 seconds
-  js.timers.setTimeout(3000):
-    window.location.reload()
+        getElementById("gameWinnerName").foreach: elem =>
+          elem.textContent = s"Winner: ${winner.name}"
+
+        getElementById("gameWinnerScore").foreach: elem =>
+          elem.textContent = s"Score: ${winner.score} points"
+
+        getElementById("gameWinnerRounds").foreach: elem =>
+          elem.textContent = s"Rounds Won: ${winner.roundsWon}"
+
+      case None =>
+        getElementById("gameWinnerTitle").foreach: elem =>
+          elem.textContent = "Game Over!"
+
+        getElementById("gameWinnerName").foreach(_.textContent = "")
+        getElementById("gameWinnerScore").foreach(_.textContent = "")
+        getElementById("gameWinnerRounds").foreach(_.textContent = "")
+
+    // Reload page after 3 seconds
+    js.timers.setTimeout(3000):
+      window.location.reload()
 
 def updateLobbyUI(): Unit =
   // Hide the join form container
