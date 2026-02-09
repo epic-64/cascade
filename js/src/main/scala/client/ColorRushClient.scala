@@ -69,6 +69,16 @@ def createLobby(): HTMLElement =
 
 def createGameArea(): HTMLElement =
   el("div", id = "gameArea", cls = "game-area hidden")(
+    // Game controls at the top
+    el("div").with_classes("game-controls")(
+      button().with_classes("secondary-button").tap: btn =>
+        btn.textContent = "Return to Lobby"
+        btn.addEventListener("click", (e: Event) => returnToLobby())
+      ,
+      button(id = "showWinnerButton").with_classes("secondary-button hidden").tap: btn =>
+        btn.textContent = "Show Results"
+        btn.addEventListener("click", (e: Event) => reshowGameWinner())
+    ),
     // Round info
     el("div", cls = "round-info")(
       el("div", cls = "round-number")(
@@ -93,14 +103,26 @@ def createWinnerAnnouncement(): HTMLElement =
   )
 
 def createGameWinnerAnnouncement(): HTMLElement =
-  el("div").with_id("gameWinnerAnnouncement").with_classes("game-winner-announcement hidden")(
-    el("h1").with_id("gameWinnerTitle"),
-    el("div").with_classes("game-winner-details")(
-      el("p").with_id("gameWinnerName").with_classes("winner-name"),
-      el("p").with_id("gameWinnerScore").with_classes("winner-score"),
-      el("p").with_id("gameWinnerRounds").with_classes("winner-rounds")
+  val announcement = el("div").with_id("gameWinnerAnnouncement").with_classes("game-winner-announcement hidden")(
+    el("div").with_classes("game-winner-content")(
+      el("h1").with_id("gameWinnerTitle"),
+      el("div").with_classes("game-winner-details")(
+        el("p").with_id("gameWinnerName").with_classes("winner-name"),
+        el("p").with_id("gameWinnerScore").with_classes("winner-score"),
+        el("p").with_id("gameWinnerRounds").with_classes("winner-rounds")
+      ),
+      el("button").with_classes("close-winner-button").tap: btn =>
+        btn.textContent = "Close"
+        btn.addEventListener("click", (e: Event) => hideGameWinner())
     )
   )
+  
+  // Click outside to close
+  announcement.addEventListener("click", (e: Event) =>
+    if e.target == announcement then hideGameWinner()
+  )
+  
+  announcement
 
 def setupEnterKeyHandler(): Unit =
   document.addEventListener(
@@ -282,9 +304,19 @@ def showGameWinner(winnerOpt: Option[PlayerState]): Unit =
         getElementById("gameWinnerScore").foreach(_.textContent = "")
         getElementById("gameWinnerRounds").foreach(_.textContent = "")
 
-    // Reload page after 3 seconds
-    js.timers.setTimeout(3000):
-      window.location.reload()
+    // Show the "Show Results" button
+    getElementById("showWinnerButton").foreach(_.classList.remove("hidden"))
+
+def hideGameWinner(): Unit =
+  getElementById("gameWinnerAnnouncement").foreach: announcement =>
+    announcement.classList.add("hidden")
+
+def reshowGameWinner(): Unit =
+  getElementById("gameWinnerAnnouncement").foreach: announcement =>
+    announcement.classList.remove("hidden")
+
+def returnToLobby(): Unit =
+  window.location.reload()
 
 def updateLobbyUI(): Unit =
   // Hide the join form container
