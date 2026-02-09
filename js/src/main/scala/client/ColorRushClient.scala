@@ -22,144 +22,155 @@ var currentRoundId: Option[String]   = None
 def buildGameUI(): Unit =
   // Clear existing content
   document.body.innerHTML = ""
-  
+
+  // Add navigation bar
+  document.body.appendChild(NavigationBar.render("Color Rush"))
+
   // Create main container
   val container = document.createElement("div").asInstanceOf[HTMLElement]
   container.className = "container"
-  
+
   // Create title
   val title = document.createElement("h1").asInstanceOf[HTMLElement]
   title.textContent = "Color Rush"
   container.appendChild(title)
-  
+
   // Create subtitle
   val subtitle = document.createElement("p").asInstanceOf[HTMLElement]
   subtitle.className = "subtitle"
   subtitle.textContent = "Be the fastest to click the matching color"
   container.appendChild(subtitle)
-  
+
   // Create lobby
   container.appendChild(createLobby())
-  
+
   // Create game area
   container.appendChild(createGameArea())
-  
+
+  // Create players sidebar (outside game area)
+  container.appendChild(createPlayersSidebar())
+
   // Create winner announcement
   container.appendChild(createWinnerAnnouncement())
-  
+
   document.body.appendChild(container)
 
 def createLobby(): HTMLElement =
-  val lobby = document.createElement("div").asInstanceOf[HTMLElement]
-  lobby.id = "lobby"
-  lobby.className = "lobby"
-  
+  val lobbyWrapper = document.createElement("div").asInstanceOf[HTMLElement]
+  lobbyWrapper.id = "lobby"
+
+  // Create join form container
+  val joinFormContainer = document.createElement("div").asInstanceOf[HTMLElement]
+  joinFormContainer.id = "joinFormContainer"
+  joinFormContainer.className = "join-form-container"
+
   val heading = document.createElement("h2").asInstanceOf[HTMLElement]
   heading.textContent = "Join Game"
-  lobby.appendChild(heading)
-  
+  joinFormContainer.appendChild(heading)
+
   // Create join form
   val form = document.createElement("form").asInstanceOf[HTMLFormElement]
   form.id = "joinForm"
-  
+
   val gameIdInput = document.createElement("input").asInstanceOf[HTMLInputElement]
   gameIdInput.`type` = "text"
   gameIdInput.id = "gameId"
   gameIdInput.placeholder = "Game ID (e.g., game123)"
   gameIdInput.value = "game1"
   form.appendChild(gameIdInput)
-  
+
   val playerNameInput = document.createElement("input").asInstanceOf[HTMLInputElement]
   playerNameInput.`type` = "text"
   playerNameInput.id = "playerName"
   playerNameInput.placeholder = "Your Name"
   form.appendChild(playerNameInput)
-  
+
   val submitButton = document.createElement("button").asInstanceOf[HTMLButtonElement]
   submitButton.`type` = "submit"
   submitButton.textContent = "Join Game"
   form.appendChild(submitButton)
-  
-  lobby.appendChild(form)
-  
-  // Create waiting area
-  val waitingArea = document.createElement("div").asInstanceOf[HTMLElement]
-  waitingArea.id = "waitingArea"
-  waitingArea.className = "hidden"
-  
+
+  joinFormContainer.appendChild(form)
+  lobbyWrapper.appendChild(joinFormContainer)
+
+  // Create waiting area container (separate from join form)
+  val waitingAreaContainer = document.createElement("div").asInstanceOf[HTMLElement]
+  waitingAreaContainer.id = "waitingArea"
+  waitingAreaContainer.className = "waiting-area-container hidden"
+
   val waitingHeading = document.createElement("h3").asInstanceOf[HTMLElement]
   waitingHeading.textContent = "Players in Lobby:"
-  waitingArea.appendChild(waitingHeading)
-  
+  waitingAreaContainer.appendChild(waitingHeading)
+
   val playersList = document.createElement("div").asInstanceOf[HTMLElement]
   playersList.id = "playersList"
   playersList.className = "players"
-  waitingArea.appendChild(playersList)
-  
+  waitingAreaContainer.appendChild(playersList)
+
   val startButton = document.createElement("button").asInstanceOf[HTMLButtonElement]
   startButton.id = "startButton"
   startButton.className = "start-button"
   startButton.textContent = "Start Game"
-  waitingArea.appendChild(startButton)
-  
-  lobby.appendChild(waitingArea)
-  
-  lobby
+  waitingAreaContainer.appendChild(startButton)
+
+  lobbyWrapper.appendChild(waitingAreaContainer)
+
+  lobbyWrapper
 
 def createGameArea(): HTMLElement =
   val gameArea = document.createElement("div").asInstanceOf[HTMLElement]
   gameArea.id = "gameArea"
   gameArea.className = "game-area hidden"
-  
+
   // Round info
   val roundInfo = document.createElement("div").asInstanceOf[HTMLElement]
   roundInfo.className = "round-info"
-  
+
   val roundNumber = document.createElement("div").asInstanceOf[HTMLElement]
   roundNumber.className = "round-number"
   roundNumber.innerHTML = "Round <span id=\"roundNumber\">1</span> of 10"
   roundInfo.appendChild(roundNumber)
-  
+
   val targetColorLabel = document.createElement("div").asInstanceOf[HTMLElement]
   targetColorLabel.className = "target-color-label"
   targetColorLabel.textContent = "Click this color:"
   roundInfo.appendChild(targetColorLabel)
-  
+
   val targetColor = document.createElement("div").asInstanceOf[HTMLElement]
   targetColor.id = "targetColor"
   targetColor.className = "target-color"
   roundInfo.appendChild(targetColor)
-  
+
   gameArea.appendChild(roundInfo)
-  
+
   // Color grid
   val colorGrid = document.createElement("div").asInstanceOf[HTMLElement]
   colorGrid.id = "colorGrid"
   colorGrid.className = "color-grid"
   gameArea.appendChild(colorGrid)
-  
-  // Players list in game
-  val gamePlayers = document.createElement("div").asInstanceOf[HTMLElement]
-  gamePlayers.id = "gamePlayers"
-  gamePlayers.className = "players"
-  gameArea.appendChild(gamePlayers)
-  
+
   gameArea
+
+def createPlayersSidebar(): HTMLElement =
+  val playersSidebar = document.createElement("div").asInstanceOf[HTMLElement]
+  playersSidebar.id = "gamePlayers"
+  playersSidebar.className = "players hidden"
+  playersSidebar
 
 def createWinnerAnnouncement(): HTMLElement =
   val announcement = document.createElement("div").asInstanceOf[HTMLElement]
   announcement.id = "winnerAnnouncement"
   announcement.className = "winner-announcement hidden"
-  
+
   val winnerName = document.createElement("h2").asInstanceOf[HTMLElement]
   winnerName.id = "winnerName"
   announcement.appendChild(winnerName)
-  
+
   val winnerPoints = document.createElement("p").asInstanceOf[HTMLElement]
   winnerPoints.id = "winnerPoints"
   winnerPoints.className = "points"
   announcement.appendChild(winnerPoints)
-  
+
   announcement
 
 
@@ -353,21 +364,18 @@ def showGameWinner(winnerOpt: Option[PlayerState]): Unit =
     window.location.reload()
 
 def updateLobbyUI(): Unit =
-  getElementById("lobby").foreach: lobby =>
-    lobby.querySelector("h2").asInstanceOf[HTMLElement].textContent = "Waiting for players..."
+  // Hide the join form container
+  getElementById("joinFormContainer").foreach: container =>
+    container.classList.add("hidden")
 
-  getInputElement("gameId").foreach(_.disabled = true)
-  getInputElement("playerName").foreach(_.disabled = true)
-
-  getElementById("joinForm").foreach: form =>
-    form.style.display = "none"
-
+  // Show the waiting area container
   getElementById("waitingArea").foreach: area =>
     area.classList.remove("hidden")
 
 def showGameArea(): Unit =
   getElementById("lobby").foreach(_.classList.add("hidden"))
   getElementById("gameArea").foreach(_.classList.remove("hidden"))
+  getElementById("gamePlayers").foreach(_.classList.remove("hidden"))
 
 // Helper functions for DOM manipulation
 def getElementById(id: String): Option[HTMLElement] =

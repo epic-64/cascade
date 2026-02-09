@@ -65,6 +65,10 @@ object ColorRush:
     color: String,
     clickTime: Long
   ): (ColorRushGame, Option[(String, String, Int)]) = // (playerId, playerName, points)
+    // Only process clicks during active gameplay
+    if game.status != GameStatus.Playing then
+      return (game, None)
+    
     game.currentRound match
       case None => (game, None)
       case Some(round) =>
