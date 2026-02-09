@@ -2,8 +2,6 @@ package client
 
 import org.scalajs.dom.*
 
-import scala.util.chaining.scalaUtilChainingOps
-
 object NavigationBar:
   def render(currentPage: String): HTMLElement =
     el("nav").with_classes("nav-bar")(
