@@ -53,11 +53,13 @@ def createLobby(): HTMLElement =
           el.id = "gameId"
           el.placeholder = "Game ID (e.g., game123)"
           el.value = "game1"
-          el.setAttribute("autocomplete", "off"),
+          el.setAttribute("autocomplete", "off")
+        ,
         input("text").tap: el =>
           el.id = "playerName"
           el.placeholder = "Your Name"
-          el.setAttribute("autocomplete", "off"),
+          el.setAttribute("autocomplete", "off")
+        ,
         button("submit").tap: btn =>
           btn.textContent = "Join Game"
       )
@@ -80,8 +82,7 @@ def createGameArea(): HTMLElement =
       // Round info
       el("div").with_classes("round-info")(
         el("div").with_classes("round-number").tap: el =>
-          el.innerHTML = "Round <span id=\"roundNumber\">1</span> of 10"
-        ,
+          el.innerHTML = "Round <span id=\"roundNumber\">1</span> of 10",
         el("div")
           .with_classes("target-color-label")
           .with_content("Click this color:"),
