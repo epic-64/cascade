@@ -28,7 +28,7 @@ def buildGameUI(): Unit =
       createLobby(),
       createGameArea(),
       createPlayersSidebar(),
-      createWinnerAnnouncement(),
+      createRoundWinnerAnnouncement(),
       createGameWinnerAnnouncement()
     )
   )
@@ -109,7 +109,7 @@ def createGameArea(): HTMLElement =
 def createPlayersSidebar(): HTMLElement =
   el("div").with_id("gamePlayers").with_classes("players hidden")
 
-def createWinnerAnnouncement(): HTMLElement =
+def createRoundWinnerAnnouncement(): HTMLElement =
   el("div").with_id("winnerAnnouncement").with_classes("winner-announcement hidden")(
     el("h2").with_id("winnerName"),
     el("p").with_id("winnerPoints").with_classes("points")
