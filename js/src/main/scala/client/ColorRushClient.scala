@@ -26,7 +26,7 @@ def buildGameUI(): Unit =
   document.body.appendChild(NavigationBar.render("Color Rush"))
 
   // Create main container
-  val container = el("div").with_classes("container")
+  val container = el("div", classes = "container")
 
   // Create lobby
   container.appendChild(createLobby())
@@ -44,24 +44,23 @@ def buildGameUI(): Unit =
   document.body.appendChild(container)
 
 def createLobby(): HTMLElement =
-  el("div").with_id("lobby")(
-    el("div").with_id("joinFormContainer").with_classes("join-form-container")(
-      el("h2").with_content("Join Game"),
-      form().with_id("joinForm").tap { formEl =>
-        val listener = (e: Event) =>
-          e.preventDefault()
-          joinGame()
-        formEl.addEventListener("submit", listener)
+  val joinGameListener = (e: Event) =>
+    e.preventDefault()
+    joinGame()
+
+  el("div", id = "lobby")(
+    el("div", id = "joinFormContainer", classes = "join-form-container")(
+      el("h2", content = "Join Game"),
+      form(id = "joinForm").tap { formEl =>
+        formEl.addEventListener("submit", joinGameListener)
       }(
-        input("text").tap: el =>
-          el.id = "gameId"
+        input("text", id = "gameId").tap: el =>
           el.placeholder = "Game ID (e.g., game123)"
           el.value = "game1"
           el.setAttribute("autocomplete", "off")
           el.required = true
         ,
-        input("text").tap: el =>
-          el.id = "playerName"
+        input("text", id = "playerName").tap: el =>
           el.placeholder = "Your Name"
           el.setAttribute("autocomplete", "off")
           el.required = true
