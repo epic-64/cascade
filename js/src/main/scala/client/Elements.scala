@@ -43,6 +43,10 @@ def button(
       block(button)
 
 extension [T <: HTMLElement](elem: T)
+  def apply(children: HTMLElement*): T =
+    children.foreach(elem.appendChild(_))
+    elem
+
   def tap_style(block: CSSStyleDeclaration => Unit): T =
     block(elem.style)
     elem
@@ -70,12 +74,3 @@ extension [T <: HTMLElement](elem: T)
   def with_click(handler: js.Function1[org.scalajs.dom.MouseEvent, Unit]): T =
     elem.addEventListener("click", handler)
     elem
-
-  def with_children(children: HTMLElement*): T =
-    children.foreach(elem.appendChild(_))
-    elem
-
-  def apply(children: HTMLElement*): T =
-    children.foreach(elem.appendChild(_))
-    elem
-
