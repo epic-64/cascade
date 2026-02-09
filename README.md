@@ -119,6 +119,9 @@ sbt "js/fullLinkJS"
 - ✅ Staging environment
 - ⏳ Cache-busting system for static assets (build-step)
 - ⏳ Database persistence
+- ⏳ DB migration system (Flyway, Liquibase)
+- ⏳ Exception tracing (Sentry, Datadog, BetterStack?)
+- ⏳ Health and Performance monitoring
 
 
 ## Documentation
