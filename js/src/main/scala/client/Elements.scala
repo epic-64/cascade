@@ -13,35 +13,25 @@ import org.scalajs.dom.{
 import scala.scalajs.js
 import scala.util.chaining.*
 
-def el(tag: String, block: HTMLElement => Unit = _ => ()): HTMLElement =
-  document.createElement(tag).asInstanceOf[HTMLElement].tap(block(_))
+def el(tag: String, id: String = "", classes: String = "", content: String = ""): HTMLElement =
+  document.createElement(tag).asInstanceOf[HTMLElement].tap: element =>
+    if id.nonEmpty then element.id = id
+    if classes.nonEmpty then element.className = classes
+    if content.nonEmpty then element.textContent = content
 
-def form(id: Option[String] = None, block: HTMLFormElement => Unit = _ => ()): HTMLFormElement =
-  document
-    .createElement("form")
-    .asInstanceOf[HTMLFormElement]
-    .tap(form => id.foreach(form.id = _))
-    .tap(block(_))
+def form(id: String = ""): HTMLFormElement =
+  document.createElement("form").asInstanceOf[HTMLFormElement].tap: form =>
+    if id.nonEmpty then form.id = id
 
-def input(input_type: String, id: Option[String] = None, block: HTMLInputElement => Unit = _ => ()): HTMLInputElement =
-  document
-    .createElement("input")
-    .asInstanceOf[HTMLInputElement]
-    .tap: input =>
-      id.foreach(input.id = _)
-      input.`type` = input_type
-      block(input)
+def input(input_type: String, id: String = ""): HTMLInputElement =
+  document.createElement("input").asInstanceOf[HTMLInputElement].tap: input =>
+    input.`type` = input_type
+    if id.nonEmpty then input.id = id
 
-def button(
-    button_type: String = "button",
-    id: Option[String] = None,
-    block: HTMLButtonElement => Unit = _ => ()
-): HTMLButtonElement =
-  val btn = document.createElement("button").asInstanceOf[HTMLButtonElement]
-  btn.tap: button =>
-      id.foreach(button.id = _)
-      button.`type` = button_type
-      block(button)
+def button(button_type: String = "button", id: String = ""): HTMLButtonElement =
+  document.createElement("button").asInstanceOf[HTMLButtonElement].tap: button =>
+    button.`type` = button_type
+    if id.nonEmpty then button.id = id
 
 def a(href: String = "#", id: Option[String] = None, block: HTMLAnchorElement => Unit = _ => ()): HTMLAnchorElement =
   document
