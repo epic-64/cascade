@@ -70,12 +70,10 @@ def createLobby(): HTMLElement =
       )
     ),
     // Waiting area container
-    el("div").with_id("waitingArea").with_classes("waiting-area-container hidden")(
-      el("h3").with_content("Players in Lobby:"),
-      el("div").with_id("playersList").with_classes("players"),
-      button().tap: btn =>
-        btn.id = "startButton"
-        btn.className = "start-button"
+    el("div", id = "waitingArea", cls = "waiting-area-container hidden")(
+      el("h3", content = "Players in Lobby:"),
+      el("div", id = "playersList", cls = "players"),
+      button(id = "startButton", cls = "start-button").tap: btn =>
         btn.textContent = "Start Game"
         btn.addEventListener("click", (e: Event) => startGame())
     )
