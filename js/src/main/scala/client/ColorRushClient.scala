@@ -42,6 +42,7 @@ def buildGameUI(): Unit =
   // Create winner announcement
   container.appendChild(createWinnerAnnouncement())
 
+  // Append container to body
   document.body.appendChild(container)
 
 def createLobby(): HTMLElement =
