@@ -169,9 +169,9 @@ object ColorRushHandler:
           logger.info(s"Player $pId disconnected from game $gameId")
           broadcastGameState(gameId)
 
-          // Clean up game if it's GameOver and has no more connections
+          // Clean up game if it has no more connections
           val connectionCount = gameManager.getGameConnectionCount(gameId)
-          if updatedGame.status == shared.GameStatus.GameOver && connectionCount == 0 then
+          if connectionCount == 0 then
             gameManager.cleanupGame(gameId)
       case _ =>
 
