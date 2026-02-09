@@ -45,41 +45,32 @@ def buildGameUI(): Unit =
   container.append_to(document.body)
 
 def createLobby(): HTMLElement =
-  el("div").tap { el =>
-    el.id = "lobby"
-  } (
-    el("div").tap { el =>
-      el.id = "joinFormContainer"
-      el.className = "join-form-container"
-    } (
-        el("h2").with_content("Join Game"),
-        form(Some("joinForm"))(
-          input("text").tap: el =>
-            el.id = "gameId"
-            el.placeholder = "Game ID (e.g., game123)"
-            el.value = "game1"
-            el.setAttribute("autocomplete", "off"),
-          input("text").tap: el =>
-            el.id = "playerName"
-            el.placeholder = "Your Name"
-            el.setAttribute("autocomplete", "off"),
-          button("submit").tap: btn =>
-            btn.textContent = "Join Game"
-        )
-      ),
-    // Waiting area container
-    el("div")
-      .with_id("waitingArea")
-      .with_classes("waiting-area-container hidden")(
-        el("h3").with_content("Players in Lobby:"),
-        el("div")
-          .with_id("playersList")
-          .with_classes("players"),
-        button().tap: btn =>
-          btn.id = "startButton"
-          btn.className = "start-button"
-          btn.textContent = "Start Game"
+  el("div").with_id("lobby")(
+    el("div").with_id("joinFormContainer").with_classes("join-form-container")(
+      el("h2").with_content("Join Game"),
+      form(Some("joinForm"))(
+        input("text").tap: el =>
+          el.id = "gameId"
+          el.placeholder = "Game ID (e.g., game123)"
+          el.value = "game1"
+          el.setAttribute("autocomplete", "off"),
+        input("text").tap: el =>
+          el.id = "playerName"
+          el.placeholder = "Your Name"
+          el.setAttribute("autocomplete", "off"),
+        button("submit").tap: btn =>
+          btn.textContent = "Join Game"
       )
+    ),
+    // Waiting area container
+    el("div").with_id("waitingArea").with_classes("waiting-area-container hidden")(
+      el("h3").with_content("Players in Lobby:"),
+      el("div").with_id("playersList").with_classes("players"),
+      button().tap: btn =>
+        btn.id = "startButton"
+        btn.className = "start-button"
+        btn.textContent = "Start Game"
+    )
   )
 
 def createGameArea(): HTMLElement =
