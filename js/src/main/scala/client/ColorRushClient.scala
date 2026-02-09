@@ -22,26 +22,15 @@ def buildGameUI(): Unit =
   // Clear existing content
   document.body.innerHTML = ""
 
-  // Add navigation bar
-  document.body.appendChild(NavigationBar.render("Color Rush"))
-
-  // Create main container
-  val container = el("div", cls = "container")
-
-  // Create lobby
-  container.appendChild(createLobby())
-
-  // Create game area
-  container.appendChild(createGameArea())
-
-  // Create players sidebar (outside game area)
-  container.appendChild(createPlayersSidebar())
-
-  // Create winner announcement
-  container.appendChild(createWinnerAnnouncement())
-
-  // Append container to body
-  document.body.appendChild(container)
+  document.body(
+    NavigationBar.render("Color Rush"),
+    el("div", cls = "container")(
+      createLobby(),
+      createGameArea(),
+      createPlayersSidebar(),
+      createWinnerAnnouncement()
+    )
+  )
 
 def createLobby(): HTMLElement =
   val joinGameListener = (e: Event) =>
