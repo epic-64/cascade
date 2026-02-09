@@ -17,8 +17,8 @@ def initializeCounter(): Unit =
 var counterWebSocket: Option[WebSocket] = None
 
 def buildCounterUI(): Unit =
-  NavigationBar.render("Counter").append_to(document.body)
-  createCounterContainer().append_to(document.body)
+  document.appendChild(NavigationBar.render("Counter"))
+  document.appendChild(createCounterContainer())
 
 def createCounterContainer(): HTMLElement =
   el("div").with_classes("container")(
