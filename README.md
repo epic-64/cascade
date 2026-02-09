@@ -1,10 +1,6 @@
 # Cascade
 
-![Coverage](https://epic-64.github.io/cascade/coverage/coverage-badge.svg)
-
-[View Coverage Report](https://epic-64.github.io/cascade/coverage/index.html)
-
-[Source Code](https://github.com/epic-64/cascade)
+[![Coverage](https://epic-64.github.io/cascade/coverage/coverage-badge.svg)](https://epic-64.github.io/cascade/coverage/index.html)
 
 Full-stack web application using Scala 3, Scala.js, Cask, and WebSockets.
 
