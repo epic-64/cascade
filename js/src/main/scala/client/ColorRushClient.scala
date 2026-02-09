@@ -179,12 +179,12 @@ def connectToGame(gameId: String, playerName: String): Unit =
 
   ws.onopen = (e: Event) =>
     println(s"[ColorRush] Connected to game $gameId")
-    
+
     // Get totalRounds from UI and send with join message
     val totalRounds = getInputValue("roundsSelector")
       .flatMap(s => Try(s.toInt).toOption)
       .getOrElse(5) // Fallback to 5 if something goes wrong
-    
+
     sendMessage(ws, JoinMessage(playerName, totalRounds))
     updateLobbyUI()
 
@@ -214,7 +214,7 @@ def handleWebSocketMessage(data: String): Unit =
 def parseGameUpdate(game: ColorRushGame): Unit =
   Try:
     // Update players list for all game statuses
-    updatePlayersList(game.players)
+    updatePlayersList(game.players, game.status)
 
     // Show game area if playing or round end
     game.status match
@@ -233,18 +233,25 @@ def parseGameUpdate(game: ColorRushGame): Unit =
   .recover:
     case ex => println(s"[ColorRush] Error parsing game update: ${ex.getMessage}")
 
-def updatePlayersList(players: Map[String, PlayerState]): Unit =
+def updatePlayersList(players: Map[String, PlayerState], gameStatus: GameStatus): Unit =
   val playersListElem = getElementById("playersList")
   val gamePlayersElem = getElementById("gamePlayers")
 
   Try:
-    val playersArray = players.values.toSeq.sortBy(p => -p.score)
+    val playersArray = players.values.toSeq.sortBy(p => (-p.score, -p.roundsWon))
+
+    // Determine the winner (highest score, then most rounds won)
+    val winner = playersArray.headOption
+
+    // Only show crown if game is over
+    val showCrown = gameStatus == GameStatus.GameOver
 
     val playersHTML = playersArray
       .map: player =>
+        val crown = if showCrown && winner.contains(player) then "👑 " else ""
         s"""
         <div class="player-card">
-          <span class="player-name">${player.name}</span>
+          <span class="player-name">$crown${player.name}</span>
           <span class="player-score">${player.score} pts (${player.roundsWon} wins)</span>
         </div>
       """
