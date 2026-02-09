@@ -40,9 +40,7 @@ def createLobby(): HTMLElement =
   el("div", id = "lobby")(
     el("div", id = "joinFormContainer", cls = "join-form-container")(
       el("h2", content = "Join Game"),
-      form(id = "joinForm").tap { formEl =>
-        formEl.addEventListener("submit", joinGameListener)
-      }(
+      form(id = "joinForm").tap(_.addEventListener("submit", joinGameListener))(
         input("text", id = "gameId").tap: el =>
           el.placeholder = "Game ID (e.g., game123)"
           el.value = "game1"
