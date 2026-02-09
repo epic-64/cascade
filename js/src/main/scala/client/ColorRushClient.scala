@@ -34,49 +34,55 @@ def buildGameUI(): Unit =
   )
 
 def createLobby(): HTMLElement =
+  el("div", id = "lobby")(
+    createJoinForm(),
+    createWaitingArea()
+  )
+
+def createJoinForm(): HTMLElement =
   val joinGameListener = (e: Event) =>
     e.preventDefault()
     joinGame()
 
-  el("div", id = "lobby")(
-    el("div", id = "joinFormContainer", cls = "join-form-container")(
-      el("h2", content = "Join Game"),
-      form(id = "joinForm").tap(_.addEventListener("submit", joinGameListener))(
-        input("text", id = "gameId").tap: el =>
-          el.placeholder = "Game ID (e.g., game123)"
-          el.setAttribute("autocomplete", "off")
-          el.required = true
-        ,
-        input("text", id = "playerName").tap: el =>
-          el.placeholder = "Your Name"
-          el.setAttribute("autocomplete", "off")
-          el.required = true
-        ,
-        button("submit").tap: btn =>
-          btn.textContent = "Join Game"
+  el("div", id = "joinFormContainer", cls = "join-form-container")(
+    el("h2", content = "Join Game"),
+    form(id = "joinForm").tap(_.addEventListener("submit", joinGameListener))(
+      input("text", id = "gameId").tap: el =>
+        el.placeholder = "Game ID (e.g., game123)"
+        el.setAttribute("autocomplete", "off")
+        el.required = true
+      ,
+      input("text", id = "playerName").tap: el =>
+        el.placeholder = "Your Name"
+        el.setAttribute("autocomplete", "off")
+        el.required = true
+      ,
+      button("submit").tap: btn =>
+        btn.textContent = "Join Game"
+    )
+  )
+
+def createWaitingArea(): HTMLElement =
+  // Waiting area container
+  el("div", id = "waitingArea", cls = "waiting-area-container hidden")(
+    el("h3", content = "Players in Lobby:"),
+    el("div", id = "playersList", cls = "players"),
+    el("div", cls = "game-settings")(
+      el("label")(
+        el("span", content = "Number of Rounds: "),
+        el("select", id = "roundsSelector").tap: select =>
+          select.addEventListener("change", (e: Event) => updateGameSettings())
+          Vector(1, 3, 5, 10, 15).foreach: rounds =>
+            val option = el("option").asInstanceOf[dom.HTMLOptionElement].tap: o =>
+              o.value = rounds.toString
+              o.textContent = rounds.toString
+              if rounds == 5 then o.selected = true
+              select.appendChild(o)
       )
     ),
-    // Waiting area container
-    el("div", id = "waitingArea", cls = "waiting-area-container hidden")(
-      el("h3", content = "Players in Lobby:"),
-      el("div", id = "playersList", cls = "players"),
-      el("div", cls = "game-settings")(
-        el("label")(
-          el("span", content = "Number of Rounds: "),
-          el("select", id = "roundsSelector").tap: select =>
-            select.addEventListener("change", (e: Event) => updateGameSettings())
-            Vector(1, 3, 5, 10, 15).foreach: rounds =>
-              val option = el("option").asInstanceOf[dom.HTMLOptionElement].tap: o =>
-                o.value = rounds.toString
-                o.textContent = rounds.toString
-                if rounds == 5 then o.selected = true
-                select.appendChild(o)
-        )
-      ),
-      button(id = "startButton", cls = "start-button").tap: btn =>
-        btn.textContent = "Start Game"
-        btn.addEventListener("click", (e: Event) => startGame())
-    )
+    button(id = "startButton", cls = "start-button").tap: btn =>
+      btn.textContent = "Start Game"
+      btn.addEventListener("click", (e: Event) => startGame())
   )
 
 def createGameArea(): HTMLElement =
