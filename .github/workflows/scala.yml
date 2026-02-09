@@ -59,15 +59,10 @@ jobs:
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
 
-          # Copy README.md from main
-          cp README.md temp_README.md
-
           # Create a fresh gh-pages branch based on the latest main
           git checkout --orphan gh-pages
           git reset --hard
 
-          # Move README.md to index.md for GitHub Pages
-          mv temp_README.md index.md
 
           # Copy the coverage reports from both projects
           mkdir -p coverage/jvm
@@ -107,6 +102,6 @@ jobs:
           rm -rf target jvm/target shared/target js/target
 
           # Commit and force-push to gh-pages
-          git add index.md coverage/
-          git commit -m "Update gh-pages with latest coverage report, badge, and homepage"
+          git add coverage/
+          git commit -m "Update gh-pages with latest coverage report and badge"
           git push --force https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git gh-pages
