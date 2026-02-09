@@ -3,6 +3,7 @@ package client
 import org.scalajs.dom
 import org.scalajs.dom.*
 import shared.*
+import client.{el, form, input, button, *}
 
 import scala.scalajs.js
 import scala.util.Try
@@ -44,120 +45,79 @@ def buildGameUI(): Unit =
   container.append_to(document.body)
 
 def createLobby(): HTMLElement =
-  val lobbyWrapper = el("div").with_id("lobby")
-
-  // Create join form container
-  val joinFormContainer = el("div").tap: el =>
-    el.id = "joinFormContainer"
-    el.className = "join-form-container"
-    lobbyWrapper.appendChild(el)
-
-  val heading = el("h2").tap: el =>
-    el.textContent = "Join Game"
-    joinFormContainer.appendChild(el)
-
-  // Create join form
-  val joinForm = form(Some("joinForm")).tap: form =>
-    joinFormContainer.appendChild(form)
-
-  val gameIdInput = input("text").tap: el =>
-    el.id = "gameId"
-    el.placeholder = "Game ID (e.g., game123)"
-    el.value = "game1"
-    el.setAttribute("autocomplete", "off")
-    joinForm.appendChild(el)
-
-  val playerNameInput = input("text").tap: el =>
-    el.id = "playerName"
-    el.placeholder = "Your Name"
-    el.setAttribute("autocomplete", "off")
-    joinForm.appendChild(el)
-
-  val submitButton = button("submit").tap: btn =>
-    btn.textContent = "Join Game"
-    joinForm.appendChild(btn)
-
-  lobbyWrapper.appendChild(joinFormContainer)
-
-  // Create waiting area container (separate from join form)
-  val waitingAreaContainer = document.createElement("div").asInstanceOf[HTMLElement]
-  waitingAreaContainer.id = "waitingArea"
-  waitingAreaContainer.className = "waiting-area-container hidden"
-
-  val waitingHeading = document.createElement("h3").asInstanceOf[HTMLElement]
-  waitingHeading.textContent = "Players in Lobby:"
-  waitingAreaContainer.appendChild(waitingHeading)
-
-  val playersList = document.createElement("div").asInstanceOf[HTMLElement]
-  playersList.id = "playersList"
-  playersList.className = "players"
-  waitingAreaContainer.appendChild(playersList)
-
-  val startButton = document.createElement("button").asInstanceOf[HTMLButtonElement]
-  startButton.id = "startButton"
-  startButton.className = "start-button"
-  startButton.textContent = "Start Game"
-  waitingAreaContainer.appendChild(startButton)
-
-  lobbyWrapper.appendChild(waitingAreaContainer)
-
-  lobbyWrapper
+  el("div").tap { el =>
+    el.id = "lobby"
+  } (
+    el("div").tap { el =>
+      el.id = "joinFormContainer"
+      el.className = "join-form-container"
+    } (
+        el("h2").with_content("Join Game"),
+        form(Some("joinForm"))(
+          input("text").tap: el =>
+            el.id = "gameId"
+            el.placeholder = "Game ID (e.g., game123)"
+            el.value = "game1"
+            el.setAttribute("autocomplete", "off"),
+          input("text").tap: el =>
+            el.id = "playerName"
+            el.placeholder = "Your Name"
+            el.setAttribute("autocomplete", "off"),
+          button("submit").tap: btn =>
+            btn.textContent = "Join Game"
+        )
+      ),
+    // Waiting area container
+    el("div")
+      .with_id("waitingArea")
+      .with_classes("waiting-area-container hidden")(
+        el("h3").with_content("Players in Lobby:"),
+        el("div")
+          .with_id("playersList")
+          .with_classes("players"),
+        button().tap: btn =>
+          btn.id = "startButton"
+          btn.className = "start-button"
+          btn.textContent = "Start Game"
+      )
+  )
 
 def createGameArea(): HTMLElement =
-  val gameArea = document.createElement("div").asInstanceOf[HTMLElement]
-  gameArea.id = "gameArea"
-  gameArea.className = "game-area hidden"
-
-  // Round info
-  val roundInfo = document.createElement("div").asInstanceOf[HTMLElement]
-  roundInfo.className = "round-info"
-
-  val roundNumber = document.createElement("div").asInstanceOf[HTMLElement]
-  roundNumber.className = "round-number"
-  roundNumber.innerHTML = "Round <span id=\"roundNumber\">1</span> of 10"
-  roundInfo.appendChild(roundNumber)
-
-  val targetColorLabel = document.createElement("div").asInstanceOf[HTMLElement]
-  targetColorLabel.className = "target-color-label"
-  targetColorLabel.textContent = "Click this color:"
-  roundInfo.appendChild(targetColorLabel)
-
-  val targetColor = document.createElement("div").asInstanceOf[HTMLElement]
-  targetColor.id = "targetColor"
-  targetColor.className = "target-color"
-  roundInfo.appendChild(targetColor)
-
-  gameArea.appendChild(roundInfo)
-
-  // Color grid
-  val colorGrid = document.createElement("div").asInstanceOf[HTMLElement]
-  colorGrid.id = "colorGrid"
-  colorGrid.className = "color-grid"
-  gameArea.appendChild(colorGrid)
-
-  gameArea
+  el("div")
+    .with_id("gameArea")
+    .with_classes("game-area hidden")(
+      // Round info
+      el("div").with_classes("round-info")(
+        el("div").with_classes("round-number").tap: el =>
+          el.innerHTML = "Round <span id=\"roundNumber\">1</span> of 10"
+        ,
+        el("div")
+          .with_classes("target-color-label")
+          .with_content("Click this color:"),
+        el("div")
+          .with_id("targetColor")
+          .with_classes("target-color")
+      ),
+      // Color grid
+      el("div")
+        .with_id("colorGrid")
+        .with_classes("color-grid")
+    )
 
 def createPlayersSidebar(): HTMLElement =
-  val playersSidebar = document.createElement("div").asInstanceOf[HTMLElement]
-  playersSidebar.id = "gamePlayers"
-  playersSidebar.className = "players hidden"
-  playersSidebar
+  el("div")
+    .with_id("gamePlayers")
+    .with_classes("players hidden")
 
 def createWinnerAnnouncement(): HTMLElement =
-  val announcement = document.createElement("div").asInstanceOf[HTMLElement]
-  announcement.id = "winnerAnnouncement"
-  announcement.className = "winner-announcement hidden"
-
-  val winnerName = document.createElement("h2").asInstanceOf[HTMLElement]
-  winnerName.id = "winnerName"
-  announcement.appendChild(winnerName)
-
-  val winnerPoints = document.createElement("p").asInstanceOf[HTMLElement]
-  winnerPoints.id = "winnerPoints"
-  winnerPoints.className = "points"
-  announcement.appendChild(winnerPoints)
-
-  announcement
+  el("div")
+    .with_id("winnerAnnouncement")
+    .with_classes("winner-announcement hidden")(
+      el("h2").with_id("winnerName"),
+      el("p")
+        .with_id("winnerPoints")
+        .with_classes("points")
+    )
 
 def setupJoinForm(): Unit =
   getElement("joinForm").foreach: form =>

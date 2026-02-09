@@ -2,45 +2,30 @@ package client
 
 import org.scalajs.dom.*
 
+import scala.util.chaining.scalaUtilChainingOps
+
 object NavigationBar:
 
   def render(currentPage: String): HTMLElement =
-    val nav = document.createElement("nav").asInstanceOf[HTMLElement]
-    nav.className = "nav-bar"
-
-    // Create content wrapper for alignment with container
-    val content = document.createElement("div").asInstanceOf[HTMLElement]
-    content.className = "nav-bar-content"
-
-    // Left side - Home link
-    val homeLink = document.createElement("a").asInstanceOf[HTMLAnchorElement]
-    homeLink.href = "/"
-    homeLink.className = "nav-home"
-
-    val logo = document.createElement("span").asInstanceOf[HTMLElement]
-    logo.className = "nav-logo"
-    logo.textContent = "Cascade"
-    homeLink.appendChild(logo)
-
-    content.appendChild(homeLink)
-
-    // Right side - Breadcrumb
-    val breadcrumb = document.createElement("div").asInstanceOf[HTMLElement]
-    breadcrumb.className = "nav-breadcrumb"
-
-    val separator = document.createElement("span").asInstanceOf[HTMLElement]
-    separator.className = "nav-separator"
-    separator.textContent = "/"
-    breadcrumb.appendChild(separator)
-
-    val currentPageSpan = document.createElement("span").asInstanceOf[HTMLElement]
-    currentPageSpan.className = "nav-current"
-    currentPageSpan.textContent = currentPage
-    breadcrumb.appendChild(currentPageSpan)
-
-    content.appendChild(breadcrumb)
-
-    nav.appendChild(content)
-
-    nav
-
+    el("nav").with_classes("nav-bar")(
+      el("div").with_classes("nav-bar-content")(
+        // Left side - Home link
+        el("a").tap { link =>
+          link.asInstanceOf[HTMLAnchorElement].href = "/"
+          link.className = "nav-home"
+        } (
+          el("span")
+            .with_classes("nav-logo")
+            .with_content("Cascade")
+        ),
+        // Right side - Breadcrumb
+        el("div").with_classes("nav-breadcrumb")(
+          el("span")
+            .with_classes("nav-separator")
+            .with_content("/"),
+          el("span")
+            .with_classes("nav-current")
+            .with_content(currentPage)
+        )
+      )
+    )
