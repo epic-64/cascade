@@ -371,19 +371,3 @@ def showGameArea(): Unit =
   getElementById("lobby").foreach(_.classList.add("hidden"))
   getElementById("gameArea").foreach(_.classList.remove("hidden"))
   getElementById("gamePlayers").foreach(_.classList.remove("hidden"))
-
-// Helper functions for DOM manipulation
-def getElementById(id: String): Option[HTMLElement] =
-  Option(document.getElementById(id).asInstanceOf[HTMLElement])
-
-def getElement(id: String): Option[dom.Element] =
-  Option(document.getElementById(id))
-
-def getInputElement(id: String): Option[HTMLInputElement] =
-  Option(document.getElementById(id).asInstanceOf[HTMLInputElement])
-
-def getInputValue(id: String): Option[String] =
-  getInputElement(id).map(_.value)
-
-def showAlert(message: String): Unit =
-  window.alert(message)

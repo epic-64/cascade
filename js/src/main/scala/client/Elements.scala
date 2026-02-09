@@ -1,14 +1,7 @@
 package client
 
-import org.scalajs.dom.{
-  CSSStyleDeclaration,
-  HTMLAnchorElement,
-  HTMLButtonElement,
-  HTMLElement,
-  HTMLFormElement,
-  HTMLInputElement,
-  document
-}
+import org.scalajs.dom
+import org.scalajs.dom.{CSSStyleDeclaration, HTMLAnchorElement, HTMLButtonElement, HTMLElement, HTMLFormElement, HTMLInputElement, document}
 
 import scala.scalajs.js
 import scala.util.chaining.*
@@ -71,3 +64,16 @@ extension [T <: HTMLElement](elem: T)
   def with_click(handler: js.Function1[org.scalajs.dom.MouseEvent, Unit]): T =
     elem.addEventListener("click", handler)
     elem
+
+// Helper functions for DOM manipulation
+def getElementById(id: String): Option[HTMLElement] =
+  Option(document.getElementById(id).asInstanceOf[HTMLElement])
+
+def getElement(id: String): Option[dom.Element] =
+  Option(document.getElementById(id))
+
+def getInputElement(id: String): Option[HTMLInputElement] =
+  Option(document.getElementById(id).asInstanceOf[HTMLInputElement])
+
+def getInputValue(id: String): Option[String] =
+  getInputElement(id).map(_.value)
