@@ -20,6 +20,7 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
           players = Map("p1" -> PlayerState("p1", "Alice", 100, 10)),
           currentRound = None,
           roundNumber = 10,
+          totalRounds = 10,
           status = GameStatus.GameOver
         )
         gameManager.createGame(gameId)
@@ -46,6 +47,7 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
           players = Map("p1" -> PlayerState("p1", "Alice", 100, 10)),
           currentRound = None,
           roundNumber = 10,
+          totalRounds = 10,
           status = GameStatus.GameOver
         )
         gameManager.createGame(gameId)
@@ -89,6 +91,7 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
             players = Map.empty,
             currentRound = None,
             roundNumber = 1,
+            totalRounds = 10,
             status = status
           )
           gameManager.createGame(gameId)
@@ -121,6 +124,7 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
           players = Map.empty,
           currentRound = None,
           roundNumber = 1,
+          totalRounds = 10,
           status = GameStatus.Waiting
         )
         gameManager.createGame(game1Id)
@@ -132,6 +136,7 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
           players = Map.empty,
           currentRound = None,
           roundNumber = 1,
+          totalRounds = 10,
           status = GameStatus.Playing
         )
         gameManager.createGame(game2Id)

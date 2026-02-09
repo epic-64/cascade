@@ -12,6 +12,7 @@ case class ColorRushGame(
   players: Map[String, PlayerState],
   currentRound: Option[Round],
   roundNumber: Int,
+  totalRounds: Int,
   status: GameStatus
 ) derives ReadWriter
 
@@ -36,12 +37,18 @@ object ColorRush:
   )
   
   def createGame(gameId: String): ColorRushGame =
-    ColorRushGame(gameId, Map.empty, None, 0, GameStatus.Waiting)
+    ColorRushGame(gameId, Map.empty, None, 0, 10, GameStatus.Waiting)
 
   def addPlayer(game: ColorRushGame, playerId: String, playerName: String): ColorRushGame =
     val player = PlayerState(playerId, playerName, 0, 0)
     game.copy(players = game.players + (playerId -> player))
 
+  def configureGame(game: ColorRushGame, totalRounds: Int): ColorRushGame =
+    if game.status == GameStatus.Waiting then
+      game.copy(totalRounds = totalRounds)
+    else
+      game
+  
   def removePlayer(game: ColorRushGame, playerId: String): ColorRushGame =
     game.copy(players = game.players - playerId)
 
@@ -95,7 +102,7 @@ object ColorRush:
           (game, None)
 
   def shouldEndGame(game: ColorRushGame): Boolean =
-    game.roundNumber >= 10 || game.players.isEmpty
+    game.roundNumber >= game.totalRounds || game.players.isEmpty
 
   def getWinner(game: ColorRushGame): Option[PlayerState] =
     game.players.values.toSeq.sortBy(-_.score).headOption

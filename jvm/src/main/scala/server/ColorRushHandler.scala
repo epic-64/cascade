@@ -38,6 +38,9 @@ object ColorRushHandler:
               case shared.JoinMessage(playerName) =>
                 handleJoin(channel, gameId, playerName)
 
+              case shared.ConfigureMessage(totalRounds) =>
+                handleConfigure(gameId, totalRounds)
+
               case shared.StartMessage() =>
                 handleStart(gameId)
 
@@ -70,6 +73,13 @@ object ColorRushHandler:
 
     // Broadcast game state to all players
     broadcastGameState(gameId)
+
+  private def handleConfigure(gameId: String, totalRounds: Int): Unit =
+    gameManager.getGame(gameId).foreach: game =>
+      val updatedGame = shared.ColorRush.configureGame(game, totalRounds)
+      gameManager.updateGame(gameId, updatedGame)
+      logger.info(s"Game $gameId configured: totalRounds=$totalRounds")
+      broadcastGameState(gameId)
 
   private def handleStart(gameId: String): Unit =
     gameManager.getGame(gameId).foreach: game =>

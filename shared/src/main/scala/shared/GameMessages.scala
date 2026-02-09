@@ -10,12 +10,15 @@ sealed trait ClientMessage
 object ClientMessage:
   given ReadWriter[ClientMessage] = ReadWriter.merge(
     macroRW[JoinMessage],
+    macroRW[ConfigureMessage],
     macroRW[StartMessage],
     macroRW[ClickMessage],
     macroRW[NextRoundMessage]
   )
 
 case class JoinMessage(playerName: String) extends ClientMessage derives ReadWriter
+
+case class ConfigureMessage(totalRounds: Int) extends ClientMessage derives ReadWriter
 
 case class StartMessage() extends ClientMessage derives ReadWriter
 
