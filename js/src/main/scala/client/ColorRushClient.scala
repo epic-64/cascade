@@ -85,8 +85,11 @@ def createGameArea(): HTMLElement =
   el("div").with_id("gameArea").with_classes("game-area hidden")(
     // Round info
     el("div").with_classes("round-info")(
-      el("div").with_classes("round-number").tap: el =>
-        el.innerHTML = "Round <span id=\"roundNumber\">1</span> of 10",
+      el("div").with_classes("round-number")(
+        el("span").with_content("Round "),
+        el("span").with_id("roundNumber").with_content("1"),
+        el("span").with_content(" of 10")
+      ),
       el("div").with_classes("target-color-label").with_content("Click this color:"),
       el("div").with_id("targetColor").with_classes("target-color")
     ),
