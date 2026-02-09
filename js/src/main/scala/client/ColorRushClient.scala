@@ -61,6 +61,19 @@ def createLobby(): HTMLElement =
     el("div", id = "waitingArea", cls = "waiting-area-container hidden")(
       el("h3", content = "Players in Lobby:"),
       el("div", id = "playersList", cls = "players"),
+      el("div", cls = "game-settings")(
+        el("label")(
+          el("span", content = "Number of Rounds: "),
+          el("select", id = "roundsSelector").tap: select =>
+            select.addEventListener("change", (e: Event) => updateGameSettings())
+            Vector(5, 10, 15, 20).foreach: rounds =>
+              val option = document.createElement("option").asInstanceOf[dom.HTMLOptionElement]
+              option.value = rounds.toString
+              option.textContent = rounds.toString
+              if rounds == 10 then option.selected = true
+              select.appendChild(option)
+        )
+      ),
       button(id = "startButton", cls = "start-button").tap: btn =>
         btn.textContent = "Start Game"
         btn.addEventListener("click", (e: Event) => startGame())
@@ -84,7 +97,8 @@ def createGameArea(): HTMLElement =
       el("div", cls = "round-number")(
         el("span", content = "Round "),
         el("span", id = "roundNumber", content = "1"),
-        el("span", content = " of 10")
+        el("span", content = " of "),
+        el("span", id = "totalRounds", content = "10")
       ),
       el("div", cls = "target-color-label", content = "Click this color:"),
       el("div", id = "targetColor", cls = "target-color")
@@ -195,17 +209,16 @@ def parseGameUpdate(game: ColorRushGame): Unit =
     game.status match
       case GameStatus.Playing | GameStatus.RoundEnd =>
         showGameArea()
-
-        game.currentRound.foreach: currentRound =>
+        game.currentRound.foreach: round =>
           val roundId = s"${game.gameId}-${game.roundNumber}"
 
           // Only update round display if this is a new round
           if !currentRoundId.contains(roundId) then
             currentRoundId = Some(roundId)
             val isRoundEnd = game.status == GameStatus.RoundEnd
-            updateRoundDisplay(game.roundNumber, currentRound, isRoundEnd)
+            updateRoundDisplay(game.roundNumber, game.totalRounds, round, isRoundEnd)
 
-      case _ => // Waiting or GameOver - keep lobby visible
+      case _ => () // Waiting or GameOver - keep lobby visible
   .recover:
     case ex => println(s"[ColorRush] Error parsing game update: ${ex.getMessage}")
 
@@ -231,9 +244,12 @@ def updatePlayersList(players: Map[String, PlayerState]): Unit =
   .recover:
     case ex => println(s"[ColorRush] Error updating players list: ${ex.getMessage}")
 
-def updateRoundDisplay(roundNumber: Int, round: Round, isRoundEnd: Boolean): Unit =
+def updateRoundDisplay(roundNumber: Int, totalRounds: Int, round: Round, isRoundEnd: Boolean): Unit =
   getElementById("roundNumber").foreach: elem =>
     elem.textContent = roundNumber.toString
+
+  getElementById("totalRounds").foreach: elem =>
+    elem.textContent = totalRounds.toString
 
   getElementById("targetColor").foreach: elem =>
     elem.style.backgroundColor = round.targetColor
@@ -253,6 +269,12 @@ def updateRoundDisplay(roundNumber: Int, round: Round, isRoundEnd: Boolean): Uni
       if !isRoundEnd then button.addEventListener("click", (e: Event) => clickColor(color))
 
       grid.appendChild(button)
+
+def updateGameSettings(): Unit =
+  getInputValue("roundsSelector").foreach: roundsStr =>
+    Try(roundsStr.toInt).toOption.foreach: totalRounds =>
+      gameWebSocket.foreach: ws =>
+        sendMessage(ws, ConfigureMessage(totalRounds))
 
 def startGame(): Unit =
   gameWebSocket.foreach: ws =>
