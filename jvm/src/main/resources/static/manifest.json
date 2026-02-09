@@ -1,0 +1,21 @@
+{
+  "name": "Cascade - Multiplayer & Real-time Apps",
+  "short_name": "Cascade",
+  "description": "Real-time multiplayer apps built with Scala 3, Cask & ScalaJS",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#818cf8",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/static/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "entertainment", "utilities"],
+  "screenshots": []
+}
+
