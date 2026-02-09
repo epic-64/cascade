@@ -11,7 +11,7 @@ Full-stack web application using Scala 3, Scala.js, Cask, and WebSockets.
 **Counter App with Real-Time Sync**
 - Server maintains counter state (Scala 3 + Cask)
 - Client displays and controls counter (Scala.js)
-- WebSocket broadcasts updates to all tabs in real-time 🎉
+- WebSocket broadcasts updates to all tabs in real-time
 - **Thread-safe** concurrent access using `AtomicInteger`
 - Shared types between client and server for type safety
 - **HTTP caching** with ETag validation for optimal performance
@@ -110,10 +110,16 @@ sbt "js/fullLinkJS"
 - ✅ REST API server
 - ✅ Scala.js client with shared types
 - ✅ WebSocket real-time sync
-- ✅ Test suite (server)
+- ✅ Basic Test suite (server, client, shared)
+- ✅ Basic CI pipeline running tests
+- ⏳ Test coverage report (scoverage does not play nicely with ScalaJS)
+- ⏳ e2e tests (Selenium, Cypress, Katalon)
+- ⏳ e2e tests in CI (headless)
+- ✅ Cloud deployment (railway), deploy on push to main/production branches
+- ✅ Staging environment
+- ⏳ Cache-busting system for static assets (build-step)
 - ⏳ Database persistence
-- ⏳ CI pipeline
-- ⏳ Cloud deployment
+
 
 ## Documentation
 
