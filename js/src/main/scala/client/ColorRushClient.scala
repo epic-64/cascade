@@ -42,7 +42,7 @@ def buildGameUI(): Unit =
   // Create winner announcement
   container.appendChild(createWinnerAnnouncement())
 
-  container.append_to(document.body)
+  document.body.appendChild(container)
 
 def createLobby(): HTMLElement =
   el("div").with_id("lobby")(
@@ -76,40 +76,26 @@ def createLobby(): HTMLElement =
   )
 
 def createGameArea(): HTMLElement =
-  el("div")
-    .with_id("gameArea")
-    .with_classes("game-area hidden")(
-      // Round info
-      el("div").with_classes("round-info")(
-        el("div").with_classes("round-number").tap: el =>
-          el.innerHTML = "Round <span id=\"roundNumber\">1</span> of 10",
-        el("div")
-          .with_classes("target-color-label")
-          .with_content("Click this color:"),
-        el("div")
-          .with_id("targetColor")
-          .with_classes("target-color")
-      ),
-      // Color grid
-      el("div")
-        .with_id("colorGrid")
-        .with_classes("color-grid")
-    )
+  el("div").with_id("gameArea").with_classes("game-area hidden")(
+    // Round info
+    el("div").with_classes("round-info")(
+      el("div").with_classes("round-number").tap: el =>
+        el.innerHTML = "Round <span id=\"roundNumber\">1</span> of 10",
+      el("div").with_classes("target-color-label").with_content("Click this color:"),
+      el("div").with_id("targetColor").with_classes("target-color")
+    ),
+    // Color grid
+    el("div").with_id("colorGrid").with_classes("color-grid")
+  )
 
 def createPlayersSidebar(): HTMLElement =
-  el("div")
-    .with_id("gamePlayers")
-    .with_classes("players hidden")
+  el("div").with_id("gamePlayers").with_classes("players hidden")
 
 def createWinnerAnnouncement(): HTMLElement =
-  el("div")
-    .with_id("winnerAnnouncement")
-    .with_classes("winner-announcement hidden")(
-      el("h2").with_id("winnerName"),
-      el("p")
-        .with_id("winnerPoints")
-        .with_classes("points")
-    )
+  el("div").with_id("winnerAnnouncement").with_classes("winner-announcement hidden")(
+    el("h2").with_id("winnerName"),
+    el("p").with_id("winnerPoints").with_classes("points")
+  )
 
 def setupJoinForm(): Unit =
   getElement("joinForm").foreach: form =>
@@ -163,9 +149,7 @@ def connectToGame(gameId: String, playerName: String): Unit =
     updateLobbyUI()
 
   ws.onmessage = (event: MessageEvent) => handleWebSocketMessage(event.data.toString)
-
   ws.onerror = (event: Event) => println(s"[ColorRush] WebSocket error")
-
   ws.onclose = (e: CloseEvent) => println(s"[ColorRush] Disconnected from game")
 
 def sendMessage(ws: WebSocket, msg: ClientMessage): Unit =
