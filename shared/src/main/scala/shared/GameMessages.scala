@@ -16,7 +16,7 @@ object ClientMessage:
     macroRW[NextRoundMessage]
   )
 
-case class JoinMessage(playerName: String) extends ClientMessage derives ReadWriter
+case class JoinMessage(playerName: String, totalRounds: Int) extends ClientMessage derives ReadWriter
 
 case class ConfigureMessage(totalRounds: Int) extends ClientMessage derives ReadWriter
 

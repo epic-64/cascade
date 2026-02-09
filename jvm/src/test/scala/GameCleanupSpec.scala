@@ -23,7 +23,7 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
           totalRounds = 10,
           status = GameStatus.GameOver
         )
-        gameManager.createGame(gameId)
+        gameManager.createGame(gameId, 10)
         gameManager.updateGame(gameId, game)
 
         // Initially the game exists
@@ -50,7 +50,7 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
           totalRounds = 10,
           status = GameStatus.GameOver
         )
-        gameManager.createGame(gameId)
+        gameManager.createGame(gameId, 10)
         gameManager.updateGame(gameId, finishedGame)
 
         // The game exists at round 10
@@ -64,7 +64,7 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
         gameManager.getGame(gameId) shouldBe empty
 
         // When a player creates/joins with the same game ID
-        val freshGame = gameManager.createGame(gameId)
+        val freshGame = gameManager.createGame(gameId, 10)
 
         // Then a fresh game should exist, not the old one at round 10
         gameManager.getGame(gameId).map(_.roundNumber) shouldBe Some(0)
@@ -94,7 +94,7 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
             totalRounds = 10,
             status = status
           )
-          gameManager.createGame(gameId)
+          gameManager.createGame(gameId, 10)
           gameManager.updateGame(gameId, game)
         }
 
@@ -127,7 +127,7 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
           totalRounds = 10,
           status = GameStatus.Waiting
         )
-        gameManager.createGame(game1Id)
+        gameManager.createGame(game1Id, 10)
         gameManager.updateGame(game1Id, game1)
 
         val game2Id = "game-2"
@@ -139,7 +139,7 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
           totalRounds = 10,
           status = GameStatus.Playing
         )
-        gameManager.createGame(game2Id)
+        gameManager.createGame(game2Id, 10)
         gameManager.updateGame(game2Id, game2)
 
         // Both games initially exist with no connections
@@ -176,7 +176,7 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
         
         // Given a new game is created
         val gameId = "lifecycle-test"
-        val newGame = gameManager.createGame(gameId)
+        val newGame = gameManager.createGame(gameId, 10)
 
         // The game starts fresh
         gameManager.getGame(gameId).map(_.roundNumber) shouldBe Some(0)
@@ -199,7 +199,7 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
         gameManager.getGame(gameId) shouldBe empty
 
         // And the server is ready for a new game with the same ID
-        val freshGame = gameManager.createGame(gameId)
+        val freshGame = gameManager.createGame(gameId, 10)
 
         gameManager.getGame(gameId).map(_.roundNumber) shouldBe Some(0)
         gameManager.getGame(gameId).map(_.status) shouldBe Some(GameStatus.Waiting)
