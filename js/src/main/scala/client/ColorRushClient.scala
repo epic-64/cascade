@@ -44,7 +44,6 @@ def createLobby(): HTMLElement =
       form(id = "joinForm").tap(_.addEventListener("submit", joinGameListener))(
         input("text", id = "gameId").tap: el =>
           el.placeholder = "Game ID (e.g., game123)"
-          el.value = "game1"
           el.setAttribute("autocomplete", "off")
           el.required = true
         ,
@@ -66,11 +65,11 @@ def createLobby(): HTMLElement =
           el("span", content = "Number of Rounds: "),
           el("select", id = "roundsSelector").tap: select =>
             select.addEventListener("change", (e: Event) => updateGameSettings())
-            Vector(5, 10, 15, 20).foreach: rounds =>
+            Vector(1, 5, 10, 15, 20).foreach: rounds =>
               val option = document.createElement("option").asInstanceOf[dom.HTMLOptionElement]
               option.value = rounds.toString
               option.textContent = rounds.toString
-              if rounds == 10 then option.selected = true
+              if rounds == 5 then option.selected = true
               select.appendChild(option)
         )
       ),
@@ -130,12 +129,12 @@ def createGameWinnerAnnouncement(): HTMLElement =
         btn.addEventListener("click", (e: Event) => hideGameWinner())
     )
   )
-  
+
   // Click outside to close
   announcement.addEventListener("click", (e: Event) =>
     if e.target == announcement then hideGameWinner()
   )
-  
+
   announcement
 
 def setupEnterKeyHandler(): Unit =
