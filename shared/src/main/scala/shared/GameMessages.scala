@@ -17,13 +17,9 @@ object ClientMessage:
   )
 
 case class JoinMessage(playerName: String, totalRounds: Int) extends ClientMessage derives ReadWriter
-
 case class ConfigureMessage(totalRounds: Int) extends ClientMessage derives ReadWriter
-
 case class StartMessage() extends ClientMessage derives ReadWriter
-
 case class ClickMessage(color: String, time: Long) extends ClientMessage derives ReadWriter
-
 case class NextRoundMessage() extends ClientMessage derives ReadWriter
 
 // Server -> Client messages
@@ -37,8 +33,5 @@ object ServerMessage:
   )
 
 case class GameUpdateMessage(game: ColorRushGame) extends ServerMessage derives ReadWriter
-
 case class RoundWinnerMessage(playerName: String, points: Int) extends ServerMessage derives ReadWriter
-
 case class GameEndMessage(winner: Option[PlayerState]) extends ServerMessage derives ReadWriter
-
