@@ -171,88 +171,47 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
 
     describe("Feature: Immediate cleanup when all players leave") {
 
-      it("should cleanup Waiting game when all players disconnect") {
-        val gameManager = ColorRushStateManager()
-        
-        // Given a game in Waiting status with players
-        val gameId = "waiting-disconnect-test"
-        val game = ColorRushGame(
-          gameId = gameId,
-          players = Map("p1" -> PlayerState("p1", "Alice", 0, 0)),
-          currentRound = None,
-          roundNumber = 0,
-          totalRounds = 10,
-          status = GameStatus.Waiting
+      it("should cleanup games when all players disconnect regardless of status") {
+        import org.scalatest.prop.TableDrivenPropertyChecks.*
+
+        val gameStatuses = Table(
+          ("status", "roundNumber", "hasCurrentRound"),
+          (GameStatus.Waiting, 0, false),
+          (GameStatus.Playing, 5, true),
+          (GameStatus.RoundEnd, 7, true),
+          (GameStatus.GameOver, 10, false)
         )
-        gameManager.createGame(gameId, 10)
-        gameManager.updateGame(gameId, game)
 
-        // Game exists
-        gameManager.getGame(gameId) shouldBe defined
-        gameManager.getGameConnectionCount(gameId) shouldBe 0
+        forAll(gameStatuses): (status, roundNumber, hasCurrentRound) =>
+          val gameManager = ColorRushStateManager()
+          
+          // Given a game in the specified status
+          val gameId = s"${status.toString.toLowerCase}-disconnect-test"
+          val currentRound = if hasCurrentRound then
+            Some(Round("#FF6B6B", Vector("#FF6B6B", "#4ECDC4", "#45B7D1"), System.currentTimeMillis()))
+          else
+            None
+          
+          val game = ColorRushGame(
+            gameId = gameId,
+            players = Map("p1" -> PlayerState("p1", "Alice", 50, 3)),
+            currentRound = currentRound,
+            roundNumber = roundNumber,
+            totalRounds = 10,
+            status = status
+          )
+          gameManager.createGame(gameId, 10)
+          gameManager.updateGame(gameId, game)
 
-        // When all players disconnect (no connections left)
-        gameManager.cleanupGame(gameId)
+          // Game exists
+          gameManager.getGame(gameId) shouldBe defined
+          gameManager.getGameConnectionCount(gameId) shouldBe 0
 
-        // Then the game should be removed immediately
-        gameManager.getGame(gameId) shouldBe empty
-      }
+          // When all players disconnect (no connections left)
+          gameManager.cleanupGame(gameId)
 
-      it("should cleanup Playing game when all players disconnect") {
-        val gameManager = ColorRushStateManager()
-        
-        // Given a game in Playing status with active round
-        val gameId = "playing-disconnect-test"
-        val game = ColorRushGame(
-          gameId = gameId,
-          players = Map(
-            "p1" -> PlayerState("p1", "Alice", 50, 3),
-            "p2" -> PlayerState("p2", "Bob", 45, 2)
-          ),
-          currentRound = Some(Round("#FF6B6B", Vector("#FF6B6B", "#4ECDC4", "#45B7D1"), System.currentTimeMillis())),
-          roundNumber = 5,
-          totalRounds = 10,
-          status = GameStatus.Playing
-        )
-        gameManager.createGame(gameId, 10)
-        gameManager.updateGame(gameId, game)
-
-        // Game exists
-        gameManager.getGame(gameId) shouldBe defined
-        gameManager.getGameConnectionCount(gameId) shouldBe 0
-
-        // When all players disconnect (no connections left)
-        gameManager.cleanupGame(gameId)
-
-        // Then the game should be removed immediately
-        gameManager.getGame(gameId) shouldBe empty
-      }
-
-      it("should cleanup RoundEnd game when all players disconnect") {
-        val gameManager = ColorRushStateManager()
-        
-        // Given a game in RoundEnd status
-        val gameId = "roundend-disconnect-test"
-        val game = ColorRushGame(
-          gameId = gameId,
-          players = Map("p1" -> PlayerState("p1", "Alice", 80, 5)),
-          currentRound = Some(Round("#FF6B6B", Vector("#FF6B6B", "#4ECDC4", "#45B7D1"), System.currentTimeMillis())),
-          roundNumber = 7,
-          totalRounds = 10,
-          status = GameStatus.RoundEnd
-        )
-        gameManager.createGame(gameId, 10)
-        gameManager.updateGame(gameId, game)
-
-        // Game exists
-        gameManager.getGame(gameId) shouldBe defined
-        gameManager.getGameConnectionCount(gameId) shouldBe 0
-
-        // When all players disconnect (no connections left)
-        gameManager.cleanupGame(gameId)
-
-        // Then the game should be removed immediately
-        gameManager.getGame(gameId) shouldBe empty
+          // Then the game should be removed immediately
+          gameManager.getGame(gameId) shouldBe empty
       }
     }
 
