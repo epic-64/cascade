@@ -2,9 +2,11 @@ package client
 
 import org.scalajs.dom
 import org.scalajs.dom.*
+import client.{el, button, *}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.scalajs.js
+import scala.util.chaining.scalaUtilChainingOps
 import scala.util.{Failure, Success, Try}
 
 def initializeCounter(): Unit =
@@ -15,43 +17,39 @@ def initializeCounter(): Unit =
 var counterWebSocket: Option[WebSocket] = None
 
 def buildCounterUI(): Unit =
-  // Add navigation bar
-  val navBar = NavigationBar.render("Counter").append_to(document.body)
+  NavigationBar.render("Counter").append_to(document.body)
+  createCounterContainer().append_to(document.body)
 
-  // Create main container
-  val mainContainer = el("div").with_classes("container").append_to(document.body)
-
-  // Create title
-  val title = el("h1")
-    .with_classes("title")
-    .with_content("Real-time Counter")
-    .tap_style(_.textAlign = "center")
-    .append_to(mainContainer)
-
-  // Create subtitle
-  val subtitle = el("p")
-    .with_classes("subtitle")
-    .with_content("Synchronized across all connected clients")
-    .tap_style: style =>
-      style.textAlign = "center"
-      style.color = "var(--text-secondary)"
-      style.marginBottom = "2rem"
-    .append_to(mainContainer)
-
-  // Create counter container
-  val container      = el("div").with_id("counter-container").append_to(mainContainer)
-  val counterDisplay = el("div").with_id("counter-display").with_content("Connecting...").append_to(container)
-  val btnContainer   = el("div").with_id("btn-container").append_to(container)
-  val btnDecrement   = el("button")
-    .with_id("btn-decrement")
-    .with_content("-")
-    .with_click(_ => modifyCounter("decrement"))
-    .append_to(btnContainer)
-  val btnIncrement   = el("button")
-    .with_id("btn-increment")
-    .with_content("+")
-    .with_click(_ => modifyCounter("increment"))
-    .append_to(btnContainer)
+def createCounterContainer(): HTMLElement =
+  el("div").with_classes("container")(
+    el("h1").tap: el =>
+      el.className = "title"
+      el.textContent = "Real-time Counter"
+      el.style.textAlign = "center"
+    ,
+    el("p").tap: el =>
+      el.className = "subtitle"
+      el.textContent = "Synchronized across all connected clients"
+      el.style.textAlign = "center"
+      el.style.color = "var(--text-secondary)"
+      el.style.marginBottom = "2rem"
+    ,
+    el("div").with_id("counter-container")(
+      el("div")
+        .with_id("counter-display")
+        .with_content("Connecting..."),
+      el("div").with_id("btn-container")(
+        button()
+          .with_id("btn-decrement")
+          .with_content("-")
+          .with_click(_ => modifyCounter("decrement")),
+        button()
+          .with_id("btn-increment")
+          .with_content("+")
+          .with_click(_ => modifyCounter("increment"))
+      )
+    )
+  )
 
 def connectWebSocket(): Unit =
   // Use relative WebSocket URL - will connect to same host/port as the page
