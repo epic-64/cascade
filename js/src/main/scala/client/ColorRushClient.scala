@@ -58,11 +58,13 @@ def createLobby(): HTMLElement =
           el.placeholder = "Game ID (e.g., game123)"
           el.value = "game1"
           el.setAttribute("autocomplete", "off")
+          el.required = true
         ,
         input("text").tap: el =>
           el.id = "playerName"
           el.placeholder = "Your Name"
           el.setAttribute("autocomplete", "off")
+          el.required = true
         ,
         button("submit").tap: btn =>
           btn.textContent = "Join Game"
@@ -122,11 +124,12 @@ def joinGame(): Unit =
   val playerNameOpt = getInputValue("playerName")
 
   (gameIdOpt, playerNameOpt) match
-    case (Some(gameId), Some(playerName)) if gameId.nonEmpty && playerName.nonEmpty =>
+    case (Some(gameId), Some(playerName)) =>
       currentGameId = Some(gameId)
       connectToGame(gameId, playerName)
-    case _                                                                          =>
-      showAlert("Please enter both Game ID and your name")
+    case _                                =>
+      // HTML5 form validation should prevent reaching here
+      println("[ColorRush] Missing game ID or player name")
 
 def connectToGame(gameId: String, playerName: String): Unit =
   val protocol = if window.location.protocol == "https:" then "wss:" else "ws:"
