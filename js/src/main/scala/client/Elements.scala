@@ -23,6 +23,9 @@ def el(tag: String, id: String = "", cls: String = "", content: String = ""): HT
 def div(id: String = "", cls: String = "", content: String = ""): HTMLElement  = el("div", id, cls, content)
 def span(id: String = "", cls: String = "", content: String = ""): HTMLElement = el("span", id, cls, content)
 def p(id: String = "", cls: String = "", content: String = ""): HTMLElement    = el("p", id, cls, content)
+def h1(id: String = "", cls: String = "", content: String = ""): HTMLElement   = el("h1", id, cls, content)
+def h2(id: String = "", cls: String = "", content: String = ""): HTMLElement   = el("h2", id, cls, content)
+def h3(id: String = "", cls: String = "", content: String = ""): HTMLElement   = el("h3", id, cls, content)
 
 def form(id: String = "", cls: String = ""): HTMLFormElement =
   document.createElement("form").asInstanceOf[HTMLFormElement].tap: form =>

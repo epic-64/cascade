@@ -24,7 +24,7 @@ def buildGameUI(): Unit =
 
   document.body(
     NavigationBar.render("Color Rush"),
-    el("div", cls = "container")(
+    div(cls = "container")(
       createLobby(),
       createGameArea(),
       createPlayersSidebar(),
@@ -34,7 +34,7 @@ def buildGameUI(): Unit =
   )
 
 def createLobby(): HTMLElement =
-  el("div", id = "lobby")(
+  div(id = "lobby")(
     createJoinForm(),
     createWaitingArea()
   )
@@ -44,8 +44,8 @@ def createJoinForm(): HTMLElement =
     e.preventDefault()
     joinGame()
 
-  el("div", id = "joinFormContainer", cls = "join-form-container")(
-    el("h2", content = "Join Game"),
+  div(id = "joinFormContainer", cls = "join-form-container")(
+    h2(content = "Join Game"),
     form(id = "joinForm").tap(_.addEventListener("submit", joinGameListener))(
       input("text", id = "gameId").tap: el =>
         el.placeholder = "Game ID (e.g., game123)"
@@ -64,12 +64,12 @@ def createJoinForm(): HTMLElement =
 
 def createWaitingArea(): HTMLElement =
   // Waiting area container
-  el("div", id = "waitingArea", cls = "waiting-area-container hidden")(
+  div(id = "waitingArea", cls = "waiting-area-container hidden")(
     el("h3", content = "Players in Lobby:"),
-    el("div", id = "playersList", cls = "players"),
-    el("div", cls = "game-settings")(
+    div(id = "playersList", cls = "players"),
+    div(cls = "game-settings")(
       el("label")(
-        el("span", content = "Number of Rounds: "),
+        span(content = "Number of Rounds: "),
         el("select", id = "roundsSelector").tap: select =>
           select.addEventListener("change", (e: Event) => updateGameSettings())
           Vector(1, 3, 5, 10, 15).foreach: rounds =>
@@ -86,9 +86,9 @@ def createWaitingArea(): HTMLElement =
   )
 
 def createGameArea(): HTMLElement =
-  el("div", id = "gameArea", cls = "game-area hidden")(
+  div(id = "gameArea", cls = "game-area hidden")(
     // Game controls at the top
-    el("div").with_classes("game-controls")(
+    div().with_classes("game-controls")(
       button().with_classes("secondary-button").tap: btn =>
         btn.textContent = "Return to Lobby"
         btn.addEventListener("click", (e: Event) => returnToLobby())
@@ -98,37 +98,37 @@ def createGameArea(): HTMLElement =
         btn.addEventListener("click", (e: Event) => reshowGameWinner())
     ),
     // Round info
-    el("div", cls = "round-info")(
-      el("div", cls = "round-number")(
-        el("span", content = "Round "),
-        el("span", id = "roundNumber", content = "1"),
-        el("span", content = " of "),
-        el("span", id = "totalRounds", content = "10")
+    div(cls = "round-info")(
+      div(cls = "round-number")(
+        span(content = "Round "),
+        span(id = "roundNumber", content = "1"),
+        span(content = " of "),
+        span(id = "totalRounds", content = "10")
       ),
-      el("div", cls = "target-color-label", content = "Click this color:"),
-      el("div", id = "targetColor", cls = "target-color")
+      div(cls = "target-color-label", content = "Click this color:"),
+      div(id = "targetColor", cls = "target-color")
     ),
     // Color grid
-    el("div", id = "colorGrid", cls = "color-grid")
+    div(id = "colorGrid", cls = "color-grid")
   )
 
 def createPlayersSidebar(): HTMLElement =
-  el("div").with_id("gamePlayers").with_classes("players hidden")
+  div().with_id("gamePlayers").with_classes("players hidden")
 
 def createRoundWinnerAnnouncement(): HTMLElement =
-  el("div").with_id("winnerAnnouncement").with_classes("winner-announcement hidden")(
+  div().with_id("winnerAnnouncement").with_classes("winner-announcement hidden")(
     el("h2").with_id("winnerName"),
-    el("p").with_id("winnerPoints").with_classes("points")
+    div().with_id("winnerPoints").with_classes("points")
   )
 
 def createGameWinnerAnnouncement(): HTMLElement =
-  val announcement = el("div").with_id("gameWinnerAnnouncement").with_classes("game-winner-announcement hidden")(
-    el("div").with_classes("game-winner-content")(
+  val announcement = div().with_id("gameWinnerAnnouncement").with_classes("game-winner-announcement hidden")(
+    div().with_classes("game-winner-content")(
       el("h1").with_id("gameWinnerTitle"),
-      el("div").with_classes("game-winner-details")(
-        el("p").with_id("gameWinnerName").with_classes("winner-name"),
-        el("p").with_id("gameWinnerScore").with_classes("winner-score"),
-        el("p").with_id("gameWinnerRounds").with_classes("winner-rounds")
+      div().with_classes("game-winner-details")(
+        div().with_id("gameWinnerName").with_classes("winner-name"),
+        div().with_id("gameWinnerScore").with_classes("winner-score"),
+        div().with_id("gameWinnerRounds").with_classes("winner-rounds")
       ),
       el("button").with_classes("close-winner-button").tap: btn =>
         btn.textContent = "Close"
