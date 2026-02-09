@@ -65,12 +65,12 @@ def createLobby(): HTMLElement =
           el("span", content = "Number of Rounds: "),
           el("select", id = "roundsSelector").tap: select =>
             select.addEventListener("change", (e: Event) => updateGameSettings())
-            Vector(1, 5, 10, 15, 20).foreach: rounds =>
-              val option = document.createElement("option").asInstanceOf[dom.HTMLOptionElement]
-              option.value = rounds.toString
-              option.textContent = rounds.toString
-              if rounds == 5 then option.selected = true
-              select.appendChild(option)
+            Vector(1, 3, 5, 10, 15).foreach: rounds =>
+              val option = el("option").asInstanceOf[dom.HTMLOptionElement].tap: o =>
+                o.value = rounds.toString
+                o.textContent = rounds.toString
+                if rounds == 5 then o.selected = true
+                select.appendChild(o)
         )
       ),
       button(id = "startButton", cls = "start-button").tap: btn =>
