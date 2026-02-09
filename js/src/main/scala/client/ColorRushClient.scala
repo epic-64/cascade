@@ -88,12 +88,12 @@ def createWaitingArea(): HTMLElement =
 def createGameArea(): HTMLElement =
   div(id = "gameArea", cls = "game-area hidden")(
     // Game controls at the top
-    div().with_classes("game-controls")(
-      button().with_classes("secondary-button").tap: btn =>
+    div(cls ="game-controls")(
+      button(cls ="secondary-button").tap: btn =>
         btn.textContent = "Return to Lobby"
         btn.addEventListener("click", (e: Event) => returnToLobby())
       ,
-      button(id = "showWinnerButton").with_classes("secondary-button hidden").tap: btn =>
+      button(id = "showWinnerButton", cls = "secondary-button hidden").tap: btn =>
         btn.textContent = "Show Results"
         btn.addEventListener("click", (e: Event) => reshowGameWinner())
     ),
@@ -113,24 +113,24 @@ def createGameArea(): HTMLElement =
   )
 
 def createPlayersSidebar(): HTMLElement =
-  div().with_id("gamePlayers").with_classes("players hidden")
+  div(id = "gamePlayers", cls = "players hidden")
 
 def createRoundWinnerAnnouncement(): HTMLElement =
-  div().with_id("winnerAnnouncement").with_classes("winner-announcement hidden")(
-    el("h2").with_id("winnerName"),
-    div().with_id("winnerPoints").with_classes("points")
+  div(id = "winnerAnnouncement", cls = "winner-announcement hidden")(
+    el("h2", id = "winnerName"),
+    div(id = "winnerPoints", cls = "points")
   )
 
 def createGameWinnerAnnouncement(): HTMLElement =
-  val announcement = div().with_id("gameWinnerAnnouncement").with_classes("game-winner-announcement hidden")(
-    div().with_classes("game-winner-content")(
-      el("h1").with_id("gameWinnerTitle"),
-      div().with_classes("game-winner-details")(
-        div().with_id("gameWinnerName").with_classes("winner-name"),
-        div().with_id("gameWinnerScore").with_classes("winner-score"),
-        div().with_id("gameWinnerRounds").with_classes("winner-rounds")
+  val announcement = div(id = "gameWinnerAnnouncement", cls = "game-winner-announcement hidden")(
+    div(cls ="game-winner-content")(
+      el("h1", id = "gameWinnerTitle"),
+      div(cls ="game-winner-details")(
+        div(id = "gameWinnerName", cls = "winner-name"),
+        div(id = "gameWinnerScore", cls = "winner-score"),
+        div(id = "gameWinnerRounds", cls = "winner-rounds")
       ),
-      el("button").with_classes("close-winner-button").tap: btn =>
+      el("button", cls = "close-winner-button").tap: btn =>
         btn.textContent = "Close"
         btn.addEventListener("click", (e: Event) => hideGameWinner())
     )

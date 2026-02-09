@@ -6,7 +6,6 @@ import client.{el, button, *}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.scalajs.js
-import scala.util.chaining.scalaUtilChainingOps
 import scala.util.{Failure, Success, Try}
 
 def initializeCounter(): Unit =
@@ -27,20 +26,14 @@ def buildCounterUI(): Unit =
   document.body.appendChild(createCounterContainer())
 
 def createCounterContainer(): HTMLElement =
-  div().with_classes("container")(
-    el("h1").with_classes("title").with_content("Real-time Counter"),
-    div().with_classes("subtitle").with_content("Synchronized across all connected clients"),
-    div().with_id("counter-container")(
-      div().with_id("counter-display").with_content("Connecting..."),
-      div().with_id("btn-container")(
-        button()
-          .with_id("btn-decrement")
-          .with_content("-")
-          .with_click(_ => modifyCounter("decrement")),
-        button()
-          .with_id("btn-increment")
-          .with_content("+")
-          .with_click(_ => modifyCounter("increment"))
+  div(cls = "container")(
+    el("h1", cls = "title", content = "Real-time Counter"),
+    div(cls = "subtitle", content = "Synchronized across all connected clients"),
+    div(id = "counter-container")(
+      div(id = "counter-display", content = "Connecting..."),
+      div(id = "btn-container")(
+        button(id = "btn-decrement", content = "-").with_click(_ => modifyCounter("decrement")),
+        button(id = "btn-increment", content = "+").with_click(_ => modifyCounter("increment")),
       )
     )
   )
