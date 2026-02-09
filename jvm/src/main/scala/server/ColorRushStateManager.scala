@@ -13,8 +13,8 @@ class ColorRushStateManager:
   def getGame(gameId: String): Option[shared.ColorRushGame] =
     Option(colorRushGames.get(gameId))
 
-  def createGame(gameId: String): shared.ColorRushGame =
-    val game = shared.ColorRush.createGame(gameId)
+  def createGame(gameId: String, totalRounds: Int): shared.ColorRushGame =
+    val game = shared.ColorRush.createGame(gameId, totalRounds)
     colorRushGames.put(gameId, game)
     gameConnections.computeIfAbsent(
       gameId,
@@ -25,8 +25,8 @@ class ColorRushStateManager:
   def updateGame(gameId: String, game: shared.ColorRushGame): Unit =
     colorRushGames.put(gameId, game)
 
-  def getOrCreateGame(gameId: String): shared.ColorRushGame =
-    colorRushGames.computeIfAbsent(gameId, _ => shared.ColorRush.createGame(gameId))
+  def getOrCreateGame(gameId: String, totalRounds: Int): shared.ColorRushGame =
+    colorRushGames.computeIfAbsent(gameId, _ => shared.ColorRush.createGame(gameId, totalRounds))
 
   def getGameConnectionCount(gameId: String): Int =
     Option(gameConnections.get(gameId)).map(_.size()).getOrElse(0)

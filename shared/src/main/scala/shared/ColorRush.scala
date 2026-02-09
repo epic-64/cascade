@@ -36,8 +36,8 @@ object ColorRush:
     "#F8B195", "#C06C84", "#6C5B7B", "#355C7D"
   )
   
-  def createGame(gameId: String): ColorRushGame =
-    ColorRushGame(gameId, Map.empty, None, 0, 10, GameStatus.Waiting)
+  def createGame(gameId: String, totalRounds: Int): ColorRushGame =
+    ColorRushGame(gameId, Map.empty, None, 0, totalRounds, GameStatus.Waiting)
 
   def addPlayer(game: ColorRushGame, playerId: String, playerName: String): ColorRushGame =
     val player = PlayerState(playerId, playerName, 0, 0)

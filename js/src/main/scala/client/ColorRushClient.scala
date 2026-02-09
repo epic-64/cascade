@@ -179,7 +179,13 @@ def connectToGame(gameId: String, playerName: String): Unit =
 
   ws.onopen = (e: Event) =>
     println(s"[ColorRush] Connected to game $gameId")
-    sendMessage(ws, JoinMessage(playerName))
+    
+    // Get totalRounds from UI and send with join message
+    val totalRounds = getInputValue("roundsSelector")
+      .flatMap(s => Try(s.toInt).toOption)
+      .getOrElse(5) // Fallback to 5 if something goes wrong
+    
+    sendMessage(ws, JoinMessage(playerName, totalRounds))
     updateLobbyUI()
 
   ws.onmessage = (event: MessageEvent) => handleWebSocketMessage(event.data.toString)

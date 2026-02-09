@@ -18,14 +18,11 @@ object ColorRushHandler:
 
   def handleWebSocket(gameId: String): cask.WebsocketResult =
     cask.WsHandler: channel =>
-      // Initialize game if it doesn't exist
-      gameManager.getOrCreateGame(gameId)
-
-      // Add channel to game connections
+      // Don't create game yet - wait for JoinMessage with totalRounds
+      // Just add the connection tracking
       gameManager.addConnection(gameId, channel)
-      val connectionCount = gameManager.getGameConnectionCount(gameId)
 
-      logger.info(s"Player connected to game $gameId. Total players: $connectionCount")
+      logger.info(s"Player connected to game $gameId")
 
       cask.WsActor:
         case cask.Ws.Text(msg) =>
@@ -35,8 +32,8 @@ object ColorRushHandler:
             val clientMsg = read[shared.ClientMessage](msg)
 
             clientMsg match
-              case shared.JoinMessage(playerName) =>
-                handleJoin(channel, gameId, playerName)
+              case shared.JoinMessage(playerName, totalRounds) =>
+                handleJoin(channel, gameId, playerName, totalRounds)
 
               case shared.ConfigureMessage(totalRounds) =>
                 handleConfigure(gameId, totalRounds)
@@ -60,16 +57,17 @@ object ColorRushHandler:
           logger.error(s"WebSocket error in game $gameId: ${ex.getMessage}", ex)
           handlePlayerDisconnect(channel, gameId)
 
-  private def handleJoin(channel: cask.WsChannelActor, gameId: String, playerName: String): Unit =
+  private def handleJoin(channel: cask.WsChannelActor, gameId: String, playerName: String, totalRounds: Int): Unit =
     val playerId = java.util.UUID.randomUUID().toString
 
     gameManager.registerPlayer(channel, gameId, playerId)
 
-    val game        = gameManager.getGame(gameId).get
+    // Create game if it doesn't exist, using the totalRounds from the first player
+    val game = gameManager.getGame(gameId).getOrElse(gameManager.createGame(gameId, totalRounds))
     val updatedGame = shared.ColorRush.addPlayer(game, playerId, playerName)
     gameManager.updateGame(gameId, updatedGame)
 
-    logger.info(s"Player $playerName ($playerId) joined game $gameId")
+    logger.info(s"Player $playerName ($playerId) joined game $gameId with totalRounds=$totalRounds")
 
     // Broadcast game state to all players
     broadcastGameState(gameId)
