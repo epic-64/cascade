@@ -10,22 +10,13 @@ object NavigationBar:
     el("nav").with_classes("nav-bar")(
       el("div").with_classes("nav-bar-content")(
         // Left side - Home link
-        el("a").tap { link =>
-          link.asInstanceOf[HTMLAnchorElement].href = "/"
-          link.className = "nav-home"
-        } (
-          el("span")
-            .with_classes("nav-logo")
-            .with_content("Cascade")
+        a("/").with_classes("nav-home")(
+          el("span").with_classes("nav-logo").with_content("Cascade")
         ),
         // Right side - Breadcrumb
         el("div").with_classes("nav-breadcrumb")(
-          el("span")
-            .with_classes("nav-separator")
-            .with_content("/"),
-          el("span")
-            .with_classes("nav-current")
-            .with_content(currentPage)
+          el("span").with_classes("nav-separator").with_content("/"),
+          el("span").with_classes("nav-current").with_content(currentPage)
         )
       )
     )

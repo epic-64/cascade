@@ -2,6 +2,7 @@ package client
 
 import org.scalajs.dom.{
   CSSStyleDeclaration,
+  HTMLAnchorElement,
   HTMLButtonElement,
   HTMLElement,
   HTMLFormElement,
@@ -41,6 +42,15 @@ def button(
       id.foreach(button.id = _)
       button.`type` = button_type
       block(button)
+
+def a(href: String = "#", id: Option[String] = None, block: HTMLAnchorElement => Unit = _ => ()): HTMLAnchorElement =
+  document
+    .createElement("a")
+    .asInstanceOf[HTMLAnchorElement]
+    .tap: anchor =>
+      anchor.href = href
+      id.foreach(anchor.id = _)
+      block(anchor)
 
 extension [T <: HTMLElement](elem: T)
   def apply(children: HTMLElement*): T =
