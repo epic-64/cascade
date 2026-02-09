@@ -34,14 +34,10 @@ def button(button_type: String = "button", id: String = "", cls: String = ""): H
     if id.nonEmpty then button.id = id
     if cls.nonEmpty then button.className = cls
 
-def a(href: String = "#", id: Option[String] = None, block: HTMLAnchorElement => Unit = _ => ()): HTMLAnchorElement =
-  document
-    .createElement("a")
-    .asInstanceOf[HTMLAnchorElement]
-    .tap: anchor =>
+def a(href: String = "#", id: String = ""): HTMLAnchorElement =
+  document.createElement("a").asInstanceOf[HTMLAnchorElement].tap: anchor =>
       anchor.href = href
-      id.foreach(anchor.id = _)
-      block(anchor)
+      if id.nonEmpty then anchor.id = id
 
 extension [T <: HTMLElement](elem: T)
   def apply(children: HTMLElement*): T =
