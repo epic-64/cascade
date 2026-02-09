@@ -35,10 +35,10 @@ jobs:
         id: coverage
         run: |
           # Extract statement counts from both projects
-          JVM_COVERED=$(grep -oP '(?<=statements-covered=")[0-9]+(?=")' jvm/target/scala-*/scoverage-report/scoverage.xml | head -1)
-          JVM_TOTAL=$(grep -oP '(?<=statements-count=")[0-9]+(?=")' jvm/target/scala-*/scoverage-report/scoverage.xml | head -1)
-          SHARED_COVERED=$(grep -oP '(?<=statements-covered=")[0-9]+(?=")' shared/target/scala-*/scoverage-report/scoverage.xml | head -1)
-          SHARED_TOTAL=$(grep -oP '(?<=statements-count=")[0-9]+(?=")' shared/target/scala-*/scoverage-report/scoverage.xml | head -1)
+          JVM_COVERED=$(grep -oP 'statements-invoked="\K[0-9]+' jvm/target/scala-*/scoverage-report/scoverage.xml | head -1)
+          JVM_TOTAL=$(grep -oP 'statement-count="\K[0-9]+' jvm/target/scala-*/scoverage-report/scoverage.xml | head -1)
+          SHARED_COVERED=$(grep -oP 'statements-invoked="\K[0-9]+' shared/target/scala-*/scoverage-report/scoverage.xml | head -1)
+          SHARED_TOTAL=$(grep -oP 'statement-count="\K[0-9]+' shared/target/scala-*/scoverage-report/scoverage.xml | head -1)
           
           # Calculate combined coverage
           TOTAL_COVERED=$((JVM_COVERED + SHARED_COVERED))
