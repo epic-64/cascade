@@ -114,11 +114,12 @@ sbt "js/fullLinkJS"
 - ✅ WebSocket real-time sync
 - ✅ Basic Test suite (server, client, shared)
 - ✅ Basic CI pipeline running tests
-- ⏳ Test coverage report (scoverage does not play nicely with ScalaJS)
-- ⏳ e2e tests (Selenium, Cypress, Katalon)
-- ⏳ e2e tests in CI (headless)
+- ✅ Test coverage report (sbt-scoverage)
+  - ❌ unfortunately, ScalaJS is not supported, so we cover only jvm/ and shared/
 - ✅ Cloud deployment (railway), deploy on push to main/production branches
 - ✅ Staging environment
+- ⏳ e2e tests (Selenium, Cypress, Katalon)
+- ⏳ e2e tests in CI (headless)
 - ⏳ Cache-busting system for static assets (build-step)
 - ⏳ Database persistence, ORM (PostgreSQL + Doobie?)
 - ⏳ DB migration system (Flyway, Liquibase)
