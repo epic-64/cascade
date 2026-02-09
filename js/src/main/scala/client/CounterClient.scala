@@ -28,18 +28,8 @@ def buildCounterUI(): Unit =
 
 def createCounterContainer(): HTMLElement =
   el("div").with_classes("container")(
-    el("h1").tap: el =>
-      el.className = "title"
-      el.textContent = "Real-time Counter"
-      el.style.textAlign = "center"
-    ,
-    el("p").tap: el =>
-      el.className = "subtitle"
-      el.textContent = "Synchronized across all connected clients"
-      el.style.textAlign = "center"
-      el.style.color = "var(--text-secondary)"
-      el.style.marginBottom = "2rem"
-    ,
+    el("h1").with_classes("title").with_content("Real-time Counter"),
+    el("p").with_classes("subtitle").with_content("Synchronized across all connected clients"),
     el("div").with_id("counter-container")(
       el("div").with_id("counter-display").with_content("Connecting..."),
       el("div").with_id("btn-container")(
