@@ -81,6 +81,9 @@ jobs:
               h1 { color: #333; }
               .coverage-links { margin: 20px 0; }
               .coverage-links a { display: block; margin: 10px 0; font-size: 18px; }
+              .back-link { margin-top: 30px; }
+              .back-link a { color: #0366d6; text-decoration: none; }
+              .back-link a:hover { text-decoration: underline; }
             </style>
           </head>
           <body>
@@ -90,6 +93,9 @@ jobs:
               <a href="shared/index.html">Shared Project Coverage Report</a>
             </div>
             <p>Combined Coverage: ${{ env.COVERAGE }}%</p>
+            <div class="back-link">
+              <a href="https://github.com/epic-64/cascade">← Back to Source Code</a>
+            </div>
           </body>
           </html>
           EOF
