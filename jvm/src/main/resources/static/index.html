@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <title>Cascade - Multiplayer & Real-time Apps</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" href="/static/styles.css" />
+    <link rel="stylesheet" href="/static/base.css" />
     <style>
       .app-grid {
         display: grid;
@@ -13,65 +13,87 @@
         margin-top: 2rem;
       }
       .app-card {
-        background: rgba(24, 24, 27, 0.6);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(63, 63, 70, 0.4);
+        background: var(--bg-card);
+        backdrop-filter: blur(16px);
+        border: 1px solid var(--border-medium);
         padding: 2rem;
-        border-radius: 16px;
-        transition: all 0.2s;
+        border-radius: var(--radius-lg);
+        transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
         text-decoration: none;
-        color: inherit;
+        color: var(--text-primary);
         display: block;
       }
-      .app-card:hover {
-        border-color: #818cf8;
+      .app-card:hover,
+      .app-card:focus-visible {
+        border-color: var(--accent-purple-light);
         transform: translateY(-4px);
-        box-shadow: 0 12px 40px rgba(129, 140, 248, 0.2);
+        box-shadow: 0 16px 48px rgba(165, 180, 252, 0.25);
+        outline: none;
       }
       .app-card h2 {
         font-size: 1.5rem;
-        font-weight: 600;
+        font-weight: 700;
         margin-bottom: 1rem;
-        background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+        background: linear-gradient(135deg, var(--accent-purple-light) 0%, var(--accent-pink) 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
       }
       .app-card p {
-        color: #a1a1aa;
-        line-height: 1.6;
+        color: var(--text-primary);
+        line-height: 1.7;
         margin-bottom: 0.5rem;
       }
       .app-card .features {
         margin-top: 1rem;
         padding-top: 1rem;
-        border-top: 1px solid rgba(63, 63, 70, 0.4);
+        border-top: 1px solid var(--border-medium);
       }
       .app-card .features li {
-        color: #d4d4d8;
+        color: var(--text-secondary);
         margin-bottom: 0.5rem;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
       }
       .hero {
         text-align: center;
         margin-bottom: 3rem;
       }
       .hero h1 {
-        font-size: 3rem;
-        font-weight: 700;
+        font-size: clamp(2.5rem, 8vw, 4rem);
+        font-weight: 800;
         margin-bottom: 1rem;
-        background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
       }
       .hero p {
-        color: #a1a1aa;
+        color: var(--text-secondary);
         font-size: 1.1rem;
+      }
+
+      /* Respect user contrast preferences */
+      @media (prefers-contrast: more) {
+        .app-card {
+          background: rgba(24, 24, 27, 0.9);
+          border-color: var(--border-bright);
+        }
+        .app-card p,
+        .app-card .features li {
+          color: var(--text-primary);
+        }
       }
     </style>
   </head>
   <body>
+    <nav class="nav-bar">
+      <div class="nav-bar-content">
+        <a href="/" class="nav-home">
+          <span class="nav-logo">Cascade</span>
+        </a>
+        <div class="nav-breadcrumb">
+          <span class="nav-separator">/</span>
+          <span class="nav-current">Home</span>
+        </div>
+      </div>
+    </nav>
+
     <div class="container">
       <div class="hero">
         <h1>Cascade</h1>

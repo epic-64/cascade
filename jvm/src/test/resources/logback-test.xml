@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Test console appender with minimal output -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Root logger set to WARN to suppress most logs during tests -->
+    <root level="WARN">
+        <appender-ref ref="CONSOLE" />
+    </root>
+
+    <!-- Suppress application logs during tests -->
+    <logger name="server" level="WARN" />
+    <logger name="client" level="WARN" />
+
+    <!-- Suppress third-party logs -->
+    <logger name="io.undertow" level="ERROR" />
+    <logger name="org.eclipse.jetty" level="ERROR" />
+</configuration>
+

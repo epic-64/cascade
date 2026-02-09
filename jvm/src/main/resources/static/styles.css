@@ -1,77 +1,68 @@
-/* Cascade App Styles */
+/* Counter App Styles */
+@import url('/static/base.css');
 
-:root {
-  --primary-color: #007bff;
-  --primary-hover: #0056b3;
-  --primary-active: #004085;
-  --background: #f9f9f9;
-  --border: #333;
-  --text: #333;
-}
-
-body {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  margin: 0;
-  padding: 2rem;
-  background: #ffffff;
-  color: var(--text);
-}
-
-h1 {
-  color: var(--border);
-  margin-bottom: 0.5rem;
-}
-
+/* Counter-specific styles */
 #counter-container {
-  margin: 2rem 0;
+  margin: 2rem auto;
   padding: 2rem;
-  background: var(--background);
-  border: 2px solid var(--border);
-  border-radius: 8px;
-  max-width: 300px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  max-width: 400px;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
 }
 
 #counter-display {
-  font-size: 4rem;
-  font-weight: bold;
+  font-size: clamp(3rem, 10vw, 5rem);
+  font-weight: 700;
   text-align: center;
-  margin-bottom: 1rem;
-  color: var(--text);
+  margin-bottom: 2rem;
+  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
+  background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-pink) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 #btn-container {
   display: flex;
   gap: 1rem;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 #btn-container button {
   font-size: 2rem;
-  padding: 0.5rem 2rem;
-  cursor: pointer;
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  transition: background 0.2s ease;
+  padding: 0.75rem 2.5rem;
+  min-width: 100px;
+  border-radius: var(--radius-md);
   font-weight: 600;
-  min-width: 80px;
+  transition: all 0.2s;
 }
 
-#btn-container button:hover {
-  background: var(--primary-hover);
+#btn-decrement {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  color: white;
 }
 
-#btn-container button:active {
-  background: var(--primary-active);
-  transform: translateY(1px);
+#btn-decrement:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
 }
 
-#btn-container button:focus {
-  outline: 2px solid var(--primary-color);
-  outline-offset: 2px;
+#btn-increment {
+  background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  color: white;
+}
+
+#btn-increment:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
 }
 
 /* Status indicator */
@@ -84,18 +75,18 @@ h1 {
 }
 
 .status-connected {
-  background-color: #28a745;
-  box-shadow: 0 0 4px #28a745;
+  background-color: var(--accent-green);
+  box-shadow: 0 0 8px var(--accent-green);
 }
 
 .status-disconnected {
-  background-color: #dc3545;
-  box-shadow: 0 0 4px #dc3545;
+  background-color: #dc2626;
+  box-shadow: 0 0 8px #dc2626;
 }
 
 .status-connecting {
-  background-color: #ffc107;
-  box-shadow: 0 0 4px #ffc107;
+  background-color: var(--accent-yellow);
+  box-shadow: 0 0 8px var(--accent-yellow);
   animation: pulse 1.5s ease-in-out infinite;
 }
 
