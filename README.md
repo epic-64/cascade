@@ -118,10 +118,11 @@ sbt "js/fullLinkJS"
 - ✅ Cloud deployment (railway), deploy on push to main/production branches
 - ✅ Staging environment
 - ⏳ Cache-busting system for static assets (build-step)
-- ⏳ Database persistence
+- ⏳ Database persistence, ORM (PostgreSQL + Doobie?)
 - ⏳ DB migration system (Flyway, Liquibase)
 - ⏳ Exception tracing (Sentry, Datadog, BetterStack?)
 - ⏳ Health and Performance monitoring
+- ⏳ Redis caching for game state and counter (shared across multiple server instances)
 
 
 ## Documentation
