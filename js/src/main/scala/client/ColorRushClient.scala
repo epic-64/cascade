@@ -48,7 +48,7 @@ def createLobby(): HTMLElement =
   el("div").with_id("lobby")(
     el("div").with_id("joinFormContainer").with_classes("join-form-container")(
       el("h2").with_content("Join Game"),
-      form(Some("joinForm"))(
+      form().with_id("joinForm")(
         input("text").tap: el =>
           el.id = "gameId"
           el.placeholder = "Game ID (e.g., game123)"
