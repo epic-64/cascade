@@ -19,7 +19,6 @@ var currentLobbyId: Option[String] = None
 var drawingCanvas: Option[HTMLCanvasElement] = None
 var drawingContext: Option[CanvasRenderingContext2D] = None
 var isDrawing = false
-var isInVotingPhase = false // Simple boolean flag for which timer to update
 var hasSubmittedDrawing = false // Track if current drawing has been submitted
 
 def buildDrawingUI(): Unit =
@@ -330,8 +329,11 @@ def processServerMessage(msg: ServerMessage): Unit =
     case ServerMessage.PromptAnnounced(prompt) =>
       showPrompt(prompt)
 
-    case ServerMessage.TimerUpdate(secondsRemaining) =>
-      updateTimer(secondsRemaining)
+    case ServerMessage.DrawingTimerUpdate(secondsRemaining) =>
+      updateDrawingTimer(secondsRemaining)
+
+    case ServerMessage.VotingTimerUpdate(secondsRemaining) =>
+      updateVotingTimer(secondsRemaining)
 
     case ServerMessage.DrawingSubmitted(playerName) =>
       println(s"[Drawing] $playerName submitted their drawing")
@@ -384,7 +386,6 @@ def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
           btn.textContent = "Start Game"
 
     case LobbyStatus.Drawing =>
-      isInVotingPhase = false
       hideElement("waitingRoom")
       showElement("drawingArea")
       hideElement("galleryArea")
@@ -402,30 +403,26 @@ def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
 
     case LobbyStatus.RevealingDrawings | LobbyStatus.RevealingCaptions | LobbyStatus.RevealingAIWinner =>
       // Show gallery for all reveal phases
-      isInVotingPhase = false
       hideElement("waitingRoom")
       hideElement("drawingArea")
       showElement("galleryArea")
       hideElement("resultsArea")
 
     case LobbyStatus.Voting =>
-      isInVotingPhase = true
       hideElement("waitingRoom")
       hideElement("drawingArea")
       showElement("galleryArea")
       hideElement("resultsArea")
 
     case LobbyStatus.Results =>
-      isInVotingPhase = false
       hideElement("waitingRoom")
       hideElement("drawingArea")
       showElement("galleryArea")
       hideElement("resultsArea")
 
 def showPrompt(prompt: String): Unit =
-  isInVotingPhase = false
   hasSubmittedDrawing = false // Reset for new round
-  
+
   getElementById("drawingPrompt").foreach: elem =>
     elem.textContent = s"Draw: $prompt"
 
@@ -440,7 +437,7 @@ def showPrompt(prompt: String): Unit =
 
 def submitDrawing(): Unit =
   if hasSubmittedDrawing then return // Already submitted
-  
+
   drawingCanvas.foreach: canvas =>
     hasSubmittedDrawing = true
     val imageData = canvas.toDataURL("image/png")
@@ -456,8 +453,7 @@ var currentPrompt: String = ""
 // Phase 1: Show all drawings without captions
 def showGalleryWithDrawings(drawings: Seq[DrawingSubmission], prompt: String): Unit =
   currentPrompt = prompt
-  isInVotingPhase = false
-  
+
   // Update header
   getElementById("galleryPrompt").foreach: elem =>
     elem.textContent = s"Prompt: \"$prompt\""
@@ -524,8 +520,7 @@ def revealAIVote(winnerName: String, reasoning: String): Unit =
 
 // Phase 4: Start voting
 def startVotingUI(secondsRemaining: Int): Unit =
-  isInVotingPhase = true
-  
+
   getElementById("galleryStatus").foreach: elem =>
     elem.textContent = "Vote for your favorite!"
     elem.className = "gallery-status phase-voting"
@@ -546,22 +541,21 @@ def startVotingUI(secondsRemaining: Int): Unit =
         btn.classList.remove("hidden")
       case _ => ()
 
-// Update timer display based on current phase
-def updateTimer(secondsRemaining: Int): Unit =
-  if isInVotingPhase then
-    getElementById("galleryTimer").foreach: elem =>
-      elem.textContent = s"⏱️ $secondsRemaining"
-      if secondsRemaining <= 5 then
-        elem.classList.add("urgent")
-      else
-        elem.classList.remove("urgent")
-  else
-    getElementById("drawingTimer").foreach: elem =>
-      elem.textContent = secondsRemaining.toString
-      if secondsRemaining <= 10 then
-        elem.classList.add("urgent")
-      else
-        elem.classList.remove("urgent")
+def updateDrawingTimer(secondsRemaining: Int): Unit =
+  getElementById("drawingTimer").foreach: elem =>
+    elem.textContent = secondsRemaining.toString
+    if secondsRemaining <= 10 then
+      elem.classList.add("urgent")
+    else
+      elem.classList.remove("urgent")
+
+def updateVotingTimer(secondsRemaining: Int): Unit =
+  getElementById("galleryTimer").foreach: elem =>
+    elem.textContent = s"⏱️ $secondsRemaining"
+    if secondsRemaining <= 5 then
+      elem.classList.add("urgent")
+    else
+      elem.classList.remove("urgent")
 
 def updateVoteDisplay(votes: Map[String, Int]): Unit =
   println(s"[Drawing] Votes: $votes")
@@ -576,14 +570,13 @@ def updateVoteDisplay(votes: Map[String, Int]): Unit =
 
 // Final: Show round complete with all results visible
 def showRoundComplete(result: RoundResult): Unit =
-  isInVotingPhase = false // Stop responding to voting timer updates
-  
+
   // Hide timer
   hideElement("galleryTimer")
-  
+
   // Disable all vote buttons
   document.querySelectorAll(".vote-btn").foreach:
-    case btn: HTMLButtonElement => 
+    case btn: HTMLButtonElement =>
       btn.disabled = true
       if !btn.textContent.contains("✓") then
         btn.textContent = "Voting closed"
