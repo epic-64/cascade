@@ -22,8 +22,8 @@ object WeatherEndpoint:
     case 96 | 99 => "Thunderstorm with hail"
     case _ => "Unknown"
 
-  def getWeather(city: String): ujson.Value =
-    WeatherClient.getWeather(city) match
+  def getWeather(city: String)(using client: WeatherClient): ujson.Value =
+    client.getWeather(city) match
       case Success(data) =>
         // Extract relevant info from the Open-Meteo API response
         val current = data("current")
