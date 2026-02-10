@@ -1,7 +1,6 @@
 import org.scalatest.funsuite.AnyFunSuite
 
 class CounterHandlerSpec extends AnyFunSuite with TestServerHelper:
-  override protected val testPort = 8081
 
   test("counter starts at 0"):
     val response = requests.get(s"$baseUrl/api/counter")

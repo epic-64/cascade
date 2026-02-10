@@ -1,7 +1,6 @@
 import org.scalatest.funsuite.AnyFunSuite
 
 class HealthEndpointSpec extends AnyFunSuite with TestServerHelper:
-  override protected val testPort = 8082
 
   test("health route returns JSON with status and stats"):
     val response = requests.get(s"$baseUrl/health")
