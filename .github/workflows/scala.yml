@@ -45,20 +45,15 @@ jobs:
       - name: Parse coverage percentage
         id: coverage
         run: |
-          # Extract statement counts from both projects
+          # Extract statement counts from JVM project (includes shared code)
           JVM_COVERED=$(grep -oP 'statements-invoked="\K[0-9]+' jvm/target/scala-*/scoverage-report/scoverage.xml | head -1)
           JVM_TOTAL=$(grep -oP 'statement-count="\K[0-9]+' jvm/target/scala-*/scoverage-report/scoverage.xml | head -1)
-          SHARED_COVERED=$(grep -oP 'statements-invoked="\K[0-9]+' shared/target/scala-*/scoverage-report/scoverage.xml | head -1)
-          SHARED_TOTAL=$(grep -oP 'statement-count="\K[0-9]+' shared/target/scala-*/scoverage-report/scoverage.xml | head -1)
           
-          # Calculate combined coverage
-          TOTAL_COVERED=$((JVM_COVERED + SHARED_COVERED))
-          TOTAL_STATEMENTS=$((JVM_TOTAL + SHARED_TOTAL))
-          COVERAGE=$(echo "scale=2; $TOTAL_COVERED * 100 / $TOTAL_STATEMENTS" | bc)
+          # Calculate coverage percentage
+          COVERAGE=$(echo "scale=2; $JVM_COVERED * 100 / $JVM_TOTAL" | bc)
           
-          echo "JVM Coverage: $JVM_COVERED/$JVM_TOTAL"
-          echo "Shared Coverage: $SHARED_COVERED/$SHARED_TOTAL"
-          echo "Combined Coverage: $COVERAGE%"
+          echo "JVM Coverage (includes shared code): $JVM_COVERED/$JVM_TOTAL"
+          echo "Coverage: $COVERAGE%"
           echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
 
       # Step 2: Overwrite gh-pages with main + coverage report
@@ -73,35 +68,37 @@ jobs:
           git reset --hard
 
 
-          # Copy the coverage reports from both projects
-          mkdir -p coverage/jvm
-          mkdir -p coverage/shared
-          cp -r jvm/target/scala-*/scoverage-report/* coverage/jvm/
-          cp -r shared/target/scala-*/scoverage-report/* coverage/shared/
+          # Copy the coverage report from JVM project (includes shared code)
+          mkdir -p coverage
+          cp -r jvm/target/scala-*/scoverage-report/* coverage/
           
-          # Create a simple index.html for the coverage folder
-          cat > coverage/index.html << 'EOF'
+          # Create a simple index.html wrapper for the coverage report
+          cat > coverage/coverage-index.html << 'EOF'
           <!DOCTYPE html>
           <html>
           <head>
-            <title>Coverage Reports</title>
+            <title>Coverage Report</title>
             <style>
               body { font-family: Arial, sans-serif; margin: 40px; }
               h1 { color: #333; }
-              .coverage-links { margin: 20px 0; }
-              .coverage-links a { display: block; margin: 10px 0; font-size: 18px; }
+              .coverage-info { margin: 20px 0; font-size: 18px; }
+              .coverage-link { margin: 20px 0; }
+              .coverage-link a { font-size: 18px; color: #0366d6; text-decoration: none; }
+              .coverage-link a:hover { text-decoration: underline; }
               .back-link { margin-top: 30px; }
               .back-link a { color: #0366d6; text-decoration: none; }
               .back-link a:hover { text-decoration: underline; }
             </style>
           </head>
           <body>
-            <h1>Coverage Reports</h1>
-            <div class="coverage-links">
-              <a href="jvm/index.html">JVM Project Coverage Report</a>
-              <a href="shared/index.html">Shared Project Coverage Report</a>
+            <h1>Coverage Report</h1>
+            <div class="coverage-info">
+              <p>Overall Coverage: ${{ env.COVERAGE }}%</p>
+              <p>This report includes both JVM-specific and shared code.</p>
             </div>
-            <p>Combined Coverage: ${{ env.COVERAGE }}%</p>
+            <div class="coverage-link">
+              <a href="index.html">View Detailed Coverage Report</a>
+            </div>
             <div class="back-link">
               <a href="https://github.com/epic-64/cascade">← Back to Source Code</a>
             </div>
