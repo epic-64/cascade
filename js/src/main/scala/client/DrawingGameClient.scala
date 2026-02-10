@@ -287,7 +287,7 @@ def connectDrawingWebSocket(lobbyId: String): Unit =
   drawingWebSocket = Some(ws)
 
   ws.onopen = (e: Event) =>
-    println("[Drawing] WebSocket connected")
+    println(s"[Drawing] WebSocket connected to lobby $lobbyId")
 
   ws.onmessage = (event: MessageEvent) =>
     handleServerMessage(event.data.toString)

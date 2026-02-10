@@ -32,6 +32,11 @@ object DrawingGameHandler:
     cask.WsHandler: channel =>
       addConnection(lobbyId, channel)
       logger.info(s"Client connected to drawing lobby $lobbyId")
+      
+      // Send current lobby state to the newly connected client
+      lobbies.get(lobbyId) match
+        case null => () // Lobby doesn't exist yet
+        case (lobby, _) => sendToClient(channel, ServerMessage.LobbyUpdate(lobby))
 
       cask.WsActor:
         case cask.Ws.Text(msg) =>
