@@ -7,15 +7,19 @@
     <meta name="theme-color" content="#818cf8" />
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
     <link rel="manifest" href="/static/manifest.json" />
-    <!-- Cache-buster: rewrites static asset URLs with server version -->
+    <!-- Cache-buster: loads static assets with server version query param -->
     <script>
       (function() {
-        var xhr = new XMLHttpRequest();
+        const xhr = new XMLHttpRequest();
         xhr.open('GET', '/api/version', false);
         try { xhr.send(); } catch (e) { return; }
         if (xhr.status !== 200) return;
-        var v = JSON.parse(xhr.responseText).buildVersion;
-        document.write('<link rel="stylesheet" href="/static/base.css?v=' + v + '">');
+        const v = JSON.parse(xhr.responseText)['buildVersion'];
+
+        const css = document.createElement('link');
+        css.rel = 'stylesheet';
+        css.href = '/static/base.css?v=' + v;
+        document.head.appendChild(css);
       })();
     </script>
     <noscript><link rel="stylesheet" href="/static/base.css"></noscript>
