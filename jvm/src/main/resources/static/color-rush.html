@@ -7,10 +7,20 @@
     <meta name="theme-color" content="#818cf8" />
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/color-rush.css" />
+    <!-- Cache-buster: rewrites static asset URLs with server version -->
+    <script>
+      (function() {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/api/version', false);
+        try { xhr.send(); } catch (e) { return; }
+        if (xhr.status !== 200) return;
+        var v = JSON.parse(xhr.responseText).buildVersion;
+        document.write('<link rel="stylesheet" href="/static/color-rush.css?v=' + v + '">');
+        document.write('<scr' + 'ipt src="/static/js/main.js?v=' + v + '"></scr' + 'ipt>');
+      })();
+    </script>
+    <noscript><link rel="stylesheet" href="/static/color-rush.css"></noscript>
   </head>
   <body>
-    <!-- Scala.js compiled client (handles all UI rendering) -->
-    <script src="/static/js/main.js"></script>
   </body>
 </html>

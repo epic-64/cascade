@@ -7,8 +7,19 @@
     <meta name="theme-color" content="#818cf8" />
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/ai-drawing.css" />
-    <script type="module" src="/static/js/main.js"></script>
+    <!-- Cache-buster: rewrites static asset URLs with server version -->
+    <script>
+      (function() {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/api/version', false);
+        try { xhr.send(); } catch (e) { return; }
+        if (xhr.status !== 200) return;
+        var v = JSON.parse(xhr.responseText).buildVersion;
+        document.write('<link rel="stylesheet" href="/static/ai-drawing.css?v=' + v + '">');
+        document.write('<scr' + 'ipt src="/static/js/main.js?v=' + v + '"></scr' + 'ipt>');
+      })();
+    </script>
+    <noscript><link rel="stylesheet" href="/static/ai-drawing.css"></noscript>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

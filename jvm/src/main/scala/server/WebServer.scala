@@ -28,6 +28,10 @@ object WebServer extends MainRoutes:
   def health(): ujson.Value =
     HealthEndpoint.health(startTime)
 
+  @cask.get("/api/version")
+  def version(): ujson.Value =
+    VersionEndpoint.version(startTime)
+
   @cask.get("/api/weather/:city")
   def weather(city: String): ujson.Value =
     WeatherEndpoint.getWeather(city)
