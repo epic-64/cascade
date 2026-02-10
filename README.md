@@ -129,6 +129,7 @@ Testing:
 - ✅ isolated endpoint tests (BDD)
   - ✅ full endpoint traversal (`requests.get(path)`) with coverage
   - ✅ support for mocking side effects
+- ✅ WebSocket tests 
 - ⏳ e2e tests
   - ⏳ Selenium, Cypress, Katalon? To be decided.
   - ⏳ CI integration (headless)
