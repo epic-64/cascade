@@ -15,6 +15,7 @@ def initializeDrawing(): Unit =
 
 var drawingWebSocket: Option[WebSocket] = None
 var currentPlayerId: Option[String] = None
+var currentPlayerName: Option[String] = None
 var currentLobbyId: Option[String] = None
 var drawingCanvas: Option[HTMLCanvasElement] = None
 var drawingContext: Option[CanvasRenderingContext2D] = None
@@ -361,6 +362,11 @@ def processServerMessage(msg: ServerMessage): Unit =
       dom.window.alert(message)
 
 def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
+  // Update currentPlayerName from lobby data
+  currentPlayerId.foreach: id =>
+    lobby.players.get(id).foreach: player =>
+      currentPlayerName = Some(player.playerName)
+
   lobby.status match
     case LobbyStatus.Waiting =>
       showElement("waitingRoom")
@@ -531,14 +537,14 @@ def startVotingUI(secondsRemaining: Int): Unit =
     elem.classList.remove("hidden")
 
   // Show vote buttons (except for own drawing)
-  currentPlayerId.foreach: myId =>
+  currentPlayerName.foreach: myName =>
     document.querySelectorAll(".vote-btn").foreach:
       case btn: HTMLButtonElement =>
         // Get player name from button id
         val playerName = btn.id.replace("vote-btn-", "")
-        // TODO: Need to check if this is our own drawing
-        // For now, show all vote buttons
-        btn.classList.remove("hidden")
+        // Don't show vote button for own drawing
+        if playerName != myName then
+          btn.classList.remove("hidden")
       case _ => ()
 
 def updateDrawingTimer(secondsRemaining: Int): Unit =
