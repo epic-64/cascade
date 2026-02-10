@@ -14,19 +14,24 @@ Full-stack web application using Scala 3, Scala.js, Cask, and WebSockets.
 ## Features
 
 **Counter App with Real-Time Sync**
-- Server maintains counter state (Scala 3 + Cask)
-- Client displays and controls counter (Scala.js)
-- WebSocket broadcasts updates to all tabs in real-time
-- **Thread-safe** concurrent access using `AtomicInteger`
-- Shared types between client and server for type safety
-- **HTTP caching** with ETag validation for optimal performance
+- Simple shared counter that syncs across all browser tabs
+- Click to increment or decrement
+- Watch updates appear instantly everywhere
+- Demonstrates real-time WebSocket synchronization
 
 **Color Rush - Multiplayer Game**
-- Fast-paced color matching game
-- Real-time multiplayer with WebSocket synchronization
-- Type-safe client (ScalaJS) and server communication
-- Shared game models across client/server boundary
-- 10 rounds, speed bonuses, live scoreboard
+- Fast-paced color matching challenge
+- Compete against other players in real-time
+- 10 rounds with speed bonuses
+- Live scoreboard updates as you play
+
+**AI Drawing Challenge - Multiplayer Game**
+- Draw prompts and let AI caption your artwork
+- OpenAI Vision API analyzes drawings
+- AI judge picks the best match with witty commentary
+- Players vote for their favorite drawing
+- Real-time lobby system with WebSocket sync
+- Bring your own OpenAI API key
 
 ## Quick Start
 
@@ -100,11 +105,15 @@ sbt "js/fullLinkJS"
 - `GET /color-rush` → Color Rush game client
 - `WS /ws/color-rush/:gameId` → Game WebSocket endpoint
 
+**AI Drawing Challenge:**
+- `GET /drawing` → AI Drawing Challenge game client
+- `WS /ws/drawing/:lobbyId` → Lobby WebSocket endpoint
+
 **Static Assets:**
 - `GET /static/*` → Static files (HTML, CSS, JS)
-  - `/static/js/main.js` → Compiled Scala.js (includes both apps)
-  - `/static/index.html`, `/static/counter.html`, `/static/color-rush.html` → HTML files
-  - `/static/base.css`, `/static/counter.css`, `/static/color-rush.css` → Stylesheets
+  - `/static/js/main.js` → Compiled Scala.js (includes all apps)
+  - `/static/index.html`, `/static/counter.html`, `/static/color-rush.html`, `/static/drawing-game.html` → HTML files
+  - `/static/base.css`, `/static/counter.css`, `/static/color-rush.css`, `/static/drawing-game.css` → Stylesheets
 
 **System:**
 - `GET /health` → Server health and statistics (JSON)
@@ -150,4 +159,5 @@ Monitoring:
 ## Documentation
 
 - **[Health Endpoint](docs/HEALTH_ENDPOINT.md)** - Detailed documentation of the `/health` endpoint and its stats
+- **[Game Cleanup](docs/GAME_CLEANUP.md)** - Documentation of automatic game/lobby cleanup mechanisms
 
