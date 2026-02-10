@@ -1,6 +1,18 @@
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.BeforeAndAfterEach
+import server.CounterHandler
 
-class CounterHandlerSpec extends AnyFunSuite with TestServerHelper:
+class CounterHandlerSpec extends AnyFunSuite with TestServerHelper with BeforeAndAfterEach:
+
+  // Reset counter state before each test to ensure test isolation
+  override def beforeEach(): Unit =
+    super.beforeEach()
+    // Reset counter to 0
+    while CounterHandler.getCounter() != 0 do
+      if CounterHandler.getCounter() > 0 then
+        CounterHandler.decrementCounter()
+      else
+        CounterHandler.incrementCounter()
 
   test("counter starts at 0"):
     val response = requests.get(s"$baseUrl/api/counter")
