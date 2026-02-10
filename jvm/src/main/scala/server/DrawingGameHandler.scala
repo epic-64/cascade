@@ -245,7 +245,12 @@ object DrawingGameHandler:
             updated.currentPrompt.foreach: prompt =>
               broadcast(lobbyId, ServerMessage.PromptAnnounced(prompt))
             broadcastLobbyUpdate(lobbyId)
-            startTimer(lobbyId, DrawingGame.drawingTimeSeconds, LobbyStatus.CollectingDrawings)
+            startTimer(
+              lobbyId, 
+              DrawingGame.drawingTimeSeconds, 
+              LobbyStatus.CollectingDrawings,
+              seconds => Some(ServerMessage.DrawingTimerUpdate(seconds))
+            )
 
           case LobbyStatus.CollectingDrawings =>
             val updated = lobby.copy(status = LobbyStatus.CollectingDrawings)
@@ -283,7 +288,12 @@ object DrawingGameHandler:
             lobbies.put(lobbyId, (updated, apiKey))
             broadcastLobbyUpdate(lobbyId)
             broadcast(lobbyId, ServerMessage.VotingStarted(DrawingGame.votingTimeSeconds))
-            startTimer(lobbyId, DrawingGame.votingTimeSeconds, LobbyStatus.Results)
+            startTimer(
+              lobbyId, 
+              DrawingGame.votingTimeSeconds, 
+              LobbyStatus.Results,
+              seconds => Some(ServerMessage.VotingTimerUpdate(seconds))
+            )
 
           case LobbyStatus.Results =>
             completeRound(lobbyId)
@@ -295,17 +305,23 @@ object DrawingGameHandler:
   private def cancelTimer(lobbyId: String): Unit =
     Option(activeTimer.remove(lobbyId)).foreach(_.cancel(false))
 
-  private def startTimer(lobbyId: String, durationSeconds: Int, nextStatus: LobbyStatus): Unit =
+  private def startTimer(
+      lobbyId: String, 
+      durationSeconds: Int, 
+      nextStatus: LobbyStatus,
+      timerMessage: Int => Option[ServerMessage] = _ => None
+  ): Unit =
     cancelTimer(lobbyId)
     
-    // Schedule countdown updates
+    // Schedule countdown updates (only if timerMessage is provided)
     (1 to durationSeconds).foreach: i =>
       val secondsRemaining = durationSeconds - i
-      timerScheduler.schedule(
-        (() => broadcast(lobbyId, ServerMessage.TimerUpdate(secondsRemaining))): Runnable,
-        i.toLong,
-        TimeUnit.SECONDS
-      )
+      timerMessage(secondsRemaining).foreach: msg =>
+        timerScheduler.schedule(
+          (() => broadcast(lobbyId, msg)): Runnable,
+          i.toLong,
+          TimeUnit.SECONDS
+        )
     
     // Schedule the transition to next state
     val transitionTask: Runnable = () => transitionTo(lobbyId, nextStatus)
