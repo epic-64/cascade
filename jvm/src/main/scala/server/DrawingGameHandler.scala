@@ -34,8 +34,8 @@ object DrawingGameHandler:
   private val timerScheduler: ScheduledExecutorService =
     java.util.concurrent.Executors.newScheduledThreadPool(2)
 
-  // Active timer future per lobby (only ONE active transition timer at a time per lobby)
-  private val activeTimer = ConcurrentHashMap[String, ScheduledFuture[?]]()
+  // All active timer futures per lobby (countdown ticks AND transition timer)
+  private val activeTimers = ConcurrentHashMap[String, java.util.List[ScheduledFuture[?]]]()
 
   // Track channels that have been closed (to avoid sending to them)
   private val closedChannels = java.util.Collections.newSetFromMap(
@@ -215,6 +215,8 @@ object DrawingGameHandler:
       case (lobby, apiKey) =>
         if lobby.status != LobbyStatus.Results then
           return
+        // Cancel any lingering timers before starting new round
+        cancelTimer(lobbyId)
         if DrawingGame.shouldEndGame(lobby) then
           val finalLobby = lobby.copy(status = LobbyStatus.Waiting, currentRound = 0)
           lobbies.put(lobbyId, (finalLobby, apiKey))
@@ -303,7 +305,8 @@ object DrawingGameHandler:
   // ============================================================================
 
   private def cancelTimer(lobbyId: String): Unit =
-    Option(activeTimer.remove(lobbyId)).foreach(_.cancel(false))
+    Option(activeTimers.remove(lobbyId)).foreach: futures =>
+      futures.forEach(_.cancel(false))
 
   private def startTimer(
       lobbyId: String, 
@@ -313,20 +316,25 @@ object DrawingGameHandler:
   ): Unit =
     cancelTimer(lobbyId)
     
+    val futures = new java.util.ArrayList[ScheduledFuture[?]]()
+    
     // Schedule countdown updates (only if timerMessage is provided)
     (1 to durationSeconds).foreach: i =>
       val secondsRemaining = durationSeconds - i
       timerMessage(secondsRemaining).foreach: msg =>
-        timerScheduler.schedule(
+        val future = timerScheduler.schedule(
           (() => broadcast(lobbyId, msg)): Runnable,
           i.toLong,
           TimeUnit.SECONDS
         )
+        futures.add(future)
     
     // Schedule the transition to next state
     val transitionTask: Runnable = () => transitionTo(lobbyId, nextStatus)
-    val future = timerScheduler.schedule(transitionTask, durationSeconds.toLong, TimeUnit.SECONDS)
-    activeTimer.put(lobbyId, future)
+    val transitionFuture = timerScheduler.schedule(transitionTask, durationSeconds.toLong, TimeUnit.SECONDS)
+    futures.add(transitionFuture)
+    
+    activeTimers.put(lobbyId, futures)
 
   // ============================================================================
   // AI Captioning Phase
