@@ -256,13 +256,15 @@ object DrawingGameHandler:
           val allDrawings = votingLobby.drawings.values.toSeq
           broadcast(lobbyId, ServerMessage.AllDrawingsReady(allDrawings))
           broadcastLobbyUpdate(lobbyId)
-
-          // Get AI winner
-          val captions = votingLobby.drawings.values.map(d => d.playerName -> d.caption.getOrElse("")).toMap
-          votingLobby.currentPrompt.foreach: prompt =>
-            OpenAIClient.selectWinner(apiKey, prompt, captions).foreach: aiWinnerName =>
-              // Store AI winner for later (we'll announce it after voting)
-              logger.info(s"AI selected winner for lobby $lobbyId: $aiWinnerName")
+          
+          // Check if voting can actually happen (need 2+ drawings to vote)
+          if votingLobby.drawings.size <= 1 then
+            // Only 1 or 0 drawings - show gallery for 5 seconds then complete round
+            timerScheduler.schedule(
+              (() => completeRound(lobbyId)): Runnable,
+              5L,
+              TimeUnit.SECONDS
+            )
         .recover:
           case ex =>
             logger.error(s"Error in captioning phase: ${ex.getMessage}", ex)
