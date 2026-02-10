@@ -19,6 +19,7 @@ var currentLobbyId: Option[String] = None
 var drawingCanvas: Option[HTMLCanvasElement] = None
 var drawingContext: Option[CanvasRenderingContext2D] = None
 var isDrawing = false
+var currentTimerPhase: String = "none" // "drawing", "voting", or "none"
 
 def buildDrawingUI(): Unit =
   document.body.innerHTML = ""
@@ -336,13 +337,13 @@ def processServerMessage(msg: ServerMessage): Unit =
 
     case ServerMessage.DrawingsRevealed(drawings, prompt) =>
       showGalleryWithDrawings(drawings, prompt)
-      
+
     case ServerMessage.CaptionRevealed(playerName, caption) =>
       revealCaption(playerName, caption)
-      
+
     case ServerMessage.AIVoteRevealed(winnerName, reasoning) =>
       revealAIVote(winnerName, reasoning)
-      
+
     case ServerMessage.VotingStarted(secondsRemaining) =>
       startVotingUI(secondsRemaining)
 
@@ -395,6 +396,7 @@ def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
       hideElement("resultsArea")
 
 def showPrompt(prompt: String): Unit =
+  currentTimerPhase = "drawing"
   getElementById("drawingPrompt").foreach: elem =>
     elem.textContent = s"Draw: $prompt"
 
@@ -417,22 +419,23 @@ var currentPrompt: String = ""
 // Phase 1: Show all drawings without captions
 def showGalleryWithDrawings(drawings: Seq[DrawingSubmission], prompt: String): Unit =
   currentPrompt = prompt
+  currentTimerPhase = "none" // Stop responding to drawing timer
   
   // Update header
   getElementById("galleryPrompt").foreach: elem =>
     elem.textContent = s"Prompt: \"$prompt\""
-  
+
   getElementById("galleryStatus").foreach: elem =>
     elem.textContent = "Revealing drawings..."
     elem.className = "gallery-status phase-reveal"
-  
+
   hideElement("galleryTimer")
   hideElement("roundSummary")
-  
+
   // Build gallery with drawing cards (no captions yet)
   getElementById("drawingsGallery").foreach: elem =>
     elem.innerHTML = ""
-    
+
     drawings.foreach: drawing =>
       val card = div(cls = "drawing-card", id = s"card-${drawing.playerName}")(
         el("img").tap: img =>
@@ -449,7 +452,7 @@ def showGalleryWithDrawings(drawings: Seq[DrawingSubmission], prompt: String): U
             sendDrawingMessage(ClientMessage.SubmitVote(drawing.playerName))
             // Disable all vote buttons after voting
             document.querySelectorAll(".vote-btn").foreach:
-              case b: HTMLButtonElement => 
+              case b: HTMLButtonElement =>
                 b.disabled = true
                 if b.id == s"vote-btn-${drawing.playerName}" then
                   b.textContent = "✓ Voted"
@@ -462,7 +465,7 @@ def showGalleryWithDrawings(drawings: Seq[DrawingSubmission], prompt: String): U
 def revealCaption(playerName: String, caption: String): Unit =
   getElementById("galleryStatus").foreach: elem =>
     elem.textContent = "AI is analyzing the drawings..."
-  
+
   getElementById(s"caption-${playerName}").foreach: elem =>
     elem.textContent = s"\"$caption\""
     elem.classList.remove("hidden")
@@ -473,26 +476,28 @@ def revealAIVote(winnerName: String, reasoning: String): Unit =
   getElementById("galleryStatus").foreach: elem =>
     elem.textContent = s"🤖 AI picked: $winnerName"
     elem.className = "gallery-status phase-ai-vote"
-  
+
   // Add AI winner badge to the winning card
   getElementById(s"badges-${winnerName}").foreach: elem =>
     elem.appendChild(span(cls = "badge badge-ai", content = "🤖 AI Pick"))
-  
+
   // Highlight the AI winner card
   getElementById(s"card-${winnerName}").foreach: elem =>
     elem.classList.add("ai-winner")
 
 // Phase 4: Start voting
 def startVotingUI(secondsRemaining: Int): Unit =
+  currentTimerPhase = "voting"
+  
   getElementById("galleryStatus").foreach: elem =>
     elem.textContent = "Vote for your favorite!"
     elem.className = "gallery-status phase-voting"
-  
+
   // Show timer
   getElementById("galleryTimer").foreach: elem =>
     elem.textContent = s"⏱️ $secondsRemaining"
     elem.classList.remove("hidden")
-  
+
   // Show vote buttons (except for own drawing)
   currentPlayerId.foreach: myId =>
     document.querySelectorAll(".vote-btn").foreach:
@@ -504,23 +509,26 @@ def startVotingUI(secondsRemaining: Int): Unit =
         btn.classList.remove("hidden")
       case _ => ()
 
-// Update timer display (for both drawing and voting)
+// Update timer display (respects current phase)
 def updateTimer(secondsRemaining: Int): Unit =
-  // Update drawing timer
-  getElementById("drawingTimer").foreach: elem =>
-    elem.textContent = secondsRemaining.toString
-    if secondsRemaining <= 10 then
-      elem.classList.add("urgent")
-    else
-      elem.classList.remove("urgent")
-  
-  // Update gallery timer (for voting)
-  getElementById("galleryTimer").foreach: elem =>
-    elem.textContent = s"⏱️ $secondsRemaining"
-    if secondsRemaining <= 5 then
-      elem.classList.add("urgent")
-    else
-      elem.classList.remove("urgent")
+  currentTimerPhase match
+    case "drawing" =>
+      getElementById("drawingTimer").foreach: elem =>
+        elem.textContent = secondsRemaining.toString
+        if secondsRemaining <= 10 then
+          elem.classList.add("urgent")
+        else
+          elem.classList.remove("urgent")
+    
+    case "voting" =>
+      getElementById("galleryTimer").foreach: elem =>
+        elem.textContent = s"⏱️ $secondsRemaining"
+        if secondsRemaining <= 5 then
+          elem.classList.add("urgent")
+        else
+          elem.classList.remove("urgent")
+    
+    case _ => () // Ignore timer updates when not in a timed phase
 
 def updateVoteDisplay(votes: Map[String, Int]): Unit =
   println(s"[Drawing] Votes: $votes")
@@ -535,25 +543,35 @@ def updateVoteDisplay(votes: Map[String, Int]): Unit =
 
 // Final: Show round complete with all results visible
 def showRoundComplete(result: RoundResult): Unit =
+  currentTimerPhase = "none" // Stop responding to timer updates
+  
   // Hide timer
   hideElement("galleryTimer")
   
+  // Disable all vote buttons
+  document.querySelectorAll(".vote-btn").foreach:
+    case btn: HTMLButtonElement => 
+      btn.disabled = true
+      if !btn.textContent.contains("✓") then
+        btn.textContent = "Voting closed"
+    case _ => ()
+
   // Update status
   getElementById("galleryStatus").foreach: elem =>
     elem.textContent = "Round Complete!"
     elem.className = "gallery-status phase-complete"
-  
+
   // Add player winner badge
   result.playerWinner.foreach: winnerName =>
     getElementById(s"badges-${winnerName}").foreach: elem =>
       elem.appendChild(span(cls = "badge badge-player", content = "👥 Player Pick"))
     getElementById(s"card-${winnerName}").foreach: elem =>
       elem.classList.add("player-winner")
-  
+
   // Show round summary
   getElementById("summaryContent").foreach: elem =>
     elem.innerHTML = ""
-    
+
     val summaryDiv = div(cls = "summary-results")(
       result.aiWinner.map: winner =>
         div(cls = "summary-item")(
@@ -571,7 +589,7 @@ def showRoundComplete(result: RoundResult): Unit =
       .getOrElse(div())
     )
     elem.appendChild(summaryDiv)
-  
+
   showElement("roundSummary")
 
 
