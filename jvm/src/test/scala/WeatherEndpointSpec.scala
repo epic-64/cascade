@@ -1,6 +1,6 @@
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.BeforeAndAfterEach
-import server.{WeatherClient, WeatherEndpoint}
+import server.WeatherClient
 import scala.util.{Success, Failure}
 
 class WeatherEndpointSpec extends AnyFunSuite with TestServerHelper with BeforeAndAfterEach:
@@ -11,18 +11,15 @@ class WeatherEndpointSpec extends AnyFunSuite with TestServerHelper with BeforeA
     super.afterEach()
 
   test("weather endpoint returns weather data when API succeeds"):
-    // Given: A mock weather client that returns fake data
+    // Given: A mock weather client that returns fake Open-Meteo data
     val mockClient = new WeatherClient:
       def getWeather(city: String): scala.util.Try[ujson.Value] =
         Success(ujson.Obj(
-          "current_condition" -> ujson.Arr(
-            ujson.Obj(
-              "temp_C" -> "15",
-              "temp_F" -> "59",
-              "weatherDesc" -> ujson.Arr(ujson.Obj("value" -> "Partly cloudy")),
-              "humidity" -> "65",
-              "FeelsLikeC" -> "13"
-            )
+          "current" -> ujson.Obj(
+            "temperature_2m" -> 15.0,
+            "relative_humidity_2m" -> 65.0,
+            "apparent_temperature" -> 13.0,
+            "weather_code" -> 2  // Partly cloudy
           )
         ))
     
@@ -36,11 +33,11 @@ class WeatherEndpointSpec extends AnyFunSuite with TestServerHelper with BeforeA
     // Then: The response should contain the mocked weather data
     assert(response.statusCode == 200)
     assert(json("city").str == "London")
-    assert(json("temperature_c").str == "15")
-    assert(json("temperature_f").str == "59")
+    assert(json("temperature_c").str == "15.0")
+    assert(json("temperature_f").str == "59.0")
     assert(json("condition").str == "Partly cloudy")
-    assert(json("humidity").str == "65")
-    assert(json("feelsLike_c").str == "13")
+    assert(json("humidity").str == "65.0")
+    assert(json("feelsLike_c").str == "13.0")
 
   test("weather endpoint returns error when API fails"):
     // Given: A mock weather client that fails
@@ -61,18 +58,15 @@ class WeatherEndpointSpec extends AnyFunSuite with TestServerHelper with BeforeA
     assert(json("message").str == "API unavailable")
 
   test("weather endpoint handles different cities"):
-    // Given: A mock that echoes the city name in temp
+    // Given: A mock that echoes the city name length in temp
     val mockClient = new WeatherClient:
       def getWeather(city: String): scala.util.Try[ujson.Value] =
         Success(ujson.Obj(
-          "current_condition" -> ujson.Arr(
-            ujson.Obj(
-              "temp_C" -> s"${city.length}",
-              "temp_F" -> "0",
-              "weatherDesc" -> ujson.Arr(ujson.Obj("value" -> "Sunny")),
-              "humidity" -> "50",
-              "FeelsLikeC" -> "0"
-            )
+          "current" -> ujson.Obj(
+            "temperature_2m" -> city.length.toDouble,
+            "relative_humidity_2m" -> 50.0,
+            "apparent_temperature" -> 0.0,
+            "weather_code" -> 0  // Clear sky
           )
         ))
 
@@ -87,8 +81,8 @@ class WeatherEndpointSpec extends AnyFunSuite with TestServerHelper with BeforeA
     val tokyoJson = ujson.read(tokyoResponse.text())
 
     assert(parisJson("city").str == "Paris")
-    assert(parisJson("temperature_c").str == "5") // "Paris".length
+    assert(parisJson("temperature_c").str == "5.0") // "Paris".length
 
     assert(tokyoJson("city").str == "Tokyo")
-    assert(tokyoJson("temperature_c").str == "5") // "Tokyo".length
+    assert(tokyoJson("temperature_c").str == "5.0") // "Tokyo".length
 
