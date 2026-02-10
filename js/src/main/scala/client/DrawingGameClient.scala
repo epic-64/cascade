@@ -520,9 +520,10 @@ def revealAIVote(winnerName: String, reasoning: String): Unit =
   getElementById(s"badges-${winnerName}").foreach: elem =>
     elem.appendChild(span(cls = "badge badge-ai", content = "🤖 AI Pick"))
 
-  // Highlight the AI winner card
-  getElementById(s"card-${winnerName}").foreach: elem =>
-    elem.classList.add("ai-winner")
+  // Add reasoning to the winning card
+  getElementById(s"card-${winnerName}").foreach: card =>
+    card.classList.add("ai-winner")
+    card.appendChild(div(cls = "ai-reasoning", content = s"\"$reasoning\""))
 
 // Phase 4: Start voting
 def startVotingUI(secondsRemaining: Int): Unit =
