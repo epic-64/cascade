@@ -2,7 +2,7 @@ package server
 
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
-import shared.*
+import shared.ColorRush.*
 
 class GameCleanupSpec extends AnyFunSpec with Matchers:
 
