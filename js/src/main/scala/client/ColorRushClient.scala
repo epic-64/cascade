@@ -202,10 +202,13 @@ def sendMessage(ws: WebSocket, msg: ClientMessage): Unit =
 
 def handleWebSocketMessage(data: String): Unit =
   Try:
+    println(s"[ColorRush] Received message: $data")
     val serverMsg = upickle.default.read[ServerMessage](data)
 
     serverMsg match
-      case GameUpdateMessage(game)                => parseGameUpdate(game)
+      case GameUpdateMessage(game)                => 
+        println(s"[ColorRush] GameUpdateMessage - status: ${game.status}, totalRounds: ${game.totalRounds}")
+        parseGameUpdate(game)
       case RoundWinnerMessage(playerName, points) => showRoundWinner(playerName, points)
       case GameEndMessage(winner)                 => showGameWinner(winner)
   .recover:
@@ -213,6 +216,7 @@ def handleWebSocketMessage(data: String): Unit =
 
 def parseGameUpdate(game: ColorRushGame): Unit =
   Try:
+    println(s"[ColorRush] parseGameUpdate - status: ${game.status}, totalRounds: ${game.totalRounds}")
     // Update players list for all game statuses
     updatePlayersList(game.players, game.status)
 
@@ -229,7 +233,12 @@ def parseGameUpdate(game: ColorRushGame): Unit =
             val isRoundEnd = game.status == GameStatus.RoundEnd
             updateRoundDisplay(game.roundNumber, game.totalRounds, round, isRoundEnd)
 
-      case _ => () // Waiting or GameOver - keep lobby visible
+      case GameStatus.Waiting =>
+        // Update rounds selector in lobby
+        println(s"[ColorRush] Updating rounds selector to: ${game.totalRounds}")
+        updateRoundsSelector(game.totalRounds)
+
+      case _ => () // GameOver - keep lobby visible
   .recover:
     case ex => println(s"[ColorRush] Error parsing game update: ${ex.getMessage}")
 
@@ -261,6 +270,14 @@ def updatePlayersList(players: Map[String, PlayerState], gameStatus: GameStatus)
     gamePlayersElem.foreach(_.innerHTML = playersHTML)
   .recover:
     case ex => println(s"[ColorRush] Error updating players list: ${ex.getMessage}")
+
+def updateRoundsSelector(totalRounds: Int): Unit =
+  println(s"[ColorRush] updateRoundsSelector called with totalRounds: $totalRounds")
+  getElementById("roundsSelector").foreach: selector =>
+    val selectElem = selector.asInstanceOf[dom.HTMLSelectElement]
+    println(s"[ColorRush] Setting roundsSelector value to: $totalRounds")
+    selectElem.value = totalRounds.toString
+    println(s"[ColorRush] roundsSelector value after setting: ${selectElem.value}")
 
 def updateRoundDisplay(roundNumber: Int, totalRounds: Int, round: Round, isRoundEnd: Boolean): Unit =
   getElementById("roundNumber").foreach: elem =>
