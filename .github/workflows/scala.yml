@@ -25,6 +25,15 @@ jobs:
           distribution: 'temurin'
           cache: 'sbt'
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies (jsdom for ScalaJS tests)
+        run: npm install
+
       - name: Install sbt
         run: |
           curl -L https://github.com/sbt/sbt/releases/download/v1.12.1/sbt-1.12.1.tgz | tar xz
