@@ -172,15 +172,19 @@ def setupCanvas(canvas: HTMLCanvasElement): Unit =
   canvas.addEventListener("mousedown", (e: MouseEvent) =>
     isDrawing = true
     val rect = canvas.getBoundingClientRect()
-    lastX = e.clientX - rect.left
-    lastY = e.clientY - rect.top
+    val scaleX = canvas.width.toDouble / rect.width
+    val scaleY = canvas.height.toDouble / rect.height
+    lastX = (e.clientX - rect.left) * scaleX
+    lastY = (e.clientY - rect.top) * scaleY
   )
 
   canvas.addEventListener("mousemove", (e: MouseEvent) =>
     if isDrawing then
       val rect = canvas.getBoundingClientRect()
-      val x = e.clientX - rect.left
-      val y = e.clientY - rect.top
+      val scaleX = canvas.width.toDouble / rect.width
+      val scaleY = canvas.height.toDouble / rect.height
+      val x = (e.clientX - rect.left) * scaleX
+      val y = (e.clientY - rect.top) * scaleY
 
       ctx.beginPath()
       ctx.moveTo(lastX, lastY)
@@ -204,18 +208,22 @@ def setupCanvas(canvas: HTMLCanvasElement): Unit =
     e.preventDefault()
     isDrawing = true
     val rect = canvas.getBoundingClientRect()
+    val scaleX = canvas.width.toDouble / rect.width
+    val scaleY = canvas.height.toDouble / rect.height
     val touch = e.touches(0)
-    lastX = touch.clientX - rect.left
-    lastY = touch.clientY - rect.top
+    lastX = (touch.clientX - rect.left) * scaleX
+    lastY = (touch.clientY - rect.top) * scaleY
   )
 
   canvas.addEventListener("touchmove", (e: TouchEvent) =>
     e.preventDefault()
     if isDrawing then
       val rect = canvas.getBoundingClientRect()
+      val scaleX = canvas.width.toDouble / rect.width
+      val scaleY = canvas.height.toDouble / rect.height
       val touch = e.touches(0)
-      val x = touch.clientX - rect.left
-      val y = touch.clientY - rect.top
+      val x = (touch.clientX - rect.left) * scaleX
+      val y = (touch.clientY - rect.top) * scaleY
 
       drawingContext.foreach: ctx =>
         ctx.beginPath()
