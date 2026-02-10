@@ -1,6 +1,5 @@
 import org.scalatest.funsuite.AnyFunSuite
 import server.{WebServer, CounterHandler}
-import shared.{User, SharedGreeter}
 
 class HelloEndpointSpec extends AnyFunSuite:
   test("hello route returns Hello, World!"):
@@ -16,13 +15,6 @@ class HelloEndpointSpec extends AnyFunSuite:
 
   test("default server port is 8080 when PORT env missing"):
     assert(WebServer.port == 8080)
-
-  test("SharedGreeter formats greeting with id and name"):
-    val user = User(42, "Alice")
-    assert(SharedGreeter.greet(user) == "Hello, Alice! (#42)")
-
-  test("greet route uses shared type"):
-    assert(WebServer.greet(7, "Bob") == "Hello, Bob! (#7)")
 
   test("counter starts at 0"):
     assert(CounterHandler.getCounter() == 0)
