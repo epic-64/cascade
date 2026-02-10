@@ -1,3 +1,5 @@
+import org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv
+
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "3.7.4"
 
@@ -60,6 +62,9 @@ lazy val js = project
     coverageEnabled := false,
     // Enable main module initializer so js/run works and main.js is generated
     scalaJSUseMainModuleInitializer := true,
+
+    // Use jsdom for tests to provide DOM environment
+    Test / jsEnv := new JSDOMNodeJSEnv(),
 
     // Output compiled JS to JVM resources directory for conventional serving
     Compile / fastLinkJS / scalaJSLinkerOutputDirectory :=
