@@ -20,6 +20,8 @@ lazy val root = project
 // Main cross-project with shared code and platform-specific code
 lazy val cascade = crossProject(JSPlatform, JVMPlatform)
   .in(file("."))
+  .jsConfigure(_.withId("js"))
+  .jvmConfigure(_.withId("jvm"))
   .settings(
     name    := "cascade",
     version := "0.1-SNAPSHOT",
