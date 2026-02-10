@@ -4,8 +4,16 @@ import upickle.default.ReadWriter
 
 // AI Drawing Challenge - Multiplayer drawing game with AI judging
 
+// Proper state machine for the game phases
 enum LobbyStatus derives ReadWriter:
-  case Waiting, Drawing, Captioning, Voting, Results
+  case Waiting           // Waiting for players to join, host can start game
+  case Drawing           // Players are drawing, timer is running
+  case CollectingDrawings // Brief pause to collect any last-second submissions
+  case RevealingDrawings // Showing all drawings (without captions)
+  case RevealingCaptions // AI is captioning and revealing captions one by one
+  case RevealingAIWinner // AI announces its pick
+  case Voting            // Players vote for their favorite, timer is running
+  case Results           // Round complete, showing results
 
 case class DrawingLobby(
     lobbyId: String,

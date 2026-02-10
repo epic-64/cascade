@@ -20,6 +20,7 @@ var drawingCanvas: Option[HTMLCanvasElement] = None
 var drawingContext: Option[CanvasRenderingContext2D] = None
 var isDrawing = false
 var isInVotingPhase = false // Simple boolean flag for which timer to update
+var hasSubmittedDrawing = false // Track if current drawing has been submitted
 
 def buildDrawingUI(): Unit =
   document.body.innerHTML = ""
@@ -383,13 +384,39 @@ def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
           btn.textContent = "Start Game"
 
     case LobbyStatus.Drawing =>
+      isInVotingPhase = false
       hideElement("waitingRoom")
       showElement("drawingArea")
       hideElement("galleryArea")
       hideElement("resultsArea")
 
-    case LobbyStatus.Captioning | LobbyStatus.Voting | LobbyStatus.Results =>
-      // Keep gallery visible for all these phases - no scene changes
+    case LobbyStatus.CollectingDrawings =>
+      // Auto-submit drawing if not already submitted
+      if !hasSubmittedDrawing then
+        submitDrawing()
+      // Keep drawing area visible briefly
+      hideElement("waitingRoom")
+      showElement("drawingArea")
+      hideElement("galleryArea")
+      hideElement("resultsArea")
+
+    case LobbyStatus.RevealingDrawings | LobbyStatus.RevealingCaptions | LobbyStatus.RevealingAIWinner =>
+      // Show gallery for all reveal phases
+      isInVotingPhase = false
+      hideElement("waitingRoom")
+      hideElement("drawingArea")
+      showElement("galleryArea")
+      hideElement("resultsArea")
+
+    case LobbyStatus.Voting =>
+      isInVotingPhase = true
+      hideElement("waitingRoom")
+      hideElement("drawingArea")
+      showElement("galleryArea")
+      hideElement("resultsArea")
+
+    case LobbyStatus.Results =>
+      isInVotingPhase = false
       hideElement("waitingRoom")
       hideElement("drawingArea")
       showElement("galleryArea")
@@ -397,15 +424,25 @@ def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
 
 def showPrompt(prompt: String): Unit =
   isInVotingPhase = false
+  hasSubmittedDrawing = false // Reset for new round
+  
   getElementById("drawingPrompt").foreach: elem =>
     elem.textContent = s"Draw: $prompt"
+
+  // Reset submit button
+  getElementById("submitDrawingBtn").foreach: btn =>
+    btn.asInstanceOf[HTMLButtonElement].disabled = false
+    btn.textContent = "Submit Drawing"
 
   // Clear canvas for new drawing
   clearCanvas()
 
 
 def submitDrawing(): Unit =
+  if hasSubmittedDrawing then return // Already submitted
+  
   drawingCanvas.foreach: canvas =>
+    hasSubmittedDrawing = true
     val imageData = canvas.toDataURL("image/png")
     sendDrawingMessage(ClientMessage.SubmitDrawing(imageData))
 
