@@ -43,17 +43,18 @@ class RealWeatherClient extends WeatherClient:
       )
       ujson.read(response.text())
 
-// Global instance - can be swapped out in tests
+// Provides a given instance that can be swapped for testing
 object WeatherClient:
-  @volatile private var instance: WeatherClient = new RealWeatherClient()
-  
-  def getWeather(city: String): Try[ujson.Value] =
-    instance.getWeather(city)
-  
-  // For tests only - swap the implementation
+  @volatile private var _instance: WeatherClient = RealWeatherClient()
+
+  // The given delegates to the swappable instance
+  given default: WeatherClient with
+    def getWeather(city: String): Try[ujson.Value] = _instance.getWeather(city)
+
+  // For tests only - swap the backing implementation
   def setInstance(client: WeatherClient): Unit =
-    instance = client
-  
+    _instance = client
+
   def resetInstance(): Unit =
-    instance = new RealWeatherClient()
+    _instance = RealWeatherClient()
 

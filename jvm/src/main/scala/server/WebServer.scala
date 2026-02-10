@@ -4,6 +4,7 @@ import cask.main.MainRoutes
 import cask.model.Response
 import scala.util.Try
 import org.slf4j.LoggerFactory
+import server.WeatherClient.given
 
 // Configuration object - can be overridden via environment variables
 object Config:
