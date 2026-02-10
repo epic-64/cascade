@@ -312,11 +312,8 @@ def processServerMessage(msg: ServerMessage): Unit =
     case ServerMessage.LobbyCreated(lobbyId, playerId) =>
       currentLobbyId = Some(lobbyId)
       currentPlayerId = Some(playerId)
-      println(s"[Drawing] Lobby created: $lobbyId, player: $playerId")
-      
-      // Close the temporary connection and reconnect to the proper lobby
-      drawingWebSocket.foreach(_.close())
-      connectDrawingWebSocket(lobbyId)
+      println(s"[Drawing] Lobby created/joined: $lobbyId, player: $playerId")
+      // Server will send LobbyUpdate next, no need to reconnect
       
     case ServerMessage.LobbyUpdate(lobby) =>
       updateDrawingLobbyUI(lobby)
@@ -361,9 +358,9 @@ def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
           elem.appendChild(div(content = s"${player.playerName} - ${player.score} pts"))
 
       getElementById("startGameBtn").foreach: btn =>
-        if lobby.players.size < 2 then
+        if lobby.players.isEmpty then
           btn.asInstanceOf[HTMLButtonElement].disabled = true
-          btn.textContent = "Need at least 2 players"
+          btn.textContent = "Need at least 1 player"
         else
           btn.asInstanceOf[HTMLButtonElement].disabled = false
           btn.textContent = "Start Game"
