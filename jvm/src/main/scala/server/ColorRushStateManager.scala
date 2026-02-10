@@ -6,15 +6,15 @@ import org.slf4j.LoggerFactory
 class ColorRushStateManager:
   private val logger = LoggerFactory.getLogger(getClass)
 
-  private val colorRushGames  = java.util.concurrent.ConcurrentHashMap[String, shared.ColorRushGame]()
+  private val colorRushGames  = java.util.concurrent.ConcurrentHashMap[String, shared.ColorRush.ColorRushGame]()
   private val gameConnections = java.util.concurrent.ConcurrentHashMap[String, java.util.Set[cask.WsChannelActor]]()
   private val playerToGame    = java.util.concurrent.ConcurrentHashMap[cask.WsChannelActor, (String, String)]()
 
-  def getGame(gameId: String): Option[shared.ColorRushGame] =
+  def getGame(gameId: String): Option[shared.ColorRush.ColorRushGame] =
     Option(colorRushGames.get(gameId))
 
-  def createGame(gameId: String, totalRounds: Int): shared.ColorRushGame =
-    val game = shared.ColorRush.createGame(gameId, totalRounds)
+  def createGame(gameId: String, totalRounds: Int): shared.ColorRush.ColorRushGame =
+    val game = shared.ColorRush.ColorRush.createGame(gameId, totalRounds)
     colorRushGames.put(gameId, game)
     gameConnections.computeIfAbsent(
       gameId,
@@ -22,11 +22,11 @@ class ColorRushStateManager:
     )
     game
 
-  def updateGame(gameId: String, game: shared.ColorRushGame): Unit =
+  def updateGame(gameId: String, game: shared.ColorRush.ColorRushGame): Unit =
     colorRushGames.put(gameId, game)
 
-  def getOrCreateGame(gameId: String, totalRounds: Int): shared.ColorRushGame =
-    colorRushGames.computeIfAbsent(gameId, _ => shared.ColorRush.createGame(gameId, totalRounds))
+  def getOrCreateGame(gameId: String, totalRounds: Int): shared.ColorRush.ColorRushGame =
+    colorRushGames.computeIfAbsent(gameId, _ => shared.ColorRush.ColorRush.createGame(gameId, totalRounds))
 
   def getGameConnectionCount(gameId: String): Int =
     Option(gameConnections.get(gameId)).map(_.size()).getOrElse(0)
@@ -83,7 +83,7 @@ class ColorRushStateManager:
 
     gamesToCleanup.size
 
-  def getAllGames: Map[String, shared.ColorRushGame] =
+  def getAllGames: Map[String, shared.ColorRush.ColorRushGame] =
     import scala.jdk.CollectionConverters.*
     colorRushGames.asScala.toMap
 

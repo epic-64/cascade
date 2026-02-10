@@ -2,7 +2,7 @@ package client
 
 import org.scalajs.dom
 import org.scalajs.dom.*
-import shared.*
+import shared.ColorRush.*
 import client.{el, form, input, button, *}
 
 import scala.scalajs.js
