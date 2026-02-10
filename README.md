@@ -111,25 +111,40 @@ sbt "js/fullLinkJS"
   - Status, uptime, memory usage, system info
 
 ## Project Goals
-
-- ✅ REST API server
-- ✅ Scala.js client with shared types
-- ✅ WebSocket real-time sync
-- ✅ Basic Test suite (server, client, shared)
-- ✅ Basic CI pipeline running tests
-- ✅ Test coverage report (sbt-scoverage)
-  - ❌ unfortunately, ScalaJS is not supported, so we cover only jvm/ and shared/
-- ✅ Cloud deployment (railway), deploy on push to main/production branches
-- ✅ Staging environment
-- ⏳ e2e tests (Selenium, Cypress, Katalon)
-- ⏳ e2e tests in CI (headless)
+Stack:
+- ✅ Scala 3 for both server and client
+- ✅ Cask for lightweight server framework
+- ✅ Scala.js for client-side code sharing
+- ✅ WebSockets for real-time communication
 - ⏳ Cache-busting system for static assets (build-step)
 - ⏳ Database persistence, ORM (PostgreSQL + Doobie?)
-- ⏳ DB migration system (Flyway, Liquibase)
-- ⏳ Exception tracing (Sentry, Datadog, BetterStack?)
-- ⏳ Health and Performance monitoring
-- ⏳ Redis caching for game state and counter (shared across multiple server instances)
+- ⏳ DB migration system (Flyway, Liquibase?)
+- ⏳ Cache across instances / across restarts (Redis?)
 
+Testing:
+- ✅ ScalaTest
+  - ✅ jvm: works out of the box
+  - ✅ js: requires jsdom plugin
+  - ✅ cross-project setup to cross-compile shared sources
+- ✅ isolated endpoint tests (BDD)
+  - ✅ full endpoint traversal (`requests.get(path)`) with coverage
+  - ✅ support for mocking side effects
+- ⏳ e2e tests
+  - ⏳ Selenium, Cypress, Katalon? To be decided.
+  - ⏳ CI integration (headless)
+
+Continuous Integration:
+- ✅ CI pipeline running tests
+- ✅ Test coverage report (sbt-scoverage)
+  - ❌ unfortunately, ScalaJS is not supported by scoverage, so we cover only the jvm target
+- ✅ Cloud deployment (railway), deploy on push
+  - main → staging environment
+  - production → production environment
+
+Monitoring:
+- ⏳ Exception tracing (Sentry, Datadog, BetterStack?)
+- ⏳ Log aggregation (Logstash, Datadog, BetterStack?)
+- ⏳ Health and Performance monitoring
 
 ## Documentation
 
