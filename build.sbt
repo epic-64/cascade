@@ -40,7 +40,7 @@ lazy val cascade = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "com.lihaoyi"       %% "cask"            % caskVersion,
       "ch.qos.logback"     % "logback-classic" % "1.5.28",
-      "com.lihaoyi"       %% "requests"        % "0.9.0"    % Test,
+      "com.lihaoyi"       %% "requests"        % "0.9.0",
       "org.scalatestplus" %% "mockito-5-12"    % "3.2.19.0" % Test,
       "org.scalamock"     %% "scalamock"       % "7.5.5"    % Test
     )
