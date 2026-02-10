@@ -5,7 +5,6 @@ import org.scalajs.dom.*
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.BeforeAndAfterEach
-import scala.scalajs.js
 
 class ClientMainBehaviorSpec extends AnyFunSpec with Matchers with BeforeAndAfterEach:
 
@@ -19,11 +18,11 @@ class ClientMainBehaviorSpec extends AnyFunSpec with Matchers with BeforeAndAfte
     describe("Feature: Route to Counter app when pathname is /counter"):
 
       it("should load Counter UI with counter display and increment/decrement buttons"):
-        // Given: Set the window location to /counter
-        setWindowLocation("/counter")
+        // Given: A pathname to the counter app
+        val pathname = "/counter"
 
-        // When: Client main initializes
-        clientMain()
+        // When: Client main initializes with that pathname
+        clientMain(Some(pathname))
 
         // Then: Counter UI should be rendered
         // Check for counter-specific elements that prove Counter app loaded
@@ -45,11 +44,11 @@ class ClientMainBehaviorSpec extends AnyFunSpec with Matchers with BeforeAndAfte
     describe("Feature: Route to Color Rush app when pathname is /color-rush"):
 
       it("should load Color Rush UI with game lobby and join form"):
-        // Given: Set the window location to /color-rush
-        setWindowLocation("/color-rush")
+        // Given: A pathname to the Color Rush app
+        val pathname = "/color-rush"
 
-        // When: Client main initializes
-        clientMain()
+        // When: Client main initializes with that pathname
+        clientMain(Some(pathname))
 
         // Then: Color Rush UI should be rendered
         // Check for Color Rush-specific elements
@@ -73,11 +72,11 @@ class ClientMainBehaviorSpec extends AnyFunSpec with Matchers with BeforeAndAfte
     describe("Feature: Route to Landing page for unknown paths"):
 
       it("should not initialize any app when pathname is /"):
-        // Given: Set the window location to root
-        setWindowLocation("/")
+        // Given: A pathname to the root
+        val pathname = "/"
 
-        // When: Client main initializes
-        clientMain()
+        // When: Client main initializes with that pathname
+        clientMain(Some(pathname))
 
         // Then: No app-specific UI should be rendered (body stays mostly empty)
         val counterDisplay = document.getElementById("counter-display")
@@ -87,11 +86,11 @@ class ClientMainBehaviorSpec extends AnyFunSpec with Matchers with BeforeAndAfte
         lobby shouldBe null
 
       it("should not initialize any app when pathname is unknown"):
-        // Given: Set the window location to an unknown path
-        setWindowLocation("/about")
+        // Given: A pathname to an unknown page
+        val pathname = "/about"
 
-        // When: Client main initializes
-        clientMain()
+        // When: Client main initializes with that pathname
+        clientMain(Some(pathname))
 
         // Then: No app-specific UI should be rendered
         val counterDisplay = document.getElementById("counter-display")
@@ -100,21 +99,5 @@ class ClientMainBehaviorSpec extends AnyFunSpec with Matchers with BeforeAndAfte
         val lobby = document.getElementById("lobby")
         lobby shouldBe null
 
-  // Helper to set window.location.pathname for testing
-  // Note: In jsdom we can manipulate the location
-  private def setWindowLocation(pathname: String): Unit =
-    // Use jsdom's location manipulation
-    val location = js.Dynamic.literal(
-      pathname = pathname,
-      href = s"http://localhost:8080$pathname",
-      host = "localhost:8080",
-      hostname = "localhost",
-      port = "8080",
-      protocol = "http:",
-      search = "",
-      hash = ""
-    )
-    // Override window.location
-    js.Dynamic.global.window.updateDynamic("location")(location)
 
 
