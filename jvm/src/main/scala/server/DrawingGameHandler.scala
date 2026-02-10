@@ -6,7 +6,7 @@ import scala.concurrent.{Future, ExecutionContext}
 import scala.concurrent.ExecutionContext.Implicits.global
 import castor.Context.Simple.global as castorGlobal
 import shared.DrawingGame.*
-import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 import scala.jdk.CollectionConverters.*
 
 object DrawingGameHandler:
@@ -33,6 +33,12 @@ object DrawingGameHandler:
   // Timer scheduler
   private val timerScheduler: ScheduledExecutorService =
     java.util.concurrent.Executors.newScheduledThreadPool(2)
+  
+  // Active timer futures per lobby - so we can cancel them
+  private val activeTimers = ConcurrentHashMap[String, java.util.List[ScheduledFuture[?]]]()
+  
+  // Flag to track if round is already completed (prevents double completion)
+  private val roundCompleted = ConcurrentHashMap[String, Boolean]()
 
   def handleWebSocket(lobbyId: String): cask.WebsocketResult =
     cask.WsHandler: channel =>
@@ -70,6 +76,17 @@ object DrawingGameHandler:
     connections.get(lobbyId) match
       case null => ()
       case channelSet => channelSet.remove(channel)
+
+  // Cancel all active timers for a lobby
+  private def cancelTimers(lobbyId: String): Unit =
+    Option(activeTimers.remove(lobbyId)).foreach: futures =>
+      futures.asScala.foreach(_.cancel(false))
+  
+  // Schedule a timer task and track it for later cancellation
+  private def scheduleTimer(lobbyId: String, task: Runnable, delaySeconds: Long): Unit =
+    val futures = activeTimers.computeIfAbsent(lobbyId, _ => new java.util.ArrayList())
+    val future = timerScheduler.schedule(task, delaySeconds, TimeUnit.SECONDS)
+    futures.add(future)
 
   private def handleClientMessage(channel: cask.WsChannelActor, lobbyId: String, msg: ClientMessage): Unit =
     // Get the actual lobby ID from the channel mapping (in case it was moved from "temp")
@@ -191,8 +208,9 @@ object DrawingGameHandler:
             val voteCounts = DrawingGame.tallyVotes(updatedLobby)
             broadcast(lobbyId, ServerMessage.VoteUpdate(voteCounts))
 
-            // If all votes submitted, complete the round
-            if DrawingGame.allVotesSubmitted(updatedLobby) then
+            // If all votes submitted, complete the round (only if not already completed)
+            if DrawingGame.allVotesSubmitted(updatedLobby) && !roundCompleted.getOrDefault(lobbyId, false) then
+              roundCompleted.put(lobbyId, true)
               completeRound(lobbyId)
 
   private def handleNextRound(lobbyId: String): Unit =
@@ -215,21 +233,24 @@ object DrawingGameHandler:
           startDrawingTimer(lobbyId)
 
   private def startDrawingTimer(lobbyId: String): Unit =
-    var secondsRemaining = DrawingGame.drawingTimeSeconds
-
-    val task: Runnable = () =>
-      secondsRemaining -= 1
-      broadcast(lobbyId, ServerMessage.TimerUpdate(secondsRemaining))
-
-      if secondsRemaining <= 0 then
-        // Timer expired, move to captioning with submitted drawings
-        startCaptioningPhase(lobbyId)
+    // Cancel any existing timers for this lobby
+    cancelTimers(lobbyId)
+    roundCompleted.put(lobbyId, false)
 
     // Schedule timer updates every second
     (1 to DrawingGame.drawingTimeSeconds).foreach: i =>
-      timerScheduler.schedule(task, i.toLong, TimeUnit.SECONDS)
+      val secondsRemaining = DrawingGame.drawingTimeSeconds - i
+      val task: Runnable = () =>
+        broadcast(lobbyId, ServerMessage.TimerUpdate(secondsRemaining))
+        if secondsRemaining <= 0 then
+          // Timer expired, move to captioning with submitted drawings
+          startCaptioningPhase(lobbyId)
+      scheduleTimer(lobbyId, task, i.toLong)
 
   private def startCaptioningPhase(lobbyId: String): Unit =
+    // Cancel drawing timer
+    cancelTimers(lobbyId)
+    
     lobbies.get(lobbyId) match
       case null => ()
       case (lobby, apiKey) =>
@@ -257,11 +278,8 @@ object DrawingGameHandler:
           // Phase 2: Reveal captions one by one with delays
           var delay = 1L
           captionResults.foreach: (_, playerName, caption) =>
-            timerScheduler.schedule(
-              (() => broadcast(lobbyId, ServerMessage.CaptionRevealed(playerName, caption))): Runnable,
-              delay,
-              TimeUnit.SECONDS
-            )
+            val captionTask: Runnable = () => broadcast(lobbyId, ServerMessage.CaptionRevealed(playerName, caption))
+            scheduleTimer(lobbyId, captionTask, delay)
             delay += 2 // 2 seconds between each caption reveal
 
           // Phase 3: AI reveals its vote
@@ -269,29 +287,18 @@ object DrawingGameHandler:
           currentLobby.currentPrompt.foreach: prompt =>
             val aiVoteDelay = delay + 1
             OpenAIClient.selectWinner(apiKey, prompt, captions).map: aiWinnerName =>
-              timerScheduler.schedule(
-                (() => 
-                  broadcast(lobbyId, ServerMessage.AIVoteRevealed(aiWinnerName, s"Best match for '$prompt'"))
-                  
-                  // Phase 4: Start voting phase after AI vote reveal
-                  timerScheduler.schedule(
-                    (() => startVotingPhase(lobbyId, aiWinnerName)): Runnable,
-                    2L,
-                    TimeUnit.SECONDS
-                  )
-                ): Runnable,
-                aiVoteDelay,
-                TimeUnit.SECONDS
-              )
+              val aiVoteTask: Runnable = () =>
+                broadcast(lobbyId, ServerMessage.AIVoteRevealed(aiWinnerName, s"Best match for '$prompt'"))
+                // Phase 4: Start voting phase after AI vote reveal
+                val votingTask: Runnable = () => startVotingPhase(lobbyId, aiWinnerName)
+                scheduleTimer(lobbyId, votingTask, 2L)
+              scheduleTimer(lobbyId, aiVoteTask, aiVoteDelay)
             .recover:
               case ex =>
                 logger.error(s"Error selecting AI winner: ${ex.getMessage}", ex)
                 // Continue without AI winner
-                timerScheduler.schedule(
-                  (() => startVotingPhase(lobbyId, "")): Runnable,
-                  aiVoteDelay,
-                  TimeUnit.SECONDS
-                )
+                val fallbackTask: Runnable = () => startVotingPhase(lobbyId, "")
+                scheduleTimer(lobbyId, fallbackTask, aiVoteDelay)
         .recover:
           case ex =>
             logger.error(s"Error in captioning phase: ${ex.getMessage}", ex)
@@ -301,6 +308,9 @@ object DrawingGameHandler:
   private val aiWinners = ConcurrentHashMap[String, String]()
 
   private def startVotingPhase(lobbyId: String, aiWinnerName: String): Unit =
+    // Cancel any captioning phase timers
+    cancelTimers(lobbyId)
+    
     lobbies.get(lobbyId) match
       case null => ()
       case (lobby, apiKey) =>
@@ -317,24 +327,29 @@ object DrawingGameHandler:
         startVotingTimer(lobbyId)
 
   private def startVotingTimer(lobbyId: String): Unit =
-    var secondsRemaining = DrawingGame.votingTimeSeconds
-
-    val task: Runnable = () =>
-      secondsRemaining -= 1
-      broadcast(lobbyId, ServerMessage.TimerUpdate(secondsRemaining))
-
-      if secondsRemaining <= 0 then
-        // Timer expired, complete the round
-        completeRound(lobbyId)
-
     // Schedule timer updates every second
     (1 to DrawingGame.votingTimeSeconds).foreach: i =>
-      timerScheduler.schedule(task, i.toLong, TimeUnit.SECONDS)
+      val secondsRemaining = DrawingGame.votingTimeSeconds - i
+      val task: Runnable = () =>
+        broadcast(lobbyId, ServerMessage.TimerUpdate(secondsRemaining))
+        if secondsRemaining <= 0 then
+          // Timer expired, complete the round (only if not already completed)
+          if !roundCompleted.getOrDefault(lobbyId, false) then
+            roundCompleted.put(lobbyId, true)
+            completeRound(lobbyId)
+      scheduleTimer(lobbyId, task, i.toLong)
 
   private def completeRound(lobbyId: String): Unit =
+    // Cancel any voting timers
+    cancelTimers(lobbyId)
+    
     lobbies.get(lobbyId) match
       case null => ()
       case (lobby, apiKey) =>
+        // Check if already in Results status to prevent double completion
+        if lobby.status == LobbyStatus.Results then
+          return
+        
         val voteCounts = DrawingGame.tallyVotes(lobby)
         val playerWinner = voteCounts.maxByOption(_._2).map(_._1)
 
@@ -364,9 +379,19 @@ object DrawingGameHandler:
     connections.get(lobbyId) match
       case null => ()
       case channelSet =>
+        val deadChannels = scala.collection.mutable.Set[cask.WsChannelActor]()
         channelSet.asScala.foreach: channel =>
           Try(channel.send(cask.Ws.Text(json))).recover:
-            case ex => logger.error(s"Failed to send message: ${ex.getMessage}")
+            case ex: java.io.IOException =>
+              // Channel is closed, mark for removal
+              deadChannels += channel
+            case ex => 
+              logger.error(s"Failed to send message: ${ex.getMessage}")
+        // Remove dead channels
+        deadChannels.foreach: channel =>
+          channelSet.remove(channel)
+          channelToPlayer.remove(channel)
+          channelToLobby.remove(channel)
 
   private def broadcastLobbyUpdate(lobbyId: String): Unit =
     lobbies.get(lobbyId) match
@@ -378,6 +403,7 @@ object DrawingGameHandler:
     import upickle.default.*
     val json = write(message)
     Try(channel.send(cask.Ws.Text(json))).recover:
+      case _: java.io.IOException => () // Channel closed, ignore
       case ex => logger.error(s"Failed to send message to client: ${ex.getMessage}")
 
   private def getPlayerIdByChannel(channel: cask.WsChannelActor, lobbyId: String): Option[String] =
