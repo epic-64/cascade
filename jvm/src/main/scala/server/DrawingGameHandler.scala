@@ -23,28 +23,33 @@ object DrawingGameHandler:
 
   // Player to lobby mapping: playerId -> lobbyId
   private val playerLobbies = ConcurrentHashMap[String, String]()
-  
+
   // Channel to player mapping: channel -> playerId
   private val channelToPlayer = ConcurrentHashMap[cask.WsChannelActor, String]()
-  
+
   // Channel to lobby mapping: channel -> lobbyId
   private val channelToLobby = ConcurrentHashMap[cask.WsChannelActor, String]()
 
   // Timer scheduler
   private val timerScheduler: ScheduledExecutorService =
     java.util.concurrent.Executors.newScheduledThreadPool(2)
-  
+
   // Active timer futures per lobby - so we can cancel them
   private val activeTimers = ConcurrentHashMap[String, java.util.List[ScheduledFuture[?]]]()
-  
+
   // Flag to track if round is already completed (prevents double completion)
   private val roundCompleted = ConcurrentHashMap[String, Boolean]()
+  
+  // Track channels that have been closed (to avoid sending to them)
+  private val closedChannels = java.util.Collections.newSetFromMap(
+    new java.util.WeakHashMap[cask.WsChannelActor, java.lang.Boolean]()
+  )
 
   def handleWebSocket(lobbyId: String): cask.WebsocketResult =
     cask.WsHandler: channel =>
       addConnection(lobbyId, channel)
       logger.info(s"Client connected to drawing lobby $lobbyId")
-      
+
       // Send current lobby state to the newly connected client
       lobbies.get(lobbyId) match
         case null => () // Lobby doesn't exist yet
@@ -81,7 +86,7 @@ object DrawingGameHandler:
   private def cancelTimers(lobbyId: String): Unit =
     Option(activeTimers.remove(lobbyId)).foreach: futures =>
       futures.asScala.foreach(_.cancel(false))
-  
+
   // Schedule a timer task and track it for later cancellation
   private def scheduleTimer(lobbyId: String, task: Runnable, delaySeconds: Long): Unit =
     val futures = activeTimers.computeIfAbsent(lobbyId, _ => new java.util.ArrayList())
@@ -91,7 +96,7 @@ object DrawingGameHandler:
   private def handleClientMessage(channel: cask.WsChannelActor, lobbyId: String, msg: ClientMessage): Unit =
     // Get the actual lobby ID from the channel mapping (in case it was moved from "temp")
     val actualLobbyId = Option(channelToLobby.get(channel)).getOrElse(lobbyId)
-    
+
     msg match
       case ClientMessage.CreateLobby(playerName, apiKey) =>
         handleCreateLobby(channel, playerName, apiKey)
@@ -120,7 +125,7 @@ object DrawingGameHandler:
     playerLobbies.put(playerId, lobbyId)
     channelToPlayer.put(channel, playerId)
     channelToLobby.put(channel, lobbyId)
-    
+
     // Move connection from "temp" to the actual lobby
     removeConnection("temp", channel)
     addConnection(lobbyId, channel)
@@ -146,7 +151,7 @@ object DrawingGameHandler:
           playerLobbies.put(playerId, lobbyId)
           channelToPlayer.put(channel, playerId)
           channelToLobby.put(channel, lobbyId)
-          
+
           // Add connection to lobby
           addConnection(lobbyId, channel)
 
@@ -250,7 +255,7 @@ object DrawingGameHandler:
   private def startCaptioningPhase(lobbyId: String): Unit =
     // Cancel drawing timer
     cancelTimers(lobbyId)
-    
+
     lobbies.get(lobbyId) match
       case null => ()
       case (lobby, apiKey) =>
@@ -272,7 +277,7 @@ object DrawingGameHandler:
           var currentLobby = updatedLobby
           captionResults.foreach: (playerId, _, caption) =>
             currentLobby = DrawingGame.addCaption(currentLobby, playerId, caption)
-          
+
           lobbies.put(lobbyId, (currentLobby, apiKey))
 
           // Phase 2: Reveal captions one by one with delays
@@ -310,18 +315,18 @@ object DrawingGameHandler:
   private def startVotingPhase(lobbyId: String, aiWinnerName: String): Unit =
     // Cancel any captioning phase timers
     cancelTimers(lobbyId)
-    
+
     lobbies.get(lobbyId) match
       case null => ()
       case (lobby, apiKey) =>
         // Store AI winner for later
         if aiWinnerName.nonEmpty then
           aiWinners.put(lobbyId, aiWinnerName)
-        
+
         val votingLobby = DrawingGame.startVoting(lobby)
         lobbies.put(lobbyId, (votingLobby, apiKey))
         broadcastLobbyUpdate(lobbyId)
-        
+
         // Start voting timer
         broadcast(lobbyId, ServerMessage.VotingStarted(DrawingGame.votingTimeSeconds))
         startVotingTimer(lobbyId)
@@ -342,20 +347,20 @@ object DrawingGameHandler:
   private def completeRound(lobbyId: String): Unit =
     // Cancel any voting timers
     cancelTimers(lobbyId)
-    
+
     lobbies.get(lobbyId) match
       case null => ()
       case (lobby, apiKey) =>
         // Check if already in Results status to prevent double completion
         if lobby.status == LobbyStatus.Results then
           return
-        
+
         val voteCounts = DrawingGame.tallyVotes(lobby)
         val playerWinner = voteCounts.maxByOption(_._2).map(_._1)
 
         // Get stored AI winner
         val aiWinnerName = Option(aiWinners.remove(lobbyId))
-        
+
         val result = RoundResult(aiWinnerName, playerWinner, voteCounts)
 
         // Update scores
@@ -367,11 +372,27 @@ object DrawingGameHandler:
         broadcastLobbyUpdate(lobbyId)
 
   private def handleDisconnect(channel: cask.WsChannelActor, lobbyId: String): Unit =
-    connections.get(lobbyId) match
+    // Mark channel as closed to prevent future sends
+    closedChannels.add(channel)
+    
+    // Get actual lobby from channel mapping
+    val actualLobbyId = Option(channelToLobby.get(channel)).getOrElse(lobbyId)
+    
+    connections.get(actualLobbyId) match
       case null => ()
       case channelSet =>
         channelSet.remove(channel)
-        logger.info(s"Client disconnected from lobby $lobbyId")
+        logger.info(s"Client disconnected from lobby $actualLobbyId")
+    
+    // Also try to remove from the URL-based lobby
+    if actualLobbyId != lobbyId then
+      connections.get(lobbyId) match
+        case null => ()
+        case channelSet => channelSet.remove(channel)
+    
+    // Clean up mappings
+    channelToPlayer.remove(channel)
+    channelToLobby.remove(channel)
 
   private def broadcast(lobbyId: String, message: ServerMessage): Unit =
     import upickle.default.*
@@ -379,19 +400,10 @@ object DrawingGameHandler:
     connections.get(lobbyId) match
       case null => ()
       case channelSet =>
-        val deadChannels = scala.collection.mutable.Set[cask.WsChannelActor]()
-        channelSet.asScala.foreach: channel =>
-          Try(channel.send(cask.Ws.Text(json))).recover:
-            case ex: java.io.IOException =>
-              // Channel is closed, mark for removal
-              deadChannels += channel
-            case ex => 
-              logger.error(s"Failed to send message: ${ex.getMessage}")
-        // Remove dead channels
-        deadChannels.foreach: channel =>
-          channelSet.remove(channel)
-          channelToPlayer.remove(channel)
-          channelToLobby.remove(channel)
+        // Filter out closed channels before iterating
+        val activeChannels = channelSet.asScala.filterNot(closedChannels.contains)
+        activeChannels.foreach: channel =>
+          channel.send(cask.Ws.Text(json))
 
   private def broadcastLobbyUpdate(lobbyId: String): Unit =
     lobbies.get(lobbyId) match
@@ -400,11 +412,11 @@ object DrawingGameHandler:
         broadcast(lobbyId, ServerMessage.LobbyUpdate(lobby))
 
   private def sendToClient(channel: cask.WsChannelActor, message: ServerMessage): Unit =
+    if closedChannels.contains(channel) then
+      return // Channel is closed, skip
     import upickle.default.*
     val json = write(message)
-    Try(channel.send(cask.Ws.Text(json))).recover:
-      case _: java.io.IOException => () // Channel closed, ignore
-      case ex => logger.error(s"Failed to send message to client: ${ex.getMessage}")
+    channel.send(cask.Ws.Text(json))
 
   private def getPlayerIdByChannel(channel: cask.WsChannelActor, lobbyId: String): Option[String] =
     Option(channelToPlayer.get(channel))
@@ -421,7 +433,7 @@ object DrawingGameHandler:
     val emptyLobbies = lobbies.asScala.filter:
       case (lobbyId, (lobby, _)) => lobby.players.isEmpty
     .keys
-    
+
     emptyLobbies.foreach: lobbyId =>
       lobbies.remove(lobbyId)
       connections.remove(lobbyId)
