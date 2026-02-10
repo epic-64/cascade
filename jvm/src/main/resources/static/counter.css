@@ -2,6 +2,16 @@
 @import url('/static/base.css');
 
 /* Counter-specific styles */
+.title {
+  text-align: center;
+}
+
+.subtitle {
+  text-align: center;
+  color: var(--text-secondary);
+  margin-bottom: 2rem;
+}
+
 #counter-container {
   margin: 2rem auto;
   padding: 2rem;

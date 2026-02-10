@@ -3,8 +3,8 @@
 Full-stack web application using Scala 3, Scala.js, Cask, and WebSockets.
 
 # Live Environments
-nightly (main branch): https://cascade-main.up.railway.app/
-production: https://cascade-prod.up.railway.app/
+- nightly (main branch): https://cascade-main.up.railway.app/
+- production: https://cascade-prod.up.railway.app/
 
 ## Features
 

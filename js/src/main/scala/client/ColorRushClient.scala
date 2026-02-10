@@ -3,11 +3,13 @@ package client
 import org.scalajs.dom
 import org.scalajs.dom.*
 import shared.*
+import client.{el, form, input, button, *}
 
 import scala.scalajs.js
 import scala.util.Try
+import scala.util.chaining.scalaUtilChainingOps
 
-def initializeGame(): Unit =
+def initializeColorRush(): Unit =
   println("[ColorRush] Starting Color Rush client...")
   buildGameUI()
   setupJoinForm()
@@ -18,7 +20,6 @@ var gameWebSocket: Option[WebSocket] = None
 var currentGameId: Option[String]    = None
 var currentRoundId: Option[String]   = None
 
-
 def buildGameUI(): Unit =
   // Clear existing content
   document.body.innerHTML = ""
@@ -27,19 +28,7 @@ def buildGameUI(): Unit =
   document.body.appendChild(NavigationBar.render("Color Rush"))
 
   // Create main container
-  val container = document.createElement("div").asInstanceOf[HTMLElement]
-  container.className = "container"
-
-  // Create title
-  val title = document.createElement("h1").asInstanceOf[HTMLElement]
-  title.textContent = "Color Rush"
-  container.appendChild(title)
-
-  // Create subtitle
-  val subtitle = document.createElement("p").asInstanceOf[HTMLElement]
-  subtitle.className = "subtitle"
-  subtitle.textContent = "Be the fastest to click the matching color"
-  container.appendChild(subtitle)
+  val container = el("div").with_classes("container")
 
   // Create lobby
   container.appendChild(createLobby())
@@ -53,126 +42,61 @@ def buildGameUI(): Unit =
   // Create winner announcement
   container.appendChild(createWinnerAnnouncement())
 
+  // Append container to body
   document.body.appendChild(container)
 
 def createLobby(): HTMLElement =
-  val lobbyWrapper = document.createElement("div").asInstanceOf[HTMLElement]
-  lobbyWrapper.id = "lobby"
-
-  // Create join form container
-  val joinFormContainer = document.createElement("div").asInstanceOf[HTMLElement]
-  joinFormContainer.id = "joinFormContainer"
-  joinFormContainer.className = "join-form-container"
-
-  val heading = document.createElement("h2").asInstanceOf[HTMLElement]
-  heading.textContent = "Join Game"
-  joinFormContainer.appendChild(heading)
-
-  // Create join form
-  val form = document.createElement("form").asInstanceOf[HTMLFormElement]
-  form.id = "joinForm"
-
-  val gameIdInput = document.createElement("input").asInstanceOf[HTMLInputElement]
-  gameIdInput.`type` = "text"
-  gameIdInput.id = "gameId"
-  gameIdInput.placeholder = "Game ID (e.g., game123)"
-  gameIdInput.value = "game1"
-  form.appendChild(gameIdInput)
-
-  val playerNameInput = document.createElement("input").asInstanceOf[HTMLInputElement]
-  playerNameInput.`type` = "text"
-  playerNameInput.id = "playerName"
-  playerNameInput.placeholder = "Your Name"
-  form.appendChild(playerNameInput)
-
-  val submitButton = document.createElement("button").asInstanceOf[HTMLButtonElement]
-  submitButton.`type` = "submit"
-  submitButton.textContent = "Join Game"
-  form.appendChild(submitButton)
-
-  joinFormContainer.appendChild(form)
-  lobbyWrapper.appendChild(joinFormContainer)
-
-  // Create waiting area container (separate from join form)
-  val waitingAreaContainer = document.createElement("div").asInstanceOf[HTMLElement]
-  waitingAreaContainer.id = "waitingArea"
-  waitingAreaContainer.className = "waiting-area-container hidden"
-
-  val waitingHeading = document.createElement("h3").asInstanceOf[HTMLElement]
-  waitingHeading.textContent = "Players in Lobby:"
-  waitingAreaContainer.appendChild(waitingHeading)
-
-  val playersList = document.createElement("div").asInstanceOf[HTMLElement]
-  playersList.id = "playersList"
-  playersList.className = "players"
-  waitingAreaContainer.appendChild(playersList)
-
-  val startButton = document.createElement("button").asInstanceOf[HTMLButtonElement]
-  startButton.id = "startButton"
-  startButton.className = "start-button"
-  startButton.textContent = "Start Game"
-  waitingAreaContainer.appendChild(startButton)
-
-  lobbyWrapper.appendChild(waitingAreaContainer)
-
-  lobbyWrapper
+  el("div").with_id("lobby")(
+    el("div").with_id("joinFormContainer").with_classes("join-form-container")(
+      el("h2").with_content("Join Game"),
+      form().with_id("joinForm")(
+        input("text").tap: el =>
+          el.id = "gameId"
+          el.placeholder = "Game ID (e.g., game123)"
+          el.value = "game1"
+          el.setAttribute("autocomplete", "off")
+        ,
+        input("text").tap: el =>
+          el.id = "playerName"
+          el.placeholder = "Your Name"
+          el.setAttribute("autocomplete", "off")
+        ,
+        button("submit").tap: btn =>
+          btn.textContent = "Join Game"
+      )
+    ),
+    // Waiting area container
+    el("div").with_id("waitingArea").with_classes("waiting-area-container hidden")(
+      el("h3").with_content("Players in Lobby:"),
+      el("div").with_id("playersList").with_classes("players"),
+      button().tap: btn =>
+        btn.id = "startButton"
+        btn.className = "start-button"
+        btn.textContent = "Start Game"
+    )
+  )
 
 def createGameArea(): HTMLElement =
-  val gameArea = document.createElement("div").asInstanceOf[HTMLElement]
-  gameArea.id = "gameArea"
-  gameArea.className = "game-area hidden"
-
-  // Round info
-  val roundInfo = document.createElement("div").asInstanceOf[HTMLElement]
-  roundInfo.className = "round-info"
-
-  val roundNumber = document.createElement("div").asInstanceOf[HTMLElement]
-  roundNumber.className = "round-number"
-  roundNumber.innerHTML = "Round <span id=\"roundNumber\">1</span> of 10"
-  roundInfo.appendChild(roundNumber)
-
-  val targetColorLabel = document.createElement("div").asInstanceOf[HTMLElement]
-  targetColorLabel.className = "target-color-label"
-  targetColorLabel.textContent = "Click this color:"
-  roundInfo.appendChild(targetColorLabel)
-
-  val targetColor = document.createElement("div").asInstanceOf[HTMLElement]
-  targetColor.id = "targetColor"
-  targetColor.className = "target-color"
-  roundInfo.appendChild(targetColor)
-
-  gameArea.appendChild(roundInfo)
-
-  // Color grid
-  val colorGrid = document.createElement("div").asInstanceOf[HTMLElement]
-  colorGrid.id = "colorGrid"
-  colorGrid.className = "color-grid"
-  gameArea.appendChild(colorGrid)
-
-  gameArea
+  el("div").with_id("gameArea").with_classes("game-area hidden")(
+    // Round info
+    el("div").with_classes("round-info")(
+      el("div").with_classes("round-number").tap: el =>
+        el.innerHTML = "Round <span id=\"roundNumber\">1</span> of 10",
+      el("div").with_classes("target-color-label").with_content("Click this color:"),
+      el("div").with_id("targetColor").with_classes("target-color")
+    ),
+    // Color grid
+    el("div").with_id("colorGrid").with_classes("color-grid")
+  )
 
 def createPlayersSidebar(): HTMLElement =
-  val playersSidebar = document.createElement("div").asInstanceOf[HTMLElement]
-  playersSidebar.id = "gamePlayers"
-  playersSidebar.className = "players hidden"
-  playersSidebar
+  el("div").with_id("gamePlayers").with_classes("players hidden")
 
 def createWinnerAnnouncement(): HTMLElement =
-  val announcement = document.createElement("div").asInstanceOf[HTMLElement]
-  announcement.id = "winnerAnnouncement"
-  announcement.className = "winner-announcement hidden"
-
-  val winnerName = document.createElement("h2").asInstanceOf[HTMLElement]
-  winnerName.id = "winnerName"
-  announcement.appendChild(winnerName)
-
-  val winnerPoints = document.createElement("p").asInstanceOf[HTMLElement]
-  winnerPoints.id = "winnerPoints"
-  winnerPoints.className = "points"
-  announcement.appendChild(winnerPoints)
-
-  announcement
-
+  el("div").with_id("winnerAnnouncement").with_classes("winner-announcement hidden")(
+    el("h2").with_id("winnerName"),
+    el("p").with_id("winnerPoints").with_classes("points")
+  )
 
 def setupJoinForm(): Unit =
   getElement("joinForm").foreach: form =>
@@ -226,15 +150,12 @@ def connectToGame(gameId: String, playerName: String): Unit =
     updateLobbyUI()
 
   ws.onmessage = (event: MessageEvent) => handleWebSocketMessage(event.data.toString)
-
   ws.onerror = (event: Event) => println(s"[ColorRush] WebSocket error")
-
   ws.onclose = (e: CloseEvent) => println(s"[ColorRush] Disconnected from game")
 
 def sendMessage(ws: WebSocket, msg: ClientMessage): Unit =
   Try:
-    import upickle.default.*
-    val json = write(msg)
+    val json = upickle.default.write(msg)
     println(s"[ColorRush] Sending message: $json")
     ws.send(json)
   .recover:
@@ -242,18 +163,12 @@ def sendMessage(ws: WebSocket, msg: ClientMessage): Unit =
 
 def handleWebSocketMessage(data: String): Unit =
   Try:
-    import upickle.default.*
-    val serverMsg = read[ServerMessage](data)
+    val serverMsg = upickle.default.read[ServerMessage](data)
 
     serverMsg match
-      case GameUpdateMessage(game) =>
-        parseGameUpdate(game)
-
-      case RoundWinnerMessage(playerName, points) =>
-        showRoundWinner(playerName, points)
-
-      case GameEndMessage(winner) =>
-        showGameWinner(winner)
+      case GameUpdateMessage(game)                => parseGameUpdate(game)
+      case RoundWinnerMessage(playerName, points) => showRoundWinner(playerName, points)
+      case GameEndMessage(winner)                 => showGameWinner(winner)
   .recover:
     case ex => println(s"[ColorRush] Error handling message: ${ex.getMessage}")
 
@@ -285,8 +200,7 @@ def updatePlayersList(players: Map[String, PlayerState]): Unit =
   val gamePlayersElem = getElementById("gamePlayers")
 
   Try:
-    val playersArray = players.values.toSeq
-      .sortBy(p => -p.score)
+    val playersArray = players.values.toSeq.sortBy(p => -p.score)
 
     val playersHTML = playersArray
       .map: player =>
