@@ -18,6 +18,7 @@ def p(id: String = "", cls: String = "", content: String = ""): HTMLElement = el
 def h1(id: String = "", cls: String = "", content: String = ""): HTMLElement = el("h1", id, cls, content)
 def h2(id: String = "", cls: String = "", content: String = ""): HTMLElement = el("h2", id, cls, content)
 def h3(id: String = "", cls: String = "", content: String = ""): HTMLElement = el("h3", id, cls, content)
+def h4(id: String = "", cls: String = "", content: String = ""): HTMLElement = el("h4", id, cls, content)
 
 def form(id: String = "", cls: String = ""): HTMLFormElement =
   el("form", id, cls).asInstanceOf[HTMLFormElement]

@@ -1,0 +1,344 @@
+/* AI Drawing Game Styles */
+@import url('/static/base.css');
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Lobby Setup */
+.lobby-setup {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.setup-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.setup-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-subtle);
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.setup-card h3 {
+  margin-bottom: 1.5rem;
+  font-size: 1.25rem;
+  color: var(--text-primary);
+}
+
+.setup-card input {
+  margin-bottom: 1rem;
+}
+
+.setup-card button {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.warning {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  margin: 1rem 0;
+}
+
+/* Waiting Room */
+.waiting-room {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-subtle);
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+.lobby-code {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--accent-purple-light);
+  margin: 1rem 0;
+  letter-spacing: 0.1em;
+}
+
+.players-list {
+  margin: 2rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.players-list > div {
+  background: rgba(99, 102, 241, 0.1);
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+/* Drawing Area */
+.drawing-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.drawing-header {
+  text-align: center;
+  width: 100%;
+}
+
+.drawing-header h3 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  color: var(--accent-purple-light);
+}
+
+.timer {
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--accent-green);
+  font-variant-numeric: tabular-nums;
+}
+
+.timer.urgent {
+  color: #ef4444;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.canvas-container {
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  box-shadow: var(--shadow-xl);
+}
+
+#drawingCanvas {
+  display: block;
+  border: 2px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.drawing-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.color-picker {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.color-btn {
+  width: 40px;
+  height: 40px;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: var(--shadow-md);
+}
+
+.color-btn:hover {
+  transform: scale(1.1);
+  box-shadow: var(--shadow-lg);
+}
+
+.color-btn.active {
+  border-color: var(--accent-purple-light);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+}
+
+#clearBtn {
+  padding: 0.75rem 1.5rem;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+#clearBtn:hover {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: rgba(239, 68, 68, 0.6);
+}
+
+/* Gallery Area */
+.gallery-area {
+  text-align: center;
+}
+
+.gallery-area h3 {
+  margin-bottom: 1rem;
+}
+
+.drawings-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.drawing-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  box-shadow: var(--shadow-md);
+  transition: all 0.3s;
+}
+
+.drawing-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+  border-color: var(--border-bright);
+}
+
+.drawing-card img {
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  background: white;
+  margin-bottom: 1rem;
+}
+
+.drawing-info h4 {
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.drawing-info p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+.vote-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, var(--accent-purple-dark) 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.vote-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+}
+
+.vote-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Results Area */
+.results-area {
+  text-align: center;
+}
+
+.results-area h2 {
+  margin-bottom: 2rem;
+}
+
+#resultsContent {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.result-item {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-subtle);
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.result-item h3 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: var(--accent-purple-light);
+}
+
+.result-item p {
+  font-size: 1.25rem;
+  margin: 0.5rem 0;
+}
+
+.result-item .points {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-green);
+}
+
+.vote-results {
+  background: rgba(99, 102, 241, 0.1);
+  padding: 1.5rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.vote-results h4 {
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.vote-results p {
+  margin: 0.25rem 0;
+  color: var(--text-secondary);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  #drawingCanvas {
+    width: 100%;
+    height: auto;
+  }
+
+  .drawings-gallery {
+    grid-template-columns: 1fr;
+  }
+
+  .timer {
+    font-size: 2rem;
+  }
+
+  .drawing-header h3 {
+    font-size: 1.5rem;
+  }
+}
+
