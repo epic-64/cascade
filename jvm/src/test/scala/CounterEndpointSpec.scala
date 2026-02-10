@@ -4,19 +4,54 @@ import server.CounterHandler
 import java.net.URI
 import java.net.http.{HttpClient, WebSocket}
 import java.util.concurrent.{CompletionStage, CountDownLatch, TimeUnit}
-import java.util.concurrent.atomic.AtomicReference
+import scala.util.Try
+import scala.util.chaining.*
 
 class CounterEndpointSpec extends AnyFunSuite with TestServerHelper with BeforeAndAfterEach:
+
+  private val wsClient = HttpClient.newHttpClient()
 
   // Reset counter state before each test to ensure test isolation
   override def beforeEach(): Unit =
     super.beforeEach()
-    // Reset counter to 0
-    while CounterHandler.getCounter() != 0 do
-      if CounterHandler.getCounter() > 0 then
-        CounterHandler.decrementCounter()
-      else
-        CounterHandler.incrementCounter()
+    resetCounter()
+
+  private def resetCounter(): Unit =
+    (1 to CounterHandler.getCounter().abs).foreach: _ =>
+      if CounterHandler.getCounter() > 0 then CounterHandler.decrementCounter()
+      else CounterHandler.incrementCounter()
+
+  private def wsUrl: String = s"ws://localhost:$testPort/ws/counter"
+
+  /** Creates a WebSocket listener that collects messages and signals via latches */
+  private def createListener(
+    messages: scala.collection.mutable.ArrayBuffer[String],
+    latches: Seq[CountDownLatch]
+  ): WebSocket.Listener =
+    new WebSocket.Listener:
+      override def onText(webSocket: WebSocket, data: CharSequence, last: Boolean): CompletionStage[?] =
+        val msg = data.toString
+        messages += msg
+        latches.lift(messages.size - 1).foreach(_.countDown())
+        webSocket.request(1)
+        null
+
+  /** Connects to WebSocket and returns the connection, automatically requesting first message */
+  private def connectWebSocket(listener: WebSocket.Listener): WebSocket =
+    wsClient.newWebSocketBuilder()
+      .buildAsync(URI.create(wsUrl), listener)
+      .get()
+      .tap(_.request(1))
+
+  /** Safely closes a WebSocket connection */
+  private def closeWebSocket(ws: WebSocket): Unit =
+    Try(ws.sendClose(WebSocket.NORMAL_CLOSURE, "Test completed").get())
+
+  /** Executes a block with WebSocket connections, ensuring cleanup */
+  private def withWebSockets[T](connections: WebSocket*)(block: => T): T =
+    Try(block)
+      .tap(_ => connections.foreach(closeWebSocket))
+      .get
 
   test("counter starts at 0"):
     val response = requests.get(s"$baseUrl/api/counter")
@@ -33,94 +68,36 @@ class CounterEndpointSpec extends AnyFunSuite with TestServerHelper with BeforeA
     assert(after == before - 1)
 
   test("WebSocket sends initial counter value on connection"):
-    val wsUrl = s"ws://localhost:$testPort/ws/counter"
-    val latch = CountDownLatch(1)
-    val receivedMessage = AtomicReference[String]("")
+    val messages = scala.collection.mutable.ArrayBuffer[String]()
+    val initialLatch = CountDownLatch(1)
+    val ws = connectWebSocket(createListener(messages, Seq(initialLatch)))
 
-    val listener = new WebSocket.Listener:
-      override def onText(webSocket: WebSocket, data: CharSequence, last: Boolean): CompletionStage[?] =
-        receivedMessage.set(data.toString)
-        latch.countDown()
-        webSocket.request(1)  // Request next message
-        null
-
-    val client = HttpClient.newHttpClient()
-    val ws = client.newWebSocketBuilder()
-      .buildAsync(URI.create(wsUrl), listener)
-      .get()
-
-    try
-      ws.request(1)  // Request first message
-      // Wait for initial message
-      assert(latch.await(5, TimeUnit.SECONDS), "Timeout waiting for WebSocket message")
-      assert(receivedMessage.get().toInt == 0, "Initial counter should be 0")
-    finally
-      ws.sendClose(WebSocket.NORMAL_CLOSURE, "Test completed").get()
+    withWebSockets(ws):
+      assert(initialLatch.await(5, TimeUnit.SECONDS), "Timeout waiting for WebSocket message")
+      assert(messages.head.toInt == 0, "Initial counter should be 0")
 
   test("WebSocket broadcasts counter updates to all connected clients"):
-    val wsUrl = s"ws://localhost:$testPort/ws/counter"
-    val initialLatch1 = CountDownLatch(1) // For initial message
-    val initialLatch2 = CountDownLatch(1)
-    val broadcastLatch1 = CountDownLatch(1) // For broadcast message
-    val broadcastLatch2 = CountDownLatch(1)
     val messages1 = scala.collection.mutable.ArrayBuffer[String]()
     val messages2 = scala.collection.mutable.ArrayBuffer[String]()
+    val initialLatch1, broadcastLatch1 = CountDownLatch(1)
+    val initialLatch2, broadcastLatch2 = CountDownLatch(1)
 
-    val listener1 = new WebSocket.Listener:
-      override def onText(webSocket: WebSocket, data: CharSequence, last: Boolean): CompletionStage[?] =
-        val msg = data.toString
-        messages1 += msg
-        if messages1.size == 1 then
-          initialLatch1.countDown()
-        else
-          broadcastLatch1.countDown()
-        webSocket.request(1)  // Request next message
-        null
+    val ws1 = connectWebSocket(createListener(messages1, Seq(initialLatch1, broadcastLatch1)))
+    val ws2 = connectWebSocket(createListener(messages2, Seq(initialLatch2, broadcastLatch2)))
 
-    val listener2 = new WebSocket.Listener:
-      override def onText(webSocket: WebSocket, data: CharSequence, last: Boolean): CompletionStage[?] =
-        val msg = data.toString
-        messages2 += msg
-        if messages2.size == 1 then
-          initialLatch2.countDown()
-        else
-          broadcastLatch2.countDown()
-        webSocket.request(1)  // Request next message
-        null
-
-    val client = HttpClient.newHttpClient()
-    val ws1 = client.newWebSocketBuilder()
-      .buildAsync(URI.create(wsUrl), listener1)
-      .get()
-
-    val ws2 = client.newWebSocketBuilder()
-      .buildAsync(URI.create(wsUrl), listener2)
-      .get()
-
-    try
-      // Request first message from both connections
-      ws1.request(1)
-      ws2.request(1)
-      
+    withWebSockets(ws1, ws2):
       // Wait for both clients to receive initial message
       assert(initialLatch1.await(5, TimeUnit.SECONDS), "Client 1 didn't receive initial message")
       assert(initialLatch2.await(5, TimeUnit.SECONDS), "Client 2 didn't receive initial message")
 
-      // Now increment counter via REST API
+      // Increment counter via REST API
       requests.post(s"$baseUrl/api/counter/increment")
 
       // Both clients should receive the broadcast
       assert(broadcastLatch1.await(5, TimeUnit.SECONDS), "Client 1 didn't receive broadcast")
       assert(broadcastLatch2.await(5, TimeUnit.SECONDS), "Client 2 didn't receive broadcast")
 
-      // Both should have received: initial value (0) and updated value (1)
-      assert(messages1.size == 2, s"Client 1 should receive exactly 2 messages, got ${messages1.size}")
-      assert(messages2.size == 2, s"Client 2 should receive exactly 2 messages, got ${messages2.size}")
-      assert(messages1.head.toInt == 0, "Client 1 should receive initial counter value of 0")
-      assert(messages1.last.toInt == 1, "Client 1 should receive updated counter value of 1")
-      assert(messages2.head.toInt == 0, "Client 2 should receive initial counter value of 0")
-      assert(messages2.last.toInt == 1, "Client 2 should receive updated counter value of 1")
-    finally
-      ws1.sendClose(WebSocket.NORMAL_CLOSURE, "Test completed").get()
-      ws2.sendClose(WebSocket.NORMAL_CLOSURE, "Test completed").get()
+      // Verify message sequence: initial value (0) and updated value (1)
+      assert(messages1.map(_.toInt) == Seq(0, 1), s"Client 1 expected [0, 1], got ${messages1}")
+      assert(messages2.map(_.toInt) == Seq(0, 1), s"Client 2 expected [0, 1], got ${messages2}")
 
