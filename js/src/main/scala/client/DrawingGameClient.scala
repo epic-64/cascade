@@ -131,18 +131,25 @@ def createDrawingArea(): HTMLElement =
 
 def createGalleryArea(): HTMLElement =
   div(id = "galleryArea", cls = "gallery-area hidden")(
-    h3(content = "Vote for the Best Drawing!"),
-    p(cls = "subtitle", content = "AI captions are shown below each drawing"),
-    div(id = "drawingsGallery", cls = "drawings-gallery")
+    // Header with prompt and status
+    div(id = "galleryHeader", cls = "gallery-header")(
+      h2(id = "galleryPrompt", content = ""),
+      div(id = "galleryStatus", cls = "gallery-status"),
+      div(id = "galleryTimer", cls = "gallery-timer hidden")
+    ),
+    // Grid of all drawings
+    div(id = "drawingsGallery", cls = "drawings-gallery"),
+    // Results summary (shown after round complete)
+    div(id = "roundSummary", cls = "round-summary hidden")(
+      div(id = "summaryContent"),
+      button(id = "nextRoundBtn", cls = "btn", content = "Next Round").tap: btn =>
+        btn.addEventListener("click", (e: Event) => nextRound())
+    )
   )
 
 def createResultsArea(): HTMLElement =
-  div(id = "resultsArea", cls = "results-area hidden")(
-    h2(id = "resultsTitle", content = "Round Results"),
-    div(id = "resultsContent"),
-    button(id = "nextRoundBtn", cls = "btn", content = "Next Round").tap: btn =>
-      btn.addEventListener("click", (e: Event) => nextRound())
-  )
+  // Keep this for compatibility but it won't be used - everything stays in gallery
+  div(id = "resultsArea", cls = "results-area hidden")
 
 def setupCanvas(canvas: HTMLCanvasElement): Unit =
   val ctx = canvas.getContext("2d").asInstanceOf[CanvasRenderingContext2D]
@@ -246,32 +253,32 @@ def clearCanvas(): Unit =
 def createDrawingLobby(): Unit =
   val playerName = getInputValue("createPlayerName").getOrElse("")
   val apiKey = getInputValue("apiKey").getOrElse("")
-  
+
   if playerName.nonEmpty && apiKey.nonEmpty then
     // First connect to temporary WebSocket
     val protocol = if window.location.protocol == "https:" then "wss:" else "ws:"
     val wsUrl = s"$protocol//${window.location.host}/ws/drawing/temp"
-    
+
     val ws = new WebSocket(wsUrl)
     drawingWebSocket = Some(ws)
-    
+
     ws.onopen = (e: Event) =>
       println("[Drawing] WebSocket connected, creating lobby...")
       sendDrawingMessage(ClientMessage.CreateLobby(playerName, apiKey))
-    
+
     ws.onmessage = (event: MessageEvent) =>
       handleServerMessage(event.data.toString)
-    
+
     ws.onerror = (event: Event) =>
       println("[Drawing] WebSocket error")
-    
+
     ws.onclose = (event: CloseEvent) =>
       println("[Drawing] WebSocket disconnected")
 
 def joinDrawingLobby(): Unit =
   val lobbyId = getInputValue("joinLobbyId").getOrElse("").toUpperCase
   val playerName = getInputValue("joinPlayerName").getOrElse("")
-  
+
   if lobbyId.nonEmpty && playerName.nonEmpty then
     currentLobbyId = Some(lobbyId)
     connectDrawingWebSocket(lobbyId)
@@ -314,28 +321,37 @@ def processServerMessage(msg: ServerMessage): Unit =
       currentPlayerId = Some(playerId)
       println(s"[Drawing] Lobby created/joined: $lobbyId, player: $playerId")
       // Server will send LobbyUpdate next, no need to reconnect
-      
+
     case ServerMessage.LobbyUpdate(lobby) =>
       updateDrawingLobbyUI(lobby)
-      
+
     case ServerMessage.PromptAnnounced(prompt) =>
       showPrompt(prompt)
-      
+
     case ServerMessage.TimerUpdate(secondsRemaining) =>
       updateTimer(secondsRemaining)
-      
+
     case ServerMessage.DrawingSubmitted(playerName) =>
       println(s"[Drawing] $playerName submitted their drawing")
+
+    case ServerMessage.DrawingsRevealed(drawings, prompt) =>
+      showGalleryWithDrawings(drawings, prompt)
       
-    case ServerMessage.AllDrawingsReady(drawings) =>
-      showGallery(drawings)
+    case ServerMessage.CaptionRevealed(playerName, caption) =>
+      revealCaption(playerName, caption)
       
+    case ServerMessage.AIVoteRevealed(winnerName, reasoning) =>
+      revealAIVote(winnerName, reasoning)
+      
+    case ServerMessage.VotingStarted(secondsRemaining) =>
+      startVotingUI(secondsRemaining)
+
     case ServerMessage.VoteUpdate(votes) =>
       updateVoteDisplay(votes)
-      
+
     case ServerMessage.RoundComplete(result) =>
-      showResults(result)
-      
+      showRoundComplete(result)
+
     case ServerMessage.ErrorMessage(message) =>
       println(s"[Drawing] Error: $message")
       dom.window.alert(message)
@@ -371,20 +387,12 @@ def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
       hideElement("galleryArea")
       hideElement("resultsArea")
 
-    case LobbyStatus.Captioning =>
+    case LobbyStatus.Captioning | LobbyStatus.Voting | LobbyStatus.Results =>
+      // Keep gallery visible for all these phases - no scene changes
+      hideElement("waitingRoom")
       hideElement("drawingArea")
       showElement("galleryArea")
-      getElementById("drawingsGallery").foreach: elem =>
-        elem.innerHTML = ""
-        elem.appendChild(p(content = "AI is captioning the drawings..."))
-
-    case LobbyStatus.Voting =>
-      hideElement("drawingArea")
-      showElement("galleryArea")
-
-    case LobbyStatus.Results =>
-      hideElement("galleryArea")
-      showElement("resultsArea")
+      hideElement("resultsArea")
 
 def showPrompt(prompt: String): Unit =
   getElementById("drawingPrompt").foreach: elem =>
@@ -393,73 +401,179 @@ def showPrompt(prompt: String): Unit =
   // Clear canvas for new drawing
   clearCanvas()
 
-def updateTimer(secondsRemaining: Int): Unit =
-  getElementById("drawingTimer").foreach: elem =>
-    elem.textContent = secondsRemaining.toString
-    if secondsRemaining <= 10 then
-      elem.classList.add("urgent")
-    else
-      elem.classList.remove("urgent")
 
 def submitDrawing(): Unit =
   drawingCanvas.foreach: canvas =>
     val imageData = canvas.toDataURL("image/png")
     sendDrawingMessage(ClientMessage.SubmitDrawing(imageData))
-    
+
     getElementById("submitDrawingBtn").foreach: btn =>
       btn.asInstanceOf[HTMLButtonElement].disabled = true
       btn.textContent = "Submitted!"
 
-def showGallery(drawings: Seq[DrawingSubmission]): Unit =
+// Store current prompt for display
+var currentPrompt: String = ""
+
+// Phase 1: Show all drawings without captions
+def showGalleryWithDrawings(drawings: Seq[DrawingSubmission], prompt: String): Unit =
+  currentPrompt = prompt
+  
+  // Update header
+  getElementById("galleryPrompt").foreach: elem =>
+    elem.textContent = s"Prompt: \"$prompt\""
+  
+  getElementById("galleryStatus").foreach: elem =>
+    elem.textContent = "Revealing drawings..."
+    elem.className = "gallery-status phase-reveal"
+  
+  hideElement("galleryTimer")
+  hideElement("roundSummary")
+  
+  // Build gallery with drawing cards (no captions yet)
   getElementById("drawingsGallery").foreach: elem =>
     elem.innerHTML = ""
     
     drawings.foreach: drawing =>
-      val card = div(cls = "drawing-card")(
+      val card = div(cls = "drawing-card", id = s"card-${drawing.playerName}")(
         el("img").tap: img =>
           img.asInstanceOf[HTMLImageElement].src = drawing.imageData
           img.asInstanceOf[HTMLImageElement].alt = drawing.playerName
         ,
         div(cls = "drawing-info")(
           h4(content = drawing.playerName),
-          p(content = drawing.caption.getOrElse("No caption"))
+          p(id = s"caption-${drawing.playerName}", cls = "caption hidden", content = "...")
         ),
-        button(cls = "vote-btn", content = "Vote").tap: btn =>
+        div(id = s"badges-${drawing.playerName}", cls = "badges"),
+        button(id = s"vote-btn-${drawing.playerName}", cls = "vote-btn hidden", content = "Vote").tap: btn =>
           btn.addEventListener("click", (e: Event) =>
             sendDrawingMessage(ClientMessage.SubmitVote(drawing.playerName))
-            btn.disabled = true
-            btn.textContent = "Voted!"
+            // Disable all vote buttons after voting
+            document.querySelectorAll(".vote-btn").foreach:
+              case b: HTMLButtonElement => 
+                b.disabled = true
+                if b.id == s"vote-btn-${drawing.playerName}" then
+                  b.textContent = "✓ Voted"
+              case _ => ()
           )
       )
       elem.appendChild(card)
 
+// Phase 2: Reveal caption for a specific player
+def revealCaption(playerName: String, caption: String): Unit =
+  getElementById("galleryStatus").foreach: elem =>
+    elem.textContent = "AI is analyzing the drawings..."
+  
+  getElementById(s"caption-${playerName}").foreach: elem =>
+    elem.textContent = s"\"$caption\""
+    elem.classList.remove("hidden")
+    elem.classList.add("caption-reveal")
+
+// Phase 3: AI reveals its vote
+def revealAIVote(winnerName: String, reasoning: String): Unit =
+  getElementById("galleryStatus").foreach: elem =>
+    elem.textContent = s"🤖 AI picked: $winnerName"
+    elem.className = "gallery-status phase-ai-vote"
+  
+  // Add AI winner badge to the winning card
+  getElementById(s"badges-${winnerName}").foreach: elem =>
+    elem.appendChild(span(cls = "badge badge-ai", content = "🤖 AI Pick"))
+  
+  // Highlight the AI winner card
+  getElementById(s"card-${winnerName}").foreach: elem =>
+    elem.classList.add("ai-winner")
+
+// Phase 4: Start voting
+def startVotingUI(secondsRemaining: Int): Unit =
+  getElementById("galleryStatus").foreach: elem =>
+    elem.textContent = "Vote for your favorite!"
+    elem.className = "gallery-status phase-voting"
+  
+  // Show timer
+  getElementById("galleryTimer").foreach: elem =>
+    elem.textContent = s"⏱️ $secondsRemaining"
+    elem.classList.remove("hidden")
+  
+  // Show vote buttons (except for own drawing)
+  currentPlayerId.foreach: myId =>
+    document.querySelectorAll(".vote-btn").foreach:
+      case btn: HTMLButtonElement =>
+        // Get player name from button id
+        val playerName = btn.id.replace("vote-btn-", "")
+        // TODO: Need to check if this is our own drawing
+        // For now, show all vote buttons
+        btn.classList.remove("hidden")
+      case _ => ()
+
+// Update timer display (for both drawing and voting)
+def updateTimer(secondsRemaining: Int): Unit =
+  // Update drawing timer
+  getElementById("drawingTimer").foreach: elem =>
+    elem.textContent = secondsRemaining.toString
+    if secondsRemaining <= 10 then
+      elem.classList.add("urgent")
+    else
+      elem.classList.remove("urgent")
+  
+  // Update gallery timer (for voting)
+  getElementById("galleryTimer").foreach: elem =>
+    elem.textContent = s"⏱️ $secondsRemaining"
+    if secondsRemaining <= 5 then
+      elem.classList.add("urgent")
+    else
+      elem.classList.remove("urgent")
+
 def updateVoteDisplay(votes: Map[String, Int]): Unit =
   println(s"[Drawing] Votes: $votes")
+  // Update vote counts on cards
+  votes.foreach: (playerName, count) =>
+    getElementById(s"badges-${playerName}").foreach: elem =>
+      // Remove old vote badge if exists
+      Option(document.getElementById(s"votes-${playerName}")).foreach(_.remove())
+      // Add new vote count badge
+      if count > 0 then
+        elem.appendChild(span(id = s"votes-${playerName}", cls = "badge badge-votes", content = s"👥 $count"))
 
-def showResults(result: RoundResult): Unit =
-  getElementById("resultsContent").foreach: elem =>
+// Final: Show round complete with all results visible
+def showRoundComplete(result: RoundResult): Unit =
+  // Hide timer
+  hideElement("galleryTimer")
+  
+  // Update status
+  getElementById("galleryStatus").foreach: elem =>
+    elem.textContent = "Round Complete!"
+    elem.className = "gallery-status phase-complete"
+  
+  // Add player winner badge
+  result.playerWinner.foreach: winnerName =>
+    getElementById(s"badges-${winnerName}").foreach: elem =>
+      elem.appendChild(span(cls = "badge badge-player", content = "👥 Player Pick"))
+    getElementById(s"card-${winnerName}").foreach: elem =>
+      elem.classList.add("player-winner")
+  
+  // Show round summary
+  getElementById("summaryContent").foreach: elem =>
     elem.innerHTML = ""
+    
+    val summaryDiv = div(cls = "summary-results")(
+      result.aiWinner.map: winner =>
+        div(cls = "summary-item")(
+          span(content = "🤖 AI Winner: "),
+          span(cls = "winner-name", content = winner),
+          span(cls = "points", content = " +100 pts")
+        )
+      .getOrElse(div()),
+      result.playerWinner.map: winner =>
+        div(cls = "summary-item")(
+          span(content = "👥 Player Vote: "),
+          span(cls = "winner-name", content = winner),
+          span(cls = "points", content = " +50 pts")
+        )
+      .getOrElse(div())
+    )
+    elem.appendChild(summaryDiv)
+  
+  showElement("roundSummary")
 
-    result.aiWinner.foreach: winner =>
-      elem.appendChild(div(cls = "result-item")(
-        h3(content = "🤖 AI Winner"),
-        p(content = winner),
-        p(cls = "points", content = "+100 pts")
-      ))
-
-    result.playerWinner.foreach: winner =>
-      elem.appendChild(div(cls = "result-item")(
-        h3(content = "👥 Player Vote Winner"),
-        p(content = winner),
-        p(cls = "points", content = "+50 pts")
-      ))
-
-    elem.appendChild(div(cls = "vote-results")(
-      h4(content = "Vote Breakdown:"),
-      div().tap: voteList =>
-        result.votes.toSeq.sortBy(-_._2).foreach: (player, count) =>
-          voteList.appendChild(p(content = s"$player: $count votes"))
-    ))
 
 def startDrawingGame(): Unit =
   sendDrawingMessage(ClientMessage.StartGame())

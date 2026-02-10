@@ -55,13 +55,22 @@ enum ServerMessage derives ReadWriter:
   case PromptAnnounced(prompt: String)
   case TimerUpdate(secondsRemaining: Int)
   case DrawingSubmitted(playerName: String)
-  case AllDrawingsReady(drawings: Seq[DrawingSubmission])
+  // Phase 1: Reveal all drawings (without captions)
+  case DrawingsRevealed(drawings: Seq[DrawingSubmission], prompt: String)
+  // Phase 2: Reveal caption for a specific player
+  case CaptionRevealed(playerName: String, caption: String)
+  // Phase 3: AI announces its vote
+  case AIVoteRevealed(winnerName: String, reasoning: String)
+  // Phase 4: Voting phase starts (with timer)
+  case VotingStarted(secondsRemaining: Int)
   case VoteUpdate(votes: Map[String, Int]) // playerName -> voteCount
+  // Final: Round complete with all results
   case RoundComplete(result: RoundResult)
   case ErrorMessage(message: String)
 
 object DrawingGame:
   val drawingTimeSeconds = 60
+  val votingTimeSeconds = 10
   val maxPlayersPerLobby = 8
   
   // Static list of prompts for cost control
