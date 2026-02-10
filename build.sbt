@@ -69,6 +69,7 @@ lazy val js = project
 
     // dependencies for Scala.js project
     libraryDependencies ++= Seq(
-      "org.scala-js" %%% "scalajs-dom" % "2.2.0"
+      "org.scala-js" %%% "scalajs-dom" % "2.2.0",
+      "org.scalatest" %%% "scalatest" % "3.2.19" % Test
     )
   )
