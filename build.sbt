@@ -22,8 +22,8 @@ lazy val shared = project
   .settings(
     name := "cascade-shared",
     version := "0.1-SNAPSHOT",
-    // Enable coverage for shared project (may have issues with ScalaJS plugin)
-    coverageEnabled := enableCoverage,
+    // js will run into linking errors if coverage is enabled...
+    coverageEnabled := false,
     libraryDependencies ++= Seq(
       "com.lihaoyi" %%% "upickle" % "4.0.2"
     )
