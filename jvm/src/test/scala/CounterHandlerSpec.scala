@@ -1,22 +1,7 @@
 import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.BeforeAndAfterAll
-import server.WebServer
 
-class CounterHandlerSpec extends AnyFunSuite with BeforeAndAfterAll:
-  private var server: io.undertow.Undertow = null
-  private val testPort = 8081
-  private val baseUrl = s"http://localhost:$testPort"
-
-  override def beforeAll(): Unit =
-    server = io.undertow.Undertow.builder
-      .addHttpListener(testPort, "localhost")
-      .setHandler(WebServer.defaultHandler)
-      .build
-    server.start()
-    Thread.sleep(100) // Give server time to start
-
-  override def afterAll(): Unit =
-    if server != null then server.stop()
+class CounterHandlerSpec extends AnyFunSuite with TestServerHelper:
+  override protected val testPort = 8081
 
   test("counter starts at 0"):
     val response = requests.get(s"$baseUrl/api/counter")
