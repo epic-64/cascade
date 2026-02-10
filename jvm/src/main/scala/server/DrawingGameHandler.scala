@@ -23,6 +23,12 @@ object DrawingGameHandler:
 
   // Player to lobby mapping: playerId -> lobbyId
   private val playerLobbies = ConcurrentHashMap[String, String]()
+  
+  // Channel to player mapping: channel -> playerId
+  private val channelToPlayer = ConcurrentHashMap[cask.WsChannelActor, String]()
+  
+  // Channel to lobby mapping: channel -> lobbyId
+  private val channelToLobby = ConcurrentHashMap[cask.WsChannelActor, String]()
 
   // Timer scheduler
   private val timerScheduler: ScheduledExecutorService =
@@ -60,7 +66,15 @@ object DrawingGameHandler:
   private def addConnection(lobbyId: String, channel: cask.WsChannelActor): Unit =
     connections.computeIfAbsent(lobbyId, _ => ConcurrentHashMap.newKeySet()).add(channel)
 
+  private def removeConnection(lobbyId: String, channel: cask.WsChannelActor): Unit =
+    connections.get(lobbyId) match
+      case null => ()
+      case channelSet => channelSet.remove(channel)
+
   private def handleClientMessage(channel: cask.WsChannelActor, lobbyId: String, msg: ClientMessage): Unit =
+    // Get the actual lobby ID from the channel mapping (in case it was moved from "temp")
+    val actualLobbyId = Option(channelToLobby.get(channel)).getOrElse(lobbyId)
+    
     msg match
       case ClientMessage.CreateLobby(playerName, apiKey) =>
         handleCreateLobby(channel, playerName, apiKey)
@@ -69,16 +83,16 @@ object DrawingGameHandler:
         handleJoinLobby(channel, joinLobbyId, playerName)
 
       case ClientMessage.StartGame() =>
-        handleStartGame(lobbyId)
+        handleStartGame(actualLobbyId)
 
       case ClientMessage.SubmitDrawing(imageData) =>
-        handleSubmitDrawing(channel, lobbyId, imageData)
+        handleSubmitDrawing(channel, actualLobbyId, imageData)
 
       case ClientMessage.SubmitVote(playerNameVotedFor) =>
-        handleSubmitVote(channel, lobbyId, playerNameVotedFor)
+        handleSubmitVote(channel, actualLobbyId, playerNameVotedFor)
 
       case ClientMessage.NextRound() =>
-        handleNextRound(lobbyId)
+        handleNextRound(actualLobbyId)
 
   private def handleCreateLobby(channel: cask.WsChannelActor, playerName: String, apiKey: String): Unit =
     val lobbyId = generateLobbyId()
@@ -87,11 +101,17 @@ object DrawingGameHandler:
 
     lobbies.put(lobbyId, (lobby, apiKey))
     playerLobbies.put(playerId, lobbyId)
+    channelToPlayer.put(channel, playerId)
+    channelToLobby.put(channel, lobbyId)
+    
+    // Move connection from "temp" to the actual lobby
+    removeConnection("temp", channel)
+    addConnection(lobbyId, channel)
 
-    logger.info(s"Created lobby $lobbyId for player $playerName")
+    logger.info(s"Created lobby $lobbyId for player $playerName (playerId: $playerId)")
 
     sendToClient(channel, ServerMessage.LobbyCreated(lobbyId, playerId))
-    broadcastLobbyUpdate(lobbyId)
+    sendToClient(channel, ServerMessage.LobbyUpdate(lobby))
 
   private def handleJoinLobby(channel: cask.WsChannelActor, lobbyId: String, playerName: String): Unit =
     lobbies.get(lobbyId) match
@@ -107,8 +127,13 @@ object DrawingGameHandler:
           val updatedLobby = DrawingGame.addPlayer(lobby, playerId, playerName)
           lobbies.put(lobbyId, (updatedLobby, apiKey))
           playerLobbies.put(playerId, lobbyId)
+          channelToPlayer.put(channel, playerId)
+          channelToLobby.put(channel, lobbyId)
+          
+          // Add connection to lobby
+          addConnection(lobbyId, channel)
 
-          logger.info(s"Player $playerName joined lobby $lobbyId")
+          logger.info(s"Player $playerName joined lobby $lobbyId (playerId: $playerId)")
 
           sendToClient(channel, ServerMessage.LobbyCreated(lobbyId, playerId))
           broadcastLobbyUpdate(lobbyId)
@@ -118,8 +143,8 @@ object DrawingGameHandler:
       case null =>
         logger.warn(s"Attempted to start non-existent lobby $lobbyId")
       case (lobby, apiKey) =>
-        if lobby.players.size < 2 then
-          broadcast(lobbyId, ServerMessage.ErrorMessage("Need at least 2 players to start"))
+        if lobby.players.isEmpty then
+          broadcast(lobbyId, ServerMessage.ErrorMessage("Need at least 1 player to start"))
         else
           val updatedLobby = DrawingGame.startDrawingPhase(lobby)
           lobbies.put(lobbyId, (updatedLobby, apiKey))
@@ -305,9 +330,7 @@ object DrawingGameHandler:
       case ex => logger.error(s"Failed to send message to client: ${ex.getMessage}")
 
   private def getPlayerIdByChannel(channel: cask.WsChannelActor, lobbyId: String): Option[String] =
-    // This is a simplified implementation
-    // In production, you'd maintain a channel -> playerId mapping
-    None // TODO: Implement proper player tracking
+    Option(channelToPlayer.get(channel))
 
   private def generateLobbyId(): String =
     import scala.util.Random
