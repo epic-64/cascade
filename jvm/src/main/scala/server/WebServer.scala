@@ -49,12 +49,19 @@ object WebServer extends MainRoutes:
   def colorRushWebSocket(gameId: String): cask.WebsocketResult =
     ColorRushHandler.handleWebSocket(gameId)
 
+  // AI Drawing game WebSocket endpoint
+  @cask.websocket("/ws/drawing/:lobbyId")
+  def drawingGameWebSocket(lobbyId: String): cask.WebsocketResult =
+    DrawingGameHandler.handleWebSocket(lobbyId)
+
   // Start periodic cleanup task
   private def startCleanupTask(): Unit =
     val cleanupTask = new Runnable:
       def run(): Unit =
         Try(ColorRushHandler.cleanupEmptyGames()).recover:
-          case ex => logger.error(s"Error during periodic cleanup: ${ex.getMessage}", ex)
+          case ex => logger.error(s"Error during ColorRush cleanup: ${ex.getMessage}", ex)
+        Try(DrawingGameHandler.cleanupEmptyLobbies()).recover:
+          case ex => logger.error(s"Error during DrawingGame cleanup: ${ex.getMessage}", ex)
 
     // Run cleanup every 5 minutes
     cleanupScheduler.scheduleAtFixedRate(
@@ -87,6 +94,14 @@ object WebServer extends MainRoutes:
   def colorRush(): cask.Response[java.io.InputStream] =
     cask.Response(
       data = getClass.getClassLoader.getResourceAsStream("static/color-rush.html"),
+      statusCode = 200,
+      headers = Seq("Content-Type" -> "text/html")
+    )
+
+  @cask.get("/ai-drawing")
+  def aiDrawing(): cask.Response[java.io.InputStream] =
+    cask.Response(
+      data = getClass.getClassLoader.getResourceAsStream("static/ai-drawing.html"),
       statusCode = 200,
       headers = Seq("Content-Type" -> "text/html")
     )
