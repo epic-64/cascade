@@ -45,27 +45,33 @@ object OpenAIClient:
         logger.error(s"Failed to parse OpenAI caption response: $responseJson")
         "Unable to caption image"
 
+  case class WinnerSelection(winnerName: String, reasoning: String)
+
   def selectWinner(
     apiKey: String,
     originalPrompt: String,
     captions: Map[String, String]
-  )(using ec: ExecutionContext): Future[String] =
+  )(using ec: ExecutionContext): Future[WinnerSelection] =
     val url = "https://api.openai.com/v1/chat/completions"
 
-    val captionsList = captions.map((name, caption) => s"- $name: $caption").mkString("\n")
+    val captionsList = captions.map((name, caption) => s"- $name: \"$caption\"").mkString("\n")
 
-    val systemPrompt = """You are judging a drawing game.
-      |Players drew an image based on a prompt, and their drawings were captioned.
-      |Select the player whose caption best matches the original prompt.
-      |Respond with ONLY the player's name, nothing else.""".stripMargin
-
-    val userPrompt = s"""Original prompt: "$originalPrompt"
+    val systemPrompt = """You are a witty and insightful judge for a drawing game called "AI Drawing Challenge".
+      |Players drew an image based on a secret prompt. An AI then captioned each drawing without knowing the prompt.
+      |Your job is to pick the winner whose drawing (as interpreted by the AI caption) best matches the original prompt.
       |
-      |Player captions:
+      |Be entertaining and specific in your reasoning! Comment on what made the winning drawing stand out.
+      |Keep the reasoning to 1-2 sentences max.
+      |
+      |Respond in this exact JSON format:
+      |{"winner": "PlayerName", "reasoning": "Your witty explanation here"}""".stripMargin
+
+    val userPrompt = s"""The secret prompt was: "$originalPrompt"
+      |
+      |Here are the AI-generated captions for each player's drawing:
       |$captionsList
       |
-      |Which player's caption best matches the prompt "$originalPrompt"?
-      |Respond with only the player name.""".stripMargin
+      |Pick the winner and explain your choice!""".stripMargin
 
     val requestBody = ujson.Obj(
       "model" -> textModel,
@@ -73,17 +79,25 @@ object OpenAIClient:
         ujson.Obj("role" -> "system", "content" -> systemPrompt),
         ujson.Obj("role" -> "user", "content" -> userPrompt)
       ),
-      "temperature" -> 0.3,
-      "max_tokens" -> 20
+      "temperature" -> 0.7,
+      "max_tokens" -> 150
     )
 
     makeOpenAIRequest(url, apiKey, requestBody).map: responseJson =>
       Try:
-        responseJson("choices")(0)("message")("content").str.trim
+        val content = responseJson("choices")(0)("message")("content").str.trim
+        val parsed = ujson.read(content)
+        WinnerSelection(
+          parsed("winner").str.trim,
+          parsed("reasoning").str.trim
+        )
       .getOrElse:
         logger.error(s"Failed to parse OpenAI winner response: $responseJson")
         // Fallback: return first player name
-        captions.keys.headOption.getOrElse("Unknown")
+        WinnerSelection(
+          captions.keys.headOption.getOrElse("Unknown"),
+          "The AI couldn't decide, so it picked randomly!"
+        )
 
   private def makeOpenAIRequest(
     url: String,

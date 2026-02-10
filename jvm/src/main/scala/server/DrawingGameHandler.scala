@@ -403,9 +403,9 @@ object DrawingGameHandler:
             // No prompt, skip to voting
             transitionTo(lobbyId, LobbyStatus.Voting)
           case Some(prompt) =>
-            OpenAIClient.selectWinner(apiKey, prompt, captions).map: winnerName =>
-              aiWinners.put(lobbyId, winnerName)
-              broadcast(lobbyId, ServerMessage.AIVoteRevealed(winnerName, s"Best match for '$prompt'"))
+            OpenAIClient.selectWinner(apiKey, prompt, captions).map: selection =>
+              aiWinners.put(lobbyId, selection.winnerName)
+              broadcast(lobbyId, ServerMessage.AIVoteRevealed(selection.winnerName, selection.reasoning))
               // Wait 2 seconds then start voting
               timerScheduler.schedule(
                 (() => transitionTo(lobbyId, LobbyStatus.Voting)): Runnable,
