@@ -125,7 +125,9 @@ Stack:
 - ✅ Cask for lightweight server framework
 - ✅ Scala.js for client-side code sharing
 - ✅ WebSockets for real-time communication
-- ⏳ Cache-busting system for static assets (build-step)
+- ✅ Cache-busting system for static assets
+  - ✅ currently solved via client-side hack (manually append server version as query param on static asset URLs)
+  - ⏳ build proper solution with hashed filenames and manifest mapping
 - ⏳ Database persistence, ORM (PostgreSQL + Doobie?)
 - ⏳ DB migration system (Flyway, Liquibase?)
 - ⏳ Cache across instances / across restarts (Redis?)

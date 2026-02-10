@@ -37,7 +37,7 @@ object WebServer extends MainRoutes:
     WeatherEndpoint.getWeather(city)
 
   @cask.get("/api/counter")
-  def getCounter(): Int = CounterHandler.getCounter()
+  def counter(): Int = CounterHandler.getCounter()
 
   @cask.post("/api/counter/increment")
   def incrementCounter(): Int = CounterHandler.incrementCounter()
