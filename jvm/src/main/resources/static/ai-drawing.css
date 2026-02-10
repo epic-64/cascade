@@ -42,9 +42,28 @@
   margin-bottom: 1rem;
 }
 
-.setup-card button {
+.setup-card button[type="submit"] {
   width: 100%;
   margin-top: 0.5rem;
+  padding: 0.875rem;
+  font-size: 0.95rem;
+  background: linear-gradient(135deg, var(--accent-purple-dark) 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.setup-card button[type="submit"]:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+}
+
+.setup-card button[type="submit"]:active {
+  transform: translateY(0);
 }
 
 .warning {
@@ -88,6 +107,35 @@
   padding: 0.75rem;
   border-radius: var(--radius-sm);
   border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+#startGameBtn {
+  margin-top: 1.5rem;
+  padding: 0.875rem 2rem;
+  font-size: 0.95rem;
+  background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+#startGameBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+#startGameBtn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+#startGameBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(100, 100, 100, 0.3);
 }
 
 /* Drawing Area */
@@ -182,11 +230,40 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.2s;
+  font-weight: 600;
 }
 
 #clearBtn:hover {
   background: rgba(239, 68, 68, 0.3);
   border-color: rgba(239, 68, 68, 0.6);
+}
+
+#submitDrawingBtn {
+  padding: 0.875rem 2rem;
+  font-size: 0.95rem;
+  background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+#submitDrawingBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+#submitDrawingBtn:active {
+  transform: translateY(0);
+}
+
+#submitDrawingBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* Gallery Area */
@@ -320,6 +397,29 @@
 .vote-results p {
   margin: 0.25rem 0;
   color: var(--text-secondary);
+}
+
+#nextRoundBtn {
+  margin-top: 2rem;
+  padding: 0.875rem 2rem;
+  font-size: 0.95rem;
+  background: linear-gradient(135deg, var(--accent-purple-dark) 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+#nextRoundBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+}
+
+#nextRoundBtn:active {
+  transform: translateY(0);
 }
 
 /* Responsive adjustments */
