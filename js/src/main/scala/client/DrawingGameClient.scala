@@ -248,10 +248,25 @@ def createDrawingLobby(): Unit =
   val apiKey = getInputValue("apiKey").getOrElse("")
   
   if playerName.nonEmpty && apiKey.nonEmpty then
-    connectDrawingWebSocket()
-    drawingWebSocket.foreach: ws =>
-      ws.onopen = (e: Event) =>
-        sendDrawingMessage(ClientMessage.CreateLobby(playerName, apiKey))
+    // First connect to temporary WebSocket
+    val protocol = if window.location.protocol == "https:" then "wss:" else "ws:"
+    val wsUrl = s"$protocol//${window.location.host}/ws/drawing/temp"
+    
+    val ws = new WebSocket(wsUrl)
+    drawingWebSocket = Some(ws)
+    
+    ws.onopen = (e: Event) =>
+      println("[Drawing] WebSocket connected, creating lobby...")
+      sendDrawingMessage(ClientMessage.CreateLobby(playerName, apiKey))
+    
+    ws.onmessage = (event: MessageEvent) =>
+      handleServerMessage(event.data.toString)
+    
+    ws.onerror = (event: Event) =>
+      println("[Drawing] WebSocket error")
+    
+    ws.onclose = (event: CloseEvent) =>
+      println("[Drawing] WebSocket disconnected")
 
 def joinDrawingLobby(): Unit =
   val lobbyId = getInputValue("joinLobbyId").getOrElse("").toUpperCase
@@ -259,14 +274,13 @@ def joinDrawingLobby(): Unit =
   
   if lobbyId.nonEmpty && playerName.nonEmpty then
     currentLobbyId = Some(lobbyId)
-    connectDrawingWebSocket()
+    connectDrawingWebSocket(lobbyId)
     drawingWebSocket.foreach: ws =>
       ws.onopen = (e: Event) =>
         sendDrawingMessage(ClientMessage.JoinLobby(lobbyId, playerName))
 
-def connectDrawingWebSocket(): Unit =
+def connectDrawingWebSocket(lobbyId: String): Unit =
   val protocol = if window.location.protocol == "https:" then "wss:" else "ws:"
-  val lobbyId = currentLobbyId.getOrElse("temp")
   val wsUrl = s"$protocol//${window.location.host}/ws/drawing/$lobbyId"
 
   val ws = new WebSocket(wsUrl)
@@ -298,7 +312,11 @@ def processServerMessage(msg: ServerMessage): Unit =
     case ServerMessage.LobbyCreated(lobbyId, playerId) =>
       currentLobbyId = Some(lobbyId)
       currentPlayerId = Some(playerId)
-      println(s"[Drawing] Lobby created: $lobbyId")
+      println(s"[Drawing] Lobby created: $lobbyId, player: $playerId")
+      
+      // Close the temporary connection and reconnect to the proper lobby
+      drawingWebSocket.foreach(_.close())
+      connectDrawingWebSocket(lobbyId)
       
     case ServerMessage.LobbyUpdate(lobby) =>
       updateDrawingLobbyUI(lobby)
