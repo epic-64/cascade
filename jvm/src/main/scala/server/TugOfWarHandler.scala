@@ -22,6 +22,10 @@ object TugOfWarHandler extends ReconnectionSupport[PlayerState, TugOfWarGame]:
   private val lastBroadcastTime = java.util.concurrent.ConcurrentHashMap[String, Long]()
   private val BroadcastThrottleMs = 50L // Max 20 updates per second
 
+  // Timer management
+  private val timerScheduler = java.util.concurrent.Executors.newScheduledThreadPool(1)
+  private val activeTimers = java.util.concurrent.ConcurrentHashMap[String, java.util.concurrent.ScheduledFuture[?]]()
+
   // ============================================================================
   // ReconnectionSupport implementation
   // ============================================================================
@@ -86,14 +90,17 @@ object TugOfWarHandler extends ReconnectionSupport[PlayerState, TugOfWarGame]:
               case shared.TugOfWar.JoinMessage(playerName) =>
                 handleJoin(channel, gameId, playerName)
 
+              case shared.TugOfWar.CreateMessage(playerName, roundsToWin, timeLimitSeconds) =>
+                handleCreate(channel, gameId, playerName, roundsToWin, timeLimitSeconds)
+
               case shared.TugOfWar.RejoinMessage(playerId, rejoinGameId) =>
                 handleRejoinRequest(channel, gameId, playerId)
 
               case shared.TugOfWar.SelectTeamMessage(team) =>
                 handleTeamSelect(channel, gameId, team)
 
-              case shared.TugOfWar.ConfigureMessage(roundsToWin) =>
-                handleConfigure(gameId, roundsToWin)
+              case shared.TugOfWar.ConfigureMessage(roundsToWin, timeLimitSeconds) =>
+                handleConfigure(gameId, roundsToWin, timeLimitSeconds)
 
               case shared.TugOfWar.StartMessage() =>
                 handleStart(gameId)
@@ -122,21 +129,43 @@ object TugOfWarHandler extends ReconnectionSupport[PlayerState, TugOfWarGame]:
   // ============================================================================
 
   private def handleJoin(channel: cask.WsChannelActor, gameId: String, playerName: String): Unit =
-    val playerId = java.util.UUID.randomUUID().toString
+    // Only allow joining existing games
+    gameManager.getGame(gameId) match
+      case Some(game) =>
+        if game.status != GameStatus.Waiting then
+          sendToChannel(channel, shared.TugOfWar.ErrorMessage("Game already in progress"))
+        else
+          val playerId = java.util.UUID.randomUUID().toString
+          gameManager.registerPlayer(channel, gameId, playerId)
 
+          val updatedGame = shared.TugOfWar.TugOfWar.addPlayer(game, playerId, playerName)
+          gameManager.updateGame(gameId, updatedGame)
+
+          logger.info(s"Player $playerName ($playerId) joined TugOfWar game $gameId")
+
+          sendToChannel(channel, shared.TugOfWar.JoinedMessage(playerId, gameId))
+          broadcastGameState(gameId)
+
+      case None =>
+        sendToChannel(channel, shared.TugOfWar.ErrorMessage("Game not found"))
+
+  private def handleCreate(
+      channel: cask.WsChannelActor,
+      gameId: String,
+      playerName: String,
+      roundsToWin: Int,
+      timeLimitSeconds: Int
+  ): Unit =
+    val playerId = java.util.UUID.randomUUID().toString
     gameManager.registerPlayer(channel, gameId, playerId)
 
-    // Create game if it doesn't exist
-    val game = gameManager.getGame(gameId).getOrElse(gameManager.createGame(gameId, 3))
+    val game = gameManager.createGame(gameId, roundsToWin, timeLimitSeconds)
     val updatedGame = shared.TugOfWar.TugOfWar.addPlayer(game, playerId, playerName)
     gameManager.updateGame(gameId, updatedGame)
 
-    logger.info(s"Player $playerName ($playerId) joined TugOfWar game $gameId")
+    logger.info(s"Player $playerName ($playerId) created TugOfWar game $gameId (roundsToWin=$roundsToWin, timeLimit=$timeLimitSeconds)")
 
-    // Send JoinedMessage to the player
     sendToChannel(channel, shared.TugOfWar.JoinedMessage(playerId, gameId))
-
-    // Broadcast game state to all players
     broadcastGameState(gameId)
 
   private def handleTeamSelect(channel: cask.WsChannelActor, gameId: String, team: Team): Unit =
@@ -150,11 +179,11 @@ object TugOfWarHandler extends ReconnectionSupport[PlayerState, TugOfWarGame]:
       case _ =>
         logger.warn(s"Team select from unregistered player")
 
-  private def handleConfigure(gameId: String, roundsToWin: Int): Unit =
+  private def handleConfigure(gameId: String, roundsToWin: Int, timeLimitSeconds: Int): Unit =
     gameManager.getGame(gameId).foreach: game =>
-      val updatedGame = shared.TugOfWar.TugOfWar.configureGame(game, roundsToWin)
+      val updatedGame = shared.TugOfWar.TugOfWar.configureGame(game, roundsToWin, timeLimitSeconds)
       gameManager.updateGame(gameId, updatedGame)
-      logger.info(s"TugOfWar game $gameId configured: roundsToWin=$roundsToWin")
+      logger.info(s"TugOfWar game $gameId configured: roundsToWin=$roundsToWin, timeLimit=$timeLimitSeconds")
       broadcastGameState(gameId)
 
   private def handleStart(gameId: String): Unit =
@@ -164,8 +193,59 @@ object TugOfWarHandler extends ReconnectionSupport[PlayerState, TugOfWarGame]:
         gameManager.updateGame(gameId, gameWithRound)
         logger.info(s"TugOfWar game $gameId started - Round ${gameWithRound.currentRound}")
         broadcastGameState(gameId)
+        startRoundTimer(gameId, gameWithRound.timeLimitSeconds)
       else
         logger.warn(s"Cannot start game $gameId - need at least one player per team")
+
+  private def startRoundTimer(gameId: String, timeLimitSeconds: Int): Unit =
+    // Cancel any existing timer for this game
+    stopRoundTimer(gameId)
+
+    if timeLimitSeconds > 0 then
+      // Schedule timer ticks every second
+      val timerTask = new Runnable:
+        def run(): Unit =
+          gameManager.getGame(gameId).foreach: game =>
+            if game.status == GameStatus.Playing then
+              shared.TugOfWar.TugOfWar.getRemainingTime(game) match
+                case Some(remaining) if remaining > 0 =>
+                  broadcastTimerUpdate(gameId, remaining)
+                case Some(0) | None =>
+                  // Time's up - determine winner by position
+                  handleTimeExpired(gameId, game)
+                case _ => ()
+
+      val future = timerScheduler.scheduleAtFixedRate(
+        timerTask,
+        0,
+        1,
+        java.util.concurrent.TimeUnit.SECONDS
+      )
+      activeTimers.put(gameId, future)
+
+  private def stopRoundTimer(gameId: String): Unit =
+    Option(activeTimers.remove(gameId)).foreach(_.cancel(false))
+
+  private def handleTimeExpired(gameId: String, game: TugOfWarGame): Unit =
+    stopRoundTimer(gameId)
+
+    shared.TugOfWar.TugOfWar.getTimeoutWinner(game) match
+      case Some(winner) =>
+        val result = shared.TugOfWar.TugOfWar.getRoundResult(game, winner)
+        val endedGame = shared.TugOfWar.TugOfWar.endRound(game, winner)
+        gameManager.updateGame(gameId, endedGame)
+        logger.info(s"Round timed out in game $gameId - $winner wins by position (${game.ropePosition})!")
+        broadcastRoundEnd(gameId, winner, result)
+        broadcastGameState(gameId)
+      case None =>
+        // Draw - restart the round
+        logger.info(s"Round timed out in game $gameId with tie - restarting round")
+        val restartedGame = shared.TugOfWar.TugOfWar.startRound(
+          game.copy(currentRound = game.currentRound - 1) // Decrement so startRound brings it back
+        )
+        gameManager.updateGame(gameId, restartedGame)
+        broadcastGameState(gameId)
+        startRoundTimer(gameId, restartedGame.timeLimitSeconds)
 
   private def handleClick(channel: cask.WsChannelActor, gameId: String): Unit =
     gameManager.getPlayerInfo(channel) match
@@ -178,6 +258,7 @@ object TugOfWarHandler extends ReconnectionSupport[PlayerState, TugOfWarGame]:
             // Check if round ended
             shared.TugOfWar.TugOfWar.checkRoundEnd(updatedGame) match
               case Some(winner) =>
+                stopRoundTimer(gameId)
                 val result = shared.TugOfWar.TugOfWar.getRoundResult(updatedGame, winner)
                 val endedGame = shared.TugOfWar.TugOfWar.endRound(updatedGame, winner)
                 gameManager.updateGame(gameId, endedGame)
@@ -198,8 +279,12 @@ object TugOfWarHandler extends ReconnectionSupport[PlayerState, TugOfWarGame]:
         logger.info(s"TugOfWar game $gameId advancing from roundEnd to ${nextGame.status}")
 
         if nextGame.status == GameStatus.GameOver then
+          stopRoundTimer(gameId)
           shared.TugOfWar.TugOfWar.getGameWinner(nextGame).foreach: winner =>
             broadcastGameEnd(gameId, winner, nextGame.redRoundsWon, nextGame.blueRoundsWon)
+        else if nextGame.status == GameStatus.Playing then
+          // Start timer for new round
+          startRoundTimer(gameId, nextGame.timeLimitSeconds)
 
         broadcastGameState(gameId)
 
@@ -236,6 +321,18 @@ object TugOfWarHandler extends ReconnectionSupport[PlayerState, TugOfWarGame]:
       connections.asScala.foreach: channel =>
         Try(channel.send(cask.Ws.Text(messageJson))).recover:
           case ex => logger.warn(s"Failed to broadcast position update: ${ex.getMessage}")
+
+  private def broadcastTimerUpdate(gameId: String, secondsRemaining: Int): Unit =
+    import scala.jdk.CollectionConverters.*
+    import upickle.default.*
+
+    val message = shared.TugOfWar.TimerUpdateMessage(secondsRemaining)
+    val messageJson = write(message)
+
+    Option(gameManager.getConnections(gameId)).foreach: connections =>
+      connections.asScala.foreach: channel =>
+        Try(channel.send(cask.Ws.Text(messageJson))).recover:
+          case ex => logger.warn(s"Failed to broadcast timer update: ${ex.getMessage}")
 
   private def broadcastRoundEnd(gameId: String, winner: Team, result: shared.TugOfWar.RoundResult): Unit =
     import scala.jdk.CollectionConverters.*
