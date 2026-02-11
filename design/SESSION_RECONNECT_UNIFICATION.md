@@ -150,14 +150,13 @@ trait ReconnectionSupport[Player <: PlayerConnection, Game]:
 - [x] Add `cleanupExpiredPlayers` helper
 
 ### Step 6: Refactor Server Handlers
-**Effort: Medium** ⏭️ OPTIONAL (deferred)
-- [ ] Update `ColorRushHandler` to mix in `ReconnectionSupport`
-- [ ] Update `DrawingGameHandler` to mix in `ReconnectionSupport`
-- [ ] Verify tests still pass
+**Effort: Medium** ✅ COMPLETE (ColorRush)
+- [x] Update `ColorRushHandler` to mix in `ReconnectionSupport`
+- [ ] Update `DrawingGameHandler` to mix in `ReconnectionSupport` (optional)
+- [x] Verify tests still pass
 
-> **Note:** The `ReconnectionSupport` trait is available for new games. Existing handlers 
-> already work correctly and use the shared `PlayerConnectionOps` via the model classes.
-> Refactoring existing handlers is optional and can be done incrementally.
+> **Note:** ColorRush now uses `ReconnectionSupport[PlayerState, ColorRushGame]`.
+> DrawingGame can be migrated later if desired, but works correctly as-is.
 
 ### Step 7: Update Shared Models
 **Effort: Small** ✅ COMPLETE
