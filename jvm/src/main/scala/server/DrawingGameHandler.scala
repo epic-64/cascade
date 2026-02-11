@@ -556,7 +556,7 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
             // No prompt, skip to voting
             transitionTo(lobbyId, LobbyStatus.Voting)
           case Some(prompt) =>
-            OpenAIClient.selectWinner(apiKey, prompt, captions).map: selection =>
+            OpenAIClient.selectWinner(apiKey, prompt, captions, lobby.captionStyle).map: selection =>
               aiWinners.put(lobbyId, selection.winnerName)
               broadcast(lobbyId, ServerMessage.AIVoteRevealed(selection.winnerName, selection.reasoning))
               // Wait 2 seconds then start voting
