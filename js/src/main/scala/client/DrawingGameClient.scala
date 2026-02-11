@@ -73,6 +73,8 @@ def checkForExistingDrawingSession(): Unit =
       currentLobbyId = Some(lobbyId)
       currentPlayerId = Some(playerId)
       currentPlayerName = Some(playerName)
+      // Hide lobby setup while attempting to rejoin
+      hideElement("lobbySetup")
       attemptDrawingRejoin(lobbyId, playerId)
     case None =>
       println("[Drawing] No existing session found")
@@ -423,7 +425,8 @@ def processServerMessage(msg: ServerMessage): Unit =
       currentLobbyId = None
       currentPlayerId = None
       currentPlayerName = None
-      // Show lobby setup again (page is already showing it)
+      // Show lobby setup again since rejoin failed
+      showElement("lobbySetup")
 
     case ServerMessage.LobbyUpdate(lobby) =>
       updateDrawingLobbyUI(lobby)
@@ -493,6 +496,7 @@ def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
           btn.textContent = "Start Game"
 
     case LobbyStatus.Drawing =>
+      hideElement("lobbySetup")
       hideElement("waitingRoom")
       showElement("drawingArea")
       hideElement("galleryArea")
@@ -503,6 +507,7 @@ def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
       if !hasSubmittedDrawing then
         submitDrawing()
       // Keep drawing area visible briefly
+      hideElement("lobbySetup")
       hideElement("waitingRoom")
       showElement("drawingArea")
       hideElement("galleryArea")
@@ -510,18 +515,21 @@ def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
 
     case LobbyStatus.RevealingDrawings | LobbyStatus.RevealingCaptions | LobbyStatus.RevealingAIWinner =>
       // Show gallery for all reveal phases
+      hideElement("lobbySetup")
       hideElement("waitingRoom")
       hideElement("drawingArea")
       showElement("galleryArea")
       hideElement("resultsArea")
 
     case LobbyStatus.Voting =>
+      hideElement("lobbySetup")
       hideElement("waitingRoom")
       hideElement("drawingArea")
       showElement("galleryArea")
       hideElement("resultsArea")
 
     case LobbyStatus.Results =>
+      hideElement("lobbySetup")
       hideElement("waitingRoom")
       hideElement("drawingArea")
       showElement("galleryArea")
