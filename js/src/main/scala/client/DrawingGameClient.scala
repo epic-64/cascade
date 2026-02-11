@@ -473,11 +473,7 @@ def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
 
   lobby.status match
     case LobbyStatus.Waiting =>
-      showElement("waitingRoom")
-      hideElement("drawingArea")
-      hideElement("galleryArea")
-      hideElement("resultsArea")
-      hideElement("lobbySetup")
+      showOnlyGameScreen("waitingRoom")
 
       getElementById("lobbyCode").foreach: elem =>
         elem.textContent = s"Code: ${lobby.lobbyId}"
@@ -496,44 +492,24 @@ def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
           btn.textContent = "Start Game"
 
     case LobbyStatus.Drawing =>
-      hideElement("lobbySetup")
-      hideElement("waitingRoom")
-      showElement("drawingArea")
-      hideElement("galleryArea")
-      hideElement("resultsArea")
+      showOnlyGameScreen("drawingArea")
 
     case LobbyStatus.CollectingDrawings =>
       // Auto-submit drawing if not already submitted
       if !hasSubmittedDrawing then
         submitDrawing()
       // Keep drawing area visible briefly
-      hideElement("lobbySetup")
-      hideElement("waitingRoom")
-      showElement("drawingArea")
-      hideElement("galleryArea")
-      hideElement("resultsArea")
+      showOnlyGameScreen("drawingArea")
 
     case LobbyStatus.RevealingDrawings | LobbyStatus.RevealingCaptions | LobbyStatus.RevealingAIWinner =>
       // Show gallery for all reveal phases
-      hideElement("lobbySetup")
-      hideElement("waitingRoom")
-      hideElement("drawingArea")
-      showElement("galleryArea")
-      hideElement("resultsArea")
+      showOnlyGameScreen("galleryArea")
 
     case LobbyStatus.Voting =>
-      hideElement("lobbySetup")
-      hideElement("waitingRoom")
-      hideElement("drawingArea")
-      showElement("galleryArea")
-      hideElement("resultsArea")
+      showOnlyGameScreen("galleryArea")
 
     case LobbyStatus.Results =>
-      hideElement("lobbySetup")
-      hideElement("waitingRoom")
-      hideElement("drawingArea")
-      showElement("galleryArea")
-      hideElement("resultsArea")
+      showOnlyGameScreen("galleryArea")
 
 def showPrompt(prompt: String): Unit =
   hasSubmittedDrawing = false // Reset for new round
@@ -752,4 +728,15 @@ def showElement(id: String): Unit =
 
 def hideElement(id: String): Unit =
   getElementById(id).foreach(_.classList.add("hidden"))
+
+/** Helper to show only specific game screens and hide all others */
+def showOnlyGameScreen(screens: String*): Unit =
+  val allScreens = Set("lobbySetup", "waitingRoom", "drawingArea", "galleryArea", "resultsArea")
+  val screensToShow = screens.toSet
+  
+  allScreens.foreach: screen =>
+    if screensToShow.contains(screen) then
+      showElement(screen)
+    else
+      hideElement(screen)
 
