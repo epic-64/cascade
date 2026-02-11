@@ -159,10 +159,13 @@ Monitoring:
 - ⏳ Health and Performance monitoring
 
 ## Known Issues / Todos
-- [ ] WebSocket closes on its own after some time of inactivity (1-2 minutes)
-- WebSocket connection is lost on page refresh
-  - fixed in ColorRush via session + localStorage
-- [ ] Missing tests for Drawing game
+- Missing tests for Drawing game
+
+## Previous Challenges
+- ✅ WebSocket closes on its own after some time of inactivity (1-2 minutes)
+  - fixed by implementing a heartbeat mechanism: client sends ping every N seconds
+- ✅ WebSocket connection is lost on page refresh
+  - fixed by storing player id in localStorage and rejoining the game/lobby on page load if player id is found
 
 ## Documentation
 
