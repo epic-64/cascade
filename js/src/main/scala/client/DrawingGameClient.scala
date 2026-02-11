@@ -29,7 +29,6 @@ var drawingCanvas: Option[HTMLCanvasElement] = None
 var drawingContext: Option[CanvasRenderingContext2D] = None
 var isDrawing = false
 var hasSubmittedDrawing = false // Track if current drawing has been submitted
-var isRejoiningDrawing = false // Track if we're attempting to rejoin
 
 // WebSocket keepalive to prevent idle timeouts
 val drawingKeepAlive: WebSocketKeepAlive = WebSocketKeepAlive.forWebSocket(
@@ -54,7 +53,6 @@ def checkForExistingDrawingSession(): Unit =
       println(
         s"[Drawing] Found existing session - attempting rejoin: lobbyId=${session.gameId}, playerId=${session.playerId}"
       )
-      isRejoiningDrawing = true
       currentLobbyId = Some(session.gameId)
       currentPlayerId = Some(session.playerId)
       currentPlayerName = Some(session.playerName)
@@ -522,14 +520,11 @@ def processServerMessage(msg: ServerMessage): Unit =
         .getOrElse("Player")
       currentPlayerName = Some(playerName)
       saveDrawingSession(playerId, lobbyId, playerName)
-      isRejoiningDrawing = false
-    // Server will send LobbyUpdate next, no need to reconnect
 
     case ServerMessage.RejoinFailed(reason) =>
       println(s"[Drawing] Rejoin failed: $reason")
       drawingKeepAlive.stop()
       clearDrawingSession()
-      isRejoiningDrawing = false
       // Close the WebSocket and reset state
       drawingWebSocket.foreach(_.close())
       drawingWebSocket = None
