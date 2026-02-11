@@ -58,6 +58,11 @@ object WebServer extends MainRoutes:
   def drawingGameWebSocket(lobbyId: String): cask.WebsocketResult =
     DrawingGameHandler.handleWebSocket(lobbyId)
 
+  // Tug of War game WebSocket endpoint
+  @cask.websocket("/ws/tug-of-war/:gameId")
+  def tugOfWarWebSocket(gameId: String): cask.WebsocketResult =
+    TugOfWarHandler.handleWebSocket(gameId)
+
   // Start periodic cleanup task
   private def startCleanupTask(): Unit =
     val cleanupTask = new Runnable:
@@ -66,6 +71,8 @@ object WebServer extends MainRoutes:
           case ex => logger.error(s"Error during ColorRush cleanup: ${ex.getMessage}", ex)
         Try(DrawingGameHandler.cleanupEmptyLobbies()).recover:
           case ex => logger.error(s"Error during DrawingGame cleanup: ${ex.getMessage}", ex)
+        Try(TugOfWarHandler.cleanupEmptyGames()).recover:
+          case ex => logger.error(s"Error during TugOfWar cleanup: ${ex.getMessage}", ex)
 
     // Run cleanup every 5 minutes
     cleanupScheduler.scheduleAtFixedRate(
@@ -106,6 +113,14 @@ object WebServer extends MainRoutes:
   def aiDrawing(): cask.Response[java.io.InputStream] =
     cask.Response(
       data = getClass.getClassLoader.getResourceAsStream("static/ai-drawing.html"),
+      statusCode = 200,
+      headers = Seq("Content-Type" -> "text/html")
+    )
+
+  @cask.get("/tug-of-war")
+  def tugOfWar(): cask.Response[java.io.InputStream] =
+    cask.Response(
+      data = getClass.getClassLoader.getResourceAsStream("static/tug-of-war.html"),
       statusCode = 200,
       headers = Seq("Content-Type" -> "text/html")
     )
