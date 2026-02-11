@@ -191,6 +191,7 @@ def createWaitingRoom(): HTMLElement =
   div(id = "waitingRoom", cls = "waiting-area hidden")(
     h3(content = "Lobby:"),
     div(id = "lobbyCode", cls = "lobby-code"),
+    div(id = "lobbySettings", cls = "lobby-settings"),
     div(id = "playersList", cls = "players"),
     button(id = "startGameBtn", cls = "btn btn-success btn-block").tap: btn =>
       btn.textContent = "Start Game"
@@ -539,6 +540,28 @@ def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
 
       getElementById("lobbyCode").foreach: elem =>
         elem.textContent = s"Code: ${lobby.lobbyId}"
+
+      // Display game settings
+      getElementById("lobbySettings").foreach: elem =>
+        val promptModeText = lobby.gameMode match
+          case GameMode.SingleWord => "Single Word"
+          case GameMode.TwoWordScene => "2-Word Scene"
+        val captionStyleText = lobby.captionStyle match
+          case CaptionStyle.Descriptive => "Descriptive"
+          case CaptionStyle.Roast => "Roast Mode 🔥"
+        elem.innerHTML = ""
+        elem.appendChild(
+          div(cls = "settings-display")(
+            span(cls = "setting-item")(
+              span(cls = "setting-label", content = "Prompt:"),
+              span(cls = "setting-value", content = promptModeText)
+            ),
+            span(cls = "setting-item")(
+              span(cls = "setting-label", content = "Caption:"),
+              span(cls = "setting-value", content = captionStyleText)
+            )
+          )
+        )
 
       getElementById("playersList").foreach: elem =>
         elem.innerHTML = ""
