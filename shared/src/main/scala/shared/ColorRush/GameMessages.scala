@@ -14,7 +14,8 @@ object ClientMessage:
     macroRW[ConfigureMessage],
     macroRW[StartMessage],
     macroRW[ClickMessage],
-    macroRW[NextRoundMessage]
+    macroRW[NextRoundMessage],
+    macroRW[PingMessage]
   )
 
 case class JoinMessage(playerName: String, totalRounds: Int) extends ClientMessage derives ReadWriter
@@ -23,6 +24,7 @@ case class ConfigureMessage(totalRounds: Int) extends ClientMessage derives Read
 case class StartMessage() extends ClientMessage derives ReadWriter
 case class ClickMessage(color: String, time: Long) extends ClientMessage derives ReadWriter
 case class NextRoundMessage() extends ClientMessage derives ReadWriter
+case class PingMessage() extends ClientMessage derives ReadWriter
 
 // Server -> Client messages
 sealed trait ServerMessage
