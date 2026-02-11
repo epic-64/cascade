@@ -105,7 +105,7 @@ def createJoinForm(): HTMLElement =
         el.setAttribute("autocomplete", "off")
         el.required = true
       ,
-      button("submit").tap: btn =>
+      button("submit", cls = "btn").tap: btn =>
         btn.textContent = "Join Game"
     )
   )
