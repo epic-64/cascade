@@ -94,6 +94,9 @@ object DrawingGameHandler:
       case ClientMessage.JoinLobby(joinLobbyId, playerName) =>
         handleJoinLobby(channel, joinLobbyId, playerName)
 
+      case ClientMessage.RejoinLobby(rejoinLobbyId, playerId) =>
+        handleRejoinLobby(channel, rejoinLobbyId, playerId)
+
       case ClientMessage.StartGame() =>
         handleStartGame(actualLobbyId)
 
@@ -146,6 +149,42 @@ object DrawingGameHandler:
 
           sendToClient(channel, ServerMessage.LobbyCreated(lobbyId, playerId))
           broadcastLobbyUpdate(lobbyId)
+
+  private def handleRejoinLobby(channel: cask.WsChannelActor, lobbyId: String, playerId: String): Unit =
+    lobbies.get(lobbyId) match
+      case null =>
+        logger.info(s"Player $playerId cannot rejoin - lobby $lobbyId not found")
+        sendToClient(channel, ServerMessage.RejoinFailed("Lobby not found"))
+      case (lobby, apiKey) =>
+        if DrawingGame.canRejoin(lobby, playerId) then
+          DrawingGame.reconnectPlayer(lobby, playerId) match
+            case Some(updatedLobby) =>
+              lobbies.put(lobbyId, (updatedLobby, apiKey))
+              channelToPlayer.put(channel, playerId)
+              channelToLobby.put(channel, lobbyId)
+              addConnection(lobbyId, channel)
+              
+              val playerName = updatedLobby.players.get(playerId).map(_.playerName).getOrElse("Unknown")
+              logger.info(s"Player $playerName ($playerId) rejoined lobby $lobbyId")
+              
+              // Send confirmation and current lobby state
+              sendToClient(channel, ServerMessage.LobbyCreated(lobbyId, playerId))
+              sendToClient(channel, ServerMessage.LobbyUpdate(updatedLobby))
+              
+              // Also send current prompt if in drawing phase
+              updatedLobby.currentPrompt.foreach: prompt =>
+                if updatedLobby.status == LobbyStatus.Drawing then
+                  sendToClient(channel, ServerMessage.PromptAnnounced(prompt))
+              
+              // Broadcast to other players that someone reconnected
+              broadcastLobbyUpdate(lobbyId)
+              
+            case None =>
+              logger.warn(s"Failed to reconnect player $playerId to lobby $lobbyId")
+              sendToClient(channel, ServerMessage.RejoinFailed("Failed to reconnect"))
+        else
+          logger.info(s"Player $playerId cannot rejoin lobby $lobbyId - grace period expired or not found")
+          sendToClient(channel, ServerMessage.RejoinFailed("Session expired"))
 
   private def handleStartGame(lobbyId: String): Unit =
     lobbies.get(lobbyId) match
@@ -460,6 +499,7 @@ object DrawingGameHandler:
     closedChannels.add(channel)
     
     val actualLobbyId = Option(channelToLobby.get(channel)).getOrElse(lobbyId)
+    val playerId = Option(channelToPlayer.get(channel))
     
     connections.get(actualLobbyId) match
       case null => ()
@@ -471,6 +511,17 @@ object DrawingGameHandler:
       connections.get(lobbyId) match
         case null => ()
         case channelSet => channelSet.remove(channel)
+    
+    // Mark player as disconnected (but keep in lobby for grace period)
+    playerId.foreach: pId =>
+      lobbies.get(actualLobbyId) match
+        case null => ()
+        case (lobby, apiKey) =>
+          val updatedLobby = DrawingGame.disconnectPlayer(lobby, pId)
+          lobbies.put(actualLobbyId, (updatedLobby, apiKey))
+          val playerName = lobby.players.get(pId).map(_.playerName).getOrElse("Unknown")
+          logger.info(s"Player $playerName ($pId) marked as disconnected from lobby $actualLobbyId (can rejoin within grace period)")
+          broadcastLobbyUpdate(actualLobbyId)
     
     channelToPlayer.remove(channel)
     channelToLobby.remove(channel)
@@ -516,6 +567,15 @@ object DrawingGameHandler:
     java.util.UUID.randomUUID().toString
 
   def cleanupEmptyLobbies(): Unit =
+    // First, clean up disconnected players past grace period
+    lobbies.asScala.foreach:
+      case (lobbyId, (lobby, apiKey)) =>
+        val cleanedLobby = DrawingGame.cleanupDisconnectedPlayers(lobby)
+        if cleanedLobby.players.size != lobby.players.size then
+          lobbies.put(lobbyId, (cleanedLobby, apiKey))
+          logger.info(s"Cleaned up ${lobby.players.size - cleanedLobby.players.size} disconnected player(s) from lobby $lobbyId")
+    
+    // Then clean up empty lobbies
     lobbies.asScala.filter:
       case (_, (lobby, _)) => lobby.players.isEmpty
     .keys.foreach: lobbyId =>

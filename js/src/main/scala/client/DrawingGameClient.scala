@@ -9,9 +9,17 @@ import scala.scalajs.js
 import scala.util.{Try, Success, Failure}
 import scala.util.chaining.*
 
+// Session storage keys
+private val DrawingSessionKeyPlayerId = "drawing.playerId"
+private val DrawingSessionKeyLobbyId = "drawing.lobbyId"
+private val DrawingSessionKeyPlayerName = "drawing.playerName"
+
 def initializeDrawing(): Unit =
   println("[Drawing] Starting AI Drawing game client...")
   buildDrawingUI()
+  
+  // Check for existing session and attempt reconnect
+  checkForExistingDrawingSession()
 
 var drawingWebSocket: Option[WebSocket] = None
 var currentPlayerId: Option[String] = None
@@ -21,6 +29,70 @@ var drawingCanvas: Option[HTMLCanvasElement] = None
 var drawingContext: Option[CanvasRenderingContext2D] = None
 var isDrawing = false
 var hasSubmittedDrawing = false // Track if current drawing has been submitted
+var isRejoiningDrawing = false // Track if we're attempting to rejoin
+
+// Session management functions
+def saveDrawingSession(playerId: String, lobbyId: String, playerName: String): Unit =
+  Try:
+    window.localStorage.setItem(DrawingSessionKeyPlayerId, playerId)
+    window.localStorage.setItem(DrawingSessionKeyLobbyId, lobbyId)
+    window.localStorage.setItem(DrawingSessionKeyPlayerName, playerName)
+    println(s"[Drawing] Session saved: playerId=$playerId, lobbyId=$lobbyId")
+  .recover:
+    case ex => println(s"[Drawing] Failed to save session: ${ex.getMessage}")
+
+def loadDrawingSession(): Option[(String, String, String)] =
+  Try:
+    val playerId = window.localStorage.getItem(DrawingSessionKeyPlayerId)
+    val lobbyId = window.localStorage.getItem(DrawingSessionKeyLobbyId)
+    val playerName = window.localStorage.getItem(DrawingSessionKeyPlayerName)
+    if playerId != null && lobbyId != null && playerName != null then
+      Some((playerId, lobbyId, playerName))
+    else
+      None
+  .recover:
+    case ex =>
+      println(s"[Drawing] Failed to load session: ${ex.getMessage}")
+      None
+  .getOrElse(None)
+
+def clearDrawingSession(): Unit =
+  Try:
+    window.localStorage.removeItem(DrawingSessionKeyPlayerId)
+    window.localStorage.removeItem(DrawingSessionKeyLobbyId)
+    window.localStorage.removeItem(DrawingSessionKeyPlayerName)
+    println("[Drawing] Session cleared")
+  .recover:
+    case ex => println(s"[Drawing] Failed to clear session: ${ex.getMessage}")
+
+def checkForExistingDrawingSession(): Unit =
+  loadDrawingSession() match
+    case Some((playerId, lobbyId, playerName)) =>
+      println(s"[Drawing] Found existing session - attempting rejoin: lobbyId=$lobbyId, playerId=$playerId")
+      isRejoiningDrawing = true
+      currentLobbyId = Some(lobbyId)
+      currentPlayerId = Some(playerId)
+      currentPlayerName = Some(playerName)
+      attemptDrawingRejoin(lobbyId, playerId)
+    case None =>
+      println("[Drawing] No existing session found")
+
+def attemptDrawingRejoin(lobbyId: String, playerId: String): Unit =
+  val protocol = if window.location.protocol == "https:" then "wss:" else "ws:"
+  val wsUrl = s"$protocol//${window.location.host}/ws/drawing/$lobbyId"
+
+  val ws = new WebSocket(wsUrl)
+  drawingWebSocket = Some(ws)
+
+  ws.onopen = (e: Event) =>
+    println(s"[Drawing] Connected, attempting rejoin to lobby $lobbyId")
+    sendDrawingMessage(ClientMessage.RejoinLobby(lobbyId, playerId))
+
+  ws.onmessage = (event: MessageEvent) => handleServerMessage(event.data.toString)
+  ws.onerror = (event: Event) => println(s"[Drawing] WebSocket error during rejoin")
+  ws.onclose = (e: CloseEvent) =>
+    println(s"[Drawing] Disconnected from lobby")
+    // Don't clear session on close - allow reconnection attempts
 
 def buildDrawingUI(): Unit =
   document.body.innerHTML = ""
@@ -330,7 +402,28 @@ def processServerMessage(msg: ServerMessage): Unit =
       currentLobbyId = Some(lobbyId)
       currentPlayerId = Some(playerId)
       println(s"[Drawing] Lobby created/joined: $lobbyId, player: $playerId")
+      
+      // Save session for reconnection - get player name from form or existing session
+      val playerName = getInputValue("createPlayerName")
+        .orElse(getInputValue("joinPlayerName"))
+        .orElse(currentPlayerName)
+        .getOrElse("Player")
+      currentPlayerName = Some(playerName)
+      saveDrawingSession(playerId, lobbyId, playerName)
+      isRejoiningDrawing = false
       // Server will send LobbyUpdate next, no need to reconnect
+
+    case ServerMessage.RejoinFailed(reason) =>
+      println(s"[Drawing] Rejoin failed: $reason")
+      clearDrawingSession()
+      isRejoiningDrawing = false
+      // Close the WebSocket and reset state
+      drawingWebSocket.foreach(_.close())
+      drawingWebSocket = None
+      currentLobbyId = None
+      currentPlayerId = None
+      currentPlayerName = None
+      // Show lobby setup again (page is already showing it)
 
     case ServerMessage.LobbyUpdate(lobby) =>
       updateDrawingLobbyUI(lobby)

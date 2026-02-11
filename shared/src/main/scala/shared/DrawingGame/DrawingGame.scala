@@ -32,7 +32,8 @@ case class PlayerInfo(
     playerId: String,
     playerName: String,
     connected: Boolean,
-    score: Int
+    score: Int,
+    disconnectedAt: Option[Long] = None
 ) derives ReadWriter
 
 case class DrawingSubmission(
@@ -51,6 +52,7 @@ case class RoundResult(
 enum ClientMessage derives ReadWriter:
   case CreateLobby(playerName: String, apiKey: String)
   case JoinLobby(lobbyId: String, playerName: String)
+  case RejoinLobby(lobbyId: String, playerId: String)
   case StartGame()
   case SubmitDrawing(imageData: String)
   case SubmitVote(playerNameVotedFor: String)
@@ -60,6 +62,7 @@ enum ClientMessage derives ReadWriter:
 enum ServerMessage derives ReadWriter:
   case LobbyCreated(lobbyId: String, playerId: String)
   case LobbyUpdate(lobby: DrawingLobby)
+  case RejoinFailed(reason: String)
   case PromptAnnounced(prompt: String)
   case DrawingTimerUpdate(secondsRemaining: Int)
   case VotingTimerUpdate(secondsRemaining: Int)
@@ -115,11 +118,46 @@ object DrawingGame:
     if lobby.players.size >= maxPlayersPerLobby then
       lobby
     else
-      val player = PlayerInfo(playerId, playerName, connected = true, score = 0)
+      val player = PlayerInfo(playerId, playerName, connected = true, score = 0, disconnectedAt = None)
       lobby.copy(players = lobby.players + (playerId -> player))
 
   def removePlayer(lobby: DrawingLobby, playerId: String): DrawingLobby =
     lobby.copy(players = lobby.players - playerId)
+
+  /** Mark a player as disconnected instead of removing them */
+  def disconnectPlayer(lobby: DrawingLobby, playerId: String): DrawingLobby =
+    lobby.players.get(playerId) match
+      case Some(player) =>
+        val disconnectedPlayer = player.copy(connected = false, disconnectedAt = Some(System.currentTimeMillis()))
+        lobby.copy(players = lobby.players + (playerId -> disconnectedPlayer))
+      case None => lobby
+
+  /** Reconnect a previously disconnected player */
+  def reconnectPlayer(lobby: DrawingLobby, playerId: String): Option[DrawingLobby] =
+    lobby.players.get(playerId).map: player =>
+      val reconnectedPlayer = player.copy(connected = true, disconnectedAt = None)
+      lobby.copy(players = lobby.players + (playerId -> reconnectedPlayer))
+
+  /** Check if a player can rejoin (exists and within grace period) */
+  def canRejoin(lobby: DrawingLobby, playerId: String, gracePeriodMs: Long = 60000): Boolean =
+    lobby.players.get(playerId) match
+      case Some(player) =>
+        player.disconnectedAt match
+          case Some(disconnectTime) =>
+            val elapsed = System.currentTimeMillis() - disconnectTime
+            elapsed < gracePeriodMs
+          case None => true // Player is still connected or never disconnected
+      case None => false
+
+  /** Remove players who have been disconnected longer than the grace period */
+  def cleanupDisconnectedPlayers(lobby: DrawingLobby, gracePeriodMs: Long = 60000): DrawingLobby =
+    val now = System.currentTimeMillis()
+    val activePlayers = lobby.players.filter:
+      case (_, player) =>
+        player.disconnectedAt match
+          case Some(disconnectTime) => (now - disconnectTime) < gracePeriodMs
+          case None => true
+    lobby.copy(players = activePlayers)
 
   def startDrawingPhase(lobby: DrawingLobby): DrawingLobby =
     import scala.util.Random
