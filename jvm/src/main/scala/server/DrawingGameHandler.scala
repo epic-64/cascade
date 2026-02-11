@@ -148,6 +148,10 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
       case ClientMessage.NextRound() =>
         handleNextRound(actualLobbyId)
 
+      case ClientMessage.Ping() =>
+        // Keepalive ping - no action needed, just keeps the connection alive
+        logger.debug(s"Received keepalive ping for lobby $actualLobbyId")
+
   private def handleCreateLobby(channel: cask.WsChannelActor, playerName: String, apiKey: String, gameMode: GameMode, captionStyle: CaptionStyle): Unit =
     val lobbyId = generateLobbyId()
     val playerId = generatePlayerId()

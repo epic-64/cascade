@@ -5,7 +5,7 @@ import org.scalajs.dom.*
 import shared.DrawingGame.*
 import shared.session.BasicGameSession
 import client.{el, form, input, button, *}
-import client.session.SessionManager
+import client.session.{SessionManager, WebSocketKeepAlive}
 
 import scala.scalajs.js
 import scala.util.{Try, Success, Failure}
@@ -30,6 +30,13 @@ var drawingContext: Option[CanvasRenderingContext2D] = None
 var isDrawing = false
 var hasSubmittedDrawing = false // Track if current drawing has been submitted
 var isRejoiningDrawing = false // Track if we're attempting to rejoin
+
+// WebSocket keepalive to prevent idle timeouts
+val drawingKeepAlive: WebSocketKeepAlive = WebSocketKeepAlive.forWebSocket(
+  "Drawing",
+  () => drawingWebSocket,
+  () => upickle.default.write(ClientMessage.Ping())
+)
 
 // Session management functions - delegating to shared SessionManager
 def saveDrawingSession(playerId: String, lobbyId: String, playerName: String): Unit =
@@ -65,11 +72,13 @@ def attemptDrawingRejoin(lobbyId: String, playerId: String): Unit =
   ws.onopen = (e: Event) =>
     println(s"[Drawing] Connected, attempting rejoin to lobby $lobbyId")
     sendDrawingMessage(ClientMessage.RejoinLobby(lobbyId, playerId))
+    drawingKeepAlive.start()
 
   ws.onmessage = (event: MessageEvent) => handleServerMessage(event.data.toString)
   ws.onerror = (event: Event) => println(s"[Drawing] WebSocket error during rejoin")
   ws.onclose = (e: CloseEvent) =>
     println(s"[Drawing] Disconnected from lobby")
+    drawingKeepAlive.stop()
     // Don't clear session on close - allow reconnection attempts
 
 def buildDrawingUI(): Unit =
@@ -413,6 +422,7 @@ def createDrawingLobby(): Unit =
     ws.onopen = (e: Event) =>
       println(s"[Drawing] WebSocket connected, creating lobby (gameMode: $gameMode, captionStyle: $captionStyle)...")
       sendDrawingMessage(ClientMessage.CreateLobby(playerName, apiKey, gameMode, captionStyle))
+      drawingKeepAlive.start()
 
     ws.onmessage = (event: MessageEvent) =>
       handleServerMessage(event.data.toString)
@@ -422,6 +432,7 @@ def createDrawingLobby(): Unit =
 
     ws.onclose = (event: CloseEvent) =>
       println("[Drawing] WebSocket disconnected")
+      drawingKeepAlive.stop()
 
 def joinDrawingLobby(): Unit =
   val lobbyId = getInputValue("joinLobbyId").getOrElse("").toUpperCase
@@ -429,10 +440,26 @@ def joinDrawingLobby(): Unit =
 
   if lobbyId.nonEmpty && playerName.nonEmpty then
     currentLobbyId = Some(lobbyId)
-    connectDrawingWebSocket(lobbyId)
-    drawingWebSocket.foreach: ws =>
-      ws.onopen = (e: Event) =>
-        sendDrawingMessage(ClientMessage.JoinLobby(lobbyId, playerName))
+    val protocol = if window.location.protocol == "https:" then "wss:" else "ws:"
+    val wsUrl = s"$protocol//${window.location.host}/ws/drawing/$lobbyId"
+
+    val ws = new WebSocket(wsUrl)
+    drawingWebSocket = Some(ws)
+
+    ws.onopen = (e: Event) =>
+      println(s"[Drawing] WebSocket connected to lobby $lobbyId")
+      sendDrawingMessage(ClientMessage.JoinLobby(lobbyId, playerName))
+      drawingKeepAlive.start()
+
+    ws.onmessage = (event: MessageEvent) =>
+      handleServerMessage(event.data.toString)
+
+    ws.onerror = (event: Event) =>
+      println("[Drawing] WebSocket error")
+
+    ws.onclose = (event: CloseEvent) =>
+      println("[Drawing] WebSocket disconnected")
+      drawingKeepAlive.stop()
 
 def connectDrawingWebSocket(lobbyId: String): Unit =
   val protocol = if window.location.protocol == "https:" then "wss:" else "ws:"
@@ -443,6 +470,7 @@ def connectDrawingWebSocket(lobbyId: String): Unit =
 
   ws.onopen = (e: Event) =>
     println(s"[Drawing] WebSocket connected to lobby $lobbyId")
+    drawingKeepAlive.start()
 
   ws.onmessage = (event: MessageEvent) =>
     handleServerMessage(event.data.toString)
@@ -452,6 +480,7 @@ def connectDrawingWebSocket(lobbyId: String): Unit =
 
   ws.onclose = (event: CloseEvent) =>
     println("[Drawing] WebSocket disconnected")
+    drawingKeepAlive.stop()
 
 def handleServerMessage(data: String): Unit =
   Try:
@@ -481,6 +510,7 @@ def processServerMessage(msg: ServerMessage): Unit =
 
     case ServerMessage.RejoinFailed(reason) =>
       println(s"[Drawing] Rejoin failed: $reason")
+      drawingKeepAlive.stop()
       clearDrawingSession()
       isRejoiningDrawing = false
       // Close the WebSocket and reset state
