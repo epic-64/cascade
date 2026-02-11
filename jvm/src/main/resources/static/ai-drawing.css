@@ -1,104 +1,12 @@
 /* AI Drawing Game Styles */
 
-/* Container and hidden utility are in base.css */
+/* Base styles (container, hidden, lobby-setup, etc.) are in base.css */
 
-/* Lobby Setup is in base.css, just add drawing-game specific overrides if needed */
+/* Drawing-game specific lobby setup override */
 .lobby-setup .tabs {
   margin-top: 2rem;
 }
 
-/* Legacy setup-card styles (kept for compatibility) */
-.setup-options {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
-  margin-top: 2rem;
-}
-
-.setup-card {
-  background: var(--bg-card);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--border-subtle);
-  padding: 2rem;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-}
-
-.setup-card h3 {
-  margin-bottom: 1.5rem;
-  font-size: 1.25rem;
-  color: var(--text-primary);
-}
-
-.setup-card input {
-  margin-bottom: 1rem;
-}
-
-.setup-card button[type="submit"] {
-  width: 100%;
-  margin-top: 0.5rem;
-}
-
-/* Game Controls are in base.css */
-
-/* Waiting Room - Legacy alias, new code should use .waiting-area */
-.waiting-room {
-  background: var(--bg-card);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--border-subtle);
-  padding: 2rem;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  text-align: center;
-}
-
-/* Lobby code is in base.css */
-
-/* Players list - Legacy alias, new code should use .players with .player-card */
-.players-list {
-  margin: 2rem 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-/* Legacy simple player item styling */
-.players-list > div {
-  background: rgba(99, 102, 241, 0.1);
-  padding: 0.75rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(99, 102, 241, 0.2);
-}
-
-/* Start Game Button - Legacy ID styling, new code should use .btn.btn-success.btn-block */
-#startGameBtn {
-  margin-top: 1.5rem;
-  padding: 0.875rem 2rem;
-  font-size: 0.95rem;
-  background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
-  color: white;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-}
-
-#startGameBtn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
-}
-
-#startGameBtn:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-#startGameBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  background: rgba(100, 100, 100, 0.3);
-}
 
 /* Drawing Area */
 .drawing-area {
@@ -184,51 +92,6 @@
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
 }
 
-/* Clear Button - Legacy ID styling, new code should use .btn.btn-danger */
-#clearBtn {
-  padding: 0.75rem 1.5rem;
-  background: rgba(239, 68, 68, 0.2);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  color: #fca5a5;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: all 0.2s;
-  font-weight: 600;
-}
-
-#clearBtn:hover {
-  background: rgba(239, 68, 68, 0.3);
-  border-color: rgba(239, 68, 68, 0.6);
-}
-
-/* Submit Drawing Button - Legacy ID styling, new code should use .btn.btn-success */
-#submitDrawingBtn {
-  padding: 0.875rem 2rem;
-  font-size: 0.95rem;
-  background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
-  color: white;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-}
-
-#submitDrawingBtn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
-}
-
-#submitDrawingBtn:active {
-  transform: translateY(0);
-}
-
-#submitDrawingBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
-}
 
 /* Gallery Area - Unified view for reveal phases */
 .gallery-area {
@@ -520,29 +383,6 @@
   color: var(--text-secondary);
 }
 
-/* Next Round Button - Legacy ID styling, new code should use .btn.btn-primary */
-#nextRoundBtn {
-  margin-top: 2rem;
-  padding: 0.875rem 2rem;
-  font-size: 0.95rem;
-  background: linear-gradient(135deg, var(--accent-purple-dark) 0%, #8b5cf6 100%);
-  color: white;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-}
-
-#nextRoundBtn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
-}
-
-#nextRoundBtn:active {
-  transform: translateY(0);
-}
 
 /* Responsive adjustments */
 @media (max-width: 768px) {

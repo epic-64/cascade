@@ -152,7 +152,7 @@ def createColorRushLobbySetup(): HTMLElement =
 
 def createWaitingArea(): HTMLElement =
   // Waiting area container
-  div(id = "waitingArea", cls = "waiting-area-container hidden")(
+  div(id = "waitingArea", cls = "waiting-area hidden")(
     h3(content = "Lobby:"),
     div(id = "lobbyCode", cls = "lobby-code"),
     el("h4", content = "Players:"),
@@ -170,7 +170,7 @@ def createWaitingArea(): HTMLElement =
               select.appendChild(o)
       )
     ),
-    button(id = "startButton", cls = "start-button").tap: btn =>
+    button(id = "startButton", cls = "btn btn-success btn-block").tap: btn =>
       btn.textContent = "Start Game"
       btn.addEventListener("click", (e: Event) => startGame())
   )
