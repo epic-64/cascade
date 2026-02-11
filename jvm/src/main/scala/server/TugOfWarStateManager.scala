@@ -13,8 +13,8 @@ class TugOfWarStateManager:
   def getGame(gameId: String): Option[shared.TugOfWar.TugOfWarGame] =
     Option(games.get(gameId))
 
-  def createGame(gameId: String, roundsToWin: Int): shared.TugOfWar.TugOfWarGame =
-    val game = shared.TugOfWar.TugOfWar.createGame(gameId, roundsToWin)
+  def createGame(gameId: String, roundsToWin: Int, timeLimitSeconds: Int = shared.TugOfWar.TugOfWar.DefaultTimeLimitSeconds): shared.TugOfWar.TugOfWarGame =
+    val game = shared.TugOfWar.TugOfWar.createGame(gameId, roundsToWin, timeLimitSeconds)
     games.put(gameId, game)
     gameConnections.computeIfAbsent(
       gameId,

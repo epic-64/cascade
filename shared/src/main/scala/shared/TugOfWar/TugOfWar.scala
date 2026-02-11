@@ -15,6 +15,7 @@ case class TugOfWarGame(
     players: Map[String, PlayerState],
     ropePosition: Int, // -100 to +100, 0 is center
     roundsToWin: Int, // First to X rounds wins
+    timeLimitSeconds: Int, // Time limit per round (0 = no limit)
     redRoundsWon: Int,
     blueRoundsWon: Int,
     currentRound: Int,
@@ -44,14 +45,16 @@ object TugOfWar:
   val WinPosition: Int = 100 // Position magnitude to reach to win
   val StartPosition: Int = 0
   val ClickPower: Int = 1 // How much each click moves the rope
+  val DefaultTimeLimitSeconds: Int = 20 // Default time limit per round
 
-  def createGame(gameId: String, roundsToWin: Int = 3): TugOfWarGame =
+  def createGame(gameId: String, roundsToWin: Int = 3, timeLimitSeconds: Int = DefaultTimeLimitSeconds): TugOfWarGame =
     TugOfWarGame(
       gameId = gameId,
       hostId = None,
       players = Map.empty,
       ropePosition = StartPosition,
       roundsToWin = roundsToWin,
+      timeLimitSeconds = timeLimitSeconds,
       redRoundsWon = 0,
       blueRoundsWon = 0,
       currentRound = 0,
@@ -122,9 +125,9 @@ object TugOfWar:
       else game.hostId
     game.copy(players = activePlayers, hostId = newHostId)
 
-  def configureGame(game: TugOfWarGame, roundsToWin: Int): TugOfWarGame =
+  def configureGame(game: TugOfWarGame, roundsToWin: Int, timeLimitSeconds: Int): TugOfWarGame =
     if game.status == GameStatus.Waiting then
-      game.copy(roundsToWin = roundsToWin)
+      game.copy(roundsToWin = roundsToWin, timeLimitSeconds = timeLimitSeconds)
     else
       game
 
@@ -179,6 +182,33 @@ object TugOfWar:
     if game.ropePosition <= -WinPosition then Some(Team.Red)
     else if game.ropePosition >= WinPosition then Some(Team.Blue)
     else None
+
+  /** Check if time has expired for the round */
+  def isTimeExpired(game: TugOfWarGame): Boolean =
+    if game.timeLimitSeconds <= 0 then false
+    else
+      game.roundStartTime match
+        case Some(startTime) =>
+          val elapsed = System.currentTimeMillis() - startTime
+          elapsed >= game.timeLimitSeconds * 1000L
+        case None => false
+
+  /** Get remaining time in seconds, or None if no time limit */
+  def getRemainingTime(game: TugOfWarGame): Option[Int] =
+    if game.timeLimitSeconds <= 0 then None
+    else
+      game.roundStartTime match
+        case Some(startTime) =>
+          val elapsed = System.currentTimeMillis() - startTime
+          val remaining = game.timeLimitSeconds - (elapsed / 1000).toInt
+          Some(math.max(0, remaining))
+        case None => Some(game.timeLimitSeconds)
+
+  /** Determine winner when time expires (by position, or draw if at center) */
+  def getTimeoutWinner(game: TugOfWarGame): Option[Team] =
+    if game.ropePosition < 0 then Some(Team.Red)
+    else if game.ropePosition > 0 then Some(Team.Blue)
+    else None // Draw - no winner
 
   def endRound(game: TugOfWarGame, winner: Team): TugOfWarGame =
     val (newRedWins, newBlueWins) = winner match

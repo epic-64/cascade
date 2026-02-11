@@ -156,6 +156,32 @@ def createTugOfWarLobbySetup(): HTMLElement =
             el.required = true
             el.autocomplete = "off"
           ,
+          div(cls = "select-row")(
+            el("label").tap: lbl =>
+              lbl.setAttribute("for", "towCreateRounds")
+              lbl.textContent = "Rounds to Win:"
+            ,
+            el("select", id = "towCreateRounds").tap: select =>
+              Vector(1, 2, 3, 5, 7).foreach: rounds =>
+                val option = el("option").asInstanceOf[dom.HTMLOptionElement].tap: o =>
+                  o.value = rounds.toString
+                  o.textContent = rounds.toString
+                  if rounds == 3 then o.selected = true
+                  select.appendChild(o)
+          ),
+          div(cls = "select-row")(
+            el("label").tap: lbl =>
+              lbl.setAttribute("for", "towCreateTimeLimit")
+              lbl.textContent = "Time per Round:"
+            ,
+            el("select", id = "towCreateTimeLimit").tap: select =>
+              Vector((0, "No Limit"), (10, "10 seconds"), (20, "20 seconds"), (30, "30 seconds"), (60, "60 seconds")).foreach: (secs, label) =>
+                val option = el("option").asInstanceOf[dom.HTMLOptionElement].tap: o =>
+                  o.value = secs.toString
+                  o.textContent = label
+                  if secs == 20 then o.selected = true
+                  select.appendChild(o)
+          ),
           button("submit", content = "Create Game")
         )
       )
@@ -166,6 +192,9 @@ def createTugOfWarWaitingArea(): HTMLElement =
   div(id = "towWaitingArea", cls = "waiting-area hidden")(
     h3(content = "Lobby:"),
     div(id = "towLobbyCode", cls = "lobby-code"),
+    
+    // Game settings (readonly display)
+    div(id = "towLobbySettings", cls = "lobby-settings"),
 
     // Team selection
     div(cls = "tow-team-selector")(
@@ -189,20 +218,6 @@ def createTugOfWarWaitingArea(): HTMLElement =
       )
     ),
 
-    // Game settings
-    div(cls = "game-settings")(
-      el("label")(
-        span(content = "Rounds to Win: "),
-        el("select", id = "towRoundsSelector").tap: select =>
-          select.addEventListener("change", (e: Event) => updateTugOfWarSettings())
-          Vector(1, 2, 3, 5, 7).foreach: rounds =>
-            val option = el("option").asInstanceOf[dom.HTMLOptionElement].tap: o =>
-              o.value = rounds.toString
-              o.textContent = rounds.toString
-              if rounds == 3 then o.selected = true
-              select.appendChild(o)
-      )
-    ),
 
     // Start button
     button(id = "towStartButton", cls = "btn btn-success btn-block").tap: btn =>
@@ -231,7 +246,8 @@ def createTugOfWarGameArea(): HTMLElement =
         div(cls = "round-label", content = "Round"),
         div(id = "towCurrentRound", cls = "round-number", content = "1"),
         span(content = " of "),
-        span(id = "towTotalRounds", content = "3")
+        span(id = "towTotalRounds", content = "3"),
+        div(id = "towTimer", cls = "timer hidden")
       ),
       div(cls = "tow-team-score blue")(
         div(cls = "team-name", content = "BLUE"),
@@ -349,12 +365,14 @@ def joinTugOfWarGame(): Unit =
 
 def createTugOfWarGame(): Unit =
   val playerNameOpt = getInputValue("towCreatePlayerName")
+  val roundsToWin = getInputValue("towCreateRounds").flatMap(s => Try(s.toInt).toOption).getOrElse(3)
+  val timeLimitSeconds = getInputValue("towCreateTimeLimit").flatMap(s => Try(s.toInt).toOption).getOrElse(20)
 
   playerNameOpt match
     case Some(playerName) if playerName.nonEmpty =>
       val gameId = generateTugOfWarGameCode()
       towGameId = Some(gameId)
-      connectToTugOfWarGame(gameId, playerName)
+      createTugOfWarGameWithConfig(gameId, playerName, roundsToWin, timeLimitSeconds)
     case _ =>
       println("[TugOfWar] Missing player name")
 
@@ -373,6 +391,26 @@ def connectToTugOfWarGame(gameId: String, playerName: String): Unit =
   ws.onopen = (e: Event) =>
     println(s"[TugOfWar] Connected to game $gameId")
     sendTugOfWarMessage(ws, JoinMessage(playerName))
+    towKeepAlive.start()
+
+  ws.onmessage = (event: MessageEvent) => handleTugOfWarWebSocketMessage(event.data.toString)
+  ws.onerror = (event: Event) => println(s"[TugOfWar] WebSocket error")
+  ws.onclose = (e: CloseEvent) =>
+    println(s"[TugOfWar] Disconnected from game")
+    towKeepAlive.stop()
+    scheduleTugOfWarReconnect()
+
+def createTugOfWarGameWithConfig(gameId: String, playerName: String, roundsToWin: Int, timeLimitSeconds: Int): Unit =
+  towPlayerName = Some(playerName)
+  val protocol = if window.location.protocol == "https:" then "wss:" else "ws:"
+  val wsUrl = s"$protocol//${window.location.host}/ws/tug-of-war/$gameId"
+
+  val ws = new WebSocket(wsUrl)
+  towWebSocket = Some(ws)
+
+  ws.onopen = (e: Event) =>
+    println(s"[TugOfWar] Connected to game $gameId (creating with config)")
+    sendTugOfWarMessage(ws, CreateMessage(playerName, roundsToWin, timeLimitSeconds))
     towKeepAlive.start()
 
   ws.onmessage = (event: MessageEvent) => handleTugOfWarWebSocketMessage(event.data.toString)
@@ -417,11 +455,6 @@ def selectTeam(team: Team): Unit =
   towWebSocket.foreach: ws =>
     sendTugOfWarMessage(ws, SelectTeamMessage(team))
 
-def updateTugOfWarSettings(): Unit =
-  getInputValue("towRoundsSelector").foreach: roundsStr =>
-    Try(roundsStr.toInt).toOption.foreach: roundsToWin =>
-      towWebSocket.foreach: ws =>
-        sendTugOfWarMessage(ws, ConfigureMessage(roundsToWin))
 
 def startTugOfWarGame(): Unit =
   towWebSocket.foreach: ws =>
@@ -484,6 +517,9 @@ def handleTugOfWarWebSocketMessage(data: String): Unit =
         updateRopePosition(position)
         updateClickCounts(redClicks, blueClicks)
 
+      case TimerUpdateMessage(secondsRemaining) =>
+        updateTugOfWarTimer(secondsRemaining)
+
       case RoundEndMessage(winner, result) =>
         showTugOfWarRoundWinner(winner, result)
 
@@ -492,6 +528,7 @@ def handleTugOfWarWebSocketMessage(data: String): Unit =
 
       case ErrorMessage(message) =>
         println(s"[TugOfWar] Error: $message")
+        dom.window.alert(s"Error: $message")
   .recover:
     case ex => println(s"[TugOfWar] Error handling message: ${ex.getMessage}")
 
@@ -503,7 +540,7 @@ def handleTugOfWarGameUpdate(game: TugOfWarGame): Unit =
   game.status match
     case GameStatus.Waiting =>
       updateTugOfWarTeamLists(game)
-      updateTugOfWarRoundsSelector(game.roundsToWin)
+      updateTugOfWarLobbySettings(game)
       updateTugOfWarStartButton(game)
 
     case GameStatus.Playing =>
@@ -515,6 +552,12 @@ def handleTugOfWarGameUpdate(game: TugOfWarGame): Unit =
         TugOfWar.getTeamClicks(game, Team.Blue)
       )
       updateTugOfWarClickButton()
+      updateYourClicks(game)
+      // Show timer if there's a time limit
+      if game.timeLimitSeconds > 0 then
+        getElementById("towTimer").foreach(_.classList.remove("hidden"))
+      else
+        getElementById("towTimer").foreach(_.classList.add("hidden"))
       updateYourClicks(game)
 
     case GameStatus.RoundEnd =>
@@ -573,10 +616,15 @@ def updateTugOfWarTeamLists(game: TugOfWarGame): Unit =
   getElementById("towBlueCount").foreach: elem =>
     elem.textContent = s"${bluePlayers.size} player${if bluePlayers.size != 1 then "s" else ""}"
 
-def updateTugOfWarRoundsSelector(roundsToWin: Int): Unit =
-  getElementById("towRoundsSelector").foreach: selector =>
-    val selectElem = selector.asInstanceOf[dom.HTMLSelectElement]
-    selectElem.value = roundsToWin.toString
+def updateTugOfWarLobbySettings(game: TugOfWarGame): Unit =
+  val timeLimitText = if game.timeLimitSeconds > 0 then s"${game.timeLimitSeconds}s" else "No limit"
+  getElementById("towLobbySettings").foreach: elem =>
+    elem.innerHTML = s"<strong>Settings:</strong> First to ${game.roundsToWin} rounds • Time limit: $timeLimitText"
+
+def updateTugOfWarTimer(secondsRemaining: Int): Unit =
+  getElementById("towTimer").foreach: elem =>
+    elem.textContent = secondsRemaining.toString
+    elem.classList.remove("hidden")
 
 def updateTugOfWarStartButton(game: TugOfWarGame): Unit =
   val canStart = TugOfWar.canStart(game)

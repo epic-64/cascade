@@ -160,6 +160,18 @@
   color: var(--text-primary);
 }
 
+.tow-round-info .timer {
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--accent-yellow);
+  margin-top: var(--spacing-xs);
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+}
+
+.tow-round-info .timer.hidden {
+  display: none;
+}
+
 /* Rope visualization */
 .tow-rope-container {
   position: relative;
