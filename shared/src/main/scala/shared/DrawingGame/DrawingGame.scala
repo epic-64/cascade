@@ -102,16 +102,71 @@ object DrawingGame:
   
   // Static list of prompts for cost control
   private val prompts: Vector[String] = Vector(
-    "cat", "house", "tree", "car", "flower",
-    "sun", "moon", "star", "cloud", "rainbow",
-    "butterfly", "fish", "bird", "dog", "elephant",
-    "mountain", "ocean", "apple", "pizza", "cup",
-    "chair", "book", "key", "heart", "smile",
-    "clock", "guitar", "rocket", "umbrella", "hat",
-    "glasses", "shoe", "boat", "castle", "dragon",
-    "robot", "snowman", "cupcake", "balloon", "bicycle",
-    "camera", "diamond", "fire", "ghost", "ice cream",
-    "lightning", "mushroom", "pencil", "scissors", "trophy"
+    // Animals
+    "cat", "dog", "bird", "fish", "elephant", "lion", "tiger", "bear", "monkey", "giraffe",
+    "zebra", "penguin", "dolphin", "whale", "shark", "octopus", "crab", "lobster", "snail", "butterfly",
+    "bee", "spider", "ant", "ladybug", "frog", "turtle", "snake", "crocodile", "dinosaur", "dragon",
+    "unicorn", "horse", "cow", "pig", "sheep", "chicken", "duck", "owl", "eagle", "parrot",
+    "flamingo", "peacock", "bat", "rabbit", "squirrel", "deer", "wolf", "fox", "kangaroo", "koala",
+    "panda", "gorilla", "hippo", "rhino", "camel", "moose", "beaver", "otter", "seal", "jellyfish",
+    
+    // Food & Drinks
+    "apple", "banana", "orange", "pizza", "burger", "hotdog", "taco", "sushi", "cake", "cupcake",
+    "donut", "cookie", "ice cream", "candy", "chocolate", "popcorn", "french fries", "sandwich", "salad", "soup",
+    "bread", "cheese", "egg", "bacon", "steak", "chicken leg", "watermelon", "strawberry", "grapes", "pineapple",
+    "lemon", "cherry", "avocado", "carrot", "broccoli", "corn", "mushroom", "onion", "tomato", "potato",
+    "coffee", "tea", "juice", "milkshake", "wine", "beer", "soda", "water bottle", "coconut", "pretzel",
+    
+    // Objects & Things
+    "house", "car", "bicycle", "motorcycle", "airplane", "helicopter", "rocket", "boat", "ship", "submarine",
+    "train", "bus", "truck", "tractor", "ambulance", "fire truck", "police car", "taxi", "skateboard", "scooter",
+    "chair", "table", "bed", "couch", "lamp", "television", "computer", "phone", "camera", "clock",
+    "book", "pencil", "pen", "scissors", "ruler", "backpack", "briefcase", "wallet", "purse", "key",
+    "door", "window", "stairs", "ladder", "bridge", "fence", "mailbox", "trash can", "toilet", "bathtub",
+    "umbrella", "hat", "glasses", "sunglasses", "watch", "ring", "necklace", "crown", "helmet", "mask",
+    "shoe", "boot", "sock", "glove", "scarf", "tie", "dress", "pants", "shirt", "jacket",
+    "guitar", "piano", "drum", "violin", "trumpet", "microphone", "headphones", "speaker", "radio", "record",
+    "ball", "balloon", "kite", "yo-yo", "dice", "puzzle", "robot", "teddy bear", "doll", "lego",
+    "candle", "lighter", "matches", "flashlight", "battery", "magnet", "compass", "telescope", "microscope", "binoculars",
+    
+    // Nature & Weather
+    "tree", "flower", "grass", "leaf", "bush", "cactus", "palm tree", "pine tree", "bamboo", "vine",
+    "sun", "moon", "star", "cloud", "rainbow", "lightning", "tornado", "volcano", "earthquake", "tsunami",
+    "mountain", "hill", "valley", "cave", "island", "beach", "desert", "forest", "jungle", "swamp",
+    "river", "lake", "ocean", "waterfall", "pond", "wave", "rain", "snow", "ice", "fire",
+    "rock", "sand", "mud", "crystal", "gem", "diamond", "gold", "silver", "pearl", "fossil",
+    
+    // Places & Buildings
+    "castle", "palace", "tower", "pyramid", "temple", "church", "mosque", "lighthouse", "windmill", "barn",
+    "hospital", "school", "library", "museum", "theater", "stadium", "prison", "factory", "skyscraper", "igloo",
+    "tent", "treehouse", "cabin", "cottage", "mansion", "hut", "garage", "shed", "greenhouse", "playground",
+    
+    // People & Body Parts
+    "baby", "ninja", "pirate", "wizard", "witch", "knight", "king", "queen", "princess", "prince",
+    "clown", "astronaut", "doctor", "chef", "firefighter", "police officer", "teacher", "farmer", "scientist", "artist",
+    "eye", "ear", "nose", "mouth", "tongue", "tooth", "hand", "foot", "heart", "brain",
+    "skeleton", "skull", "bone", "muscle", "beard", "mustache", "hair", "smile", "frown", "wink",
+    
+    // Sports & Activities
+    "soccer ball", "basketball", "football", "baseball", "tennis racket", "golf club", "hockey stick", "bowling pin", "dart", "archery",
+    "swimming", "surfing", "skiing", "snowboarding", "skateboarding", "fishing", "camping", "hiking", "climbing", "dancing",
+    "yoga", "karate", "boxing", "wrestling", "fencing", "horseback riding", "cycling", "running", "jumping", "diving",
+    
+    // Fantasy & Mythology
+    "angel", "devil", "ghost", "zombie", "vampire", "werewolf", "mermaid", "fairy", "elf", "dwarf",
+    "giant", "troll", "goblin", "ogre", "phoenix", "griffin", "centaur", "minotaur", "cyclops", "medusa",
+    "magic wand", "crystal ball", "treasure chest", "magic carpet", "potion", "spell book", "cauldron", "sword", "shield", "bow and arrow",
+    
+    // Space & Science
+    "planet", "saturn", "mars", "earth", "meteor", "comet", "asteroid", "black hole", "galaxy", "constellation",
+    "alien", "ufo", "spaceship", "satellite", "space station", "astronaut", "moon rover", "telescope", "atom", "dna",
+    
+    // Emotions & Concepts
+    "love", "peace", "music", "dream", "idea", "time", "money", "luck", "hope", "fear",
+    
+    // Misc Fun
+    "trophy", "medal", "present", "birthday cake", "christmas tree", "snowman", "jack-o-lantern", "easter egg", "fireworks", "confetti",
+    "anchor", "compass", "map", "treasure", "pirate ship", "cannon", "flag", "banner", "sign", "arrow"
   )
 
   def getRandomPrompt(): String =
