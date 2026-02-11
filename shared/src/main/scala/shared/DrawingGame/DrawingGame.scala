@@ -5,6 +5,11 @@ import shared.session.{PlayerConnection, PlayerConnectionOps}
 
 // AI Drawing Challenge - Multiplayer drawing game with AI judging
 
+// Game mode determines how prompts are generated
+enum GameMode derives ReadWriter:
+  case SingleWord      // Simple single-word prompts from static list
+  case TwoWordScene    // AI generates creative prompts from 2 random words
+
 // Proper state machine for the game phases
 enum LobbyStatus derives ReadWriter:
   case Waiting           // Waiting for players to join, host can start game
@@ -28,7 +33,7 @@ case class DrawingLobby(
     currentRound: Int,
     maxRounds: Int,
     timerStartTime: Option[Long],
-    advancedMode: Boolean = false
+    gameMode: GameMode = GameMode.SingleWord
 ) derives ReadWriter
 
 case class PlayerInfo(
@@ -53,7 +58,7 @@ case class RoundResult(
 
 // Client -> Server messages
 enum ClientMessage derives ReadWriter:
-  case CreateLobby(playerName: String, apiKey: String, advancedMode: Boolean = false)
+  case CreateLobby(playerName: String, apiKey: String, gameMode: GameMode = GameMode.SingleWord)
   case JoinLobby(lobbyId: String, playerName: String)
   case RejoinLobby(lobbyId: String, playerId: String)
   case StartGame()
@@ -107,7 +112,7 @@ object DrawingGame:
     import scala.util.Random
     prompts(Random.nextInt(prompts.length))
 
-  def createLobby(lobbyId: String, hostId: String, hostName: String, maxRounds: Int = 5, advancedMode: Boolean = false): DrawingLobby =
+  def createLobby(lobbyId: String, hostId: String, hostName: String, maxRounds: Int = 5, gameMode: GameMode = GameMode.SingleWord): DrawingLobby =
     val host = PlayerInfo(hostId, hostName, connected = true, score = 0)
     DrawingLobby(
       lobbyId = lobbyId,
@@ -120,7 +125,7 @@ object DrawingGame:
       currentRound = 0,
       maxRounds = maxRounds,
       timerStartTime = None,
-      advancedMode = advancedMode
+      gameMode = gameMode
     )
 
   def addPlayer(lobby: DrawingLobby, playerId: String, playerName: String): DrawingLobby =

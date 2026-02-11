@@ -150,13 +150,20 @@ def createLobbySetup(): HTMLElement =
             el.required = true
             el.autocomplete = "off"
           ,
-          div(cls = "checkbox-row")(
-            input("checkbox", id = "advancedMode").tap: el =>
-              el.asInstanceOf[HTMLInputElement].checked = false
-            ,
+          div(cls = "select-row")(
             el("label").tap: lbl =>
-              lbl.setAttribute("for", "advancedMode")
-              lbl.textContent = "Advanced Mode (AI-generated prompts)"
+              lbl.setAttribute("for", "gameMode")
+              lbl.textContent = "Game Mode:"
+            ,
+            el("select", id = "gameMode")(
+              el("option").tap: opt =>
+                opt.setAttribute("value", "SingleWord")
+                opt.textContent = "Single Word"
+              ,
+              el("option").tap: opt =>
+                opt.setAttribute("value", "TwoWordScene")
+                opt.textContent = "2-Word Scene (AI-generated)"
+            )
           ),
           div(cls = "warning", content = "⚠️ You'll pay for OpenAI API usage (~$0.02-0.04 per round)"),
           button("submit", content = "Create Lobby")
@@ -362,9 +369,12 @@ def clearCanvas(): Unit =
 def createDrawingLobby(): Unit =
   val playerName = getInputValue("createPlayerName").getOrElse("")
   val apiKey = getInputValue("apiKey").getOrElse("")
-  val advancedMode = getElementById("advancedMode")
-    .map(_.asInstanceOf[HTMLInputElement].checked)
-    .getOrElse(false)
+  val gameMode = getElementById("gameMode")
+    .map(_.asInstanceOf[HTMLSelectElement].value)
+    .map:
+      case "TwoWordScene" => GameMode.TwoWordScene
+      case _ => GameMode.SingleWord
+    .getOrElse(GameMode.SingleWord)
 
   if playerName.nonEmpty && apiKey.nonEmpty then
     // First connect to temporary WebSocket
@@ -375,8 +385,8 @@ def createDrawingLobby(): Unit =
     drawingWebSocket = Some(ws)
 
     ws.onopen = (e: Event) =>
-      println(s"[Drawing] WebSocket connected, creating lobby (advancedMode: $advancedMode)...")
-      sendDrawingMessage(ClientMessage.CreateLobby(playerName, apiKey, advancedMode))
+      println(s"[Drawing] WebSocket connected, creating lobby (gameMode: $gameMode)...")
+      sendDrawingMessage(ClientMessage.CreateLobby(playerName, apiKey, gameMode))
 
     ws.onmessage = (event: MessageEvent) =>
       handleServerMessage(event.data.toString)
