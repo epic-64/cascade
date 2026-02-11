@@ -1,16 +1,17 @@
 package server
 
-import org.slf4j.LoggerFactory
+import org.slf4j.{Logger, LoggerFactory}
 import scala.util.Try
 import scala.concurrent.{Future, ExecutionContext}
 import scala.concurrent.ExecutionContext.Implicits.global
 import castor.Context.Simple.global as castorGlobal
 import shared.DrawingGame.*
+import server.reconnection.ReconnectionSupport
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 import scala.jdk.CollectionConverters.*
 
-object DrawingGameHandler:
-  private val logger = LoggerFactory.getLogger(getClass)
+object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
+  protected val logger: Logger = LoggerFactory.getLogger(getClass)
 
   given castor.Context = castorGlobal
   given cask.util.Logger = cask.util.Logger.Console.globalLogger
@@ -47,6 +48,44 @@ object DrawingGameHandler:
   
   // Stored AI winner per lobby
   private val aiWinners = ConcurrentHashMap[String, String]()
+
+  // ============================================================================
+  // ReconnectionSupport implementation
+  // ============================================================================
+
+  protected def getGame(lobbyId: String): Option[DrawingLobby] =
+    Option(lobbies.get(lobbyId)).map(_._1)
+
+  protected def getPlayers(lobby: DrawingLobby): Map[String, PlayerInfo] =
+    lobby.players
+
+  protected def reconnectPlayer(player: PlayerInfo): PlayerInfo =
+    player.copy(connected = true, disconnectedAt = None)
+
+  protected def disconnectPlayer(player: PlayerInfo): PlayerInfo =
+    player.copy(connected = false, disconnectedAt = Some(System.currentTimeMillis()))
+
+  protected def withUpdatedPlayer(lobby: DrawingLobby, playerId: String, player: PlayerInfo): DrawingLobby =
+    lobby.copy(players = lobby.players + (playerId -> player))
+
+  protected def saveGame(lobbyId: String, lobby: DrawingLobby): Unit =
+    // Preserve the apiKey when saving
+    Option(lobbies.get(lobbyId)).foreach: (_, apiKey) =>
+      lobbies.put(lobbyId, (lobby, apiKey))
+
+  protected def registerPlayerChannel(channel: cask.WsChannelActor, lobbyId: String, playerId: String): Unit =
+    channelToPlayer.put(channel, playerId)
+    channelToLobby.put(channel, lobbyId)
+    addConnection(lobbyId, channel)
+
+  protected def sendRejoinSuccess(channel: cask.WsChannelActor, playerId: String, lobbyId: String): Unit =
+    sendToClient(channel, ServerMessage.LobbyCreated(lobbyId, playerId))
+
+  protected def sendRejoinFailure(channel: cask.WsChannelActor, reason: String): Unit =
+    sendToClient(channel, ServerMessage.RejoinFailed(reason))
+
+  protected def broadcastGameState(lobbyId: String): Unit =
+    broadcastLobbyUpdate(lobbyId)
 
   // ============================================================================
   // WebSocket Handling
@@ -151,40 +190,20 @@ object DrawingGameHandler:
           broadcastLobbyUpdate(lobbyId)
 
   private def handleRejoinLobby(channel: cask.WsChannelActor, lobbyId: String, playerId: String): Unit =
-    lobbies.get(lobbyId) match
-      case null =>
-        logger.info(s"Player $playerId cannot rejoin - lobby $lobbyId not found")
-        sendToClient(channel, ServerMessage.RejoinFailed("Lobby not found"))
-      case (lobby, apiKey) =>
-        if DrawingGame.canRejoin(lobby, playerId) then
-          DrawingGame.reconnectPlayer(lobby, playerId) match
-            case Some(updatedLobby) =>
-              lobbies.put(lobbyId, (updatedLobby, apiKey))
-              channelToPlayer.put(channel, playerId)
-              channelToLobby.put(channel, lobbyId)
-              addConnection(lobbyId, channel)
-              
-              val playerName = updatedLobby.players.get(playerId).map(_.playerName).getOrElse("Unknown")
-              logger.info(s"Player $playerName ($playerId) rejoined lobby $lobbyId")
-              
-              // Send confirmation and current lobby state
-              sendToClient(channel, ServerMessage.LobbyCreated(lobbyId, playerId))
-              sendToClient(channel, ServerMessage.LobbyUpdate(updatedLobby))
-              
-              // Also send current prompt if in drawing phase
-              updatedLobby.currentPrompt.foreach: prompt =>
-                if updatedLobby.status == LobbyStatus.Drawing then
-                  sendToClient(channel, ServerMessage.PromptAnnounced(prompt))
-              
-              // Broadcast to other players that someone reconnected
-              broadcastLobbyUpdate(lobbyId)
-              
-            case None =>
-              logger.warn(s"Failed to reconnect player $playerId to lobby $lobbyId")
-              sendToClient(channel, ServerMessage.RejoinFailed("Failed to reconnect"))
-        else
-          logger.info(s"Player $playerId cannot rejoin lobby $lobbyId - grace period expired or not found")
-          sendToClient(channel, ServerMessage.RejoinFailed("Session expired"))
+    // Use trait's handleRejoinRequest for the core rejoin logic
+    handleRejoinRequest(channel, lobbyId, playerId)
+    
+    // If rejoin was successful, send additional game-specific state
+    // Check if channel is now registered to this lobby
+    if Option(channelToLobby.get(channel)).contains(lobbyId) then
+      getGame(lobbyId).foreach: lobby =>
+        // Send current lobby state
+        sendToClient(channel, ServerMessage.LobbyUpdate(lobby))
+        
+        // Also send current prompt if in drawing phase
+        lobby.currentPrompt.foreach: prompt =>
+          if lobby.status == LobbyStatus.Drawing then
+            sendToClient(channel, ServerMessage.PromptAnnounced(prompt))
 
   private def handleStartGame(lobbyId: String): Unit =
     lobbies.get(lobbyId) match
@@ -512,16 +531,9 @@ object DrawingGameHandler:
         case null => ()
         case channelSet => channelSet.remove(channel)
     
-    // Mark player as disconnected (but keep in lobby for grace period)
+    // Use trait's handleDisconnection for the actual disconnect logic
     playerId.foreach: pId =>
-      lobbies.get(actualLobbyId) match
-        case null => ()
-        case (lobby, apiKey) =>
-          val updatedLobby = DrawingGame.disconnectPlayer(lobby, pId)
-          lobbies.put(actualLobbyId, (updatedLobby, apiKey))
-          val playerName = lobby.players.get(pId).map(_.playerName).getOrElse("Unknown")
-          logger.info(s"Player $playerName ($pId) marked as disconnected from lobby $actualLobbyId (can rejoin within grace period)")
-          broadcastLobbyUpdate(actualLobbyId)
+      handleDisconnection(actualLobbyId, pId)
     
     channelToPlayer.remove(channel)
     channelToLobby.remove(channel)
