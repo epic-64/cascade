@@ -125,6 +125,10 @@ def createLobbySetup(): HTMLElement =
             el.required = true
             el.maxLength = 6
             el.autocomplete = "off"
+            el.addEventListener("input", (e: Event) =>
+              val input = e.target.asInstanceOf[HTMLInputElement]
+              input.value = input.value.toUpperCase
+            )
           ,
           input("text", id = "joinPlayerName").tap: el =>
             el.placeholder = "Your name"
