@@ -86,33 +86,35 @@ def buildDrawingUI(): Unit =
     )
   )
 
+def switchTab(tab: String): Unit =
+  tab match
+    case "join" =>
+      getElementById("joinTab").foreach(_.classList.add("active"))
+      getElementById("createTab").foreach(_.classList.remove("active"))
+      getElementById("joinTabContent").foreach(_.classList.add("active"))
+      getElementById("createTabContent").foreach(_.classList.remove("active"))
+    case "create" =>
+      getElementById("createTab").foreach(_.classList.add("active"))
+      getElementById("joinTab").foreach(_.classList.remove("active"))
+      getElementById("createTabContent").foreach(_.classList.add("active"))
+      getElementById("joinTabContent").foreach(_.classList.remove("active"))
+    case _ => ()
+
 def createLobbySetup(): HTMLElement =
   div(id = "lobbySetup", cls = "lobby-setup")(
     h2(content = "AI Drawing Challenge"),
     p(cls = "subtitle", content = "Draw a prompt, let AI caption it, and compete for the best match!"),
 
-    div(cls = "setup-options")(
-      div(cls = "setup-card")(
-        h3(content = "Create Lobby"),
-        form(id = "createForm").tap(_.addEventListener("submit", (e: Event) =>
-          e.preventDefault()
-          createDrawingLobby()
-        ))(
-          input("text", id = "createPlayerName").tap: el =>
-            el.placeholder = "Your name"
-            el.required = true
-          ,
-          input("password", id = "apiKey").tap: el =>
-            el.placeholder = "OpenAI API Key"
-            el.required = true
-          ,
-          div(cls = "warning", content = "⚠️ You'll pay for OpenAI API usage (~$0.02-0.04 per round)"),
-          button("submit", content = "Create Lobby")
-        )
-      ),
+    div(cls = "tabs")(
+      button(id = "joinTab", cls = "tab-btn active", content = "Join Lobby").tap: btn =>
+        btn.addEventListener("click", (e: Event) => switchTab("join"))
+      ,
+      button(id = "createTab", cls = "tab-btn", content = "Create Lobby").tap: btn =>
+        btn.addEventListener("click", (e: Event) => switchTab("create"))
+    ),
 
-      div(cls = "setup-card")(
-        h3(content = "Join Lobby"),
+    div(cls = "tab-content")(
+      div(id = "joinTabContent", cls = "tab-pane active")(
         form(id = "joinForm").tap(_.addEventListener("submit", (e: Event) =>
           e.preventDefault()
           joinDrawingLobby()
@@ -127,6 +129,24 @@ def createLobbySetup(): HTMLElement =
             el.required = true
           ,
           button("submit", content = "Join Lobby")
+        )
+      ),
+
+      div(id = "createTabContent", cls = "tab-pane")(
+        form(id = "createForm").tap(_.addEventListener("submit", (e: Event) =>
+          e.preventDefault()
+          createDrawingLobby()
+        ))(
+          input("password", id = "apiKey").tap: el =>
+            el.placeholder = "OpenAI API Key"
+            el.required = true
+          ,
+          input("text", id = "createPlayerName").tap: el =>
+            el.placeholder = "Your name"
+            el.required = true
+          ,
+          div(cls = "warning", content = "⚠️ You'll pay for OpenAI API usage (~$0.02-0.04 per round)"),
+          button("submit", content = "Create Lobby")
         )
       )
     )

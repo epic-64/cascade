@@ -14,8 +14,90 @@
 .lobby-setup {
   text-align: center;
   margin-bottom: 2rem;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 0;
+  margin-top: 2rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 1rem 1.5rem;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.tab-btn.active {
+  color: var(--accent-purple-light);
+  border-bottom-color: var(--accent-purple-light);
+}
+
+.tab-content {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-subtle);
+  border-top: none;
+  padding: 2rem;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.tab-pane {
+  display: none;
+}
+
+.tab-pane.active {
+  display: block;
+}
+
+.tab-pane input {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.tab-pane button[type="submit"] {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.875rem;
+  font-size: 0.95rem;
+  background: linear-gradient(135deg, var(--accent-purple-dark) 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.tab-pane button[type="submit"]:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+}
+
+.tab-pane button[type="submit"]:active {
+  transform: translateY(0);
+}
+
+/* Legacy setup-card styles (kept for compatibility) */
 .setup-options {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
