@@ -40,11 +40,25 @@ object OpenAIClient:
           throw ex
       .get
 
-  def captionImage(apiKey: String, imageBase64: String)(using ec: ExecutionContext): Future[String] =
+  import shared.DrawingGame.CaptionStyle
+
+  def captionImage(apiKey: String, imageBase64: String, captionStyle: CaptionStyle = CaptionStyle.Descriptive)(using ec: ExecutionContext): Future[String] =
     val url = "https://api.openai.com/v1/chat/completions"
 
     // Remove data URL prefix if present
     val cleanBase64 = imageBase64.replaceFirst("^data:image/png;base64,", "")
+
+    val promptText = captionStyle match
+      case CaptionStyle.Descriptive =>
+        """Describe this drawing in 10-20 words. Include:
+          |1. What the drawing depicts
+          |2. A brief comment on the artistic skill or style (e.g., "skillfully rendered", "charmingly simple", "impressively detailed", "delightfully wonky")
+          |Be witty and entertaining. Do not use quotes.""".stripMargin
+      case CaptionStyle.Roast =>
+        """Roast this drawing in 10-20 words. Be savage but funny about:
+          |1. What you think it's supposed to be
+          |2. The questionable artistic choices
+          |Channel your inner Simon Cowell. Be brutal but hilarious. Do not use quotes.""".stripMargin
 
     val requestBody = ujson.Obj(
       "model" -> visionModel,
@@ -54,10 +68,7 @@ object OpenAIClient:
           "content" -> ujson.Arr(
             ujson.Obj(
               "type" -> "text",
-              "text" -> """Describe this drawing in 10-20 words. Include:
-                |1. What the drawing depicts
-                |2. A brief comment on the artistic skill or style (e.g., "skillfully rendered", "charmingly simple", "impressively detailed", "delightfully wonky")
-                |Be witty and entertaining. Do not use quotes.""".stripMargin
+              "text" -> promptText
             ),
             ujson.Obj(
               "type" -> "image_url",

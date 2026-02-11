@@ -127,8 +127,8 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
     val actualLobbyId = Option(channelToLobby.get(channel)).getOrElse(lobbyId)
 
     msg match
-      case ClientMessage.CreateLobby(playerName, apiKey, gameMode) =>
-        handleCreateLobby(channel, playerName, apiKey, gameMode)
+      case ClientMessage.CreateLobby(playerName, apiKey, gameMode, captionStyle) =>
+        handleCreateLobby(channel, playerName, apiKey, gameMode, captionStyle)
 
       case ClientMessage.JoinLobby(joinLobbyId, playerName) =>
         handleJoinLobby(channel, joinLobbyId, playerName)
@@ -148,10 +148,10 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
       case ClientMessage.NextRound() =>
         handleNextRound(actualLobbyId)
 
-  private def handleCreateLobby(channel: cask.WsChannelActor, playerName: String, apiKey: String, gameMode: GameMode): Unit =
+  private def handleCreateLobby(channel: cask.WsChannelActor, playerName: String, apiKey: String, gameMode: GameMode, captionStyle: CaptionStyle): Unit =
     val lobbyId = generateLobbyId()
     val playerId = generatePlayerId()
-    val lobby = DrawingGame.createLobby(lobbyId, playerId, playerName, gameMode = gameMode)
+    val lobby = DrawingGame.createLobby(lobbyId, playerId, playerName, gameMode = gameMode, captionStyle = captionStyle)
 
     lobbies.put(lobbyId, (lobby, apiKey))
     playerLobbies.put(playerId, lobbyId)
@@ -161,7 +161,7 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
     removeConnection("temp", channel)
     addConnection(lobbyId, channel)
 
-    logger.info(s"Created lobby $lobbyId for player $playerName (playerId: $playerId, gameMode: $gameMode)")
+    logger.info(s"Created lobby $lobbyId for player $playerName (playerId: $playerId, gameMode: $gameMode, captionStyle: $captionStyle)")
 
     sendToClient(channel, ServerMessage.LobbyCreated(lobbyId, playerId))
     sendToClient(channel, ServerMessage.LobbyUpdate(lobby))
@@ -499,7 +499,7 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
         else
           // Caption all drawings in parallel
           val captioningFutures = lobby.drawings.map: (playerId, drawing) =>
-            OpenAIClient.captionImage(apiKey, drawing.imageData).map: caption =>
+            OpenAIClient.captionImage(apiKey, drawing.imageData, lobby.captionStyle).map: caption =>
               (playerId, drawing.playerName, caption)
 
           Future.sequence(captioningFutures).map: captionResults =>
