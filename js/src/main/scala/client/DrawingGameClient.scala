@@ -153,7 +153,7 @@ def createLobbySetup(): HTMLElement =
           div(cls = "select-row")(
             el("label").tap: lbl =>
               lbl.setAttribute("for", "gameMode")
-              lbl.textContent = "Game Mode:"
+              lbl.textContent = "Prompt Mode:"
             ,
             el("select", id = "gameMode")(
               el("option").tap: opt =>
@@ -163,6 +163,21 @@ def createLobbySetup(): HTMLElement =
               el("option").tap: opt =>
                 opt.setAttribute("value", "TwoWordScene")
                 opt.textContent = "2-Word Scene (AI-generated)"
+            )
+          ),
+          div(cls = "select-row")(
+            el("label").tap: lbl =>
+              lbl.setAttribute("for", "captionStyle")
+              lbl.textContent = "Caption Style:"
+            ,
+            el("select", id = "captionStyle")(
+              el("option").tap: opt =>
+                opt.setAttribute("value", "Descriptive")
+                opt.textContent = "Descriptive"
+              ,
+              el("option").tap: opt =>
+                opt.setAttribute("value", "Roast")
+                opt.textContent = "Roast Mode 🔥"
             )
           ),
           div(cls = "warning", content = "⚠️ You'll pay for OpenAI API usage (~$0.02-0.04 per round)"),
@@ -375,6 +390,12 @@ def createDrawingLobby(): Unit =
       case "TwoWordScene" => GameMode.TwoWordScene
       case _ => GameMode.SingleWord
     .getOrElse(GameMode.SingleWord)
+  val captionStyle = getElementById("captionStyle")
+    .map(_.asInstanceOf[HTMLSelectElement].value)
+    .map:
+      case "Roast" => CaptionStyle.Roast
+      case _ => CaptionStyle.Descriptive
+    .getOrElse(CaptionStyle.Descriptive)
 
   if playerName.nonEmpty && apiKey.nonEmpty then
     // First connect to temporary WebSocket
@@ -385,8 +406,8 @@ def createDrawingLobby(): Unit =
     drawingWebSocket = Some(ws)
 
     ws.onopen = (e: Event) =>
-      println(s"[Drawing] WebSocket connected, creating lobby (gameMode: $gameMode)...")
-      sendDrawingMessage(ClientMessage.CreateLobby(playerName, apiKey, gameMode))
+      println(s"[Drawing] WebSocket connected, creating lobby (gameMode: $gameMode, captionStyle: $captionStyle)...")
+      sendDrawingMessage(ClientMessage.CreateLobby(playerName, apiKey, gameMode, captionStyle))
 
     ws.onmessage = (event: MessageEvent) =>
       handleServerMessage(event.data.toString)

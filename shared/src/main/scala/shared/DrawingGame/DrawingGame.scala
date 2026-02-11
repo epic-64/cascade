@@ -10,6 +10,11 @@ enum GameMode derives ReadWriter:
   case SingleWord      // Simple single-word prompts from static list
   case TwoWordScene    // AI generates creative prompts from 2 random words
 
+// Caption style determines how AI describes the drawings
+enum CaptionStyle derives ReadWriter:
+  case Descriptive     // Default: describe what's drawn and comment on skill
+  case Roast           // Roast the art style humorously
+
 // Proper state machine for the game phases
 enum LobbyStatus derives ReadWriter:
   case Waiting           // Waiting for players to join, host can start game
@@ -33,7 +38,8 @@ case class DrawingLobby(
     currentRound: Int,
     maxRounds: Int,
     timerStartTime: Option[Long],
-    gameMode: GameMode = GameMode.SingleWord
+    gameMode: GameMode = GameMode.SingleWord,
+    captionStyle: CaptionStyle = CaptionStyle.Descriptive
 ) derives ReadWriter
 
 case class PlayerInfo(
@@ -58,7 +64,7 @@ case class RoundResult(
 
 // Client -> Server messages
 enum ClientMessage derives ReadWriter:
-  case CreateLobby(playerName: String, apiKey: String, gameMode: GameMode = GameMode.SingleWord)
+  case CreateLobby(playerName: String, apiKey: String, gameMode: GameMode = GameMode.SingleWord, captionStyle: CaptionStyle = CaptionStyle.Descriptive)
   case JoinLobby(lobbyId: String, playerName: String)
   case RejoinLobby(lobbyId: String, playerId: String)
   case StartGame()
@@ -112,7 +118,7 @@ object DrawingGame:
     import scala.util.Random
     prompts(Random.nextInt(prompts.length))
 
-  def createLobby(lobbyId: String, hostId: String, hostName: String, maxRounds: Int = 5, gameMode: GameMode = GameMode.SingleWord): DrawingLobby =
+  def createLobby(lobbyId: String, hostId: String, hostName: String, maxRounds: Int = 5, gameMode: GameMode = GameMode.SingleWord, captionStyle: CaptionStyle = CaptionStyle.Descriptive): DrawingLobby =
     val host = PlayerInfo(hostId, hostName, connected = true, score = 0)
     DrawingLobby(
       lobbyId = lobbyId,
@@ -125,7 +131,8 @@ object DrawingGame:
       currentRound = 0,
       maxRounds = maxRounds,
       timerStartTime = None,
-      gameMode = gameMode
+      gameMode = gameMode,
+      captionStyle = captionStyle
     )
 
   def addPlayer(lobby: DrawingLobby, playerId: String, playerName: String): DrawingLobby =
