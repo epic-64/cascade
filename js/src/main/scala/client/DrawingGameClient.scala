@@ -123,10 +123,12 @@ def createLobbySetup(): HTMLElement =
             el.placeholder = "Lobby Code (e.g., ABC123)"
             el.required = true
             el.maxLength = 6
+            el.autocomplete = "off"
           ,
           input("text", id = "joinPlayerName").tap: el =>
             el.placeholder = "Your name"
             el.required = true
+            el.autocomplete = "off"
           ,
           button("submit", content = "Join Lobby")
         )
@@ -140,10 +142,12 @@ def createLobbySetup(): HTMLElement =
           input("password", id = "apiKey").tap: el =>
             el.placeholder = "OpenAI API Key"
             el.required = true
+            el.autocomplete = "off"
           ,
           input("text", id = "createPlayerName").tap: el =>
             el.placeholder = "Your name"
             el.required = true
+            el.autocomplete = "off"
           ,
           div(cls = "warning", content = "⚠️ You'll pay for OpenAI API usage (~$0.02-0.04 per round)"),
           button("submit", content = "Create Lobby")
