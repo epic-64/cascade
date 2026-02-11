@@ -1,38 +1,7 @@
 /* Color Rush Game Styles */
 
-/* Lobby Setup - Tabbed Interface */
-.lobby-setup {
-  text-align: center;
-  margin-bottom: 2rem;
-  max-width: 400px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.lobby-setup h2 {
-  font-size: 1.75rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-  color: var(--text-primary);
-}
-
-.lobby-setup .subtitle {
-  color: var(--text-secondary);
-  margin-bottom: 1.5rem;
-  font-size: 0.95rem;
-}
-
-.lobby-setup .tabs {
-  margin-top: 1.5rem;
-}
-
-.lobby-code {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--accent-purple-light);
-  margin: 1rem 0;
-  letter-spacing: 0.1em;
-}
+/* Lobby Code - game specific override if needed */
+/* Base .lobby-code is in base.css */
 
 /* Join Form Container - shown initially (legacy, kept for compatibility) */
 .join-form-container {
@@ -63,7 +32,8 @@
   width: 100%;
 }
 
-/* Waiting Area Container - shown after joining */
+/* Waiting Area Container - Alias for backward compatibility */
+/* New code should use .waiting-area from base.css */
 .waiting-area-container {
   background: var(--bg-card);
   backdrop-filter: blur(20px);
@@ -84,141 +54,18 @@
   color: var(--text-primary);
 }
 
-.players {
-  margin: 0 0 1rem 0;
+/* Players list and player-card are now in base.css */
+
+/* ColorRush-specific player card styling */
+.player-card .player-wins {
+  font-size: 0.8rem;
+  color: var(--accent-yellow);
+  margin-left: 0.5rem;
 }
 
-.game-settings {
-  background: rgba(39, 39, 42, 0.4);
-  border: 1px solid var(--border-subtle);
-  padding: 1rem;
-  border-radius: var(--radius-md);
-  margin-bottom: 1rem;
-}
+/* Game Area and Game Controls are now in base.css */
 
-.game-settings label {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  color: var(--text-primary);
-  font-size: 0.95rem;
-  font-weight: 500;
-}
-
-.game-settings select {
-  padding: 0.5rem 0.75rem;
-  background: rgba(24, 24, 27, 0.8);
-  color: var(--text-primary);
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-sm);
-  font-size: 0.95rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.game-settings select:hover {
-  border-color: var(--border-bright);
-  background: rgba(39, 39, 42, 0.9);
-}
-
-.game-settings select:focus {
-  outline: none;
-  border-color: var(--accent-purple);
-  box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.2);
-}
-
-.player-card {
-  background: rgba(39, 39, 42, 0.55);
-  border: 1px solid var(--border-medium);
-  padding: 0.875rem 1rem;
-  margin: 0.5rem 0;
-  border-radius: var(--radius-md);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: all 0.2s;
-}
-
-.player-card:hover {
-  background: var(--bg-card-hover);
-  border-color: var(--border-bright);
-}
-
-.player-name {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.player-score {
-  color: var(--accent-purple);
-  font-size: 1.1rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.game-area {
-  text-align: center;
-  margin-bottom: 1rem;
-}
-
-.game-controls {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.game-controls button {
-  min-width: 140px;
-}
-
-/* Legacy alias - use .btn.btn-secondary for new code */
-.secondary-button {
-  padding: 0.75rem 1.5rem;
-  background: rgba(39, 39, 42, 0.8);
-  color: var(--text-primary);
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-md);
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: var(--shadow-sm);
-}
-
-.secondary-button:hover {
-  background: rgba(63, 63, 70, 0.9);
-  border-color: var(--border-bright);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.secondary-button:active {
-  transform: translateY(0);
-  box-shadow: var(--shadow-sm);
-}
-
-.round-info {
-  background: rgba(24, 24, 27, 0.7);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--border-subtle);
-  padding: 1.5rem;
-  border-radius: var(--radius-lg);
-  margin-bottom: 1.5rem;
-  max-width: 480px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.round-number {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  margin-bottom: 1rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 500;
-}
-
+/* Round Info is in base.css, these are ColorRush-specific elements */
 .target-color-label {
   font-size: 1.1rem;
   font-weight: 500;
@@ -448,6 +295,8 @@
 .close-winner-button:active {
   transform: translateY(0);
 }
+
+/* Legacy alias - new code should use .btn.btn-success.btn-block */
 .start-button {
   width: 100%;
   font-size: 0.95rem;
@@ -462,13 +311,18 @@
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
-.start-button:hover {
+.start-button:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
 }
 
-.start-button:active {
+.start-button:active:not(:disabled) {
   transform: translateY(0);
+}
+
+.start-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Desktop layout: side-by-side */
@@ -494,18 +348,21 @@
 
   .join-form-container,
   .waiting-area-container,
+  .waiting-area,
   .lobby-setup,
   #lobby {
     grid-column: 1 / -1;
   }
 
   .join-form-container,
-  .waiting-area-container {
+  .waiting-area-container,
+  .waiting-area {
     padding: 2rem;
   }
 
   .join-form-container h2,
-  .waiting-area-container h3 {
+  .waiting-area-container h3,
+  .waiting-area h3 {
     font-size: 1.5rem;
     margin-bottom: 1.5rem;
   }

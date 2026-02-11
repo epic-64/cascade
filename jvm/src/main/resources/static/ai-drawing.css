@@ -1,23 +1,8 @@
 /* AI Drawing Game Styles */
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-}
+/* Container and hidden utility are in base.css */
 
-.hidden {
-  display: none !important;
-}
-
-/* Lobby Setup */
-.lobby-setup {
-  text-align: center;
-  margin-bottom: 2rem;
-  max-width: 400px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
+/* Lobby Setup is in base.css, just add drawing-game specific overrides if needed */
 .lobby-setup .tabs {
   margin-top: 2rem;
 }
@@ -54,19 +39,9 @@
   margin-top: 0.5rem;
 }
 
-/* Game Controls */
-.game-controls {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
+/* Game Controls are in base.css */
 
-.game-controls button {
-  min-width: 140px;
-}
-
-/* Waiting Room */
+/* Waiting Room - Legacy alias, new code should use .waiting-area */
 .waiting-room {
   background: var(--bg-card);
   backdrop-filter: blur(20px);
@@ -77,14 +52,9 @@
   text-align: center;
 }
 
-.lobby-code {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--accent-purple-light);
-  margin: 1rem 0;
-  letter-spacing: 0.1em;
-}
+/* Lobby code is in base.css */
 
+/* Players list - Legacy alias, new code should use .players with .player-card */
 .players-list {
   margin: 2rem 0;
   display: flex;
@@ -92,6 +62,7 @@
   gap: 0.5rem;
 }
 
+/* Legacy simple player item styling */
 .players-list > div {
   background: rgba(99, 102, 241, 0.1);
   padding: 0.75rem;
@@ -99,6 +70,7 @@
   border: 1px solid rgba(99, 102, 241, 0.2);
 }
 
+/* Start Game Button - Legacy ID styling, new code should use .btn.btn-success.btn-block */
 #startGameBtn {
   margin-top: 1.5rem;
   padding: 0.875rem 2rem;
@@ -212,6 +184,7 @@
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
 }
 
+/* Clear Button - Legacy ID styling, new code should use .btn.btn-danger */
 #clearBtn {
   padding: 0.75rem 1.5rem;
   background: rgba(239, 68, 68, 0.2);
@@ -228,6 +201,7 @@
   border-color: rgba(239, 68, 68, 0.6);
 }
 
+/* Submit Drawing Button - Legacy ID styling, new code should use .btn.btn-success */
 #submitDrawingBtn {
   padding: 0.875rem 2rem;
   font-size: 0.95rem;
@@ -546,6 +520,7 @@
   color: var(--text-secondary);
 }
 
+/* Next Round Button - Legacy ID styling, new code should use .btn.btn-primary */
 #nextRoundBtn {
   margin-top: 2rem;
   padding: 0.875rem 2rem;
