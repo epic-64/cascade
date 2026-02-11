@@ -18,33 +18,33 @@ object ColorRushHandler:
 
   def handleWebSocket(gameId: String): cask.WebsocketResult =
     cask.WsHandler: channel =>
-      // Initialize game if it doesn't exist
-      gameManager.getOrCreateGame(gameId)
-
-      // Add channel to game connections
+      // Don't create game yet - wait for JoinMessage with totalRounds
+      // Just add the connection tracking
       gameManager.addConnection(gameId, channel)
-      val connectionCount = gameManager.getGameConnectionCount(gameId)
 
-      logger.info(s"Player connected to game $gameId. Total players: $connectionCount")
+      logger.info(s"Player connected to game $gameId")
 
       cask.WsActor:
         case cask.Ws.Text(msg) =>
           logger.info(s"Received WebSocket message: $msg")
           Try:
             import upickle.default.*
-            val clientMsg = read[shared.ClientMessage](msg)
+            val clientMsg = read[shared.ColorRush.ClientMessage](msg)
 
             clientMsg match
-              case shared.JoinMessage(playerName) =>
-                handleJoin(channel, gameId, playerName)
+              case shared.ColorRush.JoinMessage(playerName, totalRounds) =>
+                handleJoin(channel, gameId, playerName, totalRounds)
 
-              case shared.StartMessage() =>
+              case shared.ColorRush.ConfigureMessage(totalRounds) =>
+                handleConfigure(gameId, totalRounds)
+
+              case shared.ColorRush.StartMessage() =>
                 handleStart(gameId)
 
-              case shared.ClickMessage(color, clickTime) =>
+              case shared.ColorRush.ClickMessage(color, clickTime) =>
                 handleClick(channel, gameId, color, clickTime)
 
-              case shared.NextRoundMessage() =>
+              case shared.ColorRush.NextRoundMessage() =>
                 handleNextRound(gameId)
           .recover:
             case ex =>
@@ -57,24 +57,32 @@ object ColorRushHandler:
           logger.error(s"WebSocket error in game $gameId: ${ex.getMessage}", ex)
           handlePlayerDisconnect(channel, gameId)
 
-  private def handleJoin(channel: cask.WsChannelActor, gameId: String, playerName: String): Unit =
+  private def handleJoin(channel: cask.WsChannelActor, gameId: String, playerName: String, totalRounds: Int): Unit =
     val playerId = java.util.UUID.randomUUID().toString
 
     gameManager.registerPlayer(channel, gameId, playerId)
 
-    val game        = gameManager.getGame(gameId).get
-    val updatedGame = shared.ColorRush.addPlayer(game, playerId, playerName)
+    // Create game if it doesn't exist, using the totalRounds from the first player
+    val game = gameManager.getGame(gameId).getOrElse(gameManager.createGame(gameId, totalRounds))
+    val updatedGame = shared.ColorRush.ColorRush.addPlayer(game, playerId, playerName)
     gameManager.updateGame(gameId, updatedGame)
 
-    logger.info(s"Player $playerName ($playerId) joined game $gameId")
+    logger.info(s"Player $playerName ($playerId) joined game $gameId with totalRounds=$totalRounds")
 
     // Broadcast game state to all players
     broadcastGameState(gameId)
 
+  private def handleConfigure(gameId: String, totalRounds: Int): Unit =
+    gameManager.getGame(gameId).foreach: game =>
+      val updatedGame = shared.ColorRush.ColorRush.configureGame(game, totalRounds)
+      gameManager.updateGame(gameId, updatedGame)
+      logger.info(s"Game $gameId configured: totalRounds=$totalRounds")
+      broadcastGameState(gameId)
+
   private def handleStart(gameId: String): Unit =
     gameManager.getGame(gameId).foreach: game =>
       if game.players.nonEmpty then
-        val gameWithRound = shared.ColorRush.startNewRound(game)
+        val gameWithRound = shared.ColorRush.ColorRush.startNewRound(game)
         gameManager.updateGame(gameId, gameWithRound)
         logger.info(s"Game $gameId started - Round ${gameWithRound.roundNumber}")
         broadcastGameState(gameId)
@@ -83,7 +91,7 @@ object ColorRushHandler:
     gameManager.getPlayerInfo(channel) match
       case Some((gId, pId)) if gId == gameId =>
         gameManager.getGame(gameId).foreach: game =>
-          val (updatedGame, winner) = shared.ColorRush.handleColorClick(game, pId, color, clickTime)
+          val (updatedGame, winner) = shared.ColorRush.ColorRush.handleColorClick(game, pId, color, clickTime)
           gameManager.updateGame(gameId, updatedGame)
 
           winner.foreach: (playerId, playerName, points) =>
@@ -98,13 +106,13 @@ object ColorRushHandler:
   private def handleNextRound(gameId: String): Unit =
     // Client confirms they've seen the winner announcement, advance to next round
     gameManager.getGame(gameId).foreach: game =>
-      if game.status == shared.GameStatus.RoundEnd then
-        val nextGame = shared.ColorRush.advanceFromRoundEnd(game)
+      if game.status == shared.ColorRush.GameStatus.RoundEnd then
+        val nextGame = shared.ColorRush.ColorRush.advanceFromRoundEnd(game)
         gameManager.updateGame(gameId, nextGame)
         logger.info(s"Game $gameId advancing from roundEnd to ${nextGame.status}")
 
-        if nextGame.status == shared.GameStatus.GameOver then
-          val winner = shared.ColorRush.getWinner(nextGame)
+        if nextGame.status == shared.ColorRush.GameStatus.GameOver then
+          val winner = shared.ColorRush.ColorRush.getWinner(nextGame)
           broadcastGameEnd(gameId, winner)
 
         broadcastGameState(gameId)
@@ -114,7 +122,7 @@ object ColorRushHandler:
     import upickle.default.*
 
     gameManager.getGame(gameId).foreach: game =>
-      val message     = shared.GameUpdateMessage(game)
+      val message     = shared.ColorRush.GameUpdateMessage(game)
       val messageJson = write(message)
 
       Option(gameManager.getConnections(gameId)).foreach: connections =>
@@ -126,7 +134,7 @@ object ColorRushHandler:
     import scala.jdk.CollectionConverters.*
     import upickle.default.*
 
-    val message     = shared.RoundWinnerMessage(playerName, points)
+    val message     = shared.ColorRush.RoundWinnerMessage(playerName, points)
     val messageJson = write(message)
 
     Option(gameManager.getConnections(gameId)).foreach: connections =>
@@ -134,11 +142,11 @@ object ColorRushHandler:
         Try(channel.send(cask.Ws.Text(messageJson))).recover:
           case ex => logger.warn(s"Failed to broadcast round winner: ${ex.getMessage}")
 
-  private def broadcastGameEnd(gameId: String, winner: Option[shared.PlayerState]): Unit =
+  private def broadcastGameEnd(gameId: String, winner: Option[shared.ColorRush.PlayerState]): Unit =
     import scala.jdk.CollectionConverters.*
     import upickle.default.*
 
-    val message     = shared.GameEndMessage(winner)
+    val message     = shared.ColorRush.GameEndMessage(winner)
     val messageJson = write(message)
 
     Option(gameManager.getConnections(gameId)).foreach: connections =>
@@ -156,14 +164,14 @@ object ColorRushHandler:
       case Some((gId, pId)) if gId == gameId =>
         gameManager.unregisterPlayer(channel)
         gameManager.getGame(gameId).foreach: game =>
-          val updatedGame = shared.ColorRush.removePlayer(game, pId)
+          val updatedGame = shared.ColorRush.ColorRush.removePlayer(game, pId)
           gameManager.updateGame(gameId, updatedGame)
           logger.info(s"Player $pId disconnected from game $gameId")
           broadcastGameState(gameId)
 
-          // Clean up game if it's GameOver and has no more connections
+          // Clean up game if it has no more connections
           val connectionCount = gameManager.getGameConnectionCount(gameId)
-          if updatedGame.status == shared.GameStatus.GameOver && connectionCount == 0 then
+          if connectionCount == 0 then
             gameManager.cleanupGame(gameId)
       case _ =>
 
@@ -177,13 +185,13 @@ object ColorRushHandler:
     gameManager.cleanupEmptyGames()
 
   // Test helpers - package-private for testing
-  private[server] def getGame(gameId: String): Option[shared.ColorRushGame] =
+  private[server] def getGame(gameId: String): Option[shared.ColorRush.ColorRushGame] =
     gameManager.getGame(gameId)
 
   private[server] def getGameConnectionCount(gameId: String): Int =
     gameManager.getGameConnectionCount(gameId)
 
-  private[server] def createTestGame(gameId: String, game: shared.ColorRushGame): Unit =
+  private[server] def createTestGame(gameId: String, game: shared.ColorRush.ColorRushGame): Unit =
     gameManager.updateGame(gameId, game)
     gameManager.addConnection(gameId, null) // Ensure connections set exists
     gameManager.removeConnection(gameId, null) // Remove the null connection

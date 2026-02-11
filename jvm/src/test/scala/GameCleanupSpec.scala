@@ -2,7 +2,7 @@ package server
 
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
-import shared.*
+import shared.ColorRush.*
 
 class GameCleanupSpec extends AnyFunSpec with Matchers:
 
@@ -20,9 +20,10 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
           players = Map("p1" -> PlayerState("p1", "Alice", 100, 10)),
           currentRound = None,
           roundNumber = 10,
+          totalRounds = 10,
           status = GameStatus.GameOver
         )
-        gameManager.createGame(gameId)
+        gameManager.createGame(gameId, 10)
         gameManager.updateGame(gameId, game)
 
         // Initially the game exists
@@ -46,9 +47,10 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
           players = Map("p1" -> PlayerState("p1", "Alice", 100, 10)),
           currentRound = None,
           roundNumber = 10,
+          totalRounds = 10,
           status = GameStatus.GameOver
         )
-        gameManager.createGame(gameId)
+        gameManager.createGame(gameId, 10)
         gameManager.updateGame(gameId, finishedGame)
 
         // The game exists at round 10
@@ -62,7 +64,7 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
         gameManager.getGame(gameId) shouldBe empty
 
         // When a player creates/joins with the same game ID
-        val freshGame = gameManager.createGame(gameId)
+        val freshGame = gameManager.createGame(gameId, 10)
 
         // Then a fresh game should exist, not the old one at round 10
         gameManager.getGame(gameId).map(_.roundNumber) shouldBe Some(0)
@@ -89,9 +91,10 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
             players = Map.empty,
             currentRound = None,
             roundNumber = 1,
+            totalRounds = 10,
             status = status
           )
-          gameManager.createGame(gameId)
+          gameManager.createGame(gameId, 10)
           gameManager.updateGame(gameId, game)
         }
 
@@ -121,9 +124,10 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
           players = Map.empty,
           currentRound = None,
           roundNumber = 1,
+          totalRounds = 10,
           status = GameStatus.Waiting
         )
-        gameManager.createGame(game1Id)
+        gameManager.createGame(game1Id, 10)
         gameManager.updateGame(game1Id, game1)
 
         val game2Id = "game-2"
@@ -132,9 +136,10 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
           players = Map.empty,
           currentRound = None,
           roundNumber = 1,
+          totalRounds = 10,
           status = GameStatus.Playing
         )
-        gameManager.createGame(game2Id)
+        gameManager.createGame(game2Id, 10)
         gameManager.updateGame(game2Id, game2)
 
         // Both games initially exist with no connections
@@ -164,6 +169,52 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
       }
     }
 
+    describe("Feature: Immediate cleanup when all players leave") {
+
+      it("should cleanup games when all players disconnect regardless of status") {
+        import org.scalatest.prop.TableDrivenPropertyChecks.*
+
+        val gameStatuses = Table(
+          ("status", "roundNumber", "hasCurrentRound"),
+          (GameStatus.Waiting, 0, false),
+          (GameStatus.Playing, 5, true),
+          (GameStatus.RoundEnd, 7, true),
+          (GameStatus.GameOver, 10, false)
+        )
+
+        forAll(gameStatuses): (status, roundNumber, hasCurrentRound) =>
+          val gameManager = ColorRushStateManager()
+          
+          // Given a game in the specified status
+          val gameId = s"${status.toString.toLowerCase}-disconnect-test"
+          val currentRound = if hasCurrentRound then
+            Some(Round("#FF6B6B", Vector("#FF6B6B", "#4ECDC4", "#45B7D1"), System.currentTimeMillis()))
+          else
+            None
+          
+          val game = ColorRushGame(
+            gameId = gameId,
+            players = Map("p1" -> PlayerState("p1", "Alice", 50, 3)),
+            currentRound = currentRound,
+            roundNumber = roundNumber,
+            totalRounds = 10,
+            status = status
+          )
+          gameManager.createGame(gameId, 10)
+          gameManager.updateGame(gameId, game)
+
+          // Game exists
+          gameManager.getGame(gameId) shouldBe defined
+          gameManager.getGameConnectionCount(gameId) shouldBe 0
+
+          // When all players disconnect (no connections left)
+          gameManager.cleanupGame(gameId)
+
+          // Then the game should be removed immediately
+          gameManager.getGame(gameId) shouldBe empty
+      }
+    }
+
     describe("Scenario: Complete game lifecycle with cleanup") {
 
       it("should handle a full game from start to finish with proper cleanup") {
@@ -171,7 +222,7 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
         
         // Given a new game is created
         val gameId = "lifecycle-test"
-        val newGame = gameManager.createGame(gameId)
+        val newGame = gameManager.createGame(gameId, 10)
 
         // The game starts fresh
         gameManager.getGame(gameId).map(_.roundNumber) shouldBe Some(0)
@@ -194,7 +245,7 @@ class GameCleanupSpec extends AnyFunSpec with Matchers:
         gameManager.getGame(gameId) shouldBe empty
 
         // And the server is ready for a new game with the same ID
-        val freshGame = gameManager.createGame(gameId)
+        val freshGame = gameManager.createGame(gameId, 10)
 
         gameManager.getGame(gameId).map(_.roundNumber) shouldBe Some(0)
         gameManager.getGame(gameId).map(_.status) shouldBe Some(GameStatus.Waiting)

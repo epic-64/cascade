@@ -12,7 +12,7 @@ When a game reaches `GameOver` status and all players disconnect, the game is im
 **Implementation**: In `handlePlayerDisconnect`, after removing a player:
 ```scala
 // Clean up game if it's GameOver and has no more connections
-if updatedGame.status == shared.GameStatus.GameOver && connections.isEmpty then
+if updatedGame.status == shared.ColorRushGameStatus.GameOver && connections.isEmpty then
   cleanupGame(gameId)
 ```
 
