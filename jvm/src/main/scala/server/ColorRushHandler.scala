@@ -95,6 +95,10 @@ object ColorRushHandler extends ReconnectionSupport[PlayerState, ColorRushGame]:
 
               case shared.ColorRush.NextRoundMessage() =>
                 handleNextRound(gameId)
+
+              case shared.ColorRush.PingMessage() =>
+                // Keepalive ping - no action needed, just keeps the connection alive
+                logger.debug(s"Received keepalive ping for game $gameId")
           .recover:
             case ex =>
               logger.error(s"Error processing game message: ${ex.getMessage}", ex)
