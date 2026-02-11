@@ -89,6 +89,11 @@ Transpile client (production):
 sbt "js/fullLinkJS"
 ```
 
+Generate coverage report:
+```bash
+ENABLE_COVERAGE=true sbt clean coverage test coverageReport
+```
+
 ## Endpoints
 
 **Landing Page:**
