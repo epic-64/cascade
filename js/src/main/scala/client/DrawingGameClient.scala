@@ -157,11 +157,11 @@ def createLobbySetup(): HTMLElement =
   )
 
 def createWaitingRoom(): HTMLElement =
-  div(id = "waitingRoom", cls = "waiting-room hidden")(
+  div(id = "waitingRoom", cls = "waiting-area hidden")(
     h3(content = "Lobby:"),
     div(id = "lobbyCode", cls = "lobby-code"),
-    div(id = "playersList", cls = "players-list"),
-    button(id = "startGameBtn", cls = "btn").tap: btn =>
+    div(id = "playersList", cls = "players"),
+    button(id = "startGameBtn", cls = "btn btn-success btn-block").tap: btn =>
       btn.textContent = "Start Game"
       btn.addEventListener("click", (e: Event) => startDrawingGame())
   )
@@ -202,10 +202,10 @@ def createDrawingArea(): HTMLElement =
           btn.style.background = "#00FF00"
           btn.addEventListener("click", (e: Event) => selectColor("#00FF00", btn))
       ),
-      button(id = "clearBtn", content = "Clear").tap: btn =>
+      button(id = "clearBtn", cls = "btn btn-danger", content = "Clear").tap: btn =>
         btn.addEventListener("click", (e: Event) => clearCanvas())
       ,
-      button(id = "submitDrawingBtn", cls = "btn", content = "Submit Drawing").tap: btn =>
+      button(id = "submitDrawingBtn", cls = "btn btn-success", content = "Submit Drawing").tap: btn =>
         btn.addEventListener("click", (e: Event) => submitDrawing())
     )
   )
@@ -228,7 +228,7 @@ def createGalleryArea(): HTMLElement =
     // Results summary (shown after round complete)
     div(id = "roundSummary", cls = "round-summary hidden")(
       div(id = "summaryContent"),
-      button(id = "nextRoundBtn", cls = "btn", content = "Next Round").tap: btn =>
+      button(id = "nextRoundBtn", cls = "btn btn-primary", content = "Next Round").tap: btn =>
         btn.addEventListener("click", (e: Event) => nextRound())
     )
   )

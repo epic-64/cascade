@@ -1,60 +1,7 @@
 /* Color Rush Game Styles */
 
-/* Lobby Code - game specific override if needed */
-/* Base .lobby-code is in base.css */
-
-/* Join Form Container - shown initially (legacy, kept for compatibility) */
-.join-form-container {
-  background: var(--bg-card);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--border-subtle);
-  padding: 1.5rem;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  margin-bottom: 1rem;
-  max-width: 500px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.join-form-container h2 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  color: var(--text-primary);
-}
-
-.join-form-container input {
-  margin-bottom: 1rem;
-}
-
-.join-form-container button {
-  width: 100%;
-}
-
-/* Waiting Area Container - Alias for backward compatibility */
-/* New code should use .waiting-area from base.css */
-.waiting-area-container {
-  background: var(--bg-card);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--border-subtle);
-  padding: 1.5rem;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  margin-bottom: 1rem;
-  max-width: 500px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.waiting-area-container h3 {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  color: var(--text-primary);
-}
-
-/* Players list and player-card are now in base.css */
+/* Base styles (lobby-code, waiting-area, players, player-card, game-area,
+   game-controls, game-settings, round-info) are in base.css */
 
 /* ColorRush-specific player card styling */
 .player-card .player-wins {
@@ -63,9 +10,7 @@
   margin-left: 0.5rem;
 }
 
-/* Game Area and Game Controls are now in base.css */
-
-/* Round Info is in base.css, these are ColorRush-specific elements */
+/* ColorRush-specific round info elements */
 .target-color-label {
   font-size: 1.1rem;
   font-weight: 500;
@@ -296,34 +241,6 @@
   transform: translateY(0);
 }
 
-/* Legacy alias - new code should use .btn.btn-success.btn-block */
-.start-button {
-  width: 100%;
-  font-size: 0.95rem;
-  padding: 0.875rem;
-  background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
-  color: white;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-weight: 600;
-  transition: all 0.2s;
-  margin-top: 1.5rem;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-}
-
-.start-button:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
-}
-
-.start-button:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.start-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
 
 /* Desktop layout: side-by-side */
 @media (min-width: 900px) {
@@ -346,22 +263,16 @@
     margin-bottom: 2rem;
   }
 
-  .join-form-container,
-  .waiting-area-container,
   .waiting-area,
   .lobby-setup,
   #lobby {
     grid-column: 1 / -1;
   }
 
-  .join-form-container,
-  .waiting-area-container,
   .waiting-area {
     padding: 2rem;
   }
 
-  .join-form-container h2,
-  .waiting-area-container h3,
   .waiting-area h3 {
     font-size: 1.5rem;
     margin-bottom: 1.5rem;
