@@ -1,7 +1,40 @@
 /* Color Rush Game Styles */
 
+/* Lobby Setup - Tabbed Interface */
+.lobby-setup {
+  text-align: center;
+  margin-bottom: 2rem;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
 
-/* Join Form Container - shown initially */
+.lobby-setup h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.lobby-setup .subtitle {
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+}
+
+.lobby-setup .tabs {
+  margin-top: 1.5rem;
+}
+
+.lobby-code {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--accent-purple-light);
+  margin: 1rem 0;
+  letter-spacing: 0.1em;
+}
+
+/* Join Form Container - shown initially (legacy, kept for compatibility) */
 .join-form-container {
   background: var(--bg-card);
   backdrop-filter: blur(20px);
