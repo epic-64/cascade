@@ -83,37 +83,79 @@ def buildGameUI(): Unit =
 
 def createLobby(): HTMLElement =
   div(id = "lobby")(
-    createJoinForm(),
+    createColorRushLobbySetup(),
     createWaitingArea()
   )
 
-def createJoinForm(): HTMLElement =
-  val joinGameListener = (e: Event) =>
-    e.preventDefault()
-    joinGame()
+def switchColorRushTab(tab: String): Unit =
+  tab match
+    case "join" =>
+      getElementById("joinTab").foreach(_.classList.add("active"))
+      getElementById("createTab").foreach(_.classList.remove("active"))
+      getElementById("joinTabContent").foreach(_.classList.add("active"))
+      getElementById("createTabContent").foreach(_.classList.remove("active"))
+    case "create" =>
+      getElementById("createTab").foreach(_.classList.add("active"))
+      getElementById("joinTab").foreach(_.classList.remove("active"))
+      getElementById("createTabContent").foreach(_.classList.add("active"))
+      getElementById("joinTabContent").foreach(_.classList.remove("active"))
+    case _ => ()
 
-  div(id = "joinFormContainer", cls = "join-form-container")(
-    h2(content = "Join Game"),
-    form(id = "joinForm").tap(_.addEventListener("submit", joinGameListener))(
-      input("text", id = "gameId").tap: el =>
-        el.placeholder = "Game ID (e.g., game123)"
-        el.setAttribute("autocomplete", "off")
-        el.required = true
+def createColorRushLobbySetup(): HTMLElement =
+  div(id = "lobbySetup", cls = "lobby-setup")(
+    h2(content = "Color Rush"),
+    p(cls = "subtitle", content = "Race to click the matching color faster than your friends!"),
+
+    div(cls = "tabs")(
+      button(id = "joinTab", cls = "tab-btn active", content = "Join Game").tap: btn =>
+        btn.addEventListener("click", (e: Event) => switchColorRushTab("join"))
       ,
-      input("text", id = "playerName").tap: el =>
-        el.placeholder = "Your Name"
-        el.setAttribute("autocomplete", "off")
-        el.required = true
-      ,
-      button("submit", cls = "btn").tap: btn =>
-        btn.textContent = "Join Game"
+      button(id = "createTab", cls = "tab-btn", content = "Create Game").tap: btn =>
+        btn.addEventListener("click", (e: Event) => switchColorRushTab("create"))
+    ),
+
+    div(cls = "tab-content")(
+      div(id = "joinTabContent", cls = "tab-pane active")(
+        form(id = "joinForm").tap(_.addEventListener("submit", (e: Event) =>
+          e.preventDefault()
+          joinGame()
+        ))(
+          input("text", id = "joinGameId").tap: el =>
+            el.placeholder = "Game Code (e.g., ABC123)"
+            el.required = true
+            el.autocomplete = "off"
+          ,
+          input("text", id = "joinPlayerName").tap: el =>
+            el.placeholder = "Your name"
+            el.required = true
+            el.autocomplete = "off"
+          ,
+          button("submit", content = "Join Game")
+        )
+      ),
+
+      div(id = "createTabContent", cls = "tab-pane")(
+        form(id = "createForm").tap(_.addEventListener("submit", (e: Event) =>
+          e.preventDefault()
+          createColorRushGame()
+        ))(
+          input("text", id = "createPlayerName").tap: el =>
+            el.placeholder = "Your name"
+            el.required = true
+            el.autocomplete = "off"
+          ,
+          button("submit", content = "Create Game")
+        )
+      )
     )
   )
 
 def createWaitingArea(): HTMLElement =
   // Waiting area container
   div(id = "waitingArea", cls = "waiting-area-container hidden")(
-    el("h3", content = "Players in Lobby:"),
+    h3(content = "Lobby:"),
+    div(id = "lobbyCode", cls = "lobby-code"),
+    el("h4", content = "Players:"),
     div(id = "playersList", cls = "players"),
     div(cls = "game-settings")(
       el("label")(
@@ -207,16 +249,32 @@ def setupEnterKeyHandler(): Unit =
   )
 
 def joinGame(): Unit =
-  val gameIdOpt     = getInputValue("gameId")
-  val playerNameOpt = getInputValue("playerName")
+  val gameIdOpt     = getInputValue("joinGameId")
+  val playerNameOpt = getInputValue("joinPlayerName")
 
   (gameIdOpt, playerNameOpt) match
     case (Some(gameId), Some(playerName)) =>
-      currentGameId = Some(gameId)
-      connectToGame(gameId, playerName)
+      currentGameId = Some(gameId.toUpperCase)
+      connectToGame(gameId.toUpperCase, playerName)
     case _                                =>
       // HTML5 form validation should prevent reaching here
       println("[ColorRush] Missing game ID or player name")
+
+def createColorRushGame(): Unit =
+  val playerNameOpt = getInputValue("createPlayerName")
+
+  playerNameOpt match
+    case Some(playerName) if playerName.nonEmpty =>
+      // Generate a random 6-character game code
+      val gameId = generateGameCode()
+      currentGameId = Some(gameId)
+      connectToGame(gameId, playerName)
+    case _ =>
+      println("[ColorRush] Missing player name")
+
+def generateGameCode(): String =
+  val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+  (1 to 6).map(_ => chars(scala.util.Random.nextInt(chars.length))).mkString
 
 def connectToGame(gameId: String, playerName: String): Unit =
   val protocol = if window.location.protocol == "https:" then "wss:" else "ws:"
@@ -262,7 +320,8 @@ def handleWebSocketMessage(data: String): Unit =
         currentGameId = Some(gameId)
         
         // Save session with player name from form or existing session
-        val playerName = getInputValue("playerName")
+        val playerName = getInputValue("joinPlayerName")
+          .orElse(getInputValue("createPlayerName"))
           .orElse(loadSession().map(_.playerName))
           .getOrElse("Player")
         saveSession(playerId, gameId, playerName)
@@ -453,9 +512,14 @@ def returnToLobby(): Unit =
   window.location.reload()
 
 def updateLobbyUI(): Unit =
-  // Hide the join form container
-  getElementById("joinFormContainer").foreach: container =>
+  // Hide the lobby setup (tabbed interface)
+  getElementById("lobbySetup").foreach: container =>
     container.classList.add("hidden")
+
+  // Show the lobby code
+  currentGameId.foreach: gameId =>
+    getElementById("lobbyCode").foreach: elem =>
+      elem.textContent = s"Code: $gameId"
 
   // Show the waiting area container
   getElementById("waitingArea").foreach: area =>
