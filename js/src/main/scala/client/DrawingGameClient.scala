@@ -216,6 +216,9 @@ def createGalleryArea(): HTMLElement =
       button(cls = "btn btn-secondary").tap: btn =>
         btn.textContent = "Return to Lobby"
         btn.addEventListener("click", (e: Event) => returnToDrawingLobby())
+      ,
+      button(id = "nextRoundBtn", cls = "btn btn-primary hidden", content = "Next Round").tap: btn =>
+        btn.addEventListener("click", (e: Event) => nextRound())
     ),
     // Header with prompt and status
     div(id = "galleryHeader", cls = "gallery-header")(
@@ -224,13 +227,7 @@ def createGalleryArea(): HTMLElement =
       div(id = "galleryTimer", cls = "gallery-timer hidden")
     ),
     // Grid of all drawings
-    div(id = "drawingsGallery", cls = "drawings-gallery"),
-    // Results summary (shown after round complete)
-    div(id = "roundSummary", cls = "round-summary hidden")(
-      div(id = "summaryContent"),
-      button(id = "nextRoundBtn", cls = "btn btn-primary", content = "Next Round").tap: btn =>
-        btn.addEventListener("click", (e: Event) => nextRound())
-    )
+    div(id = "drawingsGallery", cls = "drawings-gallery")
   )
 
 def createResultsArea(): HTMLElement =
@@ -564,7 +561,7 @@ def showGalleryWithDrawings(drawings: Seq[DrawingSubmission], prompt: String): U
     elem.className = "gallery-status phase-reveal"
 
   hideElement("galleryTimer")
-  hideElement("roundSummary")
+  hideElement("nextRoundBtn")
 
   // Build gallery with drawing cards (no captions yet)
   getElementById("drawingsGallery").foreach: elem =>
@@ -696,29 +693,8 @@ def showRoundComplete(result: RoundResult): Unit =
     getElementById(s"card-${winnerName}").foreach: elem =>
       elem.classList.add("player-winner")
 
-  // Show round summary
-  getElementById("summaryContent").foreach: elem =>
-    elem.innerHTML = ""
-
-    val summaryDiv = div(cls = "summary-results")(
-      result.aiWinner.map: winner =>
-        div(cls = "summary-item")(
-          span(content = "🤖 AI Winner: "),
-          span(cls = "winner-name", content = winner),
-          span(cls = "points", content = " +100 pts")
-        )
-      .getOrElse(div()),
-      result.playerWinner.map: winner =>
-        div(cls = "summary-item")(
-          span(content = "👥 Player Vote: "),
-          span(cls = "winner-name", content = winner),
-          span(cls = "points", content = " +50 pts")
-        )
-      .getOrElse(div())
-    )
-    elem.appendChild(summaryDiv)
-
-  showElement("roundSummary")
+  // Show the Next Round button
+  showElement("nextRoundBtn")
 
 
 def startDrawingGame(): Unit =
