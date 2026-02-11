@@ -16,6 +16,11 @@
         if (xhr.status !== 200) return;
         const v = JSON.parse(xhr.responseText)['buildVersion'];
 
+        const baseCss = document.createElement('link');
+        baseCss.rel = 'stylesheet';
+        baseCss.href = '/static/base.css?v=' + v;
+        document.head.appendChild(baseCss);
+
         const css = document.createElement('link');
         css.rel = 'stylesheet';
         css.href = '/static/color-rush.css?v=' + v;
@@ -26,7 +31,10 @@
         document.head.appendChild(js);
       })();
     </script>
-    <noscript><link rel="stylesheet" href="/static/color-rush.css"></noscript>
+    <noscript>
+      <link rel="stylesheet" href="/static/base.css">
+      <link rel="stylesheet" href="/static/color-rush.css">
+    </noscript>
   </head>
   <body>
   </body>
