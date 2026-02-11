@@ -200,10 +200,48 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
         // Send current lobby state
         sendToClient(channel, ServerMessage.LobbyUpdate(lobby))
         
-        // Also send current prompt if in drawing phase
-        lobby.currentPrompt.foreach: prompt =>
-          if lobby.status == LobbyStatus.Drawing then
-            sendToClient(channel, ServerMessage.PromptAnnounced(prompt))
+        lobby.status match
+          case LobbyStatus.Drawing =>
+            // Send current prompt if in drawing phase
+            lobby.currentPrompt.foreach: prompt =>
+              sendToClient(channel, ServerMessage.PromptAnnounced(prompt))
+          
+          case LobbyStatus.RevealingDrawings | LobbyStatus.RevealingCaptions | 
+               LobbyStatus.RevealingAIWinner | LobbyStatus.Voting | LobbyStatus.Results =>
+            // Send drawings data so gallery can be populated
+            lobby.currentPrompt.foreach: prompt =>
+              val drawings = lobby.drawings.values.toSeq
+              sendToClient(channel, ServerMessage.DrawingsRevealed(drawings, prompt))
+              
+              // Also send any captions that have been revealed
+              drawings.foreach: drawing =>
+                drawing.caption.foreach: caption =>
+                  sendToClient(channel, ServerMessage.CaptionRevealed(drawing.playerName, caption))
+              
+              // Send AI winner if already revealed
+              Option(aiWinners.get(lobbyId)).foreach: winnerName =>
+                sendToClient(channel, ServerMessage.AIVoteRevealed(winnerName, "AI's earlier pick"))
+              
+              // If in voting phase, notify client
+              if lobby.status == LobbyStatus.Voting then
+                // Calculate remaining time approximately
+                val elapsed = lobby.timerStartTime.map(t => (System.currentTimeMillis() - t) / 1000).getOrElse(0L)
+                val remaining = Math.max(0, DrawingGame.votingTimeSeconds - elapsed.toInt)
+                sendToClient(channel, ServerMessage.VotingStarted(remaining))
+                
+                // Send current vote counts
+                val voteCounts = DrawingGame.tallyVotes(lobby)
+                sendToClient(channel, ServerMessage.VoteUpdate(voteCounts))
+              
+              // If in results phase, send round complete
+              if lobby.status == LobbyStatus.Results then
+                val voteCounts = DrawingGame.tallyVotes(lobby)
+                val playerWinner = voteCounts.maxByOption(_._2).map(_._1)
+                val aiWinnerName = Option(aiWinners.get(lobbyId))
+                val result = RoundResult(aiWinnerName, playerWinner, voteCounts)
+                sendToClient(channel, ServerMessage.RoundComplete(result))
+          
+          case _ => () // Waiting, CollectingDrawings - no extra state needed
 
   private def handleStartGame(lobbyId: String): Unit =
     lobbies.get(lobbyId) match
