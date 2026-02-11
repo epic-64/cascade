@@ -71,6 +71,7 @@ enum ClientMessage derives ReadWriter:
   case SubmitDrawing(imageData: String)
   case SubmitVote(playerNameVotedFor: String)
   case NextRound()
+  case Ping() // Keepalive ping to prevent idle disconnects
 
 // Server -> Client messages
 enum ServerMessage derives ReadWriter:

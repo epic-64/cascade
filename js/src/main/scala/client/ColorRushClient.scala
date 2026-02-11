@@ -5,7 +5,7 @@ import org.scalajs.dom.*
 import shared.ColorRush.*
 import shared.session.BasicGameSession
 import client.{el, form, input, button, *}
-import client.session.SessionManager
+import client.session.{SessionManager, WebSocketKeepAlive}
 
 import scala.scalajs.js
 import scala.util.Try
@@ -28,7 +28,13 @@ var currentRoundId: Option[String]   = None
 var colorRushPlayerId: Option[String]  = None
 var colorRushPlayerName: Option[String] = None
 var isRejoining: Boolean             = false
-var pingIntervalId: Option[Int]      = None
+
+// WebSocket keepalive to prevent idle timeouts
+val colorRushKeepAlive: WebSocketKeepAlive = WebSocketKeepAlive.forWebSocket(
+  "ColorRush",
+  () => gameWebSocket,
+  () => upickle.default.write(PingMessage())
+)
 
 // Session management functions - delegating to shared SessionManager
 def saveSession(playerId: String, gameId: String, playerName: String): Unit =
@@ -62,13 +68,13 @@ def attemptRejoin(gameId: String, playerId: String, playerName: String): Unit =
   ws.onopen = (e: Event) =>
     println(s"[ColorRush] Connected, attempting rejoin to game $gameId")
     sendMessage(ws, RejoinMessage(playerId, gameId))
-    startPingInterval()
+    colorRushKeepAlive.start()
 
   ws.onmessage = (event: MessageEvent) => handleWebSocketMessage(event.data.toString)
   ws.onerror = (event: Event) => println(s"[ColorRush] WebSocket error during rejoin")
   ws.onclose = (e: CloseEvent) =>
     println(s"[ColorRush] Disconnected from game")
-    stopPingInterval()
+    colorRushKeepAlive.stop()
     // Attempt automatic reconnection if we have a valid session
     scheduleReconnect()
 
@@ -299,14 +305,14 @@ def connectToGame(gameId: String, playerName: String): Unit =
       .getOrElse(5) // Fallback to 5 if something goes wrong
 
     sendMessage(ws, JoinMessage(playerName, totalRounds))
-    startPingInterval()
+    colorRushKeepAlive.start()
     // Note: updateLobbyUI() is now called when we receive JoinedMessage
 
   ws.onmessage = (event: MessageEvent) => handleWebSocketMessage(event.data.toString)
   ws.onerror = (event: Event) => println(s"[ColorRush] WebSocket error")
   ws.onclose = (e: CloseEvent) => 
     println(s"[ColorRush] Disconnected from game")
-    stopPingInterval()
+    colorRushKeepAlive.stop()
     // Attempt automatic reconnection if we have a valid session
     scheduleReconnect()
 
@@ -331,24 +337,6 @@ def sendMessageSafe(msg: ClientMessage): Unit =
       println("[ColorRush] No WebSocket connection - attempting reconnect")
       scheduleReconnect()
 
-/** Start periodic ping to keep connection alive */
-def startPingInterval(): Unit =
-  stopPingInterval() // Clear any existing interval
-  // Send ping every 20 seconds to keep connection alive
-  val intervalId = dom.window.setInterval(
-    () => gameWebSocket.foreach: ws =>
-      if ws.readyState == WebSocket.OPEN then
-        println("[ColorRush] Sending keepalive ping")
-        sendMessage(ws, PingMessage())
-    ,
-    20000 // 20 seconds
-  )
-  pingIntervalId = Some(intervalId)
-
-/** Stop the ping interval */
-def stopPingInterval(): Unit =
-  pingIntervalId.foreach(dom.window.clearInterval)
-  pingIntervalId = None
 
 /** Schedule an automatic reconnection attempt */
 def scheduleReconnect(): Unit =
@@ -389,7 +377,7 @@ def handleWebSocketMessage(data: String): Unit =
         
       case RejoinFailedMessage(reason) =>
         println(s"[ColorRush] Rejoin failed: $reason")
-        stopPingInterval()
+        colorRushKeepAlive.stop()
         clearSession()
         isRejoining = false
         // Close the WebSocket and reset state
@@ -567,7 +555,7 @@ def reshowGameWinner(): Unit =
     announcement.classList.remove("hidden")
 
 def returnToLobby(): Unit =
-  stopPingInterval()
+  colorRushKeepAlive.stop()
   clearSession()
   window.location.reload()
 
