@@ -1,6 +1,7 @@
 package shared.ColorRush
 
 import upickle.default.ReadWriter
+import shared.session.{PlayerConnection, PlayerConnectionOps}
 
 // Color Rush - Fast-paced multiplayer color matching game
 
@@ -23,7 +24,7 @@ case class PlayerState(
     roundsWon: Int,
     connected: Boolean = true,
     disconnectedAt: Option[Long] = None
-) derives ReadWriter
+) extends PlayerConnection derives ReadWriter
 
 case class Round(
     targetColor: String, // Hex color code
@@ -78,24 +79,13 @@ object ColorRush:
       game.copy(players = game.players + (playerId -> reconnectedPlayer))
 
   /** Check if a player can rejoin (exists and within grace period) */
-  def canRejoin(game: ColorRushGame, playerId: String, gracePeriodMs: Long = 60000): Boolean =
-    game.players.get(playerId) match
-      case Some(player) =>
-        player.disconnectedAt match
-          case Some(disconnectTime) =>
-            val elapsed = System.currentTimeMillis() - disconnectTime
-            elapsed < gracePeriodMs
-          case None => true // Player is still connected or never disconnected
-      case None => false
+  def canRejoin(game: ColorRushGame, playerId: String, gracePeriodMs: Long = PlayerConnectionOps.DefaultGracePeriodMs): Boolean =
+    game.players.get(playerId).exists(PlayerConnectionOps.canRejoin(_, gracePeriodMs))
 
   /** Remove players who have been disconnected longer than the grace period */
-  def cleanupDisconnectedPlayers(game: ColorRushGame, gracePeriodMs: Long = 60000): ColorRushGame =
-    val now = System.currentTimeMillis()
-    val activePlayers = game.players.filter:
-      case (_, player) =>
-        player.disconnectedAt match
-          case Some(disconnectTime) => (now - disconnectTime) < gracePeriodMs
-          case None => true
+  def cleanupDisconnectedPlayers(game: ColorRushGame, gracePeriodMs: Long = PlayerConnectionOps.DefaultGracePeriodMs): ColorRushGame =
+    val activePlayers = game.players.filterNot:
+      case (_, player) => PlayerConnectionOps.isGracePeriodExpired(player, gracePeriodMs)
     game.copy(players = activePlayers)
 
   def startNewRound(game: ColorRushGame): ColorRushGame =

@@ -3,16 +3,16 @@ package client
 import org.scalajs.dom
 import org.scalajs.dom.*
 import shared.ColorRush.*
+import shared.session.BasicGameSession
 import client.{el, form, input, button, *}
+import client.session.SessionManager
 
 import scala.scalajs.js
 import scala.util.Try
 import scala.util.chaining.scalaUtilChainingOps
 
-// Session storage keys
-private val SessionKeyPlayerId = "colorRush.playerId"
-private val SessionKeyGameId = "colorRush.gameId"
-private val SessionKeyPlayerName = "colorRush.playerName"
+// Session key for ColorRush
+private val ColorRushSessionKey = "colorRush"
 
 def initializeColorRush(): Unit =
   println("[ColorRush] Starting Color Rush client...")
@@ -28,48 +28,24 @@ var currentRoundId: Option[String]   = None
 var colorRushPlayerId: Option[String]  = None
 var isRejoining: Boolean             = false
 
-// Session management functions
+// Session management functions - delegating to shared SessionManager
 def saveSession(playerId: String, gameId: String, playerName: String): Unit =
-  Try:
-    window.localStorage.setItem(SessionKeyPlayerId, playerId)
-    window.localStorage.setItem(SessionKeyGameId, gameId)
-    window.localStorage.setItem(SessionKeyPlayerName, playerName)
-    println(s"[ColorRush] Session saved: playerId=$playerId, gameId=$gameId")
-  .recover:
-    case ex => println(s"[ColorRush] Failed to save session: ${ex.getMessage}")
+  SessionManager.save(ColorRushSessionKey, BasicGameSession(playerId, gameId, playerName))
 
-def loadSession(): Option[(String, String, String)] =
-  Try:
-    val playerId = window.localStorage.getItem(SessionKeyPlayerId)
-    val gameId = window.localStorage.getItem(SessionKeyGameId)
-    val playerName = window.localStorage.getItem(SessionKeyPlayerName)
-    if playerId != null && gameId != null && playerName != null then
-      Some((playerId, gameId, playerName))
-    else
-      None
-  .recover:
-    case ex =>
-      println(s"[ColorRush] Failed to load session: ${ex.getMessage}")
-      None
-  .getOrElse(None)
+def loadSession(): Option[BasicGameSession] =
+  SessionManager.load(ColorRushSessionKey)
 
 def clearSession(): Unit =
-  Try:
-    window.localStorage.removeItem(SessionKeyPlayerId)
-    window.localStorage.removeItem(SessionKeyGameId)
-    window.localStorage.removeItem(SessionKeyPlayerName)
-    println("[ColorRush] Session cleared")
-  .recover:
-    case ex => println(s"[ColorRush] Failed to clear session: ${ex.getMessage}")
+  SessionManager.clear(ColorRushSessionKey)
 
 def checkForExistingSession(): Unit =
   loadSession() match
-    case Some((playerId, gameId, playerName)) =>
-      println(s"[ColorRush] Found existing session - attempting rejoin: gameId=$gameId, playerId=$playerId")
+    case Some(session) =>
+      println(s"[ColorRush] Found existing session - attempting rejoin: gameId=${session.gameId}, playerId=${session.playerId}")
       isRejoining = true
-      currentGameId = Some(gameId)
-      colorRushPlayerId = Some(playerId)
-      attemptRejoin(gameId, playerId, playerName)
+      currentGameId = Some(session.gameId)
+      colorRushPlayerId = Some(session.playerId)
+      attemptRejoin(session.gameId, session.playerId, session.playerName)
     case None =>
       println("[ColorRush] No existing session found")
 
@@ -287,7 +263,7 @@ def handleWebSocketMessage(data: String): Unit =
         
         // Save session with player name from form or existing session
         val playerName = getInputValue("playerName")
-          .orElse(loadSession().map(_._3))
+          .orElse(loadSession().map(_.playerName))
           .getOrElse("Player")
         saveSession(playerId, gameId, playerName)
         
