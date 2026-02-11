@@ -9,14 +9,86 @@ import scala.scalajs.js
 import scala.util.Try
 import scala.util.chaining.scalaUtilChainingOps
 
+// Session storage keys
+private val SessionKeyPlayerId = "colorRush.playerId"
+private val SessionKeyGameId = "colorRush.gameId"
+private val SessionKeyPlayerName = "colorRush.playerName"
+
 def initializeColorRush(): Unit =
   println("[ColorRush] Starting Color Rush client...")
   buildGameUI()
   setupEnterKeyHandler()
+  
+  // Check for existing session and attempt reconnect
+  checkForExistingSession()
 
 var gameWebSocket: Option[WebSocket] = None
 var currentGameId: Option[String]    = None
 var currentRoundId: Option[String]   = None
+var colorRushPlayerId: Option[String]  = None
+var isRejoining: Boolean             = false
+
+// Session management functions
+def saveSession(playerId: String, gameId: String, playerName: String): Unit =
+  Try:
+    window.localStorage.setItem(SessionKeyPlayerId, playerId)
+    window.localStorage.setItem(SessionKeyGameId, gameId)
+    window.localStorage.setItem(SessionKeyPlayerName, playerName)
+    println(s"[ColorRush] Session saved: playerId=$playerId, gameId=$gameId")
+  .recover:
+    case ex => println(s"[ColorRush] Failed to save session: ${ex.getMessage}")
+
+def loadSession(): Option[(String, String, String)] =
+  Try:
+    val playerId = window.localStorage.getItem(SessionKeyPlayerId)
+    val gameId = window.localStorage.getItem(SessionKeyGameId)
+    val playerName = window.localStorage.getItem(SessionKeyPlayerName)
+    if playerId != null && gameId != null && playerName != null then
+      Some((playerId, gameId, playerName))
+    else
+      None
+  .recover:
+    case ex =>
+      println(s"[ColorRush] Failed to load session: ${ex.getMessage}")
+      None
+  .getOrElse(None)
+
+def clearSession(): Unit =
+  Try:
+    window.localStorage.removeItem(SessionKeyPlayerId)
+    window.localStorage.removeItem(SessionKeyGameId)
+    window.localStorage.removeItem(SessionKeyPlayerName)
+    println("[ColorRush] Session cleared")
+  .recover:
+    case ex => println(s"[ColorRush] Failed to clear session: ${ex.getMessage}")
+
+def checkForExistingSession(): Unit =
+  loadSession() match
+    case Some((playerId, gameId, playerName)) =>
+      println(s"[ColorRush] Found existing session - attempting rejoin: gameId=$gameId, playerId=$playerId")
+      isRejoining = true
+      currentGameId = Some(gameId)
+      colorRushPlayerId = Some(playerId)
+      attemptRejoin(gameId, playerId, playerName)
+    case None =>
+      println("[ColorRush] No existing session found")
+
+def attemptRejoin(gameId: String, playerId: String, playerName: String): Unit =
+  val protocol = if window.location.protocol == "https:" then "wss:" else "ws:"
+  val wsUrl = s"$protocol//${window.location.host}/ws/color-rush/$gameId"
+
+  val ws = new WebSocket(wsUrl)
+  gameWebSocket = Some(ws)
+
+  ws.onopen = (e: Event) =>
+    println(s"[ColorRush] Connected, attempting rejoin to game $gameId")
+    sendMessage(ws, RejoinMessage(playerId, gameId))
+
+  ws.onmessage = (event: MessageEvent) => handleWebSocketMessage(event.data.toString)
+  ws.onerror = (event: Event) => println(s"[ColorRush] WebSocket error during rejoin")
+  ws.onclose = (e: CloseEvent) =>
+    println(s"[ColorRush] Disconnected from game")
+    // Don't clear session on close - allow reconnection attempts
 
 def buildGameUI(): Unit =
   // Clear existing content
@@ -186,11 +258,13 @@ def connectToGame(gameId: String, playerName: String): Unit =
       .getOrElse(5) // Fallback to 5 if something goes wrong
 
     sendMessage(ws, JoinMessage(playerName, totalRounds))
-    updateLobbyUI()
+    // Note: updateLobbyUI() is now called when we receive JoinedMessage
 
   ws.onmessage = (event: MessageEvent) => handleWebSocketMessage(event.data.toString)
   ws.onerror = (event: Event) => println(s"[ColorRush] WebSocket error")
-  ws.onclose = (e: CloseEvent) => println(s"[ColorRush] Disconnected from game")
+  ws.onclose = (e: CloseEvent) => 
+    println(s"[ColorRush] Disconnected from game")
+    // Don't clear session on close - allow reconnection attempts
 
 def sendMessage(ws: WebSocket, msg: ClientMessage): Unit =
   Try:
@@ -206,6 +280,32 @@ def handleWebSocketMessage(data: String): Unit =
     val serverMsg = upickle.default.read[ServerMessage](data)
 
     serverMsg match
+      case JoinedMessage(playerId, gameId) =>
+        println(s"[ColorRush] Joined/Rejoined - playerId=$playerId, gameId=$gameId")
+        colorRushPlayerId = Some(playerId)
+        currentGameId = Some(gameId)
+        
+        // Save session with player name from form or existing session
+        val playerName = getInputValue("playerName")
+          .orElse(loadSession().map(_._3))
+          .getOrElse("Player")
+        saveSession(playerId, gameId, playerName)
+        
+        // Update UI to show we're in the game
+        isRejoining = false
+        updateLobbyUI()
+        
+      case RejoinFailedMessage(reason) =>
+        println(s"[ColorRush] Rejoin failed: $reason")
+        clearSession()
+        isRejoining = false
+        // Close the WebSocket and reset state
+        gameWebSocket.foreach(_.close())
+        gameWebSocket = None
+        currentGameId = None
+        colorRushPlayerId = None
+        // Show join form again (page is already showing it)
+        
       case GameUpdateMessage(game)                => 
         println(s"[ColorRush] GameUpdateMessage - status: ${game.status}, totalRounds: ${game.totalRounds}")
         parseGameUpdate(game)
@@ -373,6 +473,7 @@ def reshowGameWinner(): Unit =
     announcement.classList.remove("hidden")
 
 def returnToLobby(): Unit =
+  clearSession()
   window.location.reload()
 
 def updateLobbyUI(): Unit =
