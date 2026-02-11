@@ -493,8 +493,14 @@
   }
 
   .join-form-container,
-  .waiting-area-container {
+  .waiting-area-container,
+  .lobby-setup,
+  #lobby {
     grid-column: 1 / -1;
+  }
+
+  .join-form-container,
+  .waiting-area-container {
     padding: 2rem;
   }
 
