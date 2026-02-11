@@ -22,3 +22,6 @@ sbt configuration:
 - shared is not compiled standalone, but is included in both js and jvm
 - to build the js, run `sbt js/fastLinkJS`
 - to build the jvm, run `sbt jvm/compile`
+
+ui library:
+- we are using a fully custom css lib, defined in `jvm/src/main/resources/static/base.css`
