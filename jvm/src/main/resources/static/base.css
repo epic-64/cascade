@@ -248,6 +248,28 @@ button {
   font-size: 0.875rem;
 }
 
+/* Checkbox row for inline checkbox + label */
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) 0;
+}
+
+.checkbox-row input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--accent-purple);
+  cursor: pointer;
+}
+
+.checkbox-row label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  user-select: none;
+}
+
 .alert-info {
   background: rgba(99, 102, 241, 0.1);
   border: 1px solid rgba(99, 102, 241, 0.3);
@@ -895,6 +917,32 @@ textarea::placeholder {
   width: 20px;
   height: 20px;
   border-width: 2px;
+}
+
+/* Loading area for generating prompts */
+.loading-area {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  padding: var(--spacing-xl);
+}
+
+.loading-content {
+  text-align: center;
+}
+
+.loading-content .spinner {
+  margin-bottom: var(--spacing-lg);
+}
+
+.loading-content h2 {
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.loading-content p {
+  color: var(--text-secondary);
 }
 
 @keyframes spin {

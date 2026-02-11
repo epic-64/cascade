@@ -10,6 +10,36 @@ object OpenAIClient:
   private val visionModel = "gpt-4o"
   private val textModel = "gpt-4o-mini"
 
+  /** Fetch random words from the random word API */
+  def fetchRandomWords(count: Int = 2)(using ec: ExecutionContext): Future[Seq[String]] =
+    Future:
+      val url = s"https://random-word-api.herokuapp.com/word?number=$count"
+      val connection = java.net.URI.create(url).toURL.openConnection().asInstanceOf[java.net.HttpURLConnection]
+
+      Try:
+        connection.setRequestMethod("GET")
+        connection.setConnectTimeout(10000)
+        connection.setReadTimeout(10000)
+
+        val responseCode = connection.getResponseCode
+        val inputStream = if responseCode >= 400 then connection.getErrorStream else connection.getInputStream
+        val response = scala.io.Source.fromInputStream(inputStream, "UTF-8").mkString
+        inputStream.close()
+
+        if responseCode != 200 then
+          logger.error(s"Random word API error (status $responseCode): $response")
+          throw new RuntimeException(s"Random word API request failed with status $responseCode")
+
+        // Parse JSON array like ["word1", "word2"]
+        val words = ujson.read(response).arr.map(_.str).toSeq
+        logger.info(s"Fetched random words: ${words.mkString(", ")}")
+        words
+      .recover:
+        case ex: Exception =>
+          logger.error(s"Random word API request failed: ${ex.getMessage}", ex)
+          throw ex
+      .get
+
   def captionImage(apiKey: String, imageBase64: String)(using ec: ExecutionContext): Future[String] =
     val url = "https://api.openai.com/v1/chat/completions"
 
@@ -46,6 +76,38 @@ object OpenAIClient:
         "Unable to caption image"
 
   case class WinnerSelection(winnerName: String, reasoning: String)
+
+  /** Generate a creative drawing prompt from random words */
+  def generatePromptFromWords(apiKey: String, words: Seq[String])(using ec: ExecutionContext): Future[String] =
+    val url = "https://api.openai.com/v1/chat/completions"
+
+    val wordsList = words.mkString(", ")
+
+    val systemPrompt = """You are a creative prompt generator for a drawing game.
+      |Given some random words, create a short, fun, and drawable prompt.
+      |The prompt should be 3-6 words max and describe something that can be drawn.
+      |Be creative and combine the words in unexpected ways!
+      |Just respond with the prompt itself, no quotes or explanation.""".stripMargin
+
+    val userPrompt = s"Create a drawing prompt using these words: $wordsList"
+
+    val requestBody = ujson.Obj(
+      "model" -> textModel,
+      "messages" -> ujson.Arr(
+        ujson.Obj("role" -> "system", "content" -> systemPrompt),
+        ujson.Obj("role" -> "user", "content" -> userPrompt)
+      ),
+      "temperature" -> 0.9,
+      "max_tokens" -> 30
+    )
+
+    makeOpenAIRequest(url, apiKey, requestBody).map: responseJson =>
+      Try:
+        responseJson("choices")(0)("message")("content").str.trim
+      .getOrElse:
+        logger.error(s"Failed to parse OpenAI prompt response: $responseJson")
+        // Fallback to just the words
+        words.mkString(" ")
 
   def selectWinner(
     apiKey: String,

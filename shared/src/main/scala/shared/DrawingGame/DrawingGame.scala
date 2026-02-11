@@ -8,6 +8,7 @@ import shared.session.{PlayerConnection, PlayerConnectionOps}
 // Proper state machine for the game phases
 enum LobbyStatus derives ReadWriter:
   case Waiting           // Waiting for players to join, host can start game
+  case GeneratingPrompt  // AI is generating prompt (advanced mode only)
   case Drawing           // Players are drawing, timer is running
   case CollectingDrawings // Brief pause to collect any last-second submissions
   case RevealingDrawings // Showing all drawings (without captions)
@@ -26,7 +27,8 @@ case class DrawingLobby(
     status: LobbyStatus,
     currentRound: Int,
     maxRounds: Int,
-    timerStartTime: Option[Long]
+    timerStartTime: Option[Long],
+    advancedMode: Boolean = false
 ) derives ReadWriter
 
 case class PlayerInfo(
@@ -51,7 +53,7 @@ case class RoundResult(
 
 // Client -> Server messages
 enum ClientMessage derives ReadWriter:
-  case CreateLobby(playerName: String, apiKey: String)
+  case CreateLobby(playerName: String, apiKey: String, advancedMode: Boolean = false)
   case JoinLobby(lobbyId: String, playerName: String)
   case RejoinLobby(lobbyId: String, playerId: String)
   case StartGame()
@@ -64,6 +66,7 @@ enum ServerMessage derives ReadWriter:
   case LobbyCreated(lobbyId: String, playerId: String)
   case LobbyUpdate(lobby: DrawingLobby)
   case RejoinFailed(reason: String)
+  case GeneratingPrompt() // Show loading state while AI generates prompt
   case PromptAnnounced(prompt: String)
   case DrawingTimerUpdate(secondsRemaining: Int)
   case VotingTimerUpdate(secondsRemaining: Int)
@@ -100,7 +103,11 @@ object DrawingGame:
     "lightning", "mushroom", "pencil", "scissors", "trophy"
   )
 
-  def createLobby(lobbyId: String, hostId: String, hostName: String, maxRounds: Int = 5): DrawingLobby =
+  def getRandomPrompt(): String =
+    import scala.util.Random
+    prompts(Random.nextInt(prompts.length))
+
+  def createLobby(lobbyId: String, hostId: String, hostName: String, maxRounds: Int = 5, advancedMode: Boolean = false): DrawingLobby =
     val host = PlayerInfo(hostId, hostName, connected = true, score = 0)
     DrawingLobby(
       lobbyId = lobbyId,
@@ -112,7 +119,8 @@ object DrawingGame:
       status = LobbyStatus.Waiting,
       currentRound = 0,
       maxRounds = maxRounds,
-      timerStartTime = None
+      timerStartTime = None,
+      advancedMode = advancedMode
     )
 
   def addPlayer(lobby: DrawingLobby, playerId: String, playerName: String): DrawingLobby =

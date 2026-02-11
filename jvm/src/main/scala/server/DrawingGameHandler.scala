@@ -127,8 +127,8 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
     val actualLobbyId = Option(channelToLobby.get(channel)).getOrElse(lobbyId)
 
     msg match
-      case ClientMessage.CreateLobby(playerName, apiKey) =>
-        handleCreateLobby(channel, playerName, apiKey)
+      case ClientMessage.CreateLobby(playerName, apiKey, advancedMode) =>
+        handleCreateLobby(channel, playerName, apiKey, advancedMode)
 
       case ClientMessage.JoinLobby(joinLobbyId, playerName) =>
         handleJoinLobby(channel, joinLobbyId, playerName)
@@ -148,10 +148,10 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
       case ClientMessage.NextRound() =>
         handleNextRound(actualLobbyId)
 
-  private def handleCreateLobby(channel: cask.WsChannelActor, playerName: String, apiKey: String): Unit =
+  private def handleCreateLobby(channel: cask.WsChannelActor, playerName: String, apiKey: String, advancedMode: Boolean): Unit =
     val lobbyId = generateLobbyId()
     val playerId = generatePlayerId()
-    val lobby = DrawingGame.createLobby(lobbyId, playerId, playerName)
+    val lobby = DrawingGame.createLobby(lobbyId, playerId, playerName, advancedMode = advancedMode)
 
     lobbies.put(lobbyId, (lobby, apiKey))
     playerLobbies.put(playerId, lobbyId)
@@ -161,7 +161,7 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
     removeConnection("temp", channel)
     addConnection(lobbyId, channel)
 
-    logger.info(s"Created lobby $lobbyId for player $playerName (playerId: $playerId)")
+    logger.info(s"Created lobby $lobbyId for player $playerName (playerId: $playerId, advancedMode: $advancedMode)")
 
     sendToClient(channel, ServerMessage.LobbyCreated(lobbyId, playerId))
     sendToClient(channel, ServerMessage.LobbyUpdate(lobby))
@@ -337,18 +337,42 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
             lobbies.put(lobbyId, (updated, apiKey))
             broadcastLobbyUpdate(lobbyId)
 
-          case LobbyStatus.Drawing =>
-            val updated = DrawingGame.startDrawingPhase(lobby)
+          case LobbyStatus.GeneratingPrompt =>
+            // Update status to show loading state
+            val updated = lobby.copy(status = LobbyStatus.GeneratingPrompt)
             lobbies.put(lobbyId, (updated, apiKey))
-            updated.currentPrompt.foreach: prompt =>
-              broadcast(lobbyId, ServerMessage.PromptAnnounced(prompt))
             broadcastLobbyUpdate(lobbyId)
-            startTimer(
-              lobbyId, 
-              DrawingGame.drawingTimeSeconds, 
-              LobbyStatus.CollectingDrawings,
-              seconds => Some(ServerMessage.DrawingTimerUpdate(seconds))
-            )
+            broadcast(lobbyId, ServerMessage.GeneratingPrompt())
+            // Start the async prompt generation
+            startAdvancedDrawingPhase(lobbyId, updated, apiKey)
+
+          case LobbyStatus.Drawing =>
+            if lobby.advancedMode && lobby.status != LobbyStatus.GeneratingPrompt then
+              // Advanced mode: go through GeneratingPrompt first
+              transitionTo(lobbyId, LobbyStatus.GeneratingPrompt)
+            else
+              // Standard mode OR coming from GeneratingPrompt: start drawing
+              val updated = if lobby.status == LobbyStatus.GeneratingPrompt then
+                // Already have prompt set by startAdvancedDrawingPhase
+                lobby.copy(
+                  status = LobbyStatus.Drawing,
+                  currentRound = lobby.currentRound + 1,
+                  drawings = Map.empty,
+                  votes = Map.empty,
+                  timerStartTime = Some(System.currentTimeMillis())
+                )
+              else
+                DrawingGame.startDrawingPhase(lobby)
+              lobbies.put(lobbyId, (updated, apiKey))
+              updated.currentPrompt.foreach: prompt =>
+                broadcast(lobbyId, ServerMessage.PromptAnnounced(prompt))
+              broadcastLobbyUpdate(lobbyId)
+              startTimer(
+                lobbyId, 
+                DrawingGame.drawingTimeSeconds, 
+                LobbyStatus.CollectingDrawings,
+                seconds => Some(ServerMessage.DrawingTimerUpdate(seconds))
+              )
 
           case LobbyStatus.CollectingDrawings =>
             val updated = lobby.copy(status = LobbyStatus.CollectingDrawings)
@@ -431,6 +455,34 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
     futures.add(transitionFuture)
     
     activeTimers.put(lobbyId, futures)
+
+  // ============================================================================
+  // Advanced Mode - AI-Generated Prompts
+  // ============================================================================
+
+  private def startAdvancedDrawingPhase(lobbyId: String, lobby: DrawingLobby, apiKey: String): Unit =
+    logger.info(s"Generating advanced prompt for lobby $lobbyId")
+    
+    // Fetch random words and generate prompt
+    OpenAIClient.fetchRandomWords(2)
+      .flatMap: words =>
+        logger.info(s"Got random words for $lobbyId: ${words.mkString(", ")}")
+        OpenAIClient.generatePromptFromWords(apiKey, words)
+      .map: generatedPrompt =>
+        logger.info(s"Generated prompt for $lobbyId: $generatedPrompt")
+        
+        // Update lobby with generated prompt, then transition to Drawing
+        val updated = lobby.copy(currentPrompt = Some(generatedPrompt))
+        lobbies.put(lobbyId, (updated, apiKey))
+        transitionTo(lobbyId, LobbyStatus.Drawing)
+      .recover:
+        case ex =>
+          logger.error(s"Failed to generate advanced prompt for $lobbyId: ${ex.getMessage}", ex)
+          // Fallback to standard prompt
+          val fallbackPrompt = DrawingGame.getRandomPrompt()
+          val updated = lobby.copy(currentPrompt = Some(fallbackPrompt))
+          lobbies.put(lobbyId, (updated, apiKey))
+          transitionTo(lobbyId, LobbyStatus.Drawing)
 
   // ============================================================================
   // AI Captioning Phase
