@@ -55,10 +55,12 @@ object OpenAIClient:
           |2. A brief comment on the artistic skill or style (e.g., "skillfully rendered", "charmingly simple", "impressively detailed", "delightfully wonky")
           |Be witty and entertaining. Do not use quotes.""".stripMargin
       case CaptionStyle.Roast =>
-        """Roast this drawing in 10-20 words. Be savage but funny about:
-          |1. What you think it's supposed to be
-          |2. The questionable artistic choices
-          |Channel your inner Simon Cowell. Be brutal but hilarious. Do not use quotes.""".stripMargin
+        """Absolutely DESTROY this drawing in 10-20 words. Be ruthlessly savage about:
+          |1. What this disaster is supposedly meant to be
+          |2. The tragic artistic crimes committed here
+          |Channel your inner Gordon Ramsay meets Simon Cowell. Show NO mercy. 
+          |Mock everything - the wobbly lines, the questionable proportions, the artistic delusions.
+          |Make it hurt (but funny). Do not use quotes.""".stripMargin
 
     val requestBody = ujson.Obj(
       "model" -> visionModel,
@@ -126,21 +128,36 @@ object OpenAIClient:
   def selectWinner(
     apiKey: String,
     originalPrompt: String,
-    captions: Map[String, String]
+    captions: Map[String, String],
+    captionStyle: CaptionStyle = CaptionStyle.Descriptive
   )(using ec: ExecutionContext): Future[WinnerSelection] =
     val url = "https://api.openai.com/v1/chat/completions"
 
     val captionsList = captions.map((name, caption) => s"- $name: \"$caption\"").mkString("\n")
 
-    val systemPrompt = """You are a witty and insightful judge for a drawing game called "AI Drawing Challenge".
-      |Players drew an image based on a secret prompt. An AI then captioned each drawing without knowing the prompt.
-      |Your job is to pick the winner whose drawing (as interpreted by the AI caption) best matches the original prompt.
-      |
-      |Be entertaining and specific in your reasoning! Comment on what made the winning drawing stand out.
-      |Keep the reasoning to 1-2 sentences max.
-      |
-      |Respond in this exact JSON format:
-      |{"winner": "PlayerName", "reasoning": "Your witty explanation here"}""".stripMargin
+    val systemPrompt = captionStyle match
+      case CaptionStyle.Descriptive =>
+        """You are a witty and insightful judge for a drawing game called "AI Drawing Challenge".
+          |Players drew an image based on a secret prompt. An AI then captioned each drawing without knowing the prompt.
+          |Your job is to pick the winner whose drawing (as interpreted by the AI caption) best matches the original prompt.
+          |
+          |Be entertaining and specific in your reasoning! Comment on what made the winning drawing stand out.
+          |Keep the reasoning to 1-2 sentences max.
+          |
+          |Respond in this exact JSON format:
+          |{"winner": "PlayerName", "reasoning": "Your witty explanation here"}""".stripMargin
+      case CaptionStyle.Roast =>
+        """You are a BRUTAL and merciless judge for a drawing game. You take pleasure in destroying artistic dreams.
+          |Players drew an image based on a secret prompt. An AI roasted each drawing.
+          |Your job is to pick the "winner" - but let's be real, everyone here is a loser at art.
+          |
+          |Be ABSOLUTELY SAVAGE in your reasoning. Mock the winner for barely being less terrible than the others.
+          |Roast their artistic abilities. Question their life choices. Make it personal but hilarious.
+          |Channel your inner Simon Cowell having a really bad day. Show NO mercy.
+          |Keep the reasoning to 1-2 brutal sentences max.
+          |
+          |Respond in this exact JSON format:
+          |{"winner": "PlayerName", "reasoning": "Your devastating roast here"}""".stripMargin
 
     val userPrompt = s"""The secret prompt was: "$originalPrompt"
       |
