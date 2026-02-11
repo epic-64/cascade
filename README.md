@@ -158,6 +158,11 @@ Monitoring:
 - ⏳ Log aggregation (Logstash, Datadog, BetterStack?)
 - ⏳ Health and Performance monitoring
 
+## Known Issues / Todos
+- [ ] WebSocket closes on its own after some time of inactivity (1-2 minutes)
+- [ ] WebSocket connection is lost on page refresh
+- [ ] Missing tests for Drawing game
+
 ## Documentation
 
 - **[Health Endpoint](docs/HEALTH_ENDPOINT.md)** - Detailed documentation of the `/health` endpoint and its stats
