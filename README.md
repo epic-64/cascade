@@ -160,7 +160,8 @@ Monitoring:
 
 ## Known Issues / Todos
 - [ ] WebSocket closes on its own after some time of inactivity (1-2 minutes)
-- [ ] WebSocket connection is lost on page refresh
+- WebSocket connection is lost on page refresh
+  - fixed in ColorRush via session + localStorage
 - [ ] Missing tests for Drawing game
 
 ## Documentation

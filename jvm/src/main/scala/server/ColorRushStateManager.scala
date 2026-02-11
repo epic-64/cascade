@@ -70,6 +70,14 @@ class ColorRushStateManager:
   def cleanupEmptyGames(): Int =
     import scala.jdk.CollectionConverters.*
 
+    // First, clean up disconnected players in all games
+    colorRushGames.asScala.foreach:
+      case (gameId, game) =>
+        val cleanedGame = shared.ColorRush.ColorRush.cleanupDisconnectedPlayers(game)
+        if cleanedGame.players.size != game.players.size then
+          colorRushGames.put(gameId, cleanedGame)
+          logger.info(s"Cleaned up ${game.players.size - cleanedGame.players.size} disconnected player(s) from game $gameId")
+
     val gamesToCleanup = gameConnections.asScala
       .filter:
         case (gameId, connections) => connections.isEmpty

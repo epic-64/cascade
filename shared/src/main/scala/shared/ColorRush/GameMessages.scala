@@ -10,6 +10,7 @@ sealed trait ClientMessage
 object ClientMessage:
   given ReadWriter[ClientMessage] = ReadWriter.merge(
     macroRW[JoinMessage],
+    macroRW[RejoinMessage],
     macroRW[ConfigureMessage],
     macroRW[StartMessage],
     macroRW[ClickMessage],
@@ -17,6 +18,7 @@ object ClientMessage:
   )
 
 case class JoinMessage(playerName: String, totalRounds: Int) extends ClientMessage derives ReadWriter
+case class RejoinMessage(playerId: String, gameId: String) extends ClientMessage derives ReadWriter
 case class ConfigureMessage(totalRounds: Int) extends ClientMessage derives ReadWriter
 case class StartMessage() extends ClientMessage derives ReadWriter
 case class ClickMessage(color: String, time: Long) extends ClientMessage derives ReadWriter
@@ -28,10 +30,14 @@ sealed trait ServerMessage
 object ServerMessage:
   given ReadWriter[ServerMessage] = ReadWriter.merge(
     macroRW[GameUpdateMessage],
+    macroRW[JoinedMessage],
+    macroRW[RejoinFailedMessage],
     macroRW[RoundWinnerMessage],
     macroRW[GameEndMessage]
   )
 
 case class GameUpdateMessage(game: ColorRushGame) extends ServerMessage derives ReadWriter
+case class JoinedMessage(playerId: String, gameId: String) extends ServerMessage derives ReadWriter
+case class RejoinFailedMessage(reason: String) extends ServerMessage derives ReadWriter
 case class RoundWinnerMessage(playerName: String, points: Int) extends ServerMessage derives ReadWriter
 case class GameEndMessage(winner: Option[PlayerState]) extends ServerMessage derives ReadWriter

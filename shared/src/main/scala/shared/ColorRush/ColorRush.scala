@@ -20,7 +20,9 @@ case class PlayerState(
     playerId: String,
     name: String,
     score: Int,
-    roundsWon: Int
+    roundsWon: Int,
+    connected: Boolean = true,
+    disconnectedAt: Option[Long] = None
 ) derives ReadWriter
 
 case class Round(
@@ -49,7 +51,7 @@ object ColorRush:
     ColorRushGame(gameId, Map.empty, None, 0, totalRounds, GameStatus.Waiting)
 
   def addPlayer(game: ColorRushGame, playerId: String, playerName: String): ColorRushGame =
-    val player = PlayerState(playerId, playerName, 0, 0)
+    val player = PlayerState(playerId, playerName, 0, 0, connected = true, disconnectedAt = None)
     game.copy(players = game.players + (playerId -> player))
 
   def configureGame(game: ColorRushGame, totalRounds: Int): ColorRushGame =
@@ -60,6 +62,41 @@ object ColorRush:
 
   def removePlayer(game: ColorRushGame, playerId: String): ColorRushGame =
     game.copy(players = game.players - playerId)
+
+  /** Mark a player as disconnected instead of removing them */
+  def disconnectPlayer(game: ColorRushGame, playerId: String): ColorRushGame =
+    game.players.get(playerId) match
+      case Some(player) =>
+        val disconnectedPlayer = player.copy(connected = false, disconnectedAt = Some(System.currentTimeMillis()))
+        game.copy(players = game.players + (playerId -> disconnectedPlayer))
+      case None => game
+
+  /** Reconnect a previously disconnected player */
+  def reconnectPlayer(game: ColorRushGame, playerId: String): Option[ColorRushGame] =
+    game.players.get(playerId).map: player =>
+      val reconnectedPlayer = player.copy(connected = true, disconnectedAt = None)
+      game.copy(players = game.players + (playerId -> reconnectedPlayer))
+
+  /** Check if a player can rejoin (exists and within grace period) */
+  def canRejoin(game: ColorRushGame, playerId: String, gracePeriodMs: Long = 60000): Boolean =
+    game.players.get(playerId) match
+      case Some(player) =>
+        player.disconnectedAt match
+          case Some(disconnectTime) =>
+            val elapsed = System.currentTimeMillis() - disconnectTime
+            elapsed < gracePeriodMs
+          case None => true // Player is still connected or never disconnected
+      case None => false
+
+  /** Remove players who have been disconnected longer than the grace period */
+  def cleanupDisconnectedPlayers(game: ColorRushGame, gracePeriodMs: Long = 60000): ColorRushGame =
+    val now = System.currentTimeMillis()
+    val activePlayers = game.players.filter:
+      case (_, player) =>
+        player.disconnectedAt match
+          case Some(disconnectTime) => (now - disconnectTime) < gracePeriodMs
+          case None => true
+    game.copy(players = activePlayers)
 
   def startNewRound(game: ColorRushGame): ColorRushGame =
     import scala.util.Random

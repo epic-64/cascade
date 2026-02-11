@@ -35,6 +35,9 @@ object ColorRushHandler:
               case shared.ColorRush.JoinMessage(playerName, totalRounds) =>
                 handleJoin(channel, gameId, playerName, totalRounds)
 
+              case shared.ColorRush.RejoinMessage(playerId, rejoinGameId) =>
+                handleRejoin(channel, gameId, playerId)
+
               case shared.ColorRush.ConfigureMessage(totalRounds) =>
                 handleConfigure(gameId, totalRounds)
 
@@ -69,8 +72,41 @@ object ColorRushHandler:
 
     logger.info(s"Player $playerName ($playerId) joined game $gameId with totalRounds=$totalRounds")
 
+    // Send JoinedMessage to the player so they can store their playerId
+    sendToChannel(channel, shared.ColorRush.JoinedMessage(playerId, gameId))
+
     // Broadcast game state to all players
     broadcastGameState(gameId)
+
+  private def handleRejoin(channel: cask.WsChannelActor, gameId: String, playerId: String): Unit =
+    gameManager.getGame(gameId) match
+      case Some(game) if shared.ColorRush.ColorRush.canRejoin(game, playerId) =>
+        // Reconnect the player
+        shared.ColorRush.ColorRush.reconnectPlayer(game, playerId) match
+          case Some(updatedGame) =>
+            gameManager.registerPlayer(channel, gameId, playerId)
+            gameManager.updateGame(gameId, updatedGame)
+            
+            val playerName = updatedGame.players.get(playerId).map(_.name).getOrElse("Unknown")
+            logger.info(s"Player $playerName ($playerId) rejoined game $gameId")
+            
+            // Send JoinedMessage to confirm reconnection
+            sendToChannel(channel, shared.ColorRush.JoinedMessage(playerId, gameId))
+            
+            // Broadcast updated game state to all players
+            broadcastGameState(gameId)
+            
+          case None =>
+            logger.warn(s"Failed to reconnect player $playerId to game $gameId")
+            sendToChannel(channel, shared.ColorRush.RejoinFailedMessage("Failed to reconnect"))
+            
+      case Some(_) =>
+        logger.info(s"Player $playerId cannot rejoin game $gameId - grace period expired or not found")
+        sendToChannel(channel, shared.ColorRush.RejoinFailedMessage("Session expired"))
+        
+      case None =>
+        logger.info(s"Player $playerId cannot rejoin - game $gameId not found")
+        sendToChannel(channel, shared.ColorRush.RejoinFailedMessage("Game not found"))
 
   private def handleConfigure(gameId: String, totalRounds: Int): Unit =
     gameManager.getGame(gameId).foreach: game =>
@@ -116,6 +152,14 @@ object ColorRushHandler:
           broadcastGameEnd(gameId, winner)
 
         broadcastGameState(gameId)
+
+  private def sendToChannel(channel: cask.WsChannelActor, message: shared.ColorRush.ServerMessage): Unit =
+    import upickle.default.*
+    Try:
+      val messageJson = write(message)
+      channel.send(cask.Ws.Text(messageJson))
+    .recover:
+      case ex => logger.warn(s"Failed to send message to channel: ${ex.getMessage}")
 
   private def broadcastGameState(gameId: String): Unit =
     import scala.jdk.CollectionConverters.*
@@ -164,19 +208,21 @@ object ColorRushHandler:
       case Some((gId, pId)) if gId == gameId =>
         gameManager.unregisterPlayer(channel)
         gameManager.getGame(gameId).foreach: game =>
-          val updatedGame = shared.ColorRush.ColorRush.removePlayer(game, pId)
+          // Mark player as disconnected instead of removing (allows rejoin)
+          val updatedGame = shared.ColorRush.ColorRush.disconnectPlayer(game, pId)
           gameManager.updateGame(gameId, updatedGame)
-          logger.info(s"Player $pId disconnected from game $gameId")
+          logger.info(s"Player $pId disconnected from game $gameId (can rejoin within grace period)")
           broadcastGameState(gameId)
 
           // Clean up game if it has no more connections
           val connectionCount = gameManager.getGameConnectionCount(gameId)
           if connectionCount == 0 then
-            gameManager.cleanupGame(gameId)
+            // Schedule cleanup after grace period instead of immediate cleanup
+            logger.info(s"Game $gameId has no active connections - will be cleaned up by periodic task")
       case _ =>
 
     val remainingConnections = gameManager.getGameConnectionCount(gameId)
-    logger.info(s"Connection closed for game $gameId. Remaining players: $remainingConnections")
+    logger.info(s"Connection closed for game $gameId. Remaining connections: $remainingConnections")
 
   private[server] def cleanupGame(gameId: String): Unit =
     gameManager.cleanupGame(gameId)
