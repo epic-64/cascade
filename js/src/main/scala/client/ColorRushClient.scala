@@ -179,11 +179,11 @@ def createGameArea(): HTMLElement =
   div(id = "gameArea", cls = "game-area hidden")(
     // Game controls at the top
     div(cls ="game-controls")(
-      button(cls ="secondary-button").tap: btn =>
+      button(cls ="btn btn-secondary").tap: btn =>
         btn.textContent = "Return to Lobby"
         btn.addEventListener("click", (e: Event) => returnToLobby())
       ,
-      button(id = "showWinnerButton", cls = "secondary-button hidden").tap: btn =>
+      button(id = "showWinnerButton", cls = "btn btn-secondary hidden").tap: btn =>
         btn.textContent = "Show Results"
         btn.addEventListener("click", (e: Event) => reshowGameWinner())
     ),
