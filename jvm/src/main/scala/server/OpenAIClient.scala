@@ -54,7 +54,10 @@ object OpenAIClient:
           "content" -> ujson.Arr(
             ujson.Obj(
               "type" -> "text",
-              "text" -> "Describe this drawing in 5 words or less. Be direct and concise."
+              "text" -> """Describe this drawing in 10-20 words. Include:
+                |1. What the drawing depicts
+                |2. A brief comment on the artistic skill or style (e.g., "skillfully rendered", "charmingly simple", "impressively detailed", "delightfully wonky")
+                |Be witty and entertaining. Do not use quotes.""".stripMargin
             ),
             ujson.Obj(
               "type" -> "image_url",
@@ -65,7 +68,7 @@ object OpenAIClient:
           )
         )
       ),
-      "max_tokens" -> 50
+      "max_tokens" -> 100
     )
 
     makeOpenAIRequest(url, apiKey, requestBody).map: responseJson =>
