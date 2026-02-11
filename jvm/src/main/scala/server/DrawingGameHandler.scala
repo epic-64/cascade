@@ -480,7 +480,7 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
     logger.info(s"Generating advanced prompt for lobby $lobbyId")
 
     // Fetch random words and generate prompt
-    OpenAIClient.fetchRandomWords(2)
+    RandomWordClient.fetchRandomWords()
       .flatMap: words =>
         logger.info(s"Got random words for $lobbyId: ${words.mkString(", ")}")
         OpenAIClient.generatePromptFromWords(apiKey, words)

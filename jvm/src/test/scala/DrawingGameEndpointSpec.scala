@@ -7,17 +7,19 @@ import scala.util.chaining.*
 import scala.concurrent.{Future, ExecutionContext}
 import upickle.default.*
 import shared.DrawingGame.*
-import server.OpenAIClient
+import server.{OpenAIClient, RandomWordClient}
 
 class DrawingGameEndpointSpec extends AnyFunSuite with TestServerHelper with WebSocketTestHelper with BeforeAndAfterEach:
 
   private var lobbyCounter = 0
 
-  // Mock OpenAI client that returns fake responses without calling the real API
-  private val mockOpenAIClient = new OpenAIClient:
+  // Mock RandomWord client that returns fake words without calling the real API
+  private val mockRandomWordClient = new RandomWordClient:
     def fetchRandomWords(count: Int)(using ec: ExecutionContext): Future[Seq[String]] =
       Future.successful(Seq("happy", "cloud"))
 
+  // Mock OpenAI client that returns fake responses without calling the real API
+  private val mockOpenAIClient = new OpenAIClient:
     def captionImage(apiKey: String, imageBase64: String, captionStyle: CaptionStyle)(using ec: ExecutionContext): Future[String] =
       Future.successful("A skillfully rendered masterpiece of abstract art")
 
@@ -29,13 +31,15 @@ class DrawingGameEndpointSpec extends AnyFunSuite with TestServerHelper with Web
       Future.successful(OpenAIClient.WinnerSelection(winnerName, "An excellent interpretation!"))
 
   override def beforeAll(): Unit =
-    // Inject mock before server starts (super.beforeAll() starts the server)
+    // Inject mocks before server starts (super.beforeAll() starts the server)
+    RandomWordClient.setInstance(mockRandomWordClient)
     OpenAIClient.setInstance(mockOpenAIClient)
     super.beforeAll()
 
   override def afterAll(): Unit =
     super.afterAll()
-    // Reset to real client after tests
+    // Reset to real clients after tests
+    RandomWordClient.resetInstance()
     OpenAIClient.resetInstance()
 
   override def beforeEach(): Unit =
