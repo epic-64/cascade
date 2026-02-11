@@ -6,6 +6,13 @@
   padding: 0;
 }
 
+html {
+  min-height: 100%; /* compatibility for older browsers */
+  min-height: 100dvh; /* modern viewport height unit that accounts for mobile browser UI */
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 :root {
   /* Color palette */
   --bg-primary: #0a0a0f;
@@ -53,11 +60,13 @@
   --radius-xl: 20px;
 }
 
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg-primary);
   color: var(--text-primary);
-  min-height: 100vh;
+  min-height: 100%;
+  min-height: 100dvh;
   padding: var(--spacing-md);
   position: relative;
   overflow-x: hidden;
@@ -234,6 +243,9 @@ button {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
   color: #fca5a5;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
 }
 
 .alert-info {
@@ -341,7 +353,7 @@ textarea::placeholder {
   backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border-subtle);
   position: sticky;
-  top: 0;
+  top: calc(-1 * var(--spacing-md));
   z-index: 100;
   margin: calc(-1 * var(--spacing-md));
   margin-bottom: var(--spacing-lg);
@@ -349,6 +361,7 @@ textarea::placeholder {
 
 @media (min-width: 768px) {
   .nav-bar {
+    top: calc(-1 * var(--spacing-xl));
     margin: calc(-1 * var(--spacing-xl));
     margin-bottom: var(--spacing-xl);
   }
