@@ -127,8 +127,8 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
     val actualLobbyId = Option(channelToLobby.get(channel)).getOrElse(lobbyId)
 
     msg match
-      case ClientMessage.CreateLobby(playerName, apiKey, advancedMode) =>
-        handleCreateLobby(channel, playerName, apiKey, advancedMode)
+      case ClientMessage.CreateLobby(playerName, apiKey, gameMode) =>
+        handleCreateLobby(channel, playerName, apiKey, gameMode)
 
       case ClientMessage.JoinLobby(joinLobbyId, playerName) =>
         handleJoinLobby(channel, joinLobbyId, playerName)
@@ -148,10 +148,10 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
       case ClientMessage.NextRound() =>
         handleNextRound(actualLobbyId)
 
-  private def handleCreateLobby(channel: cask.WsChannelActor, playerName: String, apiKey: String, advancedMode: Boolean): Unit =
+  private def handleCreateLobby(channel: cask.WsChannelActor, playerName: String, apiKey: String, gameMode: GameMode): Unit =
     val lobbyId = generateLobbyId()
     val playerId = generatePlayerId()
-    val lobby = DrawingGame.createLobby(lobbyId, playerId, playerName, advancedMode = advancedMode)
+    val lobby = DrawingGame.createLobby(lobbyId, playerId, playerName, gameMode = gameMode)
 
     lobbies.put(lobbyId, (lobby, apiKey))
     playerLobbies.put(playerId, lobbyId)
@@ -161,7 +161,7 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
     removeConnection("temp", channel)
     addConnection(lobbyId, channel)
 
-    logger.info(s"Created lobby $lobbyId for player $playerName (playerId: $playerId, advancedMode: $advancedMode)")
+    logger.info(s"Created lobby $lobbyId for player $playerName (playerId: $playerId, gameMode: $gameMode)")
 
     sendToClient(channel, ServerMessage.LobbyCreated(lobbyId, playerId))
     sendToClient(channel, ServerMessage.LobbyUpdate(lobby))
@@ -347,11 +347,12 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
             startAdvancedDrawingPhase(lobbyId, updated, apiKey)
 
           case LobbyStatus.Drawing =>
-            if lobby.advancedMode && lobby.status != LobbyStatus.GeneratingPrompt then
-              // Advanced mode: go through GeneratingPrompt first
+            val needsGeneration = lobby.gameMode != GameMode.SingleWord && lobby.status != LobbyStatus.GeneratingPrompt
+            if needsGeneration then
+              // Advanced modes: go through GeneratingPrompt first
               transitionTo(lobbyId, LobbyStatus.GeneratingPrompt)
             else
-              // Standard mode OR coming from GeneratingPrompt: start drawing
+              // SingleWord mode OR coming from GeneratingPrompt: start drawing
               val updated = if lobby.status == LobbyStatus.GeneratingPrompt then
                 // Already have prompt set by startAdvancedDrawingPhase
                 lobby.copy(
@@ -368,8 +369,8 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
                 broadcast(lobbyId, ServerMessage.PromptAnnounced(prompt))
               broadcastLobbyUpdate(lobbyId)
               startTimer(
-                lobbyId, 
-                DrawingGame.drawingTimeSeconds, 
+                lobbyId,
+                DrawingGame.drawingTimeSeconds,
                 LobbyStatus.CollectingDrawings,
                 seconds => Some(ServerMessage.DrawingTimerUpdate(seconds))
               )
@@ -462,7 +463,7 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
 
   private def startAdvancedDrawingPhase(lobbyId: String, lobby: DrawingLobby, apiKey: String): Unit =
     logger.info(s"Generating advanced prompt for lobby $lobbyId")
-    
+
     // Fetch random words and generate prompt
     OpenAIClient.fetchRandomWords(2)
       .flatMap: words =>
@@ -470,7 +471,7 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
         OpenAIClient.generatePromptFromWords(apiKey, words)
       .map: generatedPrompt =>
         logger.info(s"Generated prompt for $lobbyId: $generatedPrompt")
-        
+
         // Update lobby with generated prompt, then transition to Drawing
         val updated = lobby.copy(currentPrompt = Some(generatedPrompt))
         lobbies.put(lobbyId, (updated, apiKey))
