@@ -117,16 +117,17 @@ trait ReconnectionSupport[Player <: PlayerConnection, Game]:
 ## Implementation Steps
 
 ### Step 1: Create Session Types (Shared)
-**Effort: Small**
-- [ ] Create `shared/src/main/scala/shared/session/GameSession.scala`
-- [ ] Add `PlayerConnection` trait with `connected` and `disconnectedAt`
-- [ ] Add `PlayerConnectionOps` with `canRejoin` implementation
+**Effort: Small** ✅ COMPLETE
+- [x] Create `shared/src/main/scala/shared/session/GameSession.scala`
+- [x] Add `PlayerConnection` trait with `connected` and `disconnectedAt`
+- [x] Add `PlayerConnectionOps` with `canRejoin` implementation
 
 ### Step 2: Create Client Session Manager
-**Effort: Small**
-- [ ] Create `js/src/main/scala/client/session/SessionManager.scala`
-- [ ] Implement `save`, `load`, `clear` functions
-- [ ] Add logging and error handling
+**Effort: Small** ✅ COMPLETE
+- [x] Create `js/src/main/scala/client/session/SessionManager.scala`
+- [x] Implement `save`, `load`, `clear` functions
+- [x] Add logging and error handling
+- [x] Create `js/src/main/scala/client/session/ReconnectionHelper.scala`
 
 ### Step 3: Refactor ColorRush Client
 **Effort: Medium**
@@ -142,10 +143,11 @@ trait ReconnectionSupport[Player <: PlayerConnection, Game]:
 - [ ] Test reconnection still works
 
 ### Step 5: Create Server Reconnection Support
-**Effort: Medium**
-- [ ] Create `ReconnectionSupport` trait in `server/`
-- [ ] Implement generic `handleRejoin` logic
-- [ ] Add logging helpers
+**Effort: Medium** ✅ COMPLETE
+- [x] Create `ReconnectionSupport` trait in `server/reconnection/`
+- [x] Implement generic `handleRejoinRequest` logic
+- [x] Implement generic `handleDisconnection` logic
+- [x] Add `cleanupExpiredPlayers` helper
 
 ### Step 6: Refactor Server Handlers
 **Effort: Medium**
