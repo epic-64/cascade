@@ -42,10 +42,10 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
   private val closedChannels = java.util.Collections.newSetFromMap(
     new java.util.WeakHashMap[cask.WsChannelActor, java.lang.Boolean]()
   )
-  
+
   // Pending captions: lobbyId -> list of (playerId, playerName, caption) awaiting reveal
   private val pendingCaptions = ConcurrentHashMap[String, List[(String, String, String)]]()
-  
+
   // Stored AI winner per lobby
   private val aiWinners = ConcurrentHashMap[String, String]()
 
@@ -97,7 +97,7 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
       logger.info(s"Client connected to drawing lobby $lobbyId")
 
       lobbies.get(lobbyId) match
-        case null => ()
+        case null       => ()
         case (lobby, _) => sendToClient(channel, ServerMessage.LobbyUpdate(lobby))
 
       cask.WsActor:
@@ -152,7 +152,13 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
         // Keepalive ping - no action needed, just keeps the connection alive
         logger.debug(s"Received keepalive ping for lobby $actualLobbyId")
 
-  private def handleCreateLobby(channel: cask.WsChannelActor, playerName: String, apiKey: String, gameMode: GameMode, captionStyle: CaptionStyle): Unit =
+  private def handleCreateLobby(
+      channel: cask.WsChannelActor,
+      playerName: String,
+      apiKey: String,
+      gameMode: GameMode,
+      captionStyle: CaptionStyle
+  ): Unit =
     val lobbyId = generateLobbyId()
     val playerId = generatePlayerId()
     val lobby = DrawingGame.createLobby(lobbyId, playerId, playerName, gameMode = gameMode, captionStyle = captionStyle)
@@ -165,7 +171,9 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
     removeConnection("temp", channel)
     addConnection(lobbyId, channel)
 
-    logger.info(s"Created lobby $lobbyId for player $playerName (playerId: $playerId, gameMode: $gameMode, captionStyle: $captionStyle)")
+    logger.info(
+      s"Created lobby $lobbyId for player $playerName (playerId: $playerId, gameMode: $gameMode, captionStyle: $captionStyle)"
+    )
 
     sendToClient(channel, ServerMessage.LobbyCreated(lobbyId, playerId))
     sendToClient(channel, ServerMessage.LobbyUpdate(lobby))
@@ -196,47 +204,47 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
   private def handleRejoinLobby(channel: cask.WsChannelActor, lobbyId: String, playerId: String): Unit =
     // Use trait's handleRejoinRequest for the core rejoin logic
     handleRejoinRequest(channel, lobbyId, playerId)
-    
+
     // If rejoin was successful, send additional game-specific state
     // Check if channel is now registered to this lobby
     if Option(channelToLobby.get(channel)).contains(lobbyId) then
       getGame(lobbyId).foreach: lobby =>
         // Send current lobby state
         sendToClient(channel, ServerMessage.LobbyUpdate(lobby))
-        
+
         lobby.status match
           case LobbyStatus.Drawing =>
             // Send current prompt if in drawing phase
             lobby.currentPrompt.foreach: prompt =>
               sendToClient(channel, ServerMessage.PromptAnnounced(prompt))
-          
-          case LobbyStatus.RevealingDrawings | LobbyStatus.RevealingCaptions | 
-               LobbyStatus.RevealingAIWinner | LobbyStatus.Voting | LobbyStatus.Results =>
+
+          case LobbyStatus.RevealingDrawings | LobbyStatus.RevealingCaptions |
+              LobbyStatus.RevealingAIWinner | LobbyStatus.Voting | LobbyStatus.Results =>
             // Send drawings data so gallery can be populated
             lobby.currentPrompt.foreach: prompt =>
               val drawings = lobby.drawings.values.toSeq
               sendToClient(channel, ServerMessage.DrawingsRevealed(drawings, prompt))
-              
+
               // Also send any captions that have been revealed
               drawings.foreach: drawing =>
                 drawing.caption.foreach: caption =>
                   sendToClient(channel, ServerMessage.CaptionRevealed(drawing.playerName, caption))
-              
+
               // Send AI winner if already revealed
               Option(aiWinners.get(lobbyId)).foreach: winnerName =>
                 sendToClient(channel, ServerMessage.AIVoteRevealed(winnerName, "AI's earlier pick"))
-              
+
               // If in voting phase, notify client
               if lobby.status == LobbyStatus.Voting then
                 // Calculate remaining time approximately
                 val elapsed = lobby.timerStartTime.map(t => (System.currentTimeMillis() - t) / 1000).getOrElse(0L)
                 val remaining = Math.max(0, DrawingGame.votingTimeSeconds - elapsed.toInt)
                 sendToClient(channel, ServerMessage.VotingStarted(remaining))
-                
+
                 // Send current vote counts
                 val voteCounts = DrawingGame.tallyVotes(lobby)
                 sendToClient(channel, ServerMessage.VoteUpdate(voteCounts))
-              
+
               // If in results phase, send round complete
               if lobby.status == LobbyStatus.Results then
                 val voteCounts = DrawingGame.tallyVotes(lobby)
@@ -244,7 +252,7 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
                 val aiWinnerName = Option(aiWinners.get(lobbyId))
                 val result = RoundResult(aiWinnerName, playerWinner, voteCounts)
                 sendToClient(channel, ServerMessage.RoundComplete(result))
-          
+
           case _ => () // Waiting, CollectingDrawings - no extra state needed
 
   private def handleStartGame(lobbyId: String): Unit =
@@ -330,11 +338,11 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
 
   private def transitionTo(lobbyId: String, newStatus: LobbyStatus): Unit =
     lobbies.get(lobbyId) match
-      case null => 
+      case null =>
         logger.warn(s"Cannot transition non-existent lobby $lobbyId to $newStatus")
       case (lobby, apiKey) =>
         logger.info(s"Lobby $lobbyId: ${lobby.status} -> $newStatus")
-        
+
         newStatus match
           case LobbyStatus.Waiting =>
             val updated = DrawingGame.resetForNextRound(lobby)
@@ -392,7 +400,10 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
             broadcastLobbyUpdate(lobbyId)
             // Send drawings (without captions)
             val drawingsWithoutCaptions = updated.drawings.values.map(_.copy(caption = None)).toSeq
-            broadcast(lobbyId, ServerMessage.DrawingsRevealed(drawingsWithoutCaptions, lobby.currentPrompt.getOrElse("")))
+            broadcast(
+              lobbyId,
+              ServerMessage.DrawingsRevealed(drawingsWithoutCaptions, lobby.currentPrompt.getOrElse(""))
+            )
             // Start AI captioning in background, then transition
             startCaptioning(lobbyId)
 
@@ -416,8 +427,8 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
             broadcastLobbyUpdate(lobbyId)
             broadcast(lobbyId, ServerMessage.VotingStarted(DrawingGame.votingTimeSeconds))
             startTimer(
-              lobbyId, 
-              DrawingGame.votingTimeSeconds, 
+              lobbyId,
+              DrawingGame.votingTimeSeconds,
               LobbyStatus.Results,
               seconds => Some(ServerMessage.VotingTimerUpdate(seconds))
             )
@@ -434,15 +445,15 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
       futures.forEach(_.cancel(false))
 
   private def startTimer(
-      lobbyId: String, 
-      durationSeconds: Int, 
+      lobbyId: String,
+      durationSeconds: Int,
       nextStatus: LobbyStatus,
       timerMessage: Int => Option[ServerMessage] = _ => None
   ): Unit =
     cancelTimer(lobbyId)
-    
+
     val futures = new java.util.ArrayList[ScheduledFuture[?]]()
-    
+
     // Schedule countdown updates (only if timerMessage is provided)
     (1 to durationSeconds).foreach: i =>
       val secondsRemaining = durationSeconds - i
@@ -453,12 +464,12 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
           TimeUnit.SECONDS
         )
         futures.add(future)
-    
+
     // Schedule the transition to next state
     val transitionTask: Runnable = () => transitionTo(lobbyId, nextStatus)
     val transitionFuture = timerScheduler.schedule(transitionTask, durationSeconds.toLong, TimeUnit.SECONDS)
     futures.add(transitionFuture)
-    
+
     activeTimers.put(lobbyId, futures)
 
   // ============================================================================
@@ -512,10 +523,10 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
             captionResults.foreach: (playerId, _, caption) =>
               currentLobby = DrawingGame.addCaption(currentLobby, playerId, caption)
             lobbies.put(lobbyId, (currentLobby, apiKey))
-            
+
             // Store pending captions for sequential reveal
             pendingCaptions.put(lobbyId, captionResults.toList)
-            
+
             // Transition to caption reveal phase
             transitionTo(lobbyId, LobbyStatus.RevealingCaptions)
           .recover:
@@ -577,7 +588,7 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
 
   private def completeRound(lobbyId: String): Unit =
     cancelTimer(lobbyId)
-    
+
     lobbies.get(lobbyId) match
       case null => ()
       case (lobby, apiKey) =>
@@ -606,30 +617,30 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
 
   private def removeConnection(lobbyId: String, channel: cask.WsChannelActor): Unit =
     connections.get(lobbyId) match
-      case null => ()
+      case null       => ()
       case channelSet => channelSet.remove(channel)
 
   private def handleDisconnect(channel: cask.WsChannelActor, lobbyId: String): Unit =
     closedChannels.add(channel)
-    
+
     val actualLobbyId = Option(channelToLobby.get(channel)).getOrElse(lobbyId)
     val playerId = Option(channelToPlayer.get(channel))
-    
+
     connections.get(actualLobbyId) match
       case null => ()
       case channelSet =>
         channelSet.remove(channel)
         logger.info(s"Client disconnected from lobby $actualLobbyId")
-    
+
     if actualLobbyId != lobbyId then
       connections.get(lobbyId) match
-        case null => ()
+        case null       => ()
         case channelSet => channelSet.remove(channel)
-    
+
     // Use trait's handleDisconnection for the actual disconnect logic
     playerId.foreach: pId =>
       handleDisconnection(actualLobbyId, pId)
-    
+
     channelToPlayer.remove(channel)
     channelToLobby.remove(channel)
 
@@ -680,8 +691,10 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
         val cleanedLobby = DrawingGame.cleanupDisconnectedPlayers(lobby)
         if cleanedLobby.players.size != lobby.players.size then
           lobbies.put(lobbyId, (cleanedLobby, apiKey))
-          logger.info(s"Cleaned up ${lobby.players.size - cleanedLobby.players.size} disconnected player(s) from lobby $lobbyId")
-    
+          logger.info(
+            s"Cleaned up ${lobby.players.size - cleanedLobby.players.size} disconnected player(s) from lobby $lobbyId"
+          )
+
     // Then clean up empty lobbies
     lobbies.asScala.filter:
       case (_, (lobby, _)) => lobby.players.isEmpty
@@ -692,4 +705,3 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
       pendingCaptions.remove(lobbyId)
       aiWinners.remove(lobbyId)
       logger.info(s"Cleaned up empty lobby $lobbyId")
-

@@ -79,11 +79,18 @@ object ColorRush:
       game.copy(players = game.players + (playerId -> reconnectedPlayer))
 
   /** Check if a player can rejoin (exists and within grace period) */
-  def canRejoin(game: ColorRushGame, playerId: String, gracePeriodMs: Long = PlayerConnectionOps.DefaultGracePeriodMs): Boolean =
+  def canRejoin(
+      game: ColorRushGame,
+      playerId: String,
+      gracePeriodMs: Long = PlayerConnectionOps.DefaultGracePeriodMs
+  ): Boolean =
     game.players.get(playerId).exists(PlayerConnectionOps.canRejoin(_, gracePeriodMs))
 
   /** Remove players who have been disconnected longer than the grace period */
-  def cleanupDisconnectedPlayers(game: ColorRushGame, gracePeriodMs: Long = PlayerConnectionOps.DefaultGracePeriodMs): ColorRushGame =
+  def cleanupDisconnectedPlayers(
+      game: ColorRushGame,
+      gracePeriodMs: Long = PlayerConnectionOps.DefaultGracePeriodMs
+  ): ColorRushGame =
     val activePlayers = game.players.filterNot:
       case (_, player) => PlayerConnectionOps.isGracePeriodExpired(player, gracePeriodMs)
     game.copy(players = activePlayers)

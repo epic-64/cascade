@@ -7,25 +7,25 @@ import shared.session.{PlayerConnection, PlayerConnectionOps}
 
 // Game mode determines how prompts are generated
 enum GameMode derives ReadWriter:
-  case SingleWord      // Simple single-word prompts from static list
-  case TwoWordScene    // AI generates creative prompts from 2 random words
+  case SingleWord // Simple single-word prompts from static list
+  case TwoWordScene // AI generates creative prompts from 2 random words
 
 // Caption style determines how AI describes the drawings
 enum CaptionStyle derives ReadWriter:
-  case Descriptive     // Default: describe what's drawn and comment on skill
-  case Roast           // Roast the art style humorously
+  case Descriptive // Default: describe what's drawn and comment on skill
+  case Roast // Roast the art style humorously
 
 // Proper state machine for the game phases
 enum LobbyStatus derives ReadWriter:
-  case Waiting           // Waiting for players to join, host can start game
-  case GeneratingPrompt  // AI is generating prompt (advanced mode only)
-  case Drawing           // Players are drawing, timer is running
+  case Waiting // Waiting for players to join, host can start game
+  case GeneratingPrompt // AI is generating prompt (advanced mode only)
+  case Drawing // Players are drawing, timer is running
   case CollectingDrawings // Brief pause to collect any last-second submissions
   case RevealingDrawings // Showing all drawings (without captions)
   case RevealingCaptions // AI is captioning and revealing captions one by one
   case RevealingAIWinner // AI announces its pick
-  case Voting            // Players vote for their favorite, timer is running
-  case Results           // Round complete, showing results
+  case Voting // Players vote for their favorite, timer is running
+  case Results // Round complete, showing results
 
 case class DrawingLobby(
     lobbyId: String,
@@ -64,7 +64,12 @@ case class RoundResult(
 
 // Client -> Server messages
 enum ClientMessage derives ReadWriter:
-  case CreateLobby(playerName: String, apiKey: String, gameMode: GameMode = GameMode.SingleWord, captionStyle: CaptionStyle = CaptionStyle.Descriptive)
+  case CreateLobby(
+      playerName: String,
+      apiKey: String,
+      gameMode: GameMode = GameMode.SingleWord,
+      captionStyle: CaptionStyle = CaptionStyle.Descriptive
+  )
   case JoinLobby(lobbyId: String, playerName: String)
   case RejoinLobby(lobbyId: String, playerId: String)
   case StartGame()
@@ -100,8 +105,9 @@ object DrawingGame:
   val drawingTimeSeconds = 60
   val votingTimeSeconds = 10
   val maxPlayersPerLobby = 8
-  
+
   // Static list of prompts for cost control
+  // format: off
   private val prompts: Vector[String] = Vector(
     // Animals
     "cat", "dog", "bird", "fish", "elephant", "lion", "tiger", "bear", "monkey", "giraffe",
@@ -169,12 +175,20 @@ object DrawingGame:
     "trophy", "medal", "present", "birthday cake", "christmas tree", "snowman", "jack-o-lantern", "easter egg", "fireworks", "confetti",
     "anchor", "compass", "map", "treasure", "pirate ship", "cannon", "flag", "banner", "sign", "arrow"
   )
+  // format: on
 
   def getRandomPrompt(): String =
     import scala.util.Random
     prompts(Random.nextInt(prompts.length))
 
-  def createLobby(lobbyId: String, hostId: String, hostName: String, maxRounds: Int = 5, gameMode: GameMode = GameMode.SingleWord, captionStyle: CaptionStyle = CaptionStyle.Descriptive): DrawingLobby =
+  def createLobby(
+      lobbyId: String,
+      hostId: String,
+      hostName: String,
+      maxRounds: Int = 5,
+      gameMode: GameMode = GameMode.SingleWord,
+      captionStyle: CaptionStyle = CaptionStyle.Descriptive
+  ): DrawingLobby =
     val host = PlayerInfo(hostId, hostName, connected = true, score = 0)
     DrawingLobby(
       lobbyId = lobbyId,
@@ -216,11 +230,18 @@ object DrawingGame:
       lobby.copy(players = lobby.players + (playerId -> reconnectedPlayer))
 
   /** Check if a player can rejoin (exists and within grace period) */
-  def canRejoin(lobby: DrawingLobby, playerId: String, gracePeriodMs: Long = PlayerConnectionOps.DefaultGracePeriodMs): Boolean =
+  def canRejoin(
+      lobby: DrawingLobby,
+      playerId: String,
+      gracePeriodMs: Long = PlayerConnectionOps.DefaultGracePeriodMs
+  ): Boolean =
     lobby.players.get(playerId).exists(PlayerConnectionOps.canRejoin(_, gracePeriodMs))
 
   /** Remove players who have been disconnected longer than the grace period */
-  def cleanupDisconnectedPlayers(lobby: DrawingLobby, gracePeriodMs: Long = PlayerConnectionOps.DefaultGracePeriodMs): DrawingLobby =
+  def cleanupDisconnectedPlayers(
+      lobby: DrawingLobby,
+      gracePeriodMs: Long = PlayerConnectionOps.DefaultGracePeriodMs
+  ): DrawingLobby =
     val activePlayers = lobby.players.filterNot:
       case (_, player) => PlayerConnectionOps.isGracePeriodExpired(player, gracePeriodMs)
     lobby.copy(players = activePlayers)
@@ -286,13 +307,13 @@ object DrawingGame:
     aiWinner.foreach: winnerName =>
       updatedPlayers = updatedPlayers.map:
         case (id, player) if player.playerName == winnerName => (id, player.copy(score = player.score + 100))
-        case other => other
+        case other                                           => other
 
     // Award points for player-voted winner
     playerWinner.foreach: winnerName =>
       updatedPlayers = updatedPlayers.map:
         case (id, player) if player.playerName == winnerName => (id, player.copy(score = player.score + 50))
-        case other => other
+        case other                                           => other
 
     lobby.copy(players = updatedPlayers)
 
@@ -304,4 +325,3 @@ object DrawingGame:
       status = LobbyStatus.Waiting,
       timerStartTime = None
     )
-

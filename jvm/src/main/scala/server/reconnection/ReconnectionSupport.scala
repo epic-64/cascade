@@ -3,15 +3,15 @@ package server.reconnection
 import org.slf4j.Logger
 import shared.session.{PlayerConnection, PlayerConnectionOps}
 
-/**
- * Mixin trait providing standardized reconnection handling for game servers.
- *
- * Games implement the abstract methods to provide game-specific behavior,
- * and get the reconnection logic for free.
- *
- * @tparam Player The player type (must extend PlayerConnection)
- * @tparam Game The game/lobby state type
- */
+/** Mixin trait providing standardized reconnection handling for game servers.
+  *
+  * Games implement the abstract methods to provide game-specific behavior, and get the reconnection logic for free.
+  *
+  * @tparam Player
+  *   The player type (must extend PlayerConnection)
+  * @tparam Game
+  *   The game/lobby state type
+  */
 trait ReconnectionSupport[Player <: PlayerConnection, Game]:
 
   /** Logger for reconnection events */
@@ -50,15 +50,17 @@ trait ReconnectionSupport[Player <: PlayerConnection, Game]:
   /** Grace period for reconnection (default 60 seconds) */
   protected def gracePeriodMs: Long = PlayerConnectionOps.DefaultGracePeriodMs
 
-  /**
-   * Handle a rejoin request from a client.
-   *
-   * This is the main entry point that games call when receiving a rejoin message.
-   *
-   * @param channel The WebSocket channel
-   * @param gameId The game to rejoin
-   * @param playerId The player attempting to rejoin
-   */
+  /** Handle a rejoin request from a client.
+    *
+    * This is the main entry point that games call when receiving a rejoin message.
+    *
+    * @param channel
+    *   The WebSocket channel
+    * @param gameId
+    *   The game to rejoin
+    * @param playerId
+    *   The player attempting to rejoin
+    */
   final def handleRejoinRequest(
       channel: cask.WsChannelActor,
       gameId: String,
@@ -79,9 +81,8 @@ trait ReconnectionSupport[Player <: PlayerConnection, Game]:
         logger.info(s"Game $gameId not found for rejoin request from $playerId")
         sendRejoinFailure(channel, "Game not found")
 
-  /**
-   * Perform the actual rejoin operation.
-   */
+  /** Perform the actual rejoin operation.
+    */
   private def performRejoin(
       channel: cask.WsChannelActor,
       gameId: String,
@@ -100,15 +101,15 @@ trait ReconnectionSupport[Player <: PlayerConnection, Game]:
     sendRejoinSuccess(channel, playerId, gameId)
     broadcastGameState(gameId)
 
-  /**
-   * Handle a player disconnection.
-   *
-   * Marks the player as disconnected rather than removing them,
-   * allowing them to rejoin within the grace period.
-   *
-   * @param gameId The game the player disconnected from
-   * @param playerId The player who disconnected
-   */
+  /** Handle a player disconnection.
+    *
+    * Marks the player as disconnected rather than removing them, allowing them to rejoin within the grace period.
+    *
+    * @param gameId
+    *   The game the player disconnected from
+    * @param playerId
+    *   The player who disconnected
+    */
   final def handleDisconnection(gameId: String, playerId: String): Unit =
     getGame(gameId).foreach: game =>
       getPlayers(game).get(playerId).foreach: player =>
@@ -118,13 +119,15 @@ trait ReconnectionSupport[Player <: PlayerConnection, Game]:
         logger.info(s"Player $playerId disconnected from game $gameId (can rejoin within ${gracePeriodMs}ms)")
         broadcastGameState(gameId)
 
-  /**
-   * Clean up players who have exceeded the grace period.
-   *
-   * @param game The game to clean up
-   * @param removePlayer Function to remove a player from the game
-   * @return Updated game with expired players removed
-   */
+  /** Clean up players who have exceeded the grace period.
+    *
+    * @param game
+    *   The game to clean up
+    * @param removePlayer
+    *   Function to remove a player from the game
+    * @return
+    *   Updated game with expired players removed
+    */
   final def cleanupExpiredPlayers(
       game: Game,
       removePlayer: (Game, String) => Game
@@ -136,4 +139,3 @@ trait ReconnectionSupport[Player <: PlayerConnection, Game]:
     expiredPlayerIds.foldLeft(game): (g, playerId) =>
       logger.info(s"Removing expired player $playerId")
       removePlayer(g, playerId)
-

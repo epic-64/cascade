@@ -18,16 +18,16 @@ def initializeColorRush(): Unit =
   println("[ColorRush] Starting Color Rush client...")
   buildGameUI()
   setupEnterKeyHandler()
-  
+
   // Check for existing session and attempt reconnect
   checkForExistingSession()
 
 var gameWebSocket: Option[WebSocket] = None
-var currentGameId: Option[String]    = None
-var currentRoundId: Option[String]   = None
-var colorRushPlayerId: Option[String]  = None
+var currentGameId: Option[String] = None
+var currentRoundId: Option[String] = None
+var colorRushPlayerId: Option[String] = None
 var colorRushPlayerName: Option[String] = None
-var isRejoining: Boolean             = false
+var isRejoining: Boolean = false
 
 // WebSocket keepalive to prevent idle timeouts
 val colorRushKeepAlive: WebSocketKeepAlive = WebSocketKeepAlive.forWebSocket(
@@ -49,7 +49,9 @@ def clearSession(): Unit =
 def checkForExistingSession(): Unit =
   loadSession() match
     case Some(session) =>
-      println(s"[ColorRush] Found existing session - attempting rejoin: gameId=${session.gameId}, playerId=${session.playerId}")
+      println(
+        s"[ColorRush] Found existing session - attempting rejoin: gameId=${session.gameId}, playerId=${session.playerId}"
+      )
       isRejoining = true
       currentGameId = Some(session.gameId)
       colorRushPlayerId = Some(session.playerId)
@@ -117,20 +119,19 @@ def createColorRushLobbySetup(): HTMLElement =
   div(id = "lobbySetup", cls = "lobby-setup")(
     h2(content = "Color Rush"),
     p(cls = "subtitle", content = "Race to click the matching color faster than your friends!"),
-
     div(cls = "tabs")(
       button(id = "joinTab", cls = "tab-btn active", content = "Join Game").tap: btn =>
-        btn.addEventListener("click", (e: Event) => switchColorRushTab("join"))
-      ,
+        btn.addEventListener("click", (e: Event) => switchColorRushTab("join")),
       button(id = "createTab", cls = "tab-btn", content = "Create Game").tap: btn =>
         btn.addEventListener("click", (e: Event) => switchColorRushTab("create"))
     ),
-
     div(cls = "tab-content")(
       div(id = "joinTabContent", cls = "tab-pane active")(
-        form(id = "joinForm").tap(_.addEventListener("submit", (e: Event) =>
-          e.preventDefault()
-          joinGame()
+        form(id = "joinForm").tap(_.addEventListener(
+          "submit",
+          (e: Event) =>
+            e.preventDefault()
+            joinGame()
         ))(
           input("text", id = "joinGameId").tap: el =>
             el.placeholder = "Game Code (e.g., ABC123)"
@@ -145,11 +146,12 @@ def createColorRushLobbySetup(): HTMLElement =
           button("submit", content = "Join Game")
         )
       ),
-
       div(id = "createTabContent", cls = "tab-pane")(
-        form(id = "createForm").tap(_.addEventListener("submit", (e: Event) =>
-          e.preventDefault()
-          createColorRushGame()
+        form(id = "createForm").tap(_.addEventListener(
+          "submit",
+          (e: Event) =>
+            e.preventDefault()
+            createColorRushGame()
         ))(
           input("text", id = "createPlayerName").tap: el =>
             el.placeholder = "Your name"
@@ -190,8 +192,8 @@ def createWaitingArea(): HTMLElement =
 def createGameArea(): HTMLElement =
   div(id = "gameArea", cls = "game-area hidden")(
     // Game controls at the top
-    div(cls ="game-controls")(
-      button(cls ="btn btn-secondary").tap: btn =>
+    div(cls = "game-controls")(
+      button(cls = "btn btn-secondary").tap: btn =>
         btn.textContent = "Return to Lobby"
         btn.addEventListener("click", (e: Event) => returnToLobby())
       ,
@@ -225,9 +227,9 @@ def createRoundWinnerAnnouncement(): HTMLElement =
 
 def createGameWinnerAnnouncement(): HTMLElement =
   val announcement = div(id = "gameWinnerAnnouncement", cls = "game-winner-announcement hidden")(
-    div(cls ="game-winner-content")(
+    div(cls = "game-winner-content")(
       el("h1", id = "gameWinnerTitle"),
-      div(cls ="game-winner-details")(
+      div(cls = "game-winner-details")(
         div(id = "gameWinnerName", cls = "winner-name"),
         div(id = "gameWinnerScore", cls = "winner-score"),
         div(id = "gameWinnerRounds", cls = "winner-rounds")
@@ -239,8 +241,10 @@ def createGameWinnerAnnouncement(): HTMLElement =
   )
 
   // Click outside to close
-  announcement.addEventListener("click", (e: Event) =>
-    if e.target == announcement then hideGameWinner()
+  announcement.addEventListener(
+    "click",
+    (e: Event) =>
+      if e.target == announcement then hideGameWinner()
   )
 
   announcement
@@ -251,7 +255,7 @@ def setupEnterKeyHandler(): Unit =
     (event: KeyboardEvent) =>
       if event.key == "Enter" then
         val waitingArea = getElementById("waitingArea")
-        val lobby       = getElementById("lobby")
+        val lobby = getElementById("lobby")
 
         if !waitingArea.exists(_.classList.contains("hidden")) &&
           !lobby.exists(_.classList.contains("hidden"))
@@ -261,14 +265,14 @@ def setupEnterKeyHandler(): Unit =
   )
 
 def joinGame(): Unit =
-  val gameIdOpt     = getInputValue("joinGameId")
+  val gameIdOpt = getInputValue("joinGameId")
   val playerNameOpt = getInputValue("joinPlayerName")
 
   (gameIdOpt, playerNameOpt) match
     case (Some(gameId), Some(playerName)) =>
       currentGameId = Some(gameId.toUpperCase)
       connectToGame(gameId.toUpperCase, playerName)
-    case _                                =>
+    case _ =>
       // HTML5 form validation should prevent reaching here
       println("[ColorRush] Missing game ID or player name")
 
@@ -291,7 +295,7 @@ def generateGameCode(): String =
 def connectToGame(gameId: String, playerName: String): Unit =
   colorRushPlayerName = Some(playerName)
   val protocol = if window.location.protocol == "https:" then "wss:" else "ws:"
-  val wsUrl    = s"$protocol//${window.location.host}/ws/color-rush/$gameId"
+  val wsUrl = s"$protocol//${window.location.host}/ws/color-rush/$gameId"
 
   val ws = new WebSocket(wsUrl)
   gameWebSocket = Some(ws)
@@ -310,7 +314,7 @@ def connectToGame(gameId: String, playerName: String): Unit =
 
   ws.onmessage = (event: MessageEvent) => handleWebSocketMessage(event.data.toString)
   ws.onerror = (event: Event) => println(s"[ColorRush] WebSocket error")
-  ws.onclose = (e: CloseEvent) => 
+  ws.onclose = (e: CloseEvent) =>
     println(s"[ColorRush] Disconnected from game")
     colorRushKeepAlive.stop()
     // Attempt automatic reconnection if we have a valid session
@@ -337,7 +341,6 @@ def sendMessageSafe(msg: ClientMessage): Unit =
       println("[ColorRush] No WebSocket connection - attempting reconnect")
       scheduleReconnect()
 
-
 /** Schedule an automatic reconnection attempt */
 def scheduleReconnect(): Unit =
   // Only reconnect if we have a valid session
@@ -363,18 +366,18 @@ def handleWebSocketMessage(data: String): Unit =
         println(s"[ColorRush] Joined/Rejoined - playerId=$playerId, gameId=$gameId")
         colorRushPlayerId = Some(playerId)
         currentGameId = Some(gameId)
-        
+
         // Save session with player name from form or existing session
         val playerName = getInputValue("joinPlayerName")
           .orElse(getInputValue("createPlayerName"))
           .orElse(loadSession().map(_.playerName))
           .getOrElse("Player")
         saveSession(playerId, gameId, playerName)
-        
+
         // Update UI to show we're in the game
         isRejoining = false
         updateLobbyUI()
-        
+
       case RejoinFailedMessage(reason) =>
         println(s"[ColorRush] Rejoin failed: $reason")
         colorRushKeepAlive.stop()
@@ -386,9 +389,9 @@ def handleWebSocketMessage(data: String): Unit =
         currentGameId = None
         colorRushPlayerId = None
         colorRushPlayerName = None
-        // Show join form again (page is already showing it)
-        
-      case GameUpdateMessage(game)                => 
+      // Show join form again (page is already showing it)
+
+      case GameUpdateMessage(game) =>
         println(s"[ColorRush] GameUpdateMessage - status: ${game.status}, totalRounds: ${game.totalRounds}")
         parseGameUpdate(game)
       case RoundWinnerMessage(playerName, points) => showRoundWinner(playerName, points)

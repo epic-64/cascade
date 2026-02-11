@@ -60,5 +60,3 @@ object CounterHandler:
     wsConnections.asScala.foreach: channel =>
       Try(channel.send(message)).recover:
         case ex => logger.warn(s"Failed to send WebSocket message to client: ${ex.getMessage}")
-
-

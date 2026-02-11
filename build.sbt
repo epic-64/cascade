@@ -26,6 +26,7 @@ lazy val cascade = crossProject(JSPlatform, JVMPlatform)
     name    := "cascade",
     version := "0.1-SNAPSHOT",
     // Shared dependencies that work on both JS and JVM
+    // scalafmt: { align.preset = most, danglingParentheses.preset = false }
     libraryDependencies ++= Seq(
       "com.lihaoyi"   %%% "upickle"    % "4.0.2",
       "org.scalatest" %%% "scalatest"  % "3.2.19" % Test
@@ -37,6 +38,7 @@ lazy val cascade = crossProject(JSPlatform, JVMPlatform)
     // Enable coverage for JVM project via environment variable
     coverageEnabled := enableCoverage,
     // JVM-specific dependencies
+    // scalafmt: { align.preset = most, danglingParentheses.preset = false }
     libraryDependencies ++= Seq(
       "com.lihaoyi"       %% "cask"            % caskVersion,
       "ch.qos.logback"     % "logback-classic" % "1.5.28",
@@ -62,6 +64,7 @@ lazy val cascade = crossProject(JSPlatform, JVMPlatform)
       baseDirectory.value / ".." / "jvm" / "src" / "main" / "resources" / "static" / "js",
 
     // JS-specific dependencies
+    // scalafmt: { align.preset = most, danglingParentheses.preset = false }
     libraryDependencies ++= Seq(
       "org.scala-js" %%% "scalajs-dom" % "2.2.0"
     )

@@ -8,13 +8,13 @@ import server.WeatherClient.given
 
 // Configuration object - can be overridden via environment variables
 object Config:
-  val port: Int              = sys.env.get("PORT").flatMap(_.toIntOption).getOrElse(8080)
+  val port: Int = sys.env.get("PORT").flatMap(_.toIntOption).getOrElse(8080)
   val staticFilesDir: String = sys.env.getOrElse("STATIC_FILES_DIR", ".")
-  val cacheDuration: Int     = sys.env.get("CACHE_MAX_AGE").flatMap(_.toIntOption).getOrElse(3600)
-  val isProd: Boolean        = sys.env.get("ENVIRONMENT").contains("production")
+  val cacheDuration: Int = sys.env.get("CACHE_MAX_AGE").flatMap(_.toIntOption).getOrElse(3600)
+  val isProd: Boolean = sys.env.get("ENVIRONMENT").contains("production")
 
 object WebServer extends MainRoutes:
-  private val logger    = LoggerFactory.getLogger(getClass)
+  private val logger = LoggerFactory.getLogger(getClass)
   // Server start time for uptime calculation
   private val startTime = System.currentTimeMillis()
 
@@ -115,7 +115,7 @@ object WebServer extends MainRoutes:
   @cask.staticResources("/static", headers = Seq("Cache-Control" -> s"public, max-age=${Config.cacheDuration}"))
   def staticResourceRoutes() = "static"
 
-  override def port: Int    = Config.port
+  override def port: Int = Config.port
   override def host: String = "0.0.0.0"
 
   // Log startup configuration

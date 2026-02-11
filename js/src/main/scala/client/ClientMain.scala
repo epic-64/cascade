@@ -12,9 +12,9 @@ enum AppRoute:
 def routeFromPathname(pathname: String): AppRoute =
   pathname match
     case p if p == "/color-rush" => AppRoute.ColorRush
-    case p if p == "/counter" => AppRoute.Counter
+    case p if p == "/counter"    => AppRoute.Counter
     case p if p == "/ai-drawing" => AppRoute.AIDrawing
-    case _ => AppRoute.Landing
+    case _                       => AppRoute.Landing
 
 def shouldDeferInit(documentState: String): Boolean =
   documentState == "loading"
@@ -45,4 +45,3 @@ def clientMain(pathnameOverride: Option[String] = None): Unit =
       println("[client] Landing page - no app initialization needed")
 
 @main def main(): Unit = clientMain()
-

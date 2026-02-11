@@ -8,9 +8,16 @@ import shared.DrawingGame.CaptionStyle
 // Trait to allow mocking in tests
 trait OpenAIClient:
   def fetchRandomWords(count: Int = 2)(using ec: ExecutionContext): Future[Seq[String]]
-  def captionImage(apiKey: String, imageBase64: String, captionStyle: CaptionStyle = CaptionStyle.Descriptive)(using ec: ExecutionContext): Future[String]
+  def captionImage(apiKey: String, imageBase64: String, captionStyle: CaptionStyle = CaptionStyle.Descriptive)(using
+      ec: ExecutionContext
+  ): Future[String]
   def generatePromptFromWords(apiKey: String, words: Seq[String])(using ec: ExecutionContext): Future[String]
-  def selectWinner(apiKey: String, originalPrompt: String, captions: Map[String, String], captionStyle: CaptionStyle = CaptionStyle.Descriptive)(using ec: ExecutionContext): Future[OpenAIClient.WinnerSelection]
+  def selectWinner(
+      apiKey: String,
+      originalPrompt: String,
+      captions: Map[String, String],
+      captionStyle: CaptionStyle = CaptionStyle.Descriptive
+  )(using ec: ExecutionContext): Future[OpenAIClient.WinnerSelection]
 
 object OpenAIClient:
   private val logger = LoggerFactory.getLogger(getClass)
@@ -34,20 +41,27 @@ object OpenAIClient:
   def fetchRandomWords(count: Int = 2)(using ec: ExecutionContext): Future[Seq[String]] =
     _instance.fetchRandomWords(count)
 
-  def captionImage(apiKey: String, imageBase64: String, captionStyle: CaptionStyle = CaptionStyle.Descriptive)(using ec: ExecutionContext): Future[String] =
+  def captionImage(apiKey: String, imageBase64: String, captionStyle: CaptionStyle = CaptionStyle.Descriptive)(using
+      ec: ExecutionContext
+  ): Future[String] =
     _instance.captionImage(apiKey, imageBase64, captionStyle)
 
   def generatePromptFromWords(apiKey: String, words: Seq[String])(using ec: ExecutionContext): Future[String] =
     _instance.generatePromptFromWords(apiKey, words)
 
-  def selectWinner(apiKey: String, originalPrompt: String, captions: Map[String, String], captionStyle: CaptionStyle = CaptionStyle.Descriptive)(using ec: ExecutionContext): Future[WinnerSelection] =
+  def selectWinner(
+      apiKey: String,
+      originalPrompt: String,
+      captions: Map[String, String],
+      captionStyle: CaptionStyle = CaptionStyle.Descriptive
+  )(using ec: ExecutionContext): Future[WinnerSelection] =
     _instance.selectWinner(apiKey, originalPrompt, captions, captionStyle)
 
   // Internal helper for making OpenAI requests (used by RealOpenAIClient)
   private[server] def makeOpenAIRequest(
-    url: String,
-    apiKey: String,
-    requestBody: ujson.Obj
+      url: String,
+      apiKey: String,
+      requestBody: ujson.Obj
   )(using ec: ExecutionContext): Future[ujson.Value] =
     Future:
       val connection = java.net.URI.create(url).toURL.openConnection().asInstanceOf[java.net.HttpURLConnection]
@@ -123,7 +137,9 @@ class RealOpenAIClient extends OpenAIClient:
 
   import shared.DrawingGame.CaptionStyle
 
-  def captionImage(apiKey: String, imageBase64: String, captionStyle: CaptionStyle = CaptionStyle.Descriptive)(using ec: ExecutionContext): Future[String] =
+  def captionImage(apiKey: String, imageBase64: String, captionStyle: CaptionStyle = CaptionStyle.Descriptive)(using
+      ec: ExecutionContext
+  ): Future[String] =
     val url = "https://api.openai.com/v1/chat/completions"
 
     // Remove data URL prefix if present
@@ -204,10 +220,10 @@ class RealOpenAIClient extends OpenAIClient:
         words.mkString(" ")
 
   def selectWinner(
-    apiKey: String,
-    originalPrompt: String,
-    captions: Map[String, String],
-    captionStyle: CaptionStyle = CaptionStyle.Descriptive
+      apiKey: String,
+      originalPrompt: String,
+      captions: Map[String, String],
+      captionStyle: CaptionStyle = CaptionStyle.Descriptive
   )(using ec: ExecutionContext): Future[WinnerSelection] =
     val url = "https://api.openai.com/v1/chat/completions"
 
