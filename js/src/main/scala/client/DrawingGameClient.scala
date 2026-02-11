@@ -17,7 +17,7 @@ private val DrawingSessionKey = "drawing"
 def initializeDrawing(): Unit =
   println("[Drawing] Starting AI Drawing game client...")
   buildDrawingUI()
-  
+
   // Check for existing session and attempt reconnect
   checkForExistingDrawingSession()
 
@@ -51,7 +51,9 @@ def clearDrawingSession(): Unit =
 def checkForExistingDrawingSession(): Unit =
   loadDrawingSession() match
     case Some(session) =>
-      println(s"[Drawing] Found existing session - attempting rejoin: lobbyId=${session.gameId}, playerId=${session.playerId}")
+      println(
+        s"[Drawing] Found existing session - attempting rejoin: lobbyId=${session.gameId}, playerId=${session.playerId}"
+      )
       isRejoiningDrawing = true
       currentLobbyId = Some(session.gameId)
       currentPlayerId = Some(session.playerId)
@@ -114,29 +116,30 @@ def createLobbySetup(): HTMLElement =
   div(id = "lobbySetup", cls = "lobby-setup")(
     h2(content = "AI Drawing Challenge"),
     p(cls = "subtitle", content = "Draw a prompt, let AI caption it, and compete for the best match!"),
-
     div(cls = "tabs")(
       button(id = "joinTab", cls = "tab-btn active", content = "Join Lobby").tap: btn =>
-        btn.addEventListener("click", (e: Event) => switchTab("join"))
-      ,
+        btn.addEventListener("click", (e: Event) => switchTab("join")),
       button(id = "createTab", cls = "tab-btn", content = "Create Lobby").tap: btn =>
         btn.addEventListener("click", (e: Event) => switchTab("create"))
     ),
-
     div(cls = "tab-content")(
       div(id = "joinTabContent", cls = "tab-pane active")(
-        form(id = "joinForm").tap(_.addEventListener("submit", (e: Event) =>
-          e.preventDefault()
-          joinDrawingLobby()
+        form(id = "joinForm").tap(_.addEventListener(
+          "submit",
+          (e: Event) =>
+            e.preventDefault()
+            joinDrawingLobby()
         ))(
           input("text", id = "joinLobbyId").tap: el =>
             el.placeholder = "Lobby Code (e.g., ABC123)"
             el.required = true
             el.maxLength = 6
             el.autocomplete = "off"
-            el.addEventListener("input", (e: Event) =>
-              val input = e.target.asInstanceOf[HTMLInputElement]
-              input.value = input.value.toUpperCase
+            el.addEventListener(
+              "input",
+              (e: Event) =>
+                val input = e.target.asInstanceOf[HTMLInputElement]
+                input.value = input.value.toUpperCase
             )
           ,
           input("text", id = "joinPlayerName").tap: el =>
@@ -147,11 +150,12 @@ def createLobbySetup(): HTMLElement =
           button("submit", content = "Join Lobby")
         )
       ),
-
       div(id = "createTabContent", cls = "tab-pane")(
-        form(id = "createForm").tap(_.addEventListener("submit", (e: Event) =>
-          e.preventDefault()
-          createDrawingLobby()
+        form(id = "createForm").tap(_.addEventListener(
+          "submit",
+          (e: Event) =>
+            e.preventDefault()
+            createDrawingLobby()
         ))(
           input("password", id = "apiKey").tap: el =>
             el.placeholder = "OpenAI API Key"
@@ -257,8 +261,7 @@ def createDrawingArea(): HTMLElement =
           btn.addEventListener("click", (e: Event) => selectColor("#00FF00", btn))
       ),
       button(id = "clearBtn", cls = "btn btn-danger", content = "Clear").tap: btn =>
-        btn.addEventListener("click", (e: Event) => clearCanvas())
-      ,
+        btn.addEventListener("click", (e: Event) => clearCanvas()),
       button(id = "submitDrawingBtn", cls = "btn btn-success", content = "Submit Drawing").tap: btn =>
         btn.addEventListener("click", (e: Event) => submitDrawing())
     )
@@ -304,75 +307,89 @@ def setupCanvas(canvas: HTMLCanvasElement): Unit =
   var lastX = 0.0
   var lastY = 0.0
 
-  canvas.addEventListener("mousedown", (e: MouseEvent) =>
-    isDrawing = true
-    val rect = canvas.getBoundingClientRect()
-    val scaleX = canvas.width.toDouble / rect.width
-    val scaleY = canvas.height.toDouble / rect.height
-    lastX = (e.clientX - rect.left) * scaleX
-    lastY = (e.clientY - rect.top) * scaleY
-  )
-
-  canvas.addEventListener("mousemove", (e: MouseEvent) =>
-    if isDrawing then
+  canvas.addEventListener(
+    "mousedown",
+    (e: MouseEvent) =>
+      isDrawing = true
       val rect = canvas.getBoundingClientRect()
       val scaleX = canvas.width.toDouble / rect.width
       val scaleY = canvas.height.toDouble / rect.height
-      val x = (e.clientX - rect.left) * scaleX
-      val y = (e.clientY - rect.top) * scaleY
-
-      ctx.beginPath()
-      ctx.moveTo(lastX, lastY)
-      ctx.lineTo(x, y)
-      ctx.stroke()
-
-      lastX = x
-      lastY = y
+      lastX = (e.clientX - rect.left) * scaleX
+      lastY = (e.clientY - rect.top) * scaleY
   )
 
-  canvas.addEventListener("mouseup", (e: MouseEvent) =>
-    isDrawing = false
-  )
+  canvas.addEventListener(
+    "mousemove",
+    (e: MouseEvent) =>
+      if isDrawing then
+        val rect = canvas.getBoundingClientRect()
+        val scaleX = canvas.width.toDouble / rect.width
+        val scaleY = canvas.height.toDouble / rect.height
+        val x = (e.clientX - rect.left) * scaleX
+        val y = (e.clientY - rect.top) * scaleY
 
-  canvas.addEventListener("mouseleave", (e: MouseEvent) =>
-    isDrawing = false
-  )
-
-  // Touch support
-  canvas.addEventListener("touchstart", (e: TouchEvent) =>
-    e.preventDefault()
-    isDrawing = true
-    val rect = canvas.getBoundingClientRect()
-    val scaleX = canvas.width.toDouble / rect.width
-    val scaleY = canvas.height.toDouble / rect.height
-    val touch = e.touches(0)
-    lastX = (touch.clientX - rect.left) * scaleX
-    lastY = (touch.clientY - rect.top) * scaleY
-  )
-
-  canvas.addEventListener("touchmove", (e: TouchEvent) =>
-    e.preventDefault()
-    if isDrawing then
-      val rect = canvas.getBoundingClientRect()
-      val scaleX = canvas.width.toDouble / rect.width
-      val scaleY = canvas.height.toDouble / rect.height
-      val touch = e.touches(0)
-      val x = (touch.clientX - rect.left) * scaleX
-      val y = (touch.clientY - rect.top) * scaleY
-
-      drawingContext.foreach: ctx =>
         ctx.beginPath()
         ctx.moveTo(lastX, lastY)
         ctx.lineTo(x, y)
         ctx.stroke()
 
-      lastX = x
-      lastY = y
+        lastX = x
+        lastY = y
   )
 
-  canvas.addEventListener("touchend", (e: TouchEvent) =>
-    e.preventDefault()
-    isDrawing = false
+  canvas.addEventListener(
+    "mouseup",
+    (e: MouseEvent) =>
+      isDrawing = false
+  )
+
+  canvas.addEventListener(
+    "mouseleave",
+    (e: MouseEvent) =>
+      isDrawing = false
+  )
+
+  // Touch support
+  canvas.addEventListener(
+    "touchstart",
+    (e: TouchEvent) =>
+      e.preventDefault()
+      isDrawing = true
+      val rect = canvas.getBoundingClientRect()
+      val scaleX = canvas.width.toDouble / rect.width
+      val scaleY = canvas.height.toDouble / rect.height
+      val touch = e.touches(0)
+      lastX = (touch.clientX - rect.left) * scaleX
+      lastY = (touch.clientY - rect.top) * scaleY
+  )
+
+  canvas.addEventListener(
+    "touchmove",
+    (e: TouchEvent) =>
+      e.preventDefault()
+      if isDrawing then
+        val rect = canvas.getBoundingClientRect()
+        val scaleX = canvas.width.toDouble / rect.width
+        val scaleY = canvas.height.toDouble / rect.height
+        val touch = e.touches(0)
+        val x = (touch.clientX - rect.left) * scaleX
+        val y = (touch.clientY - rect.top) * scaleY
+
+        drawingContext.foreach: ctx =>
+          ctx.beginPath()
+          ctx.moveTo(lastX, lastY)
+          ctx.lineTo(x, y)
+          ctx.stroke()
+
+        lastX = x
+        lastY = y
+  )
+
+  canvas.addEventListener(
+    "touchend",
+    (e: TouchEvent) =>
+      e.preventDefault()
+      isDrawing = false
   )
 
 var currentColor = "#000000"
@@ -384,7 +401,7 @@ def selectColor(color: String, btn: HTMLElement): Unit =
   // Update active state
   document.querySelectorAll(".color-btn").foreach:
     case elem: HTMLElement => elem.classList.remove("active")
-    case _ => ()
+    case _                 => ()
 
   btn.classList.add("active")
 
@@ -402,13 +419,13 @@ def createDrawingLobby(): Unit =
     .map(_.asInstanceOf[HTMLSelectElement].value)
     .map:
       case "TwoWordScene" => GameMode.TwoWordScene
-      case _ => GameMode.SingleWord
+      case _              => GameMode.SingleWord
     .getOrElse(GameMode.SingleWord)
   val captionStyle = getElementById("captionStyle")
     .map(_.asInstanceOf[HTMLSelectElement].value)
     .map:
       case "Roast" => CaptionStyle.Roast
-      case _ => CaptionStyle.Descriptive
+      case _       => CaptionStyle.Descriptive
     .getOrElse(CaptionStyle.Descriptive)
 
   if playerName.nonEmpty && apiKey.nonEmpty then
@@ -497,7 +514,7 @@ def processServerMessage(msg: ServerMessage): Unit =
       currentLobbyId = Some(lobbyId)
       currentPlayerId = Some(playerId)
       println(s"[Drawing] Lobby created/joined: $lobbyId, player: $playerId")
-      
+
       // Save session for reconnection - get player name from form or existing session
       val playerName = getInputValue("createPlayerName")
         .orElse(getInputValue("joinPlayerName"))
@@ -506,7 +523,7 @@ def processServerMessage(msg: ServerMessage): Unit =
       currentPlayerName = Some(playerName)
       saveDrawingSession(playerId, lobbyId, playerName)
       isRejoiningDrawing = false
-      // Server will send LobbyUpdate next, no need to reconnect
+    // Server will send LobbyUpdate next, no need to reconnect
 
     case ServerMessage.RejoinFailed(reason) =>
       println(s"[Drawing] Rejoin failed: $reason")
@@ -578,11 +595,11 @@ def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
       // Display game settings
       getElementById("lobbySettings").foreach: elem =>
         val promptModeText = lobby.gameMode match
-          case GameMode.SingleWord => "Single Word"
+          case GameMode.SingleWord   => "Single Word"
           case GameMode.TwoWordScene => "2-Word Scene"
         val captionStyleText = lobby.captionStyle match
           case CaptionStyle.Descriptive => "Descriptive"
-          case CaptionStyle.Roast => "Roast Mode 🔥"
+          case CaptionStyle.Roast       => "Roast Mode 🔥"
         elem.innerHTML = ""
         elem.appendChild(
           div(cls = "settings-display")(
@@ -653,7 +670,6 @@ def showPrompt(prompt: String): Unit =
 def showGeneratingPrompt(): Unit =
   showOnlyGameScreen("loadingArea")
 
-
 def submitDrawing(): Unit =
   if hasSubmittedDrawing then return // Already submitted
 
@@ -700,15 +716,17 @@ def showGalleryWithDrawings(drawings: Seq[DrawingSubmission], prompt: String): U
         ),
         div(id = s"badges-${drawing.playerName}", cls = "badges"),
         button(id = s"vote-btn-${drawing.playerName}", cls = "vote-btn hidden", content = "Vote").tap: btn =>
-          btn.addEventListener("click", (e: Event) =>
-            sendDrawingMessage(ClientMessage.SubmitVote(drawing.playerName))
-            // Disable all vote buttons after voting
-            document.querySelectorAll(".vote-btn").foreach:
-              case b: HTMLButtonElement =>
-                b.disabled = true
-                if b.id == s"vote-btn-${drawing.playerName}" then
-                  b.textContent = "✓ Voted"
-              case _ => ()
+          btn.addEventListener(
+            "click",
+            (e: Event) =>
+              sendDrawingMessage(ClientMessage.SubmitVote(drawing.playerName))
+              // Disable all vote buttons after voting
+              document.querySelectorAll(".vote-btn").foreach:
+                case b: HTMLButtonElement =>
+                  b.disabled = true
+                  if b.id == s"vote-btn-${drawing.playerName}" then
+                    b.textContent = "✓ Voted"
+                case _ => ()
           )
       )
       elem.appendChild(card)
@@ -817,7 +835,6 @@ def showRoundComplete(result: RoundResult): Unit =
   // Show the Next Round button
   showElement("nextRoundBtn")
 
-
 def startDrawingGame(): Unit =
   sendDrawingMessage(ClientMessage.StartGame())
 
@@ -844,10 +861,9 @@ def hideElement(id: String): Unit =
 def showOnlyGameScreen(screens: String*): Unit =
   val allScreens = Set("lobbySetup", "waitingRoom", "loadingArea", "drawingArea", "galleryArea", "resultsArea")
   val screensToShow = screens.toSet
-  
+
   allScreens.foreach: screen =>
     if screensToShow.contains(screen) then
       showElement(screen)
     else
       hideElement(screen)
-

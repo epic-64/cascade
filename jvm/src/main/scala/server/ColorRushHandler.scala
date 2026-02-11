@@ -8,10 +8,10 @@ import shared.ColorRush.{ColorRushGame, PlayerState}
 
 object ColorRushHandler extends ReconnectionSupport[PlayerState, ColorRushGame]:
   protected val logger: Logger = LoggerFactory.getLogger(getClass)
-  
+
   // Castor context for WebSocket operations
   given castor.Context = global
-  
+
   // Cask logger for WebSocket operations
   given cask.util.Logger = cask.util.Logger.Console.globalLogger
 
@@ -21,7 +21,7 @@ object ColorRushHandler extends ReconnectionSupport[PlayerState, ColorRushGame]:
   // ============================================================================
   // ReconnectionSupport implementation
   // ============================================================================
-  
+
   protected def getGame(gameId: String): Option[ColorRushGame] =
     gameManager.getGame(gameId)
 
@@ -54,7 +54,7 @@ object ColorRushHandler extends ReconnectionSupport[PlayerState, ColorRushGame]:
     import upickle.default.*
 
     gameManager.getGame(gameId).foreach: game =>
-      val message     = shared.ColorRush.GameUpdateMessage(game)
+      val message = shared.ColorRush.GameUpdateMessage(game)
       val messageJson = write(message)
 
       Option(gameManager.getConnections(gameId)).foreach: connections =>
@@ -128,7 +128,6 @@ object ColorRushHandler extends ReconnectionSupport[PlayerState, ColorRushGame]:
     // Broadcast game state to all players
     broadcastGameState(gameId)
 
-
   private def handleConfigure(gameId: String, totalRounds: Int): Unit =
     gameManager.getGame(gameId).foreach: game =>
       val updatedGame = shared.ColorRush.ColorRush.configureGame(game, totalRounds)
@@ -182,12 +181,11 @@ object ColorRushHandler extends ReconnectionSupport[PlayerState, ColorRushGame]:
     .recover:
       case ex => logger.warn(s"Failed to send message to channel: ${ex.getMessage}")
 
-
   private def broadcastRoundWinner(gameId: String, playerId: String, playerName: String, points: Int): Unit =
     import scala.jdk.CollectionConverters.*
     import upickle.default.*
 
-    val message     = shared.ColorRush.RoundWinnerMessage(playerName, points)
+    val message = shared.ColorRush.RoundWinnerMessage(playerName, points)
     val messageJson = write(message)
 
     Option(gameManager.getConnections(gameId)).foreach: connections =>
@@ -199,7 +197,7 @@ object ColorRushHandler extends ReconnectionSupport[PlayerState, ColorRushGame]:
     import scala.jdk.CollectionConverters.*
     import upickle.default.*
 
-    val message     = shared.ColorRush.GameEndMessage(winner)
+    val message = shared.ColorRush.GameEndMessage(winner)
     val messageJson = write(message)
 
     Option(gameManager.getConnections(gameId)).foreach: connections =>
@@ -245,4 +243,3 @@ object ColorRushHandler extends ReconnectionSupport[PlayerState, ColorRushGame]:
     gameManager.updateGame(gameId, game)
     gameManager.addConnection(gameId, null) // Ensure connections set exists
     gameManager.removeConnection(gameId, null) // Remove the null connection
-
