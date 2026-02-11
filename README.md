@@ -1,17 +1,22 @@
 # Cascade
+[![Coverage](https://epic-64.github.io/cascade/coverage/coverage-badge.svg)](https://epic-64.github.io/cascade/coverage/index.html)
+[![Scala](https://img.shields.io/badge/Scala-3.7.4-red)](https://www.scala-lang.org/)
+[![Sbt](https://img.shields.io/badge/sbt-1.12.1-red)](https://www.scala-lang.org/)
+[![Scala.js](https://img.shields.io/badge/Scala.js-1.20.2-blue)](https://www.scala-js.org/)
+[![Cask](https://img.shields.io/badge/Cask-0.11.3-orange)](https://com-lihaoyi.github.io/cask/)
 
 Full-stack web application using Scala 3, Scala.js, Cask, and WebSockets.
 
 # Live Environments
-- nightly (main branch): https://cascade-main.up.railway.app/
-- production: https://cascade-prod.up.railway.app/
+- main: https://cascade-staging.up.railway.app/
+- prod: https://cascade-prod.up.railway.app/
 
 ## Features
 
 **Counter App with Real-Time Sync**
 - Server maintains counter state (Scala 3 + Cask)
 - Client displays and controls counter (Scala.js)
-- WebSocket broadcasts updates to all tabs in real-time 🎉
+- WebSocket broadcasts updates to all tabs in real-time
 - **Thread-safe** concurrent access using `AtomicInteger`
 - Shared types between client and server for type safety
 - **HTTP caching** with ETag validation for optimal performance
@@ -99,21 +104,48 @@ sbt "js/fullLinkJS"
 - `GET /static/*` → Static files (HTML, CSS, JS)
   - `/static/js/main.js` → Compiled Scala.js (includes both apps)
   - `/static/index.html`, `/static/counter.html`, `/static/color-rush.html` → HTML files
-  - `/static/styles.css`, `/static/color-rush.css` → Stylesheets
+  - `/static/base.css`, `/static/counter.css`, `/static/color-rush.css` → Stylesheets
 
 **System:**
 - `GET /health` → Server health and statistics (JSON)
   - Status, uptime, memory usage, system info
 
 ## Project Goals
+Stack:
+- ✅ Scala 3 for both server and client
+- ✅ Cask for lightweight server framework
+- ✅ Scala.js for client-side code sharing
+- ✅ WebSockets for real-time communication
+- ⏳ Cache-busting system for static assets (build-step)
+- ⏳ Database persistence, ORM (PostgreSQL + Doobie?)
+- ⏳ DB migration system (Flyway, Liquibase?)
+- ⏳ Cache across instances / across restarts (Redis?)
 
-- ✅ REST API server
-- ✅ Scala.js client with shared types
-- ✅ WebSocket real-time sync
-- ✅ Test suite (server)
-- ⏳ Database persistence
-- ⏳ CI pipeline
-- ⏳ Cloud deployment
+Testing:
+- ✅ ScalaTest
+  - ✅ jvm: works out of the box
+  - ✅ js: requires jsdom plugin
+  - ✅ cross-project setup to cross-compile shared sources
+- ✅ isolated endpoint tests (BDD)
+  - ✅ full endpoint traversal (`requests.get(path)`) with coverage
+  - ✅ support for mocking side effects
+- ✅ WebSocket tests 
+- ⏳ e2e tests
+  - ⏳ Selenium, Cypress, Katalon? To be decided.
+  - ⏳ CI integration (headless)
+
+Continuous Integration:
+- ✅ CI pipeline running tests
+- ✅ Test coverage report (sbt-scoverage)
+  - ❌ unfortunately, ScalaJS is not supported by scoverage, so we cover only the jvm target
+- ✅ Cloud deployment (railway), deploy on push
+  - main → staging environment
+  - production → production environment
+
+Monitoring:
+- ⏳ Exception tracing (Sentry, Datadog, BetterStack?)
+- ⏳ Log aggregation (Logstash, Datadog, BetterStack?)
+- ⏳ Health and Performance monitoring
 
 ## Documentation
 

@@ -51,3 +51,5 @@ build/
 /jvm/src/main/resources/static/js/main.js
 /jvm/src/main/resources/static/js/main.js.map
 
+# Node.js dependencies
+/node_modules

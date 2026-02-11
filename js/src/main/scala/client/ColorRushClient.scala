@@ -2,7 +2,7 @@ package client
 
 import org.scalajs.dom
 import org.scalajs.dom.*
-import shared.*
+import shared.ColorRush.*
 import client.{el, form, input, button, *}
 
 import scala.scalajs.js
@@ -12,9 +12,7 @@ import scala.util.chaining.scalaUtilChainingOps
 def initializeColorRush(): Unit =
   println("[ColorRush] Starting Color Rush client...")
   buildGameUI()
-  setupJoinForm()
   setupEnterKeyHandler()
-  setupStartButton()
 
 var gameWebSocket: Option[WebSocket] = None
 var currentGameId: Option[String]    = None
@@ -24,92 +22,126 @@ def buildGameUI(): Unit =
   // Clear existing content
   document.body.innerHTML = ""
 
-  // Add navigation bar
-  document.body.appendChild(NavigationBar.render("Color Rush"))
-
-  // Create main container
-  val container = el("div").with_classes("container")
-
-  // Create lobby
-  container.appendChild(createLobby())
-
-  // Create game area
-  container.appendChild(createGameArea())
-
-  // Create players sidebar (outside game area)
-  container.appendChild(createPlayersSidebar())
-
-  // Create winner announcement
-  container.appendChild(createWinnerAnnouncement())
-
-  // Append container to body
-  document.body.appendChild(container)
+  document.body(
+    NavigationBar.render("Color Rush"),
+    div(cls = "container")(
+      createLobby(),
+      createGameArea(),
+      createPlayersSidebar(),
+      createRoundWinnerAnnouncement(),
+      createGameWinnerAnnouncement()
+    )
+  )
 
 def createLobby(): HTMLElement =
-  el("div").with_id("lobby")(
-    el("div").with_id("joinFormContainer").with_classes("join-form-container")(
-      el("h2").with_content("Join Game"),
-      form().with_id("joinForm")(
-        input("text").tap: el =>
-          el.id = "gameId"
-          el.placeholder = "Game ID (e.g., game123)"
-          el.value = "game1"
-          el.setAttribute("autocomplete", "off")
-        ,
-        input("text").tap: el =>
-          el.id = "playerName"
-          el.placeholder = "Your Name"
-          el.setAttribute("autocomplete", "off")
-        ,
-        button("submit").tap: btn =>
-          btn.textContent = "Join Game"
+  div(id = "lobby")(
+    createJoinForm(),
+    createWaitingArea()
+  )
+
+def createJoinForm(): HTMLElement =
+  val joinGameListener = (e: Event) =>
+    e.preventDefault()
+    joinGame()
+
+  div(id = "joinFormContainer", cls = "join-form-container")(
+    h2(content = "Join Game"),
+    form(id = "joinForm").tap(_.addEventListener("submit", joinGameListener))(
+      input("text", id = "gameId").tap: el =>
+        el.placeholder = "Game ID (e.g., game123)"
+        el.setAttribute("autocomplete", "off")
+        el.required = true
+      ,
+      input("text", id = "playerName").tap: el =>
+        el.placeholder = "Your Name"
+        el.setAttribute("autocomplete", "off")
+        el.required = true
+      ,
+      button("submit").tap: btn =>
+        btn.textContent = "Join Game"
+    )
+  )
+
+def createWaitingArea(): HTMLElement =
+  // Waiting area container
+  div(id = "waitingArea", cls = "waiting-area-container hidden")(
+    el("h3", content = "Players in Lobby:"),
+    div(id = "playersList", cls = "players"),
+    div(cls = "game-settings")(
+      el("label")(
+        span(content = "Number of Rounds: "),
+        el("select", id = "roundsSelector").tap: select =>
+          select.addEventListener("change", (e: Event) => updateGameSettings())
+          Vector(1, 3, 5, 10, 15).foreach: rounds =>
+            val option = el("option").asInstanceOf[dom.HTMLOptionElement].tap: o =>
+              o.value = rounds.toString
+              o.textContent = rounds.toString
+              if rounds == 5 then o.selected = true
+              select.appendChild(o)
       )
     ),
-    // Waiting area container
-    el("div").with_id("waitingArea").with_classes("waiting-area-container hidden")(
-      el("h3").with_content("Players in Lobby:"),
-      el("div").with_id("playersList").with_classes("players"),
-      button().tap: btn =>
-        btn.id = "startButton"
-        btn.className = "start-button"
-        btn.textContent = "Start Game"
-    )
+    button(id = "startButton", cls = "start-button").tap: btn =>
+      btn.textContent = "Start Game"
+      btn.addEventListener("click", (e: Event) => startGame())
   )
 
 def createGameArea(): HTMLElement =
-  el("div").with_id("gameArea").with_classes("game-area hidden")(
+  div(id = "gameArea", cls = "game-area hidden")(
+    // Game controls at the top
+    div(cls ="game-controls")(
+      button(cls ="secondary-button").tap: btn =>
+        btn.textContent = "Return to Lobby"
+        btn.addEventListener("click", (e: Event) => returnToLobby())
+      ,
+      button(id = "showWinnerButton", cls = "secondary-button hidden").tap: btn =>
+        btn.textContent = "Show Results"
+        btn.addEventListener("click", (e: Event) => reshowGameWinner())
+    ),
     // Round info
-    el("div").with_classes("round-info")(
-      el("div").with_classes("round-number").tap: el =>
-        el.innerHTML = "Round <span id=\"roundNumber\">1</span> of 10",
-      el("div").with_classes("target-color-label").with_content("Click this color:"),
-      el("div").with_id("targetColor").with_classes("target-color")
+    div(cls = "round-info")(
+      div(cls = "round-number")(
+        span(content = "Round "),
+        span(id = "roundNumber", content = "1"),
+        span(content = " of "),
+        span(id = "totalRounds", content = "10")
+      ),
+      div(cls = "target-color-label", content = "Click this color:"),
+      div(id = "targetColor", cls = "target-color")
     ),
     // Color grid
-    el("div").with_id("colorGrid").with_classes("color-grid")
+    div(id = "colorGrid", cls = "color-grid")
   )
 
 def createPlayersSidebar(): HTMLElement =
-  el("div").with_id("gamePlayers").with_classes("players hidden")
+  div(id = "gamePlayers", cls = "players hidden")
 
-def createWinnerAnnouncement(): HTMLElement =
-  el("div").with_id("winnerAnnouncement").with_classes("winner-announcement hidden")(
-    el("h2").with_id("winnerName"),
-    el("p").with_id("winnerPoints").with_classes("points")
+def createRoundWinnerAnnouncement(): HTMLElement =
+  div(id = "winnerAnnouncement", cls = "winner-announcement hidden")(
+    el("h2", id = "winnerName"),
+    div(id = "winnerPoints", cls = "points")
   )
 
-def setupJoinForm(): Unit =
-  getElement("joinForm").foreach: form =>
-    form.addEventListener(
-      "submit",
-      (e: Event) =>
-        e.preventDefault()
-        joinGame()
+def createGameWinnerAnnouncement(): HTMLElement =
+  val announcement = div(id = "gameWinnerAnnouncement", cls = "game-winner-announcement hidden")(
+    div(cls ="game-winner-content")(
+      el("h1", id = "gameWinnerTitle"),
+      div(cls ="game-winner-details")(
+        div(id = "gameWinnerName", cls = "winner-name"),
+        div(id = "gameWinnerScore", cls = "winner-score"),
+        div(id = "gameWinnerRounds", cls = "winner-rounds")
+      ),
+      el("button", cls = "close-winner-button").tap: btn =>
+        btn.textContent = "Close"
+        btn.addEventListener("click", (e: Event) => hideGameWinner())
     )
+  )
 
-def setupStartButton(): Unit =
-  getElement("startButton").foreach: button =>
-    button.addEventListener("click", (e: Event) => startGame())
+  // Click outside to close
+  announcement.addEventListener("click", (e: Event) =>
+    if e.target == announcement then hideGameWinner()
+  )
+
+  announcement
 
 def setupEnterKeyHandler(): Unit =
   document.addEventListener(
@@ -131,11 +163,12 @@ def joinGame(): Unit =
   val playerNameOpt = getInputValue("playerName")
 
   (gameIdOpt, playerNameOpt) match
-    case (Some(gameId), Some(playerName)) if gameId.nonEmpty && playerName.nonEmpty =>
+    case (Some(gameId), Some(playerName)) =>
       currentGameId = Some(gameId)
       connectToGame(gameId, playerName)
-    case _                                                                          =>
-      showAlert("Please enter both Game ID and your name")
+    case _                                =>
+      // HTML5 form validation should prevent reaching here
+      println("[ColorRush] Missing game ID or player name")
 
 def connectToGame(gameId: String, playerName: String): Unit =
   val protocol = if window.location.protocol == "https:" then "wss:" else "ws:"
@@ -146,7 +179,13 @@ def connectToGame(gameId: String, playerName: String): Unit =
 
   ws.onopen = (e: Event) =>
     println(s"[ColorRush] Connected to game $gameId")
-    sendMessage(ws, JoinMessage(playerName))
+
+    // Get totalRounds from UI and send with join message
+    val totalRounds = getInputValue("roundsSelector")
+      .flatMap(s => Try(s.toInt).toOption)
+      .getOrElse(5) // Fallback to 5 if something goes wrong
+
+    sendMessage(ws, JoinMessage(playerName, totalRounds))
     updateLobbyUI()
 
   ws.onmessage = (event: MessageEvent) => handleWebSocketMessage(event.data.toString)
@@ -163,10 +202,13 @@ def sendMessage(ws: WebSocket, msg: ClientMessage): Unit =
 
 def handleWebSocketMessage(data: String): Unit =
   Try:
+    println(s"[ColorRush] Received message: $data")
     val serverMsg = upickle.default.read[ServerMessage](data)
 
     serverMsg match
-      case GameUpdateMessage(game)                => parseGameUpdate(game)
+      case GameUpdateMessage(game)                => 
+        println(s"[ColorRush] GameUpdateMessage - status: ${game.status}, totalRounds: ${game.totalRounds}")
+        parseGameUpdate(game)
       case RoundWinnerMessage(playerName, points) => showRoundWinner(playerName, points)
       case GameEndMessage(winner)                 => showGameWinner(winner)
   .recover:
@@ -174,39 +216,51 @@ def handleWebSocketMessage(data: String): Unit =
 
 def parseGameUpdate(game: ColorRushGame): Unit =
   Try:
+    println(s"[ColorRush] parseGameUpdate - status: ${game.status}, totalRounds: ${game.totalRounds}")
     // Update players list for all game statuses
-    updatePlayersList(game.players)
+    updatePlayersList(game.players, game.status)
 
     // Show game area if playing or round end
     game.status match
       case GameStatus.Playing | GameStatus.RoundEnd =>
         showGameArea()
-
-        game.currentRound.foreach: currentRound =>
+        game.currentRound.foreach: round =>
           val roundId = s"${game.gameId}-${game.roundNumber}"
 
           // Only update round display if this is a new round
           if !currentRoundId.contains(roundId) then
             currentRoundId = Some(roundId)
             val isRoundEnd = game.status == GameStatus.RoundEnd
-            updateRoundDisplay(game.roundNumber, currentRound, isRoundEnd)
+            updateRoundDisplay(game.roundNumber, game.totalRounds, round, isRoundEnd)
 
-      case _ => // Waiting or GameOver - keep lobby visible
+      case GameStatus.Waiting =>
+        // Update rounds selector in lobby
+        println(s"[ColorRush] Updating rounds selector to: ${game.totalRounds}")
+        updateRoundsSelector(game.totalRounds)
+
+      case _ => () // GameOver - keep lobby visible
   .recover:
     case ex => println(s"[ColorRush] Error parsing game update: ${ex.getMessage}")
 
-def updatePlayersList(players: Map[String, PlayerState]): Unit =
+def updatePlayersList(players: Map[String, PlayerState], gameStatus: GameStatus): Unit =
   val playersListElem = getElementById("playersList")
   val gamePlayersElem = getElementById("gamePlayers")
 
   Try:
-    val playersArray = players.values.toSeq.sortBy(p => -p.score)
+    val playersArray = players.values.toSeq.sortBy(p => (-p.score, -p.roundsWon))
+
+    // Determine the winner (highest score, then most rounds won)
+    val winner = playersArray.headOption
+
+    // Only show crown if game is over
+    val showCrown = gameStatus == GameStatus.GameOver
 
     val playersHTML = playersArray
       .map: player =>
+        val crown = if showCrown && winner.contains(player) then "👑 " else ""
         s"""
         <div class="player-card">
-          <span class="player-name">${player.name}</span>
+          <span class="player-name">$crown${player.name}</span>
           <span class="player-score">${player.score} pts (${player.roundsWon} wins)</span>
         </div>
       """
@@ -217,9 +271,20 @@ def updatePlayersList(players: Map[String, PlayerState]): Unit =
   .recover:
     case ex => println(s"[ColorRush] Error updating players list: ${ex.getMessage}")
 
-def updateRoundDisplay(roundNumber: Int, round: Round, isRoundEnd: Boolean): Unit =
+def updateRoundsSelector(totalRounds: Int): Unit =
+  println(s"[ColorRush] updateRoundsSelector called with totalRounds: $totalRounds")
+  getElementById("roundsSelector").foreach: selector =>
+    val selectElem = selector.asInstanceOf[dom.HTMLSelectElement]
+    println(s"[ColorRush] Setting roundsSelector value to: $totalRounds")
+    selectElem.value = totalRounds.toString
+    println(s"[ColorRush] roundsSelector value after setting: ${selectElem.value}")
+
+def updateRoundDisplay(roundNumber: Int, totalRounds: Int, round: Round, isRoundEnd: Boolean): Unit =
   getElementById("roundNumber").foreach: elem =>
     elem.textContent = roundNumber.toString
+
+  getElementById("totalRounds").foreach: elem =>
+    elem.textContent = totalRounds.toString
 
   getElementById("targetColor").foreach: elem =>
     elem.style.backgroundColor = round.targetColor
@@ -239,6 +304,12 @@ def updateRoundDisplay(roundNumber: Int, round: Round, isRoundEnd: Boolean): Uni
       if !isRoundEnd then button.addEventListener("click", (e: Event) => clickColor(color))
 
       grid.appendChild(button)
+
+def updateGameSettings(): Unit =
+  getInputValue("roundsSelector").foreach: roundsStr =>
+    Try(roundsStr.toInt).toOption.foreach: totalRounds =>
+      gameWebSocket.foreach: ws =>
+        sendMessage(ws, ConfigureMessage(totalRounds))
 
 def startGame(): Unit =
   gameWebSocket.foreach: ws =>
@@ -265,17 +336,44 @@ def showRoundWinner(playerName: String, points: Int): Unit =
         if ws.readyState == WebSocket.OPEN then sendMessage(ws, NextRoundMessage())
 
 def showGameWinner(winnerOpt: Option[PlayerState]): Unit =
-  val message = winnerOpt match
-    case Some(winner) =>
-      s"🎉 GAME OVER!\\n\\nWinner: ${winner.name}\\nScore: ${winner.score} points\\nRounds Won: ${winner.roundsWon}"
-    case None         =>
-      "Game Over!"
+  getElementById("gameWinnerAnnouncement").foreach: announcement =>
+    announcement.classList.remove("hidden")
 
-  showAlert(message)
+    winnerOpt match
+      case Some(winner) =>
+        getElementById("gameWinnerTitle").foreach: elem =>
+          elem.textContent = "🎉 GAME OVER!"
 
-  // Reload page after 3 seconds
-  js.timers.setTimeout(3000):
-    window.location.reload()
+        getElementById("gameWinnerName").foreach: elem =>
+          elem.textContent = s"Winner: ${winner.name}"
+
+        getElementById("gameWinnerScore").foreach: elem =>
+          elem.textContent = s"Score: ${winner.score} points"
+
+        getElementById("gameWinnerRounds").foreach: elem =>
+          elem.textContent = s"Rounds Won: ${winner.roundsWon}"
+
+      case None =>
+        getElementById("gameWinnerTitle").foreach: elem =>
+          elem.textContent = "Game Over!"
+
+        getElementById("gameWinnerName").foreach(_.textContent = "")
+        getElementById("gameWinnerScore").foreach(_.textContent = "")
+        getElementById("gameWinnerRounds").foreach(_.textContent = "")
+
+    // Show the "Show Results" button
+    getElementById("showWinnerButton").foreach(_.classList.remove("hidden"))
+
+def hideGameWinner(): Unit =
+  getElementById("gameWinnerAnnouncement").foreach: announcement =>
+    announcement.classList.add("hidden")
+
+def reshowGameWinner(): Unit =
+  getElementById("gameWinnerAnnouncement").foreach: announcement =>
+    announcement.classList.remove("hidden")
+
+def returnToLobby(): Unit =
+  window.location.reload()
 
 def updateLobbyUI(): Unit =
   // Hide the join form container
@@ -290,19 +388,3 @@ def showGameArea(): Unit =
   getElementById("lobby").foreach(_.classList.add("hidden"))
   getElementById("gameArea").foreach(_.classList.remove("hidden"))
   getElementById("gamePlayers").foreach(_.classList.remove("hidden"))
-
-// Helper functions for DOM manipulation
-def getElementById(id: String): Option[HTMLElement] =
-  Option(document.getElementById(id).asInstanceOf[HTMLElement])
-
-def getElement(id: String): Option[dom.Element] =
-  Option(document.getElementById(id))
-
-def getInputElement(id: String): Option[HTMLInputElement] =
-  Option(document.getElementById(id).asInstanceOf[HTMLInputElement])
-
-def getInputValue(id: String): Option[String] =
-  getInputElement(id).map(_.value)
-
-def showAlert(message: String): Unit =
-  window.alert(message)
