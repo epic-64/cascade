@@ -80,6 +80,7 @@ def buildDrawingUI(): Unit =
     div(cls = "container")(
       createLobbySetup(),
       createWaitingRoom(),
+      createLoadingArea(),
       createDrawingArea(),
       createGalleryArea(),
       createResultsArea()
@@ -149,6 +150,14 @@ def createLobbySetup(): HTMLElement =
             el.required = true
             el.autocomplete = "off"
           ,
+          div(cls = "checkbox-row")(
+            input("checkbox", id = "advancedMode").tap: el =>
+              el.asInstanceOf[HTMLInputElement].checked = false
+            ,
+            el("label").tap: lbl =>
+              lbl.setAttribute("for", "advancedMode")
+              lbl.textContent = "Advanced Mode (AI-generated prompts)"
+          ),
           div(cls = "warning", content = "⚠️ You'll pay for OpenAI API usage (~$0.02-0.04 per round)"),
           button("submit", content = "Create Lobby")
         )
@@ -164,6 +173,15 @@ def createWaitingRoom(): HTMLElement =
     button(id = "startGameBtn", cls = "btn btn-success btn-block").tap: btn =>
       btn.textContent = "Start Game"
       btn.addEventListener("click", (e: Event) => startDrawingGame())
+  )
+
+def createLoadingArea(): HTMLElement =
+  div(id = "loadingArea", cls = "loading-area hidden")(
+    div(cls = "loading-content")(
+      div(cls = "spinner"),
+      h2(id = "loadingMessage", content = "Generating prompt..."),
+      p(cls = "text-secondary", content = "AI is crafting something creative for you to draw")
+    )
   )
 
 def createDrawingArea(): HTMLElement =
@@ -344,6 +362,9 @@ def clearCanvas(): Unit =
 def createDrawingLobby(): Unit =
   val playerName = getInputValue("createPlayerName").getOrElse("")
   val apiKey = getInputValue("apiKey").getOrElse("")
+  val advancedMode = getElementById("advancedMode")
+    .map(_.asInstanceOf[HTMLInputElement].checked)
+    .getOrElse(false)
 
   if playerName.nonEmpty && apiKey.nonEmpty then
     // First connect to temporary WebSocket
@@ -354,8 +375,8 @@ def createDrawingLobby(): Unit =
     drawingWebSocket = Some(ws)
 
     ws.onopen = (e: Event) =>
-      println("[Drawing] WebSocket connected, creating lobby...")
-      sendDrawingMessage(ClientMessage.CreateLobby(playerName, apiKey))
+      println(s"[Drawing] WebSocket connected, creating lobby (advancedMode: $advancedMode)...")
+      sendDrawingMessage(ClientMessage.CreateLobby(playerName, apiKey, advancedMode))
 
     ws.onmessage = (event: MessageEvent) =>
       handleServerMessage(event.data.toString)
@@ -438,6 +459,9 @@ def processServerMessage(msg: ServerMessage): Unit =
     case ServerMessage.LobbyUpdate(lobby) =>
       updateDrawingLobbyUI(lobby)
 
+    case ServerMessage.GeneratingPrompt() =>
+      showGeneratingPrompt()
+
     case ServerMessage.PromptAnnounced(prompt) =>
       showPrompt(prompt)
 
@@ -498,6 +522,9 @@ def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
           btn.asInstanceOf[HTMLButtonElement].disabled = false
           btn.textContent = "Start Game"
 
+    case LobbyStatus.GeneratingPrompt =>
+      showOnlyGameScreen("loadingArea")
+
     case LobbyStatus.Drawing =>
       showOnlyGameScreen("drawingArea")
 
@@ -531,6 +558,12 @@ def showPrompt(prompt: String): Unit =
 
   // Clear canvas for new drawing
   clearCanvas()
+
+  // Switch to drawing area
+  showOnlyGameScreen("drawingArea")
+
+def showGeneratingPrompt(): Unit =
+  showOnlyGameScreen("loadingArea")
 
 
 def submitDrawing(): Unit =
@@ -721,7 +754,7 @@ def hideElement(id: String): Unit =
 
 /** Helper to show only specific game screens and hide all others */
 def showOnlyGameScreen(screens: String*): Unit =
-  val allScreens = Set("lobbySetup", "waitingRoom", "drawingArea", "galleryArea", "resultsArea")
+  val allScreens = Set("lobbySetup", "waitingRoom", "loadingArea", "drawingArea", "galleryArea", "resultsArea")
   val screensToShow = screens.toSet
   
   allScreens.foreach: screen =>
