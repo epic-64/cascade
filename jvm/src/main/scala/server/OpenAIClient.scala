@@ -3,10 +3,91 @@ package server
 import org.slf4j.LoggerFactory
 import scala.concurrent.{Future, ExecutionContext}
 import scala.util.Try
+import shared.DrawingGame.CaptionStyle
+
+// Trait to allow mocking in tests
+trait OpenAIClient:
+  def fetchRandomWords(count: Int = 2)(using ec: ExecutionContext): Future[Seq[String]]
+  def captionImage(apiKey: String, imageBase64: String, captionStyle: CaptionStyle = CaptionStyle.Descriptive)(using ec: ExecutionContext): Future[String]
+  def generatePromptFromWords(apiKey: String, words: Seq[String])(using ec: ExecutionContext): Future[String]
+  def selectWinner(apiKey: String, originalPrompt: String, captions: Map[String, String], captionStyle: CaptionStyle = CaptionStyle.Descriptive)(using ec: ExecutionContext): Future[OpenAIClient.WinnerSelection]
 
 object OpenAIClient:
   private val logger = LoggerFactory.getLogger(getClass)
 
+  private val visionModel = "gpt-4o"
+  private val textModel = "gpt-4o-mini"
+
+  case class WinnerSelection(winnerName: String, reasoning: String)
+
+  // Swappable instance for testing
+  @volatile private var _instance: OpenAIClient = RealOpenAIClient()
+
+  // For tests only - swap the backing implementation
+  def setInstance(client: OpenAIClient): Unit =
+    _instance = client
+
+  def resetInstance(): Unit =
+    _instance = RealOpenAIClient()
+
+  // Delegate methods to the swappable instance
+  def fetchRandomWords(count: Int = 2)(using ec: ExecutionContext): Future[Seq[String]] =
+    _instance.fetchRandomWords(count)
+
+  def captionImage(apiKey: String, imageBase64: String, captionStyle: CaptionStyle = CaptionStyle.Descriptive)(using ec: ExecutionContext): Future[String] =
+    _instance.captionImage(apiKey, imageBase64, captionStyle)
+
+  def generatePromptFromWords(apiKey: String, words: Seq[String])(using ec: ExecutionContext): Future[String] =
+    _instance.generatePromptFromWords(apiKey, words)
+
+  def selectWinner(apiKey: String, originalPrompt: String, captions: Map[String, String], captionStyle: CaptionStyle = CaptionStyle.Descriptive)(using ec: ExecutionContext): Future[WinnerSelection] =
+    _instance.selectWinner(apiKey, originalPrompt, captions, captionStyle)
+
+  // Internal helper for making OpenAI requests (used by RealOpenAIClient)
+  private[server] def makeOpenAIRequest(
+    url: String,
+    apiKey: String,
+    requestBody: ujson.Obj
+  )(using ec: ExecutionContext): Future[ujson.Value] =
+    Future:
+      val connection = java.net.URI.create(url).toURL.openConnection().asInstanceOf[java.net.HttpURLConnection]
+
+      Try:
+        connection.setRequestMethod("POST")
+        connection.setRequestProperty("Content-Type", "application/json")
+        connection.setRequestProperty("Authorization", s"Bearer $apiKey")
+        connection.setDoOutput(true)
+        connection.setConnectTimeout(30000) // 30 seconds
+        connection.setReadTimeout(30000)
+
+        // Write request body
+        val outputStream = connection.getOutputStream
+        outputStream.write(requestBody.toString.getBytes("UTF-8"))
+        outputStream.flush()
+        outputStream.close()
+
+        // Read response
+        val responseCode = connection.getResponseCode
+        val inputStream = if responseCode >= 400 then connection.getErrorStream else connection.getInputStream
+        val response = scala.io.Source.fromInputStream(inputStream, "UTF-8").mkString
+        inputStream.close()
+
+        if responseCode != 200 then
+          logger.error(s"OpenAI API error (status $responseCode): $response")
+          throw new RuntimeException(s"OpenAI API request failed with status $responseCode")
+
+        ujson.read(response)
+      .recover:
+        case ex: Exception =>
+          logger.error(s"OpenAI API request failed: ${ex.getMessage}", ex)
+          throw ex
+      .get
+
+// Real implementation that calls external APIs
+class RealOpenAIClient extends OpenAIClient:
+  import OpenAIClient.*
+
+  private val logger = LoggerFactory.getLogger(getClass)
   private val visionModel = "gpt-4o"
   private val textModel = "gpt-4o-mini"
 
@@ -91,9 +172,6 @@ object OpenAIClient:
         logger.error(s"Failed to parse OpenAI caption response: $responseJson")
         "Unable to caption image"
 
-  case class WinnerSelection(winnerName: String, reasoning: String)
-
-  /** Generate a creative drawing prompt from random words */
   def generatePromptFromWords(apiKey: String, words: Seq[String])(using ec: ExecutionContext): Future[String] =
     val url = "https://api.openai.com/v1/chat/completions"
 
@@ -191,43 +269,3 @@ object OpenAIClient:
           captions.keys.headOption.getOrElse("Unknown"),
           "The AI couldn't decide, so it picked randomly!"
         )
-
-  private def makeOpenAIRequest(
-    url: String,
-    apiKey: String,
-    requestBody: ujson.Obj
-  )(using ec: ExecutionContext): Future[ujson.Value] =
-    Future:
-      val connection = java.net.URI.create(url).toURL.openConnection().asInstanceOf[java.net.HttpURLConnection]
-
-      Try:
-        connection.setRequestMethod("POST")
-        connection.setRequestProperty("Content-Type", "application/json")
-        connection.setRequestProperty("Authorization", s"Bearer $apiKey")
-        connection.setDoOutput(true)
-        connection.setConnectTimeout(30000) // 30 seconds
-        connection.setReadTimeout(30000)
-
-        // Write request body
-        val outputStream = connection.getOutputStream
-        outputStream.write(requestBody.toString.getBytes("UTF-8"))
-        outputStream.flush()
-        outputStream.close()
-
-        // Read response
-        val responseCode = connection.getResponseCode
-        val inputStream = if responseCode >= 400 then connection.getErrorStream else connection.getInputStream
-        val response = scala.io.Source.fromInputStream(inputStream, "UTF-8").mkString
-        inputStream.close()
-
-        if responseCode != 200 then
-          logger.error(s"OpenAI API error (status $responseCode): $response")
-          throw new RuntimeException(s"OpenAI API request failed with status $responseCode")
-
-        ujson.read(response)
-      .recover:
-        case ex: Exception =>
-          logger.error(s"OpenAI API request failed: ${ex.getMessage}", ex)
-          throw ex
-      .get
-

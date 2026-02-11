@@ -4,12 +4,39 @@ import java.net.http.WebSocket
 import java.util.concurrent.{ConcurrentLinkedQueue, CountDownLatch}
 import scala.util.Try
 import scala.util.chaining.*
+import scala.concurrent.{Future, ExecutionContext}
 import upickle.default.*
 import shared.DrawingGame.*
+import server.OpenAIClient
 
 class DrawingGameEndpointSpec extends AnyFunSuite with TestServerHelper with WebSocketTestHelper with BeforeAndAfterEach:
 
   private var lobbyCounter = 0
+
+  // Mock OpenAI client that returns fake responses without calling the real API
+  private val mockOpenAIClient = new OpenAIClient:
+    def fetchRandomWords(count: Int)(using ec: ExecutionContext): Future[Seq[String]] =
+      Future.successful(Seq("happy", "cloud"))
+
+    def captionImage(apiKey: String, imageBase64: String, captionStyle: CaptionStyle)(using ec: ExecutionContext): Future[String] =
+      Future.successful("A skillfully rendered masterpiece of abstract art")
+
+    def generatePromptFromWords(apiKey: String, words: Seq[String])(using ec: ExecutionContext): Future[String] =
+      Future.successful(words.mkString(" "))
+
+    def selectWinner(apiKey: String, originalPrompt: String, captions: Map[String, String], captionStyle: CaptionStyle)(using ec: ExecutionContext): Future[OpenAIClient.WinnerSelection] =
+      val winnerName = captions.keys.headOption.getOrElse("Unknown")
+      Future.successful(OpenAIClient.WinnerSelection(winnerName, "An excellent interpretation!"))
+
+  override def beforeAll(): Unit =
+    // Inject mock before server starts (super.beforeAll() starts the server)
+    OpenAIClient.setInstance(mockOpenAIClient)
+    super.beforeAll()
+
+  override def afterAll(): Unit =
+    super.afterAll()
+    // Reset to real client after tests
+    OpenAIClient.resetInstance()
 
   override def beforeEach(): Unit =
     super.beforeEach()
@@ -34,7 +61,7 @@ class DrawingGameEndpointSpec extends AnyFunSuite with TestServerHelper with Web
   private def sendMessage(ws: WebSocket, msg: ClientMessage): Unit =
     ws.sendText(write(msg), true).get()
 
-  // A minimal test API key (tests won't actually call OpenAI)
+  // A minimal test API key (tests won't actually call OpenAI since we're using mocks)
   private val testApiKey = "test-api-key-12345"
 
   // A simple base64 PNG image (1x1 pixel transparent PNG)
@@ -74,8 +101,8 @@ class DrawingGameEndpointSpec extends AnyFunSuite with TestServerHelper with Web
     val messages2 = createMessageBuffer[ServerMessage]()
     // Host: LobbyCreated, LobbyUpdate, LobbyUpdate (when player 2 joins)
     val created1, update1a, update1b = CountDownLatch(1)
-    // Joiner: LobbyCreated, LobbyUpdate
-    val created2, update2 = CountDownLatch(1)
+    // Joiner: LobbyUpdate (on connect), LobbyCreated, LobbyUpdate (broadcast with both players)
+    val update2a, created2, update2b = CountDownLatch(1)
 
     val ws1 = connectWebSocket(tempWsUrl, createGameListener(messages1, Seq(created1, update1a, update1b)))
 
@@ -90,12 +117,13 @@ class DrawingGameEndpointSpec extends AnyFunSuite with TestServerHelper with Web
         case ServerMessage.LobbyCreated(lid, _) => lid
       .getOrElse(fail("No LobbyCreated message"))
 
-      // Second player joins
-      val ws2 = connectWebSocket(wsUrl(lobbyId), createGameListener(messages2, Seq(created2, update2)))
+      // Second player joins - they receive LobbyUpdate immediately on connect
+      val ws2 = connectWebSocket(wsUrl(lobbyId), createGameListener(messages2, Seq(update2a, created2, update2b)))
       Try:
+        awaitLatch(update2a, "Joiner didn't receive initial LobbyUpdate on connect")
         sendMessage(ws2, ClientMessage.JoinLobby(lobbyId, "Bob"))
         awaitLatch(created2, "Joiner didn't receive LobbyCreated")
-        awaitLatch(update2, "Joiner didn't receive LobbyUpdate")
+        awaitLatch(update2b, "Joiner didn't receive broadcast LobbyUpdate")
         awaitLatch(update1b, "Host didn't receive join broadcast")
 
         // Both should see 2 players
@@ -254,7 +282,7 @@ class DrawingGameEndpointSpec extends AnyFunSuite with TestServerHelper with Web
       Try:
         // First should receive current lobby state (since lobby exists)
         awaitLatch(lobbyUpdateLatch, "Didn't receive initial LobbyUpdate on connect")
-        
+
         sendMessage(ws2, ClientMessage.JoinLobby(lobbyId, "Bob"))
         awaitLatch(errorLatch, "Error message for late join failed")
 
@@ -272,8 +300,8 @@ class DrawingGameEndpointSpec extends AnyFunSuite with TestServerHelper with Web
     val messages2 = createMessageBuffer[ServerMessage]()
     // Host: LobbyCreated, LobbyUpdate, LobbyUpdate (player 2 joins), LobbyUpdate (player 2 disconnects)
     val created1, update1a, update1b, disconnectLatch1 = CountDownLatch(1)
-    // Joiner: LobbyCreated, LobbyUpdate
-    val created2, update2 = CountDownLatch(1)
+    // Joiner: LobbyUpdate (on connect), LobbyCreated, LobbyUpdate (broadcast)
+    val update2a, created2, update2b = CountDownLatch(1)
 
     val ws1 = connectWebSocket(tempWsUrl, createGameListener(messages1, Seq(created1, update1a, update1b, disconnectLatch1)))
 
@@ -287,11 +315,12 @@ class DrawingGameEndpointSpec extends AnyFunSuite with TestServerHelper with Web
         case ServerMessage.LobbyCreated(lid, _) => lid
       .getOrElse(fail("No LobbyCreated message"))
 
-      val ws2 = connectWebSocket(wsUrl(lobbyId), createGameListener(messages2, Seq(created2, update2)))
+      val ws2 = connectWebSocket(wsUrl(lobbyId), createGameListener(messages2, Seq(update2a, created2, update2b)))
 
+      awaitLatch(update2a, "Joiner didn't receive initial LobbyUpdate on connect")
       sendMessage(ws2, ClientMessage.JoinLobby(lobbyId, "Bob"))
       awaitLatch(created2, "Joiner LobbyCreated failed")
-      awaitLatch(update2, "Joiner LobbyUpdate failed")
+      awaitLatch(update2b, "Joiner LobbyUpdate failed")
       awaitLatch(update1b, "Host didn't receive join broadcast")
 
       // Verify both players are in the lobby
