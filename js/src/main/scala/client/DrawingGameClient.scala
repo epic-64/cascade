@@ -3,16 +3,16 @@ package client
 import org.scalajs.dom
 import org.scalajs.dom.*
 import shared.DrawingGame.*
+import shared.session.BasicGameSession
 import client.{el, form, input, button, *}
+import client.session.SessionManager
 
 import scala.scalajs.js
 import scala.util.{Try, Success, Failure}
 import scala.util.chaining.*
 
-// Session storage keys
-private val DrawingSessionKeyPlayerId = "drawing.playerId"
-private val DrawingSessionKeyLobbyId = "drawing.lobbyId"
-private val DrawingSessionKeyPlayerName = "drawing.playerName"
+// Session key for DrawingGame
+private val DrawingSessionKey = "drawing"
 
 def initializeDrawing(): Unit =
   println("[Drawing] Starting AI Drawing game client...")
@@ -31,51 +31,27 @@ var isDrawing = false
 var hasSubmittedDrawing = false // Track if current drawing has been submitted
 var isRejoiningDrawing = false // Track if we're attempting to rejoin
 
-// Session management functions
+// Session management functions - delegating to shared SessionManager
 def saveDrawingSession(playerId: String, lobbyId: String, playerName: String): Unit =
-  Try:
-    window.localStorage.setItem(DrawingSessionKeyPlayerId, playerId)
-    window.localStorage.setItem(DrawingSessionKeyLobbyId, lobbyId)
-    window.localStorage.setItem(DrawingSessionKeyPlayerName, playerName)
-    println(s"[Drawing] Session saved: playerId=$playerId, lobbyId=$lobbyId")
-  .recover:
-    case ex => println(s"[Drawing] Failed to save session: ${ex.getMessage}")
+  SessionManager.save(DrawingSessionKey, BasicGameSession(playerId, lobbyId, playerName))
 
-def loadDrawingSession(): Option[(String, String, String)] =
-  Try:
-    val playerId = window.localStorage.getItem(DrawingSessionKeyPlayerId)
-    val lobbyId = window.localStorage.getItem(DrawingSessionKeyLobbyId)
-    val playerName = window.localStorage.getItem(DrawingSessionKeyPlayerName)
-    if playerId != null && lobbyId != null && playerName != null then
-      Some((playerId, lobbyId, playerName))
-    else
-      None
-  .recover:
-    case ex =>
-      println(s"[Drawing] Failed to load session: ${ex.getMessage}")
-      None
-  .getOrElse(None)
+def loadDrawingSession(): Option[BasicGameSession] =
+  SessionManager.load(DrawingSessionKey)
 
 def clearDrawingSession(): Unit =
-  Try:
-    window.localStorage.removeItem(DrawingSessionKeyPlayerId)
-    window.localStorage.removeItem(DrawingSessionKeyLobbyId)
-    window.localStorage.removeItem(DrawingSessionKeyPlayerName)
-    println("[Drawing] Session cleared")
-  .recover:
-    case ex => println(s"[Drawing] Failed to clear session: ${ex.getMessage}")
+  SessionManager.clear(DrawingSessionKey)
 
 def checkForExistingDrawingSession(): Unit =
   loadDrawingSession() match
-    case Some((playerId, lobbyId, playerName)) =>
-      println(s"[Drawing] Found existing session - attempting rejoin: lobbyId=$lobbyId, playerId=$playerId")
+    case Some(session) =>
+      println(s"[Drawing] Found existing session - attempting rejoin: lobbyId=${session.gameId}, playerId=${session.playerId}")
       isRejoiningDrawing = true
-      currentLobbyId = Some(lobbyId)
-      currentPlayerId = Some(playerId)
-      currentPlayerName = Some(playerName)
+      currentLobbyId = Some(session.gameId)
+      currentPlayerId = Some(session.playerId)
+      currentPlayerName = Some(session.playerName)
       // Hide lobby setup while attempting to rejoin
       hideElement("lobbySetup")
-      attemptDrawingRejoin(lobbyId, playerId)
+      attemptDrawingRejoin(session.gameId, session.playerId)
     case None =>
       println("[Drawing] No existing session found")
 

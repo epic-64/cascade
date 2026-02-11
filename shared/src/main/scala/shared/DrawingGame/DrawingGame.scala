@@ -1,6 +1,7 @@
 package shared.DrawingGame
 
 import upickle.default.ReadWriter
+import shared.session.{PlayerConnection, PlayerConnectionOps}
 
 // AI Drawing Challenge - Multiplayer drawing game with AI judging
 
@@ -34,7 +35,7 @@ case class PlayerInfo(
     connected: Boolean,
     score: Int,
     disconnectedAt: Option[Long] = None
-) derives ReadWriter
+) extends PlayerConnection derives ReadWriter
 
 case class DrawingSubmission(
     playerName: String,
@@ -139,24 +140,13 @@ object DrawingGame:
       lobby.copy(players = lobby.players + (playerId -> reconnectedPlayer))
 
   /** Check if a player can rejoin (exists and within grace period) */
-  def canRejoin(lobby: DrawingLobby, playerId: String, gracePeriodMs: Long = 60000): Boolean =
-    lobby.players.get(playerId) match
-      case Some(player) =>
-        player.disconnectedAt match
-          case Some(disconnectTime) =>
-            val elapsed = System.currentTimeMillis() - disconnectTime
-            elapsed < gracePeriodMs
-          case None => true // Player is still connected or never disconnected
-      case None => false
+  def canRejoin(lobby: DrawingLobby, playerId: String, gracePeriodMs: Long = PlayerConnectionOps.DefaultGracePeriodMs): Boolean =
+    lobby.players.get(playerId).exists(PlayerConnectionOps.canRejoin(_, gracePeriodMs))
 
   /** Remove players who have been disconnected longer than the grace period */
-  def cleanupDisconnectedPlayers(lobby: DrawingLobby, gracePeriodMs: Long = 60000): DrawingLobby =
-    val now = System.currentTimeMillis()
-    val activePlayers = lobby.players.filter:
-      case (_, player) =>
-        player.disconnectedAt match
-          case Some(disconnectTime) => (now - disconnectTime) < gracePeriodMs
-          case None => true
+  def cleanupDisconnectedPlayers(lobby: DrawingLobby, gracePeriodMs: Long = PlayerConnectionOps.DefaultGracePeriodMs): DrawingLobby =
+    val activePlayers = lobby.players.filterNot:
+      case (_, player) => PlayerConnectionOps.isGracePeriodExpired(player, gracePeriodMs)
     lobby.copy(players = activePlayers)
 
   def startDrawingPhase(lobby: DrawingLobby): DrawingLobby =

@@ -130,17 +130,17 @@ trait ReconnectionSupport[Player <: PlayerConnection, Game]:
 - [x] Create `js/src/main/scala/client/session/ReconnectionHelper.scala`
 
 ### Step 3: Refactor ColorRush Client
-**Effort: Medium**
-- [ ] Replace inline session functions with `SessionManager` calls
-- [ ] Create `ColorRushSession` case class extending `GameSession`
-- [ ] Update `checkForExistingSession` to use shared helper
-- [ ] Test reconnection still works
+**Effort: Medium** ✅ COMPLETE
+- [x] Replace inline session functions with `SessionManager` calls
+- [x] Use `BasicGameSession` for session data
+- [x] Update `checkForExistingSession` to use new session type
+- [x] Test reconnection still works
 
 ### Step 4: Refactor DrawingGame Client
-**Effort: Medium**
-- [ ] Apply same changes as ColorRush
-- [ ] Create `DrawingGameSession` case class
-- [ ] Test reconnection still works
+**Effort: Medium** ✅ COMPLETE
+- [x] Apply same changes as ColorRush
+- [x] Use `BasicGameSession` for session data
+- [x] Test reconnection still works
 
 ### Step 5: Create Server Reconnection Support
 **Effort: Medium** ✅ COMPLETE
@@ -150,16 +150,20 @@ trait ReconnectionSupport[Player <: PlayerConnection, Game]:
 - [x] Add `cleanupExpiredPlayers` helper
 
 ### Step 6: Refactor Server Handlers
-**Effort: Medium**
+**Effort: Medium** ⏭️ OPTIONAL (deferred)
 - [ ] Update `ColorRushHandler` to mix in `ReconnectionSupport`
 - [ ] Update `DrawingGameHandler` to mix in `ReconnectionSupport`
 - [ ] Verify tests still pass
 
+> **Note:** The `ReconnectionSupport` trait is available for new games. Existing handlers 
+> already work correctly and use the shared `PlayerConnectionOps` via the model classes.
+> Refactoring existing handlers is optional and can be done incrementally.
+
 ### Step 7: Update Shared Models
-**Effort: Small**
-- [ ] Make `ColorRushPlayer` extend `PlayerConnection`
-- [ ] Make `DrawingPlayer` extend `PlayerConnection`
-- [ ] Remove duplicated `canRejoin`/`reconnectPlayer` implementations
+**Effort: Small** ✅ COMPLETE
+- [x] Make `PlayerState` (ColorRush) extend `PlayerConnection`
+- [x] Make `PlayerInfo` (DrawingGame) extend `PlayerConnection`
+- [x] Refactor `canRejoin`/`cleanupDisconnectedPlayers` to use `PlayerConnectionOps`
 
 ---
 
