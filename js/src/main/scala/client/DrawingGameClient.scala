@@ -168,6 +168,11 @@ def createWaitingRoom(): HTMLElement =
 
 def createDrawingArea(): HTMLElement =
   div(id = "drawingArea", cls = "drawing-area hidden")(
+    div(cls = "game-controls")(
+      button(cls = "btn btn-secondary").tap: btn =>
+        btn.textContent = "Return to Lobby"
+        btn.addEventListener("click", (e: Event) => returnToDrawingLobby())
+    ),
     div(cls = "drawing-header")(
       h3(id = "drawingPrompt", content = "Draw: ???"),
       div(id = "drawingTimer", cls = "timer", content = "60")
@@ -207,6 +212,11 @@ def createDrawingArea(): HTMLElement =
 
 def createGalleryArea(): HTMLElement =
   div(id = "galleryArea", cls = "gallery-area hidden")(
+    div(cls = "game-controls")(
+      button(cls = "btn btn-secondary").tap: btn =>
+        btn.textContent = "Return to Lobby"
+        btn.addEventListener("click", (e: Event) => returnToDrawingLobby())
+    ),
     // Header with prompt and status
     div(id = "galleryHeader", cls = "gallery-header")(
       h2(id = "galleryPrompt", content = ""),
@@ -716,6 +726,10 @@ def startDrawingGame(): Unit =
 
 def nextRound(): Unit =
   sendDrawingMessage(ClientMessage.NextRound())
+
+def returnToDrawingLobby(): Unit =
+  clearDrawingSession()
+  window.location.reload()
 
 def sendDrawingMessage(msg: ClientMessage): Unit =
   drawingWebSocket.foreach: ws =>

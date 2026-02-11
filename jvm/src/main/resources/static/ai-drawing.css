@@ -54,6 +54,17 @@
   margin-top: 0.5rem;
 }
 
+/* Game Controls */
+.game-controls {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.game-controls button {
+  min-width: 140px;
+}
 
 /* Waiting Room */
 .waiting-room {
