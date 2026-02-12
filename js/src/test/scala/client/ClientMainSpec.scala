@@ -2,7 +2,7 @@ package client
 
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
-import client.AppRoute
+import client.{AppRoute, GameRoute}
 
 class ClientMainSpec extends AnyFunSpec with Matchers:
 
@@ -13,37 +13,65 @@ class ClientMainSpec extends AnyFunSpec with Matchers:
       it("should route to Color Rush app when pathname is /color-rush"):
         val pathname = "/color-rush"
         
-        val result = routeFromPathname(pathname)
+        val result = parseRoute(pathname)
         
-        result shouldBe AppRoute.ColorRush
+        result shouldBe GameRoute(AppRoute.ColorRush, None)
+
+      it("should route to Color Rush with lobby ID when pathname is /color-rush/ABC123"):
+        val pathname = "/color-rush/ABC123"
+        
+        val result = parseRoute(pathname)
+        
+        result shouldBe GameRoute(AppRoute.ColorRush, Some("ABC123"))
+
+      it("should uppercase lobby ID from pathname"):
+        val pathname = "/color-rush/abc123"
+        
+        val result = parseRoute(pathname)
+        
+        result shouldBe GameRoute(AppRoute.ColorRush, Some("ABC123"))
+
+      it("should route to AI Drawing with lobby ID"):
+        val pathname = "/ai-drawing/XYZ789"
+        
+        val result = parseRoute(pathname)
+        
+        result shouldBe GameRoute(AppRoute.AIDrawing, Some("XYZ789"))
+
+      it("should route to Tug of War with lobby ID"):
+        val pathname = "/tug-of-war/DEF456"
+        
+        val result = parseRoute(pathname)
+        
+        result shouldBe GameRoute(AppRoute.TugOfWar, Some("DEF456"))
 
       it("should route to Counter app when pathname is /counter"):
         val pathname = "/counter"
         
-        val result = routeFromPathname(pathname)
+        val result = parseRoute(pathname)
         
-        result shouldBe AppRoute.Counter
+        result shouldBe GameRoute(AppRoute.Counter, None)
 
       it("should route to landing page when pathname is /"):
         val pathname = "/"
         
-        val result = routeFromPathname(pathname)
+        val result = parseRoute(pathname)
         
-        result shouldBe AppRoute.Landing
+        result shouldBe GameRoute(AppRoute.Landing, None)
 
       it("should route to landing page when pathname is unknown"):
         val pathname = "/unknown-page"
         
-        val result = routeFromPathname(pathname)
+        val result = parseRoute(pathname)
         
-        result shouldBe AppRoute.Landing
+        result shouldBe GameRoute(AppRoute.Landing, None)
 
       it("should route to landing page when pathname is /about"):
         val pathname = "/about"
         
-        val result = routeFromPathname(pathname)
+        val result = parseRoute(pathname)
         
-        result shouldBe AppRoute.Landing
+        result shouldBe GameRoute(AppRoute.Landing, None)
 
   describe("Feature: Safe initialization logic"):
 
