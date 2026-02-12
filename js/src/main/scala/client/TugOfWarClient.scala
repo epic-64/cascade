@@ -210,7 +210,6 @@ def createTugOfWarLobbySetup(): HTMLElement =
 
 def createTugOfWarWaitingArea(): HTMLElement =
   div(id = "towWaitingArea", cls = "waiting-area hidden")(
-    h3(content = "Lobby:"),
     div(id = "towLobbyCode", cls = "lobby-code"),
     
     // Game settings (readonly display)

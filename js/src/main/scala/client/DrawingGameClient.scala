@@ -223,7 +223,6 @@ def createLobbySetup(): HTMLElement =
 
 def createWaitingRoom(): HTMLElement =
   div(id = "waitingRoom", cls = "waiting-area hidden")(
-    h3(content = "Lobby:"),
     div(id = "lobbyCode", cls = "lobby-code"),
     div(id = "lobbySettings", cls = "lobby-settings"),
     div(id = "playersList", cls = "players"),
