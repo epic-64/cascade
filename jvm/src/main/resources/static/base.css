@@ -707,14 +707,6 @@ textarea::placeholder {
   margin-top: 1.5rem;
 }
 
-/* Lobby Code Display */
-.lobby-code {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--accent-purple-light);
-  margin: 1rem 0;
-  letter-spacing: 0.1em;
-}
 
 /* Waiting Area - Unified for all games */
 .waiting-area {

@@ -223,7 +223,7 @@ def createLobbySetup(): HTMLElement =
 
 def createWaitingRoom(): HTMLElement =
   div(id = "waitingRoom", cls = "waiting-area hidden")(
-    div(id = "lobbyCode", cls = "lobby-code"),
+    div(id = "lobbyCode"),
     div(id = "lobbySettings", cls = "lobby-settings"),
     div(id = "playersList", cls = "players"),
     button(id = "startGameBtn", cls = "btn btn-success btn-block").tap: btn =>
