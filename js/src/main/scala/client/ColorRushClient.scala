@@ -202,8 +202,8 @@ def createWaitingArea(): HTMLElement =
     div(id = "lobbyCode"),
     // Game settings (readonly display)
     div(id = "lobbySettings", cls = "lobby-settings"),
-    h4(content = "Players"),
-    div(id = "playersList", cls = "players"),
+    h4(id = "playersHeading", content = "Players (0)"),
+    div(id = "playersList", cls = "players-container"),
     div(cls = "lobby-buttons")(
       button(cls = "btn btn-secondary").tap: btn =>
         btn.textContent = "Leave Lobby"
@@ -243,7 +243,7 @@ def createGameArea(): HTMLElement =
   )
 
 def createPlayersSidebar(): HTMLElement =
-  div(id = "gamePlayers", cls = "players hidden")
+  div(id = "gamePlayers", cls = "players-container hidden")
 
 def createRoundWinnerAnnouncement(): HTMLElement =
   div(id = "winnerAnnouncement", cls = "winner-announcement hidden")(
@@ -457,6 +457,10 @@ def updatePlayersList(players: Map[String, PlayerState], gameStatus: GameStatus)
 
   Try:
     val playersArray = players.values.toSeq.sortBy(p => (-p.score, -p.roundsWon))
+    val playerCount = playersArray.size
+
+    // Update heading with count
+    getElementById("playersHeading").foreach(_.textContent = s"Players ($playerCount)")
 
     // Determine the winner (highest score, then most rounds won)
     val winner = playersArray.headOption
@@ -467,12 +471,7 @@ def updatePlayersList(players: Map[String, PlayerState], gameStatus: GameStatus)
     val playersHTML = playersArray
       .map: player =>
         val crown = if showCrown && winner.contains(player) then "👑 " else ""
-        s"""
-        <div class="player-card">
-          <span class="player-name">$crown${player.name}</span>
-          <span class="player-score">${player.score} pts (${player.roundsWon} wins)</span>
-        </div>
-      """
+        s"""<span class="player-bean">$crown${player.name}</span>"""
       .mkString("")
 
     playersListElem.foreach(_.innerHTML = playersHTML)
