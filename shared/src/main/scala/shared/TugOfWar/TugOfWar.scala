@@ -7,7 +7,7 @@ enum Team derives ReadWriter:
   case Red, Blue
 
 enum GameStatus derives ReadWriter:
-  case Waiting, Playing, RoundEnd, GameOver
+  case Waiting, Countdown, Playing, RoundEnd, GameOver
 
 case class TugOfWarGame(
     gameId: String,
@@ -46,6 +46,7 @@ object TugOfWar:
   val StartPosition: Int = 0
   val ClickPower: Int = 1 // How much each click moves the rope
   val DefaultTimeLimitSeconds: Int = 20 // Default time limit per round
+  val CountdownSeconds: Int = 3 // Countdown before round starts
 
   def createGame(gameId: String, roundsToWin: Int = 3, timeLimitSeconds: Int = DefaultTimeLimitSeconds): TugOfWarGame =
     TugOfWarGame(
@@ -145,6 +146,13 @@ object TugOfWar:
       players = resetPlayers,
       ropePosition = StartPosition,
       currentRound = game.currentRound + 1,
+      status = GameStatus.Countdown,
+      roundStartTime = None // Will be set when countdown ends
+    )
+
+  def startPlaying(game: TugOfWarGame): TugOfWarGame =
+    if game.status != GameStatus.Countdown then game
+    else game.copy(
       status = GameStatus.Playing,
       roundStartTime = Some(System.currentTimeMillis())
     )

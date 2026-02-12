@@ -38,6 +38,7 @@ object ServerMessage:
     macroRW[RejoinFailedMessage],
     macroRW[PositionUpdateMessage],
     macroRW[TimerUpdateMessage],
+    macroRW[CountdownUpdateMessage],
     macroRW[RoundEndMessage],
     macroRW[GameEndMessage],
     macroRW[ErrorMessage]
@@ -48,6 +49,7 @@ case class JoinedMessage(playerId: String, gameId: String) extends ServerMessage
 case class RejoinFailedMessage(reason: String) extends ServerMessage derives ReadWriter
 case class PositionUpdateMessage(position: Int, redClicks: Int, blueClicks: Int) extends ServerMessage derives ReadWriter
 case class TimerUpdateMessage(secondsRemaining: Int) extends ServerMessage derives ReadWriter
+case class CountdownUpdateMessage(secondsRemaining: Int) extends ServerMessage derives ReadWriter
 case class RoundEndMessage(winner: Team, result: RoundResult) extends ServerMessage derives ReadWriter
 case class GameEndMessage(winner: Team, redRoundsWon: Int, blueRoundsWon: Int) extends ServerMessage derives ReadWriter
 case class ErrorMessage(message: String) extends ServerMessage derives ReadWriter
