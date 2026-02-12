@@ -176,6 +176,19 @@ def createColorRushLobbySetup(): HTMLElement =
             inp.required = true
             inp.autocomplete = "off"
           ,
+          div(cls = "select-row")(
+            el("label").tap: lbl =>
+              lbl.setAttribute("for", "roundsSelector")
+              lbl.textContent = "Number of Rounds:"
+            ,
+            el("select", id = "roundsSelector").tap: select =>
+              Vector(1, 3, 5, 10, 15).foreach: rounds =>
+                val option = el("option").asInstanceOf[dom.HTMLOptionElement].tap: o =>
+                  o.value = rounds.toString
+                  o.textContent = rounds.toString
+                  if rounds == 5 then o.selected = true
+                  select.appendChild(o)
+          ),
           button("submit", content = "Create Game")
         )
       )
@@ -187,21 +200,9 @@ def createWaitingArea(): HTMLElement =
   div(id = "waitingArea", cls = "waiting-area hidden")(
     h4(content = "Color Rush Lobby"),
     div(id = "lobbyCode"),
+    div(id = "lobbySettings", cls = "lobby-settings"),
     h4(content = "Players"),
     div(id = "playersList", cls = "players"),
-    div(cls = "game-settings")(
-      el("label")(
-        span(content = "Number of Rounds: "),
-        el("select", id = "roundsSelector").tap: select =>
-          select.addEventListener("change", (e: Event) => updateGameSettings())
-          Vector(1, 3, 5, 10, 15).foreach: rounds =>
-            val option = el("option").asInstanceOf[dom.HTMLOptionElement].tap: o =>
-              o.value = rounds.toString
-              o.textContent = rounds.toString
-              if rounds == 5 then o.selected = true
-              select.appendChild(o)
-      )
-    ),
     button(id = "startButton", cls = "btn btn-success btn-block").tap: btn =>
       btn.textContent = "Start Game"
       btn.addEventListener("click", (e: Event) => startGame())
@@ -437,9 +438,9 @@ def parseGameUpdate(game: ColorRushGame): Unit =
             updateRoundDisplay(game.roundNumber, game.totalRounds, round, isRoundEnd)
 
       case GameStatus.Waiting =>
-        // Update rounds selector in lobby
-        println(s"[ColorRush] Updating rounds selector to: ${game.totalRounds}")
-        updateRoundsSelector(game.totalRounds)
+        // Update lobby settings display
+        println(s"[ColorRush] Updating lobby settings to: ${game.totalRounds}")
+        updateLobbySettings(game.totalRounds)
 
       case _ => () // GameOver - keep lobby visible
   .recover:
@@ -474,13 +475,18 @@ def updatePlayersList(players: Map[String, PlayerState], gameStatus: GameStatus)
   .recover:
     case ex => println(s"[ColorRush] Error updating players list: ${ex.getMessage}")
 
-def updateRoundsSelector(totalRounds: Int): Unit =
-  println(s"[ColorRush] updateRoundsSelector called with totalRounds: $totalRounds")
-  getElementById("roundsSelector").foreach: selector =>
-    val selectElem = selector.asInstanceOf[dom.HTMLSelectElement]
-    println(s"[ColorRush] Setting roundsSelector value to: $totalRounds")
-    selectElem.value = totalRounds.toString
-    println(s"[ColorRush] roundsSelector value after setting: ${selectElem.value}")
+def updateLobbySettings(totalRounds: Int): Unit =
+  println(s"[ColorRush] updateLobbySettings called with totalRounds: $totalRounds")
+  getElementById("lobbySettings").foreach: elem =>
+    elem.innerHTML = ""
+    elem.appendChild(
+      div(cls = "settings-display")(
+        span(cls = "setting-item")(
+          span(cls = "setting-label", content = "Rounds:"),
+          span(cls = "setting-value", content = totalRounds.toString)
+        )
+      )
+    )
 
 def updateRoundDisplay(roundNumber: Int, totalRounds: Int, round: Round, isRoundEnd: Boolean): Unit =
   getElementById("roundNumber").foreach: elem =>
@@ -508,11 +514,6 @@ def updateRoundDisplay(roundNumber: Int, totalRounds: Int, round: Round, isRound
 
       grid.appendChild(button)
 
-def updateGameSettings(): Unit =
-  getInputValue("roundsSelector").foreach: roundsStr =>
-    Try(roundsStr.toInt).toOption.foreach: totalRounds =>
-      gameWebSocket.foreach: ws =>
-        sendMessage(ws, ConfigureMessage(totalRounds))
 
 def startGame(): Unit =
   gameWebSocket.foreach: ws =>
