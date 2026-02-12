@@ -151,15 +151,15 @@ def createTugOfWarLobbySetup(): HTMLElement =
             e.preventDefault()
             joinTugOfWarGame()
         ))(
-          input("text", id = "towJoinGameId").tap: el =>
-            el.placeholder = "Game Code (e.g., ABC123)"
-            el.required = true
-            el.autocomplete = "off"
+          floatingInput("text", id = "towJoinGameId", label = "Game Code").tap: field =>
+            val inp = field.querySelector("input").asInstanceOf[HTMLInputElement]
+            inp.required = true
+            inp.autocomplete = "off"
           ,
-          input("text", id = "towJoinPlayerName").tap: el =>
-            el.placeholder = "Your name"
-            el.required = true
-            el.autocomplete = "off"
+          floatingInput("text", id = "towJoinPlayerName", label = "Your Name").tap: field =>
+            val inp = field.querySelector("input").asInstanceOf[HTMLInputElement]
+            inp.required = true
+            inp.autocomplete = "off"
           ,
           button("submit", content = "Join Game")
         )
@@ -171,10 +171,10 @@ def createTugOfWarLobbySetup(): HTMLElement =
             e.preventDefault()
             createTugOfWarGame()
         ))(
-          input("text", id = "towCreatePlayerName").tap: el =>
-            el.placeholder = "Your name"
-            el.required = true
-            el.autocomplete = "off"
+          floatingInput("text", id = "towCreatePlayerName", label = "Your Name").tap: field =>
+            val inp = field.querySelector("input").asInstanceOf[HTMLInputElement]
+            inp.required = true
+            inp.autocomplete = "off"
           ,
           div(cls = "select-row")(
             el("label").tap: lbl =>

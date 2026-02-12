@@ -558,6 +558,57 @@ textarea::placeholder {
   margin-bottom: 1rem;
 }
 
+/* Floating Label Input Fields */
+.floating-field {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.floating-field .floating-input {
+  width: 100%;
+  padding: 1rem 0.875rem 0.5rem;
+  font-size: 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  margin-bottom: 0;
+}
+
+.floating-field .floating-input:focus {
+  outline: none;
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.15);
+}
+
+.floating-field .floating-label {
+  position: absolute;
+  left: 0.875rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1rem;
+  color: var(--text-muted);
+  pointer-events: none;
+  transition: all 0.2s ease;
+  background: transparent;
+  padding: 0 0.25rem;
+}
+
+/* Label floats up when input is focused or has content */
+.floating-field .floating-input:focus ~ .floating-label,
+.floating-field .floating-input:not(:placeholder-shown) ~ .floating-label {
+  top: 0;
+  transform: translateY(-50%);
+  font-size: 0.75rem;
+  color: var(--accent-purple-light);
+  background: var(--bg-secondary);
+}
+
+.floating-field .floating-input:not(:focus):not(:placeholder-shown) ~ .floating-label {
+  color: var(--text-secondary);
+}
+
 .tab-pane button[type="submit"] {
   width: 100%;
   margin-top: 0.5rem;

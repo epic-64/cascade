@@ -151,15 +151,15 @@ def createColorRushLobbySetup(): HTMLElement =
             e.preventDefault()
             joinGame()
         ))(
-          input("text", id = "joinGameId").tap: el =>
-            el.placeholder = "Game Code (e.g., ABC123)"
-            el.required = true
-            el.autocomplete = "off"
+          floatingInput("text", id = "joinGameId", label = "Game Code").tap: field =>
+            val inp = field.querySelector("input").asInstanceOf[HTMLInputElement]
+            inp.required = true
+            inp.autocomplete = "off"
           ,
-          input("text", id = "joinPlayerName").tap: el =>
-            el.placeholder = "Your name"
-            el.required = true
-            el.autocomplete = "off"
+          floatingInput("text", id = "joinPlayerName", label = "Your Name").tap: field =>
+            val inp = field.querySelector("input").asInstanceOf[HTMLInputElement]
+            inp.required = true
+            inp.autocomplete = "off"
           ,
           button("submit", content = "Join Game")
         )
@@ -171,10 +171,10 @@ def createColorRushLobbySetup(): HTMLElement =
             e.preventDefault()
             createColorRushGame()
         ))(
-          input("text", id = "createPlayerName").tap: el =>
-            el.placeholder = "Your name"
-            el.required = true
-            el.autocomplete = "off"
+          floatingInput("text", id = "createPlayerName", label = "Your Name").tap: field =>
+            val inp = field.querySelector("input").asInstanceOf[HTMLInputElement]
+            inp.required = true
+            inp.autocomplete = "off"
           ,
           button("submit", content = "Create Game")
         )

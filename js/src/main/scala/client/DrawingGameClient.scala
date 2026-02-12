@@ -147,22 +147,22 @@ def createLobbySetup(): HTMLElement =
             e.preventDefault()
             joinDrawingLobby()
         ))(
-          input("text", id = "joinLobbyId").tap: el =>
-            el.placeholder = "Lobby Code (e.g., ABC123)"
-            el.required = true
-            el.maxLength = 6
-            el.autocomplete = "off"
-            el.addEventListener(
+          floatingInput("text", id = "joinLobbyId", label = "Lobby Code").tap: field =>
+            val inp = field.querySelector("input").asInstanceOf[HTMLInputElement]
+            inp.required = true
+            inp.maxLength = 6
+            inp.autocomplete = "off"
+            inp.addEventListener(
               "input",
               (e: Event) =>
                 val input = e.target.asInstanceOf[HTMLInputElement]
                 input.value = input.value.toUpperCase
             )
           ,
-          input("text", id = "joinPlayerName").tap: el =>
-            el.placeholder = "Your name"
-            el.required = true
-            el.autocomplete = "off"
+          floatingInput("text", id = "joinPlayerName", label = "Your Name").tap: field =>
+            val inp = field.querySelector("input").asInstanceOf[HTMLInputElement]
+            inp.required = true
+            inp.autocomplete = "off"
           ,
           button("submit", content = "Join Lobby")
         )
@@ -174,15 +174,15 @@ def createLobbySetup(): HTMLElement =
             e.preventDefault()
             createDrawingLobby()
         ))(
-          input("password", id = "apiKey").tap: el =>
-            el.placeholder = "OpenAI API Key"
-            el.required = true
-            el.autocomplete = "off"
+          floatingInput("password", id = "apiKey", label = "OpenAI API Key").tap: field =>
+            val inp = field.querySelector("input").asInstanceOf[HTMLInputElement]
+            inp.required = true
+            inp.autocomplete = "off"
           ,
-          input("text", id = "createPlayerName").tap: el =>
-            el.placeholder = "Your name"
-            el.required = true
-            el.autocomplete = "off"
+          floatingInput("text", id = "createPlayerName", label = "Your Name").tap: field =>
+            val inp = field.querySelector("input").asInstanceOf[HTMLInputElement]
+            inp.required = true
+            inp.autocomplete = "off"
           ,
           div(cls = "select-row")(
             el("label").tap: lbl =>
