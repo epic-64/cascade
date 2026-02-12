@@ -185,7 +185,7 @@ def createColorRushLobbySetup(): HTMLElement =
 def createWaitingArea(): HTMLElement =
   // Waiting area container
   div(id = "waitingArea", cls = "waiting-area hidden")(
-    div(id = "lobbyCode", cls = "lobby-code"),
+    div(id = "lobbyCode"),
     el("h4", content = "Players:"),
     div(id = "playersList", cls = "players"),
     div(cls = "game-settings")(
