@@ -228,9 +228,15 @@ def createWaitingRoom(): HTMLElement =
     div(id = "lobbySettings", cls = "lobby-settings"),
     h4(content = "Players"),
     div(id = "playersList", cls = "players"),
-    button(id = "startGameBtn", cls = "btn btn-success btn-block").tap: btn =>
-      btn.textContent = "Start Game"
-      btn.addEventListener("click", (e: Event) => startDrawingGame())
+    div(cls = "lobby-buttons")(
+      button(id = "startGameBtn", cls = "btn btn-success").tap: btn =>
+        btn.textContent = "Start Game"
+        btn.addEventListener("click", (e: Event) => startDrawingGame())
+      ,
+      button(cls = "btn btn-secondary").tap: btn =>
+        btn.textContent = "Leave Lobby"
+        btn.addEventListener("click", (e: Event) => leaveDrawingLobby())
+    )
   )
 
 def createLoadingArea(): HTMLElement =
@@ -860,6 +866,13 @@ def nextRound(): Unit =
 def returnToDrawingLobby(): Unit =
   clearDrawingSession()
   window.location.reload()
+
+def leaveDrawingLobby(): Unit =
+  drawingKeepAlive.stop()
+  clearDrawingSession()
+  drawingWebSocket.foreach(_.close())
+  drawingWebSocket = None
+  window.location.assign("/")
 
 def sendDrawingMessage(msg: ClientMessage): Unit =
   drawingWebSocket.foreach: ws =>

@@ -230,6 +230,17 @@ button {
   width: 100%;
 }
 
+/* Lobby button container - Start/Leave buttons */
+.lobby-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.lobby-buttons button {
+  flex: 1;
+}
+
 /* Alert/Warning Boxes */
 .alert {
   padding: 0.75rem 1rem;

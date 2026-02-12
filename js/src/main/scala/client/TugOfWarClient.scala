@@ -240,11 +240,16 @@ def createTugOfWarWaitingArea(): HTMLElement =
     ),
 
 
-    // Start button
-    button(id = "towStartButton", cls = "btn btn-success btn-block").tap: btn =>
-      btn.textContent = "Start Game"
-      btn.addEventListener("click", (e: Event) => startTugOfWarGame())
-    ,
+    // Start button and leave button
+    div(cls = "lobby-buttons")(
+      button(id = "towStartButton", cls = "btn btn-success").tap: btn =>
+        btn.textContent = "Start Game"
+        btn.addEventListener("click", (e: Event) => startTugOfWarGame())
+      ,
+      button(cls = "btn btn-secondary").tap: btn =>
+        btn.textContent = "Leave Lobby"
+        btn.addEventListener("click", (e: Event) => leaveTugOfWarLobby())
+    ),
     div(id = "towStartHint", cls = "tow-waiting-message", content = "Need at least one player on each team to start")
   )
 
@@ -494,6 +499,13 @@ def returnToTugOfWarLobby(): Unit =
   towKeepAlive.stop()
   clearTugOfWarSession()
   window.location.reload()
+
+def leaveTugOfWarLobby(): Unit =
+  towKeepAlive.stop()
+  clearTugOfWarSession()
+  towWebSocket.foreach(_.close())
+  towWebSocket = None
+  window.location.assign("/")
 
 // ============================================================================
 // WebSocket Message Handling
