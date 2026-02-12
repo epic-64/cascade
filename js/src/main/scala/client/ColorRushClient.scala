@@ -205,13 +205,13 @@ def createWaitingArea(): HTMLElement =
     h4(content = "Players"),
     div(id = "playersList", cls = "players"),
     div(cls = "lobby-buttons")(
-      button(id = "startButton", cls = "btn btn-success").tap: btn =>
-        btn.textContent = "Start Game"
-        btn.addEventListener("click", (e: Event) => startGame())
-      ,
       button(cls = "btn btn-secondary").tap: btn =>
         btn.textContent = "Leave Lobby"
         btn.addEventListener("click", (e: Event) => leaveLobby())
+      ,
+      button(id = "startButton", cls = "btn btn-success").tap: btn =>
+        btn.textContent = "Start Game"
+        btn.addEventListener("click", (e: Event) => startGame())
     )
   )
 
