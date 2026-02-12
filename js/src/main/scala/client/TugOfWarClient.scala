@@ -6,6 +6,7 @@ import shared.TugOfWar.*
 import shared.session.BasicGameSession
 import client.{el, form, input, button, *}
 import client.session.{SessionManager, WebSocketKeepAlive}
+import client.components.ShareableLink
 
 import scala.scalajs.js
 import scala.util.Try
@@ -14,11 +15,30 @@ import scala.util.chaining.scalaUtilChainingOps
 // Session key for TugOfWar
 private val TugOfWarSessionKey = "tugOfWar"
 
-def initializeTugOfWar(): Unit =
+def initializeTugOfWar(lobbyIdFromUrl: Option[String] = None): Unit =
   println("[TugOfWar] Starting Tug of War client...")
   buildTugOfWarUI()
   setupTugOfWarEnterKeyHandler()
-  checkForExistingTugOfWarSession()
+
+  // Session takes priority over URL (for page refresh during game)
+  // URL is only used for initial join via shared link
+  loadTugOfWarSession() match
+    case Some(session) =>
+      println(s"[TugOfWar] Found existing session - attempting rejoin: gameId=${session.gameId}")
+      towIsRejoining = true
+      towGameId = Some(session.gameId)
+      towPlayerId = Some(session.playerId)
+      attemptTugOfWarRejoin(session.gameId, session.playerId, session.playerName)
+    case None =>
+      lobbyIdFromUrl match
+        case Some(lobbyId) =>
+          // Pre-fill join form and switch to join tab
+          println(s"[TugOfWar] Pre-filling lobby ID from URL: $lobbyId")
+          getElementById("towJoinGameId").foreach(_.asInstanceOf[HTMLInputElement].value = lobbyId)
+          switchTugOfWarTab("join")
+          getElementById("towJoinPlayerName").foreach(_.focus())
+        case None =>
+          println("[TugOfWar] No existing session found")
 
 var towWebSocket: Option[WebSocket] = None
 var towGameId: Option[String] = None
@@ -575,7 +595,8 @@ def updateTugOfWarLobbyUI(): Unit =
 
   towGameId.foreach: gameId =>
     getElementById("towLobbyCode").foreach: elem =>
-      elem.textContent = s"Code: $gameId"
+      elem.innerHTML = ""
+      elem.appendChild(ShareableLink.render("tug-of-war", gameId))
 
   getElementById("towWaitingArea").foreach(_.classList.remove("hidden"))
 

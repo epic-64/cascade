@@ -6,6 +6,7 @@ import shared.ColorRush.*
 import shared.session.BasicGameSession
 import client.{el, form, input, button, *}
 import client.session.{SessionManager, WebSocketKeepAlive}
+import client.components.ShareableLink
 
 import scala.scalajs.js
 import scala.util.Try
@@ -14,13 +15,30 @@ import scala.util.chaining.scalaUtilChainingOps
 // Session key for ColorRush
 private val ColorRushSessionKey = "colorRush"
 
-def initializeColorRush(): Unit =
+def initializeColorRush(lobbyIdFromUrl: Option[String] = None): Unit =
   println("[ColorRush] Starting Color Rush client...")
   buildGameUI()
   setupEnterKeyHandler()
 
-  // Check for existing session and attempt reconnect
-  checkForExistingSession()
+  // Session takes priority over URL (for page refresh during game)
+  // URL is only used for initial join via shared link
+  loadSession() match
+    case Some(session) =>
+      println(s"[ColorRush] Found existing session - attempting rejoin")
+      isRejoining = true
+      currentGameId = Some(session.gameId)
+      colorRushPlayerId = Some(session.playerId)
+      attemptRejoin(session.gameId, session.playerId, session.playerName)
+    case None =>
+      lobbyIdFromUrl match
+        case Some(lobbyId) =>
+          // Pre-fill join form and switch to join tab
+          println(s"[ColorRush] Pre-filling lobby ID from URL: $lobbyId")
+          getElementById("joinGameId").foreach(_.asInstanceOf[HTMLInputElement].value = lobbyId)
+          switchColorRushTab("join")
+          getElementById("joinPlayerName").foreach(_.focus())
+        case None =>
+          println("[ColorRush] No existing session found")
 
 var gameWebSocket: Option[WebSocket] = None
 var currentGameId: Option[String] = None
@@ -567,10 +585,11 @@ def updateLobbyUI(): Unit =
   getElementById("lobbySetup").foreach: container =>
     container.classList.add("hidden")
 
-  // Show the lobby code
+  // Show the shareable lobby link
   currentGameId.foreach: gameId =>
     getElementById("lobbyCode").foreach: elem =>
-      elem.textContent = s"Code: $gameId"
+      elem.innerHTML = ""
+      elem.appendChild(ShareableLink.render("color-rush", gameId))
 
   // Show the waiting area container
   getElementById("waitingArea").foreach: area =>

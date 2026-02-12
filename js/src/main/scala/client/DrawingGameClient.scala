@@ -6,6 +6,7 @@ import shared.DrawingGame.*
 import shared.session.BasicGameSession
 import client.{el, form, input, button, *}
 import client.session.{SessionManager, WebSocketKeepAlive}
+import client.components.ShareableLink
 
 import scala.scalajs.js
 import scala.util.{Try, Success, Failure}
@@ -14,12 +15,30 @@ import scala.util.chaining.*
 // Session key for DrawingGame
 private val DrawingSessionKey = "drawing"
 
-def initializeDrawing(): Unit =
+def initializeDrawing(lobbyIdFromUrl: Option[String] = None): Unit =
   println("[Drawing] Starting AI Drawing game client...")
   buildDrawingUI()
 
-  // Check for existing session and attempt reconnect
-  checkForExistingDrawingSession()
+  // Session takes priority over URL (for page refresh during game)
+  // URL is only used for initial join via shared link
+  loadDrawingSession() match
+    case Some(session) =>
+      println(s"[Drawing] Found existing session - attempting rejoin: lobbyId=${session.gameId}, playerId=${session.playerId}")
+      currentLobbyId = Some(session.gameId)
+      currentPlayerId = Some(session.playerId)
+      currentPlayerName = Some(session.playerName)
+      hideElement("lobbySetup")
+      attemptDrawingRejoin(session.gameId, session.playerId)
+    case None =>
+      lobbyIdFromUrl match
+        case Some(lobbyId) =>
+          // Pre-fill join form and switch to join tab
+          println(s"[Drawing] Pre-filling lobby ID from URL: $lobbyId")
+          getElementById("joinLobbyId").foreach(_.asInstanceOf[HTMLInputElement].value = lobbyId)
+          switchTab("join")
+          getElementById("joinPlayerName").foreach(_.focus())
+        case None =>
+          println("[Drawing] No existing session found")
 
 var drawingWebSocket: Option[WebSocket] = None
 var currentPlayerId: Option[String] = None
@@ -585,7 +604,8 @@ def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
       showOnlyGameScreen("waitingRoom")
 
       getElementById("lobbyCode").foreach: elem =>
-        elem.textContent = s"Code: ${lobby.lobbyId}"
+        elem.innerHTML = ""
+        elem.appendChild(ShareableLink.render("ai-drawing", lobby.lobbyId))
 
       // Display game settings
       getElementById("lobbySettings").foreach: elem =>

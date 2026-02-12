@@ -125,31 +125,31 @@ object ShareableLink:
 ## Implementation Checklist
 
 ### Phase 1: Server Routes
-- [ ] Add `/color-rush/:lobbyId` route to `WebServer.scala`
-- [ ] Add `/ai-drawing/:lobbyId` route
-- [ ] Add `/tug-of-war/:lobbyId` route
+- [x] Add `/color-rush/:lobbyId` route to `WebServer.scala`
+- [x] Add `/ai-drawing/:lobbyId` route
+- [x] Add `/tug-of-war/:lobbyId` route
 
 ### Phase 2: Client Routing
-- [ ] Create `GameRoute` case class in `ClientMain.scala`
-- [ ] Update `parseRoute` to extract lobby ID from path
-- [ ] Update game initialization calls to pass `lobbyId`
+- [x] Create `GameRoute` case class in `ClientMain.scala`
+- [x] Update `parseRoute` to extract lobby ID from path
+- [x] Update game initialization calls to pass `lobbyId`
 
 ### Phase 3: ShareableLink Component
-- [ ] Create `js/src/main/scala/client/components/ShareableLink.scala`
-- [ ] Implement `render(gameType, lobbyId)` function
-- [ ] Implement `copyToClipboard` with visual feedback
-- [ ] Add CSS styles to `base.css`
+- [x] Create `js/src/main/scala/client/components/ShareableLink.scala`
+- [x] Implement `render(gameType, lobbyId)` function
+- [x] Implement `copyToClipboard` with visual feedback
+- [x] Add CSS styles to `base.css`
 
 ### Phase 4: Game Client Updates
-- [ ] **ColorRush**: Update `initializeColorRush(lobbyId: Option[String])`
-  - [ ] Pre-fill join form if lobby ID present
-  - [ ] Replace lobby code display with `ShareableLink`
-- [ ] **AI Drawing**: Update `initializeDrawing(lobbyId: Option[String])`
-  - [ ] Pre-fill join form if lobby ID present
-  - [ ] Replace lobby code display with `ShareableLink`
-- [ ] **Tug of War**: Update `initializeTugOfWar(lobbyId: Option[String])`
-  - [ ] Pre-fill join form if lobby ID present
-  - [ ] Replace lobby code display with `ShareableLink`
+- [x] **ColorRush**: Update `initializeColorRush(lobbyId: Option[String])`
+  - [x] Pre-fill join form if lobby ID present
+  - [x] Replace lobby code display with `ShareableLink`
+- [x] **AI Drawing**: Update `initializeDrawing(lobbyId: Option[String])`
+  - [x] Pre-fill join form if lobby ID present
+  - [x] Replace lobby code display with `ShareableLink`
+- [x] **Tug of War**: Update `initializeTugOfWar(lobbyId: Option[String])`
+  - [x] Pre-fill join form if lobby ID present
+  - [x] Replace lobby code display with `ShareableLink`
 
 ### Phase 5: Testing
 - [ ] Open shared link → join form pre-filled, name input focused
