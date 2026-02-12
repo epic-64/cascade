@@ -204,9 +204,15 @@ def createWaitingArea(): HTMLElement =
     div(id = "lobbySettings", cls = "lobby-settings"),
     h4(content = "Players"),
     div(id = "playersList", cls = "players"),
-    button(id = "startButton", cls = "btn btn-success btn-block").tap: btn =>
-      btn.textContent = "Start Game"
-      btn.addEventListener("click", (e: Event) => startGame())
+    div(cls = "lobby-buttons")(
+      button(id = "startButton", cls = "btn btn-success").tap: btn =>
+        btn.textContent = "Start Game"
+        btn.addEventListener("click", (e: Event) => startGame())
+      ,
+      button(cls = "btn btn-secondary").tap: btn =>
+        btn.textContent = "Leave Lobby"
+        btn.addEventListener("click", (e: Event) => leaveLobby())
+    )
   )
 
 def createGameArea(): HTMLElement =
@@ -566,6 +572,13 @@ def returnToLobby(): Unit =
   colorRushKeepAlive.stop()
   clearSession()
   window.location.reload()
+
+def leaveLobby(): Unit =
+  colorRushKeepAlive.stop()
+  clearSession()
+  gameWebSocket.foreach(_.close())
+  gameWebSocket = None
+  window.location.assign("/")
 
 def updateLobbyUI(): Unit =
   // Hide the lobby setup (tabbed interface)
