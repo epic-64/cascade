@@ -226,8 +226,8 @@ def createWaitingRoom(): HTMLElement =
     h4(content = "AI Drawing Lobby"),
     div(id = "lobbyCode"),
     div(id = "lobbySettings", cls = "lobby-settings"),
-    h4(content = "Players"),
-    div(id = "playersList", cls = "players"),
+    h4(id = "playersHeading", content = "Players (0)"),
+    div(id = "playersList", cls = "players-container"),
     div(cls = "lobby-buttons")(
       button(cls = "btn btn-secondary").tap: btn =>
         btn.textContent = "Leave Lobby"
@@ -638,8 +638,16 @@ def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
 
       getElementById("playersList").foreach: elem =>
         elem.innerHTML = ""
+        val playerCount = lobby.players.size
+        getElementById("playersHeading").foreach(_.textContent = s"Players ($playerCount)")
+
         lobby.players.values.foreach: player =>
-          elem.appendChild(div(content = s"${player.playerName} - ${player.score} pts"))
+          val statusClass = if player.connected then "" else " disconnected"
+          val bean = span(cls = "player-bean")(
+            span(cls = s"status-dot$statusClass"),
+            span(content = player.playerName)
+          )
+          elem.appendChild(bean)
 
       getElementById("startGameBtn").foreach: btn =>
         if lobby.players.isEmpty then

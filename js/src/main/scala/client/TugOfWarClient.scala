@@ -228,14 +228,12 @@ def createTugOfWarWaitingArea(): HTMLElement =
     // Team lists
     div(cls = "tow-teams-container")(
       div(id = "towRedTeamList", cls = "tow-team-list red")(
-        div(cls = "tow-team-header red", content = "🔴 Red Team (Pull Left)"),
-        div(id = "towRedPlayers"),
-        div(id = "towRedCount", cls = "tow-player-count")
+        div(id = "towRedHeader", cls = "tow-team-header red", content = "🔴 Red Team (0)"),
+        div(id = "towRedPlayers", cls = "players-container")
       ),
       div(id = "towBlueTeamList", cls = "tow-team-list blue")(
-        div(cls = "tow-team-header blue", content = "🔵 Blue Team (Pull Right)"),
-        div(id = "towBluePlayers"),
-        div(id = "towBlueCount", cls = "tow-player-count")
+        div(id = "towBlueHeader", cls = "tow-team-header blue", content = "🔵 Blue Team (0)"),
+        div(id = "towBluePlayers", cls = "players-container")
       )
     ),
 
@@ -633,22 +631,22 @@ def updateTugOfWarTeamLists(game: TugOfWarGame): Unit =
   // Update red team list
   getElementById("towRedPlayers").foreach: elem =>
     elem.innerHTML = redPlayers.map: player =>
-      val hostBadge = if game.hostId.contains(player.playerId) then "<span class='host-badge'>⭐</span>" else ""
-      s"<div class='tow-player-item'>$hostBadge ${player.name}</div>"
+      val hostBadge = if game.hostId.contains(player.playerId) then "⭐ " else ""
+      s"""<span class="player-bean">$hostBadge${player.name}</span>"""
     .mkString
 
-  getElementById("towRedCount").foreach: elem =>
-    elem.textContent = s"${redPlayers.size} player${if redPlayers.size != 1 then "s" else ""}"
+  // Update red team header with count
+  getElementById("towRedHeader").foreach(_.textContent = s"🔴 Red Team (${redPlayers.size})")
 
   // Update blue team list
   getElementById("towBluePlayers").foreach: elem =>
     elem.innerHTML = bluePlayers.map: player =>
-      val hostBadge = if game.hostId.contains(player.playerId) then "<span class='host-badge'>⭐</span>" else ""
-      s"<div class='tow-player-item'>$hostBadge ${player.name}</div>"
+      val hostBadge = if game.hostId.contains(player.playerId) then "⭐ " else ""
+      s"""<span class="player-bean">$hostBadge${player.name}</span>"""
     .mkString
 
-  getElementById("towBlueCount").foreach: elem =>
-    elem.textContent = s"${bluePlayers.size} player${if bluePlayers.size != 1 then "s" else ""}"
+  // Update blue team header with count
+  getElementById("towBlueHeader").foreach(_.textContent = s"🔵 Blue Team (${bluePlayers.size})")
 
 def updateTugOfWarLobbySettings(game: TugOfWarGame): Unit =
   val timeLimitText = if game.timeLimitSeconds > 0 then s"${game.timeLimitSeconds}s" else "No limit"
