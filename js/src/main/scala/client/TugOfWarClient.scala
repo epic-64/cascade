@@ -216,25 +216,25 @@ def createTugOfWarWaitingArea(): HTMLElement =
     // Game settings (readonly display)
     div(id = "towLobbySettings", cls = "lobby-settings"),
 
-    // Team selection
-    h4(content = "Choose Your Team"),
-    div(cls = "tow-team-selector")(
-      button(id = "towSelectRed", cls = "tow-team-btn team-red", content = "🔴 RED TEAM").tap: btn =>
-        btn.addEventListener("click", (e: Event) => selectTeam(Team.Red)),
-      button(id = "towSelectBlue", cls = "tow-team-btn team-blue", content = "🔵 BLUE TEAM").tap: btn =>
-        btn.addEventListener("click", (e: Event) => selectTeam(Team.Blue))
-    ),
-
-    // Team lists
+    // Team lists (clickable to join)
     div(cls = "tow-teams-container")(
-      div(id = "towRedTeamList", cls = "tow-team-list red")(
-        div(id = "towRedHeader", cls = "tow-team-header red", content = "🔴 Red Team (0)"),
-        div(id = "towRedPlayers", cls = "players-container")
-      ),
-      div(id = "towBlueTeamList", cls = "tow-team-list blue")(
-        div(id = "towBlueHeader", cls = "tow-team-header blue", content = "🔵 Blue Team (0)"),
-        div(id = "towBluePlayers", cls = "players-container")
-      )
+      div(id = "towRedTeamList", cls = "tow-team-list red clickable").tap: elem =>
+        elem.addEventListener("click", (e: Event) => selectTeam(Team.Red))
+      .pipe: elem =>
+        elem(
+          div(id = "towRedHeader", cls = "tow-team-header red", content = "🔴 Red Team (0)"),
+          div(id = "towRedPlayers", cls = "players-container"),
+          div(cls = "tow-team-join-hint", content = "Click to join")
+        )
+      ,
+      div(id = "towBlueTeamList", cls = "tow-team-list blue clickable").tap: elem =>
+        elem.addEventListener("click", (e: Event) => selectTeam(Team.Blue))
+      .pipe: elem =>
+        elem(
+          div(id = "towBlueHeader", cls = "tow-team-header blue", content = "🔵 Blue Team (0)"),
+          div(id = "towBluePlayers", cls = "players-container"),
+          div(cls = "tow-team-join-hint", content = "Click to join")
+        )
     ),
 
 
@@ -616,17 +616,23 @@ def updateTugOfWarTeamLists(game: TugOfWarGame): Unit =
   val bluePlayers = TugOfWar.getTeamPlayers(game, Team.Blue)
   val unassigned = game.players.values.filter(_.team.isEmpty).toSeq
 
-  // Update team selection buttons
+  // Update team list styling to show which team is selected
   towPlayerTeam match
     case Some(Team.Red) =>
-      getElementById("towSelectRed").foreach(_.classList.add("selected"))
-      getElementById("towSelectBlue").foreach(_.classList.remove("selected"))
+      getElementById("towRedTeamList").foreach(_.classList.add("selected"))
+      getElementById("towBlueTeamList").foreach(_.classList.remove("selected"))
     case Some(Team.Blue) =>
-      getElementById("towSelectBlue").foreach(_.classList.add("selected"))
-      getElementById("towSelectRed").foreach(_.classList.remove("selected"))
+      getElementById("towBlueTeamList").foreach(_.classList.add("selected"))
+      getElementById("towRedTeamList").foreach(_.classList.remove("selected"))
     case None =>
-      getElementById("towSelectRed").foreach(_.classList.remove("selected"))
-      getElementById("towSelectBlue").foreach(_.classList.remove("selected"))
+      getElementById("towRedTeamList").foreach(_.classList.remove("selected"))
+      getElementById("towBlueTeamList").foreach(_.classList.remove("selected"))
+
+  // Update hint text based on selection
+  document.querySelectorAll("#towRedTeamList .tow-team-join-hint").foreach: elem =>
+    elem.asInstanceOf[HTMLElement].textContent = if towPlayerTeam.contains(Team.Red) then "✓ Your team" else "Click to join"
+  document.querySelectorAll("#towBlueTeamList .tow-team-join-hint").foreach: elem =>
+    elem.asInstanceOf[HTMLElement].textContent = if towPlayerTeam.contains(Team.Blue) then "✓ Your team" else "Click to join"
 
   // Update red team list
   getElementById("towRedPlayers").foreach: elem =>

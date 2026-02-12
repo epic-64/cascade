@@ -61,12 +61,61 @@
   border: 2px solid var(--border-subtle);
 }
 
+.tow-team-list.clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tow-team-list.clickable:hover {
+  transform: translateY(-2px);
+}
+
 .tow-team-list.red {
   border-color: rgba(239, 68, 68, 0.3);
 }
 
+.tow-team-list.red.clickable:hover {
+  border-color: rgba(239, 68, 68, 0.6);
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.2);
+}
+
+.tow-team-list.red.selected {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3);
+}
+
 .tow-team-list.blue {
   border-color: rgba(59, 130, 246, 0.3);
+}
+
+.tow-team-list.blue.clickable:hover {
+  border-color: rgba(59, 130, 246, 0.6);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.2);
+}
+
+.tow-team-list.blue.selected {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+}
+
+.tow-team-join-hint {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-top: var(--spacing-sm);
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.tow-team-list.clickable:hover .tow-team-join-hint {
+  opacity: 1;
+}
+
+.tow-team-list.selected .tow-team-join-hint {
+  color: var(--text-secondary);
+  opacity: 1;
 }
 
 .tow-team-header {
