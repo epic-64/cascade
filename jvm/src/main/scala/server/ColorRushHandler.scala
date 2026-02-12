@@ -84,8 +84,6 @@ object ColorRushHandler extends ReconnectionSupport[PlayerState, ColorRushGame]:
               case shared.ColorRush.RejoinMessage(playerId, rejoinGameId) =>
                 handleRejoinRequest(channel, gameId, playerId)
 
-              case shared.ColorRush.ConfigureMessage(totalRounds) =>
-                handleConfigure(gameId, totalRounds)
 
               case shared.ColorRush.StartMessage() =>
                 handleStart(gameId)
@@ -128,12 +126,6 @@ object ColorRushHandler extends ReconnectionSupport[PlayerState, ColorRushGame]:
     // Broadcast game state to all players
     broadcastGameState(gameId)
 
-  private def handleConfigure(gameId: String, totalRounds: Int): Unit =
-    gameManager.getGame(gameId).foreach: game =>
-      val updatedGame = shared.ColorRush.ColorRush.configureGame(game, totalRounds)
-      gameManager.updateGame(gameId, updatedGame)
-      logger.info(s"Game $gameId configured: totalRounds=$totalRounds")
-      broadcastGameState(gameId)
 
   private def handleStart(gameId: String): Unit =
     gameManager.getGame(gameId).foreach: game =>

@@ -150,25 +150,6 @@ class ColorRushEndpointSpec extends AnyFunSuite with TestServerHelper with WebSo
 
       assert(hasWinnerMessage, s"Expected RoundWinnerMessage for Alice, got: ${messages.toSeq}")
 
-  test("game configuration can be changed before starting"):
-    val gameId = uniqueGameId
-    val messages = createMessageBuffer[ServerMessage]()
-    val joinedLatch, joinUpdateLatch, configLatch = CountDownLatch(1)
-    val ws = connectWebSocket(wsUrl(gameId), createGameListener(messages, Seq(joinedLatch, joinUpdateLatch, configLatch)))
-
-    withWebSockets(ws):
-      sendMessage(ws, JoinMessage("Alice", 5))
-      awaitLatch(joinedLatch, "JoinedMessage failed")
-      awaitLatch(joinUpdateLatch, "Join update failed")
-
-      // Change configuration
-      sendMessage(ws, ConfigureMessage(10))
-      awaitLatch(configLatch, "Configure failed")
-
-      messages.toSeq.collect { case GameUpdateMessage(g) => g }.last match
-        case game =>
-          assert(game.totalRounds == 10)
-
   test("player disconnect updates game state for remaining players"):
     val gameId = uniqueGameId
     val messages1 = createMessageBuffer[ServerMessage]()

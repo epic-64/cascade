@@ -55,11 +55,6 @@ object ColorRush:
     val player = PlayerState(playerId, playerName, 0, 0, connected = true, disconnectedAt = None)
     game.copy(players = game.players + (playerId -> player))
 
-  def configureGame(game: ColorRushGame, totalRounds: Int): ColorRushGame =
-    if game.status == GameStatus.Waiting then
-      game.copy(totalRounds = totalRounds)
-    else
-      game
 
   def removePlayer(game: ColorRushGame, playerId: String): ColorRushGame =
     game.copy(players = game.players - playerId)

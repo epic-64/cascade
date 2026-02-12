@@ -11,7 +11,6 @@ object ClientMessage:
   given ReadWriter[ClientMessage] = ReadWriter.merge(
     macroRW[JoinMessage],
     macroRW[RejoinMessage],
-    macroRW[ConfigureMessage],
     macroRW[StartMessage],
     macroRW[ClickMessage],
     macroRW[NextRoundMessage],
@@ -20,7 +19,6 @@ object ClientMessage:
 
 case class JoinMessage(playerName: String, totalRounds: Int) extends ClientMessage derives ReadWriter
 case class RejoinMessage(playerId: String, gameId: String) extends ClientMessage derives ReadWriter
-case class ConfigureMessage(totalRounds: Int) extends ClientMessage derives ReadWriter
 case class StartMessage() extends ClientMessage derives ReadWriter
 case class ClickMessage(color: String, time: Long) extends ClientMessage derives ReadWriter
 case class NextRoundMessage() extends ClientMessage derives ReadWriter
