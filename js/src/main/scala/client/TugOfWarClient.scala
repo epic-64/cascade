@@ -210,12 +210,14 @@ def createTugOfWarLobbySetup(): HTMLElement =
 
 def createTugOfWarWaitingArea(): HTMLElement =
   div(id = "towWaitingArea", cls = "waiting-area hidden")(
+    h4(content = "Tug of War Lobby"),
     div(id = "towLobbyCode"),
 
     // Game settings (readonly display)
     div(id = "towLobbySettings", cls = "lobby-settings"),
 
     // Team selection
+    h4(content = "Choose Your Team"),
     div(cls = "tow-team-selector")(
       button(id = "towSelectRed", cls = "tow-team-btn team-red", content = "🔴 RED TEAM").tap: btn =>
         btn.addEventListener("click", (e: Event) => selectTeam(Team.Red)),

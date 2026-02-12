@@ -728,10 +728,13 @@ textarea::placeholder {
 
 .waiting-area h3,
 .waiting-area h4 {
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: 0.875rem;
+  font-weight: 500;
   margin: 0;
-  color: var(--text-primary);
+  color: var(--text-muted);
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 /* Players List Container */
