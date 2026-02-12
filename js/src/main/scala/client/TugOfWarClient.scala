@@ -242,13 +242,13 @@ def createTugOfWarWaitingArea(): HTMLElement =
 
     // Start button and leave button
     div(cls = "lobby-buttons")(
-      button(id = "towStartButton", cls = "btn btn-success").tap: btn =>
-        btn.textContent = "Start Game"
-        btn.addEventListener("click", (e: Event) => startTugOfWarGame())
-      ,
       button(cls = "btn btn-secondary").tap: btn =>
         btn.textContent = "Leave Lobby"
         btn.addEventListener("click", (e: Event) => leaveTugOfWarLobby())
+      ,
+      button(id = "towStartButton", cls = "btn btn-success").tap: btn =>
+        btn.textContent = "Start Game"
+        btn.addEventListener("click", (e: Event) => startTugOfWarGame())
     ),
     div(id = "towStartHint", cls = "tow-waiting-message", content = "Need at least one player on each team to start")
   )
