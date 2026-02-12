@@ -27,6 +27,16 @@ def input(input_type: String, id: String = "", cls: String = ""): HTMLInputEleme
   el("input", id, cls).asInstanceOf[HTMLInputElement].tap: input =>
     input.`type` = input_type
 
+/** Creates a floating label input field */
+def floatingInput(input_type: String, id: String, label: String): HTMLElement =
+  div(cls = "floating-field")(
+    input(input_type, id = id, cls = "floating-input").tap: inp =>
+      inp.placeholder = " " // Required for :placeholder-shown CSS selector
+    ,
+    el("label", cls = "floating-label", content = label).tap: lbl =>
+      lbl.setAttribute("for", id)
+  )
+
 def button(button_type: String = "button", id: String = "", cls: String = "", content: String = ""): HTMLButtonElement =
   el("button", id, cls, content).asInstanceOf[HTMLButtonElement].tap: button =>
     button.`type` = button_type
