@@ -71,14 +71,16 @@ class ColorRushEndpointSpec extends AnyFunSuite with TestServerHelper with WebSo
     val joined2, update2 = CountDownLatch(1)
 
     val ws1 = connectWebSocket(wsUrl(gameId), createGameListener(messages1, Seq(joined1, update1a, update1b)))
+
+    // Player 1 joins first
+    sendMessage(ws1, JoinMessage("Alice", 5))
+    awaitLatch(joined1, "Player 1 didn't receive JoinedMessage")
+    awaitLatch(update1a, "Player 1 didn't receive initial game state")
+
+    // Now connect player 2 (after player 1 has joined, so player 2 doesn't receive player 1's broadcast)
     val ws2 = connectWebSocket(wsUrl(gameId), createGameListener(messages2, Seq(joined2, update2)))
 
     withWebSockets(ws1, ws2):
-      // Player 1 joins
-      sendMessage(ws1, JoinMessage("Alice", 5))
-      awaitLatch(joined1, "Player 1 didn't receive JoinedMessage")
-      awaitLatch(update1a, "Player 1 didn't receive initial game state")
-
       // Player 2 joins - this triggers broadcast to both players
       sendMessage(ws2, JoinMessage("Bob", 5))
       
