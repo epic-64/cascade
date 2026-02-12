@@ -191,11 +191,46 @@ object TugOfWarHandler extends ReconnectionSupport[PlayerState, TugOfWarGame]:
       if shared.TugOfWar.TugOfWar.canStart(game) then
         val gameWithRound = shared.TugOfWar.TugOfWar.startRound(game)
         gameManager.updateGame(gameId, gameWithRound)
-        logger.info(s"TugOfWar game $gameId started - Round ${gameWithRound.currentRound}")
+        logger.info(s"TugOfWar game $gameId starting countdown - Round ${gameWithRound.currentRound}")
         broadcastGameState(gameId)
-        startRoundTimer(gameId, gameWithRound.timeLimitSeconds)
+        startCountdown(gameId, gameWithRound.timeLimitSeconds)
       else
         logger.warn(s"Cannot start game $gameId - need at least one player per team")
+
+  private def startCountdown(gameId: String, timeLimitSeconds: Int): Unit =
+    // Cancel any existing timer
+    stopRoundTimer(gameId)
+
+    var countdownRemaining = shared.TugOfWar.TugOfWar.CountdownSeconds
+
+    // Send initial countdown value
+    broadcastCountdownUpdate(gameId, countdownRemaining)
+
+    val countdownTask = new Runnable:
+      def run(): Unit =
+        countdownRemaining -= 1
+        if countdownRemaining > 0 then
+          broadcastCountdownUpdate(gameId, countdownRemaining)
+        else
+          // Countdown finished - start playing
+          gameManager.getGame(gameId).foreach: game =>
+            if game.status == GameStatus.Countdown then
+              val playingGame = shared.TugOfWar.TugOfWar.startPlaying(game)
+              gameManager.updateGame(gameId, playingGame)
+              logger.info(s"TugOfWar game $gameId countdown finished - Round ${playingGame.currentRound} starting!")
+              broadcastCountdownUpdate(gameId, 0) // Signal countdown end
+              broadcastGameState(gameId)
+              // Now start the round timer
+              stopRoundTimer(gameId) // Stop the countdown timer
+              startRoundTimer(gameId, timeLimitSeconds)
+
+    val future = timerScheduler.scheduleAtFixedRate(
+      countdownTask,
+      1,
+      1,
+      java.util.concurrent.TimeUnit.SECONDS
+    )
+    activeTimers.put(gameId, future)
 
   private def startRoundTimer(gameId: String, timeLimitSeconds: Int): Unit =
     // Cancel any existing timer for this game
@@ -282,11 +317,11 @@ object TugOfWarHandler extends ReconnectionSupport[PlayerState, TugOfWarGame]:
           stopRoundTimer(gameId)
           shared.TugOfWar.TugOfWar.getGameWinner(nextGame).foreach: winner =>
             broadcastGameEnd(gameId, winner, nextGame.redRoundsWon, nextGame.blueRoundsWon)
-        else if nextGame.status == GameStatus.Playing then
-          // Start timer for new round
-          startRoundTimer(gameId, nextGame.timeLimitSeconds)
-
-        broadcastGameState(gameId)
+          broadcastGameState(gameId)
+        else if nextGame.status == GameStatus.Countdown then
+          // Start countdown for new round
+          broadcastGameState(gameId)
+          startCountdown(gameId, nextGame.timeLimitSeconds)
 
   // ============================================================================
   // Broadcasting helpers
@@ -333,6 +368,18 @@ object TugOfWarHandler extends ReconnectionSupport[PlayerState, TugOfWarGame]:
       connections.asScala.foreach: channel =>
         Try(channel.send(cask.Ws.Text(messageJson))).recover:
           case ex => logger.warn(s"Failed to broadcast timer update: ${ex.getMessage}")
+
+  private def broadcastCountdownUpdate(gameId: String, secondsRemaining: Int): Unit =
+    import scala.jdk.CollectionConverters.*
+    import upickle.default.*
+
+    val message = shared.TugOfWar.CountdownUpdateMessage(secondsRemaining)
+    val messageJson = write(message)
+
+    Option(gameManager.getConnections(gameId)).foreach: connections =>
+      connections.asScala.foreach: channel =>
+        Try(channel.send(cask.Ws.Text(messageJson))).recover:
+          case ex => logger.warn(s"Failed to broadcast countdown update: ${ex.getMessage}")
 
   private def broadcastRoundEnd(gameId: String, winner: Team, result: shared.TugOfWar.RoundResult): Unit =
     import scala.jdk.CollectionConverters.*

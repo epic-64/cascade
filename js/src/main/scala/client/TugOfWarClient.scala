@@ -108,6 +108,7 @@ def buildTugOfWarUI(): Unit =
     div(cls = "container")(
       createTugOfWarLobby(),
       createTugOfWarGameArea(),
+      createTugOfWarCountdown(),
       createTugOfWarRoundWinner(),
       createTugOfWarGameWinner()
     )
@@ -315,6 +316,15 @@ def createTugOfWarGameArea(): HTMLElement =
           div(id = "towBlueClicks", cls = "stat-value", content = "0")
         )
       )
+    )
+  )
+
+def createTugOfWarCountdown(): HTMLElement =
+  div(id = "towCountdown", cls = "tow-countdown hidden")(
+    div(cls = "tow-countdown-content")(
+      div(cls = "tow-countdown-label", content = "Get Ready!"),
+      div(id = "towCountdownNumber", cls = "tow-countdown-number", content = "3"),
+      div(id = "towCountdownTeam", cls = "tow-countdown-team")
     )
   )
 
@@ -551,6 +561,9 @@ def handleTugOfWarWebSocketMessage(data: String): Unit =
       case TimerUpdateMessage(secondsRemaining) =>
         updateTugOfWarTimer(secondsRemaining)
 
+      case CountdownUpdateMessage(secondsRemaining) =>
+        updateTugOfWarCountdown(secondsRemaining)
+
       case RoundEndMessage(winner, result) =>
         showTugOfWarRoundWinner(winner, result)
 
@@ -574,7 +587,25 @@ def handleTugOfWarGameUpdate(game: TugOfWarGame): Unit =
       updateTugOfWarLobbySettings(game)
       updateTugOfWarStartButton(game)
 
+    case GameStatus.Countdown =>
+      showTugOfWarGameArea()
+      updateTugOfWarScoreboard(game)
+      updateRopePosition(game.ropePosition)
+      updateTugOfWarClickButton()
+      disableTugOfWarClickButton() // Disable during countdown
+      getElementById("towCountdown").foreach(_.classList.remove("hidden"))
+      // Update team indicator in countdown
+      getElementById("towCountdownTeam").foreach: elem =>
+        towPlayerTeam match
+          case Some(Team.Red) =>
+            elem.innerHTML = "You are on <span class='team-red'>🔴 RED TEAM</span>"
+          case Some(Team.Blue) =>
+            elem.innerHTML = "You are on <span class='team-blue'>🔵 BLUE TEAM</span>"
+          case None =>
+            elem.textContent = "Spectating"
+
     case GameStatus.Playing =>
+      getElementById("towCountdown").foreach(_.classList.add("hidden"))
       showTugOfWarGameArea()
       updateTugOfWarScoreboard(game)
       updateRopePosition(game.ropePosition)
@@ -663,6 +694,25 @@ def updateTugOfWarTimer(secondsRemaining: Int): Unit =
   getElementById("towTimer").foreach: elem =>
     elem.textContent = secondsRemaining.toString
     elem.classList.remove("hidden")
+
+def updateTugOfWarCountdown(secondsRemaining: Int): Unit =
+  getElementById("towCountdown").foreach: countdown =>
+    if secondsRemaining > 0 then
+      countdown.classList.remove("hidden")
+      getElementById("towCountdownNumber").foreach: num =>
+        num.textContent = secondsRemaining.toString
+        // Add animation class
+        num.classList.remove("pulse")
+        // Force reflow to restart animation
+        val _ = num.asInstanceOf[js.Dynamic].offsetWidth
+        num.classList.add("pulse")
+    else
+      // Countdown finished - hide overlay
+      countdown.classList.add("hidden")
+
+def disableTugOfWarClickButton(): Unit =
+  getElementById("towClickButton").foreach: btn =>
+    btn.asInstanceOf[dom.HTMLButtonElement].disabled = true
 
 def updateTugOfWarStartButton(game: TugOfWarGame): Unit =
   val canStart = TugOfWar.canStart(game)
