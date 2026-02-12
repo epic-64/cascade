@@ -200,6 +200,7 @@ def createWaitingArea(): HTMLElement =
   div(id = "waitingArea", cls = "waiting-area hidden")(
     h4(content = "Color Rush Lobby"),
     div(id = "lobbyCode"),
+    // Game settings (readonly display)
     div(id = "lobbySettings", cls = "lobby-settings"),
     h4(content = "Players"),
     div(id = "playersList", cls = "players"),
@@ -438,9 +439,7 @@ def parseGameUpdate(game: ColorRushGame): Unit =
             updateRoundDisplay(game.roundNumber, game.totalRounds, round, isRoundEnd)
 
       case GameStatus.Waiting =>
-        // Update lobby settings display
-        println(s"[ColorRush] Updating lobby settings to: ${game.totalRounds}")
-        updateLobbySettings(game.totalRounds)
+        () // Lobby state - players list is already updated, no other UI changes needed
 
       case _ => () // GameOver - keep lobby visible
   .recover:
@@ -474,19 +473,6 @@ def updatePlayersList(players: Map[String, PlayerState], gameStatus: GameStatus)
     gamePlayersElem.foreach(_.innerHTML = playersHTML)
   .recover:
     case ex => println(s"[ColorRush] Error updating players list: ${ex.getMessage}")
-
-def updateLobbySettings(totalRounds: Int): Unit =
-  println(s"[ColorRush] updateLobbySettings called with totalRounds: $totalRounds")
-  getElementById("lobbySettings").foreach: elem =>
-    elem.innerHTML = ""
-    elem.appendChild(
-      div(cls = "settings-display")(
-        span(cls = "setting-item")(
-          span(cls = "setting-label", content = "Rounds:"),
-          span(cls = "setting-value", content = totalRounds.toString)
-        )
-      )
-    )
 
 def updateRoundDisplay(roundNumber: Int, totalRounds: Int, round: Round, isRoundEnd: Boolean): Unit =
   getElementById("roundNumber").foreach: elem =>
