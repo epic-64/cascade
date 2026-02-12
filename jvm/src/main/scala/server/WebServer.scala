@@ -103,24 +103,31 @@ object WebServer extends MainRoutes:
 
   @cask.get("/color-rush")
   def colorRush(): cask.Response[java.io.InputStream] =
-    cask.Response(
-      data = getClass.getClassLoader.getResourceAsStream("static/color-rush.html"),
-      statusCode = 200,
-      headers = Seq("Content-Type" -> "text/html")
-    )
+    serveGamePage("color-rush.html")
+
+  @cask.get("/color-rush/:lobbyId")
+  def colorRushWithLobby(lobbyId: String): cask.Response[java.io.InputStream] =
+    serveGamePage("color-rush.html")
 
   @cask.get("/ai-drawing")
   def aiDrawing(): cask.Response[java.io.InputStream] =
-    cask.Response(
-      data = getClass.getClassLoader.getResourceAsStream("static/ai-drawing.html"),
-      statusCode = 200,
-      headers = Seq("Content-Type" -> "text/html")
-    )
+    serveGamePage("ai-drawing.html")
+
+  @cask.get("/ai-drawing/:lobbyId")
+  def aiDrawingWithLobby(lobbyId: String): cask.Response[java.io.InputStream] =
+    serveGamePage("ai-drawing.html")
 
   @cask.get("/tug-of-war")
   def tugOfWar(): cask.Response[java.io.InputStream] =
+    serveGamePage("tug-of-war.html")
+
+  @cask.get("/tug-of-war/:lobbyId")
+  def tugOfWarWithLobby(lobbyId: String): cask.Response[java.io.InputStream] =
+    serveGamePage("tug-of-war.html")
+
+  private def serveGamePage(htmlFile: String): cask.Response[java.io.InputStream] =
     cask.Response(
-      data = getClass.getClassLoader.getResourceAsStream("static/tug-of-war.html"),
+      data = getClass.getClassLoader.getResourceAsStream(s"static/$htmlFile"),
       statusCode = 200,
       headers = Seq("Content-Type" -> "text/html")
     )
