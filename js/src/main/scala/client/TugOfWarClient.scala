@@ -509,7 +509,9 @@ def returnToTugOfWarLobby(): Unit =
 def leaveTugOfWarLobby(): Unit =
   towKeepAlive.stop()
   clearTugOfWarSession()
-  towWebSocket.foreach(_.close())
+  towWebSocket.foreach: ws =>
+    sendTugOfWarMessage(ws, LeaveMessage())
+    ws.close()
   towWebSocket = None
   window.location.assign("/")
 
