@@ -68,10 +68,10 @@ class TraderLogicSpec extends AnyFunSpec with Matchers:
         result.isLeft shouldBe true
         result.left.toOption.get should include ("capacity")
 
-      it("should advance turn after buying"):
+      it("should not advance turn after buying"):
         val game = TraderLogic.newGame()
         val result = TraderLogic.buyItem(game, Item.Wheat, 1)
-        result.toOption.get.turn shouldBe 2
+        result.toOption.get.turn shouldBe 1
 
     describe("Feature: Selling items"):
 
@@ -142,6 +142,11 @@ class TraderLogicSpec extends AnyFunSpec with Matchers:
         val farCost = 100 - farResult.toOption.get.player.gold
 
         farCost should be > nearCost
+
+      it("should advance turn when traveling"):
+        val game = TraderLogic.newGame()
+        val result = TraderLogic.travel(game, CityId.Ironforge)
+        result.toOption.get.turn shouldBe 2
 
       it("should charge more when carrying cargo"):
         val game = TraderLogic.newGame()
@@ -283,29 +288,33 @@ class TraderLogicSpec extends AnyFunSpec with Matchers:
           ),
           (1, 1)
         )
-        
+
         val balancedPrice = TraderLogic.calculatePrice(balancedCity, Item.Silk, Season.Spring)
         val cheapPrice = TraderLogic.calculatePrice(cheapCity, Item.Silk, Season.Spring)
-        
+
         balancedPrice should be > cheapPrice
 
     describe("Feature: Season changes"):
 
       it("should change season after turn 5"):
-        var game = TraderLogic.newGame()
+        var game = TraderLogic.newGame().copy(
+          player = TraderLogic.newGame().player.copy(gold = 1000)
+        )
         game.season shouldBe Season.Spring
+        game.turn shouldBe 1
 
-        // Buy 5 times to advance to turn 6
-        (1 to 5).foreach { _ =>
-          TraderLogic.buyItem(game, Item.Wheat, 1) match
+        // Travel 5 times to advance to turn 6 (season changes at turn 6)
+        val destinations = List(
+          CityId.Ironforge, CityId.Riverdale, CityId.Wheatholm,
+          CityId.Riverdale, CityId.Silkwood
+        )
+        destinations.foreach { dest =>
+          TraderLogic.travel(game, dest) match
             case Right(g) => game = g
-            case Left(_) =>
-              // If we can't buy, travel instead
-              TraderLogic.travel(game, CityId.Ironforge) match
-                case Right(g) => game = g
-                case Left(_) => fail("Could not advance turn")
+            case Left(err) => fail(s"Could not travel: $err")
         }
 
+        game.turn shouldBe 6
         game.season shouldBe Season.Summer
 
       it("should cycle through all seasons"):

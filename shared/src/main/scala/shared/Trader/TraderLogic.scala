@@ -59,10 +59,10 @@ object TraderLogic:
         inventory = game.player.inventory.add(item, qty)
       )
       val logEntry = s"Bought $qty ${item.toString} for ${price}g"
-      Right(advanceTurn(game.copy(
+      Right(game.copy(
         player = newPlayer,
         log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)
-      )))
+      ))
 
   def sellItem(game: TraderGame, item: Item, qty: Int): Either[String, TraderGame] =
     if qty <= 0 then return Left("Quantity must be positive")
@@ -79,10 +79,10 @@ object TraderLogic:
             inventory = newInventory
           )
           val logEntry = s"Sold $qty ${item.toString} for ${price}g"
-          Right(advanceTurn(game.copy(
+          Right(game.copy(
             player = newPlayer,
             log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)
-          )))
+          ))
         case None =>
           Left(s"Failed to remove items from inventory")
 

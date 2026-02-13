@@ -135,8 +135,8 @@ Formula: `upgradeCost = 100 × 2^(currentLevel - 1)`
 
 ### Seasons & Turns
 
-- **Turn Duration:** Each buy, sell, or travel action advances 1 turn
-- **Season Length:** 5 turns
+- **Turn Duration:** Only **travel** advances the turn counter. Buying and selling are instant market actions.
+- **Season Length:** 5 turns (i.e., 5 travels)
 - **Season Order:** Spring → Summer → Autumn → Winter → (repeat)
 - **Season Change Effects:**
   - All cities randomize supply/demand levels (within their specialization constraints)
