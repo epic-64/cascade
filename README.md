@@ -1,5 +1,6 @@
 # Cascade
 [![Coverage](https://epic-64.github.io/cascade/coverage/coverage-badge.svg)](https://epic-64.github.io/cascade/coverage/index.html)
+[![Lines of Code](https://epic-64.github.io/cascade/coverage/loc-badge.svg)](https://epic-64.github.io/cascade/coverage/coverage-index.html)
 [![Scala](https://img.shields.io/badge/Scala-3.7.4-red)](https://www.scala-lang.org/)
 [![Sbt](https://img.shields.io/badge/sbt-1.12.1-red)](https://www.scala-lang.org/)
 [![Scala.js](https://img.shields.io/badge/Scala.js-1.20.2-blue)](https://www.scala-js.org/)
@@ -94,6 +95,11 @@ Generate coverage report:
 ENABLE_COVERAGE=true sbt clean coverage test coverageReport
 ```
 
+Count lines of code:
+```bash
+./scripts/count-loc.sh
+```
+
 ## Endpoints
 
 **Landing Page:**
@@ -155,6 +161,7 @@ Continuous Integration:
 - ✅ CI pipeline running tests
 - ✅ Test coverage report (sbt-scoverage)
   - ❌ unfortunately, ScalaJS is not supported by scoverage, so we cover only the jvm target
+- ✅ Lines of Code tracking (auto-generated on each CI run)
 - ✅ Cloud deployment (railway), deploy on push
   - main → staging environment
   - production → production environment
