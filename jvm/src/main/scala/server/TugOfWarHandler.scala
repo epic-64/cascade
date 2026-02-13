@@ -111,6 +111,9 @@ object TugOfWarHandler extends ReconnectionSupport[PlayerState, TugOfWarGame]:
               case shared.TugOfWar.NextRoundMessage() =>
                 handleNextRound(gameId)
 
+              case shared.TugOfWar.LeaveMessage() =>
+                handleLeave(channel, gameId)
+
               case shared.TugOfWar.PingMessage() =>
                 logger.debug(s"Received keepalive ping for TugOfWar game $gameId")
           .recover:
@@ -180,6 +183,19 @@ object TugOfWarHandler extends ReconnectionSupport[PlayerState, TugOfWarGame]:
           broadcastGameState(gameId)
       case _ =>
         logger.warn(s"Team select from unregistered player")
+
+  private def handleLeave(channel: cask.WsChannelActor, gameId: String): Unit =
+    gameManager.getPlayerInfo(channel) match
+      case Some((gId, playerId)) if gId == gameId =>
+        gameManager.getGame(gameId).foreach: game =>
+          // Remove player immediately (not just mark as disconnected)
+          val updatedGame = shared.TugOfWar.TugOfWar.removePlayer(game, playerId)
+          gameManager.updateGame(gameId, updatedGame)
+          gameManager.unregisterPlayer(channel)
+          logger.info(s"Player $playerId explicitly left game $gameId")
+          broadcastGameState(gameId)
+      case _ =>
+        logger.warn(s"Leave from unregistered player")
 
   private def handleConfigure(gameId: String, roundsToWin: Int, timeLimitSeconds: Int): Unit =
     gameManager.getGame(gameId).foreach: game =>
