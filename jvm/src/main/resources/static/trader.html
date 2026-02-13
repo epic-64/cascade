@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Trader - Trading Simulation Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#fbbf24" />
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+    <link rel="manifest" href="/static/manifest.json" />
+    <!-- Cache-buster: loads static assets with server version query param -->
+    <script>
+      (function() {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', '/api/version', false);
+        try { xhr.send(); } catch (e) { return; }
+        if (xhr.status !== 200) return;
+        const v = JSON.parse(xhr.responseText)['buildVersion'];
+
+        const baseCss = document.createElement('link');
+        baseCss.rel = 'stylesheet';
+        baseCss.href = '/static/base.css?v=' + v;
+        document.head.appendChild(baseCss);
+
+        const css = document.createElement('link');
+        css.rel = 'stylesheet';
+        css.href = '/static/trader.css?v=' + v;
+        document.head.appendChild(css);
+
+        const js = document.createElement('script');
+        js.src = '/static/js/main.js?v=' + v;
+        document.head.appendChild(js);
+      })();
+    </script>
+    <noscript>
+      <link rel="stylesheet" href="/static/base.css">
+      <link rel="stylesheet" href="/static/trader.css">
+    </noscript>
+  </head>
+  <body>
+  </body>
+</html>
+

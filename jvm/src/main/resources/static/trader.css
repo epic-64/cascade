@@ -1,0 +1,628 @@
+/* Trader game specific styles */
+
+/* Main game layout */
+.trader-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-md);
+}
+
+/* Header with turn and season */
+.trader-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.trader-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--accent-yellow);
+}
+
+.trader-status {
+  display: flex;
+  gap: var(--spacing-lg);
+  align-items: center;
+}
+
+.trader-turn,
+.trader-season {
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
+.trader-turn span,
+.trader-season span {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Season indicators */
+.season-spring { color: #4ade80; }
+.season-summer { color: #fbbf24; }
+.season-autumn { color: #f97316; }
+.season-winter { color: #60a5fa; }
+
+/* City map */
+.trader-map {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  border: 1px solid var(--border-subtle);
+}
+
+.trader-map h2 {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.city-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-md);
+  position: relative;
+}
+
+/* City connections - visual lines between cities */
+.city-grid::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: var(--border-subtle);
+  z-index: 0;
+}
+
+.city-node {
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.city-node:hover {
+  border-color: var(--accent-purple);
+  background: var(--bg-card-hover);
+  transform: translateY(-2px);
+}
+
+.city-node.current {
+  border-color: var(--accent-yellow);
+  background: rgba(251, 191, 36, 0.15);
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.2);
+}
+
+.city-node.current::after {
+  content: '📍';
+  position: absolute;
+  top: -10px;
+  right: -5px;
+  font-size: 1.2rem;
+}
+
+.city-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.city-travel-cost {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: var(--spacing-xs);
+}
+
+/* Main content grid - inventory and market side by side */
+.trader-main {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+@media (max-width: 900px) {
+  .trader-main {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Player carriage/inventory panel */
+.trader-carriage {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  border: 1px solid var(--border-subtle);
+  height: fit-content;
+}
+
+.trader-carriage h2 {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.trader-gold {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-yellow);
+  margin-bottom: var(--spacing-md);
+}
+
+.trader-gold-icon {
+  margin-right: var(--spacing-xs);
+}
+
+.trader-capacity {
+  margin-bottom: var(--spacing-md);
+}
+
+.capacity-bar {
+  height: 12px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: var(--spacing-xs);
+}
+
+.capacity-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-green), var(--accent-green-dark));
+  transition: width 0.3s ease;
+}
+
+.capacity-fill.warning {
+  background: linear-gradient(90deg, var(--accent-yellow), #f59e0b);
+}
+
+.capacity-fill.full {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+.capacity-text {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.trader-inventory {
+  margin-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--spacing-md);
+}
+
+.inventory-empty {
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  padding: var(--spacing-md);
+}
+
+.inventory-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-xs) 0;
+  color: var(--text-secondary);
+}
+
+.inventory-item-name {
+  font-weight: 500;
+}
+
+.inventory-item-qty {
+  color: var(--text-primary);
+}
+
+/* Upgrade button */
+.upgrade-btn {
+  width: 100%;
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: linear-gradient(135deg, var(--accent-purple-dark), var(--accent-purple));
+  border: none;
+  border-radius: var(--radius-sm);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.upgrade-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.upgrade-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Market panel */
+.trader-market {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  border: 1px solid var(--border-subtle);
+}
+
+.trader-market h2 {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.market-city-name {
+  color: var(--accent-yellow);
+  font-weight: 600;
+}
+
+/* Market table */
+.market-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.market-table th {
+  text-align: left;
+  padding: var(--spacing-sm);
+  border-bottom: 2px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.market-table th:not(:first-child) {
+  text-align: center;
+}
+
+.market-table td {
+  padding: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.market-table td:not(:first-child) {
+  text-align: center;
+}
+
+.market-table tr:hover {
+  background: var(--bg-card-hover);
+}
+
+.item-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.item-weight {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-left: var(--spacing-xs);
+}
+
+.price-buy {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.price-sell {
+  color: var(--accent-green);
+  font-weight: 600;
+}
+
+/* Supply/demand indicators */
+.supply-abundant {
+  color: var(--accent-green);
+}
+
+.supply-scarce {
+  color: #ef4444;
+}
+
+.demand-high {
+  color: var(--accent-green);
+}
+
+.demand-low {
+  color: #ef4444;
+}
+
+/* Trade buttons */
+.trade-btn {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 50px;
+}
+
+.trade-btn.buy {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid #ef4444;
+}
+
+.trade-btn.buy:hover:not(:disabled) {
+  background: #ef4444;
+  color: white;
+}
+
+.trade-btn.sell {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--accent-green);
+  border: 1px solid var(--accent-green);
+}
+
+.trade-btn.sell:hover:not(:disabled) {
+  background: var(--accent-green);
+  color: white;
+}
+
+.trade-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Quantity selector */
+.qty-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  justify-content: center;
+}
+
+.qty-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.qty-btn:hover {
+  background: var(--accent-purple);
+  border-color: var(--accent-purple);
+}
+
+.qty-input {
+  width: 50px;
+  text-align: center;
+  padding: var(--spacing-xs);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Travel panel */
+.trader-travel {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  border: 1px solid var(--border-subtle);
+}
+
+.trader-travel h2 {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.travel-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.travel-btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.travel-btn:hover:not(:disabled) {
+  border-color: var(--accent-purple);
+  background: var(--bg-card-hover);
+  transform: translateY(-2px);
+}
+
+.travel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.travel-btn .cost {
+  color: var(--accent-yellow);
+  font-weight: 600;
+}
+
+/* Log panel */
+.trader-log {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  border: 1px solid var(--border-subtle);
+}
+
+.trader-log h2 {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.log-entries {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.log-entry {
+  padding: var(--spacing-xs) 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.log-entry:last-child {
+  border-bottom: none;
+}
+
+.log-entry::before {
+  content: '›';
+  margin-right: var(--spacing-sm);
+  color: var(--accent-purple);
+}
+
+/* New game button */
+.new-game-btn {
+  position: fixed;
+  bottom: var(--spacing-lg);
+  right: var(--spacing-lg);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: rgba(239, 68, 68, 0.9);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 100;
+}
+
+.new-game-btn:hover {
+  background: #ef4444;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+/* Modal for trade confirmation */
+.trade-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.trade-modal-content {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  max-width: 400px;
+  width: 90%;
+  border: 1px solid var(--border-subtle);
+}
+
+.trade-modal h3 {
+  margin-bottom: var(--spacing-md);
+  color: var(--text-primary);
+}
+
+.trade-modal-info {
+  margin-bottom: var(--spacing-lg);
+  color: var(--text-secondary);
+}
+
+.trade-modal-buttons {
+  display: flex;
+  gap: var(--spacing-md);
+  justify-content: flex-end;
+}
+
+.modal-btn {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.modal-btn.cancel {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.modal-btn.cancel:hover {
+  background: var(--bg-card-hover);
+}
+
+.modal-btn.confirm {
+  background: var(--accent-purple);
+  color: white;
+}
+
+.modal-btn.confirm:hover {
+  background: var(--accent-purple-dark);
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .trader-header {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    text-align: center;
+  }
+
+  .trader-status {
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+
+  .market-table {
+    font-size: 0.85rem;
+  }
+
+  .trade-btn {
+    min-width: 40px;
+    padding: var(--spacing-xs);
+  }
+}
+
