@@ -331,125 +331,134 @@ When clicking an item row in the market:
 
 ```
 shared/src/main/scala/shared/Trader/
-├── Trader.scala          # Core types and data models
-├── TraderLogic.scala     # Pure game logic functions
-└── TraderCodecs.scala    # JSON codecs if needed separately
+├── Trader.scala          # ✅ Core types and data models
+└── TraderLogic.scala     # ✅ Pure game logic functions
 
-js/src/main/scala/trader/
-├── TraderApp.scala       # Main entry point, DOM setup
-├── TraderUI.scala        # UI rendering functions
-├── TraderState.scala     # Client state management
-└── TraderStorage.scala   # localStorage persistence
+js/src/main/scala/client/
+└── TraderClient.scala    # ✅ Client app (UI, state, persistence)
 
 jvm/src/main/resources/static/
-├── trader.html           # HTML shell
-└── trader.css            # Game-specific styles
+├── trader.html           # ✅ HTML shell
+└── trader.css            # ✅ Game-specific styles
 
 shared/src/test/scala/shared/Trader/
-└── TraderLogicSpec.scala # Unit tests for game logic
+└── TraderLogicSpec.scala # ✅ Unit tests for game logic (35 tests)
 ```
+
+**Note:** The original design proposed separate files for UI, state, and storage,
+but these were consolidated into `TraderClient.scala` for simplicity since the
+game is single-player and doesn't require WebSocket complexity.
 
 ## Implementation Phases
 
-### Phase 1: Core Models & Basic UI Shell
+### Phase 1: Core Models & Basic UI Shell ✅ COMPLETE
 **Goal:** Establish data models and render static UI
 
 **Tasks:**
-1. Create `Trader.scala` with all enums and case classes
-2. Create `TraderLogic.scala` with `newGame()` and `calculatePrice()`
-3. Create `trader.html` with basic structure
-4. Create `trader.css` extending base styles
-5. Create `TraderApp.scala` with basic rendering
-6. Add route in Cask server for `/trader`
+1. ✅ Create `Trader.scala` with all enums and case classes
+2. ✅ Create `TraderLogic.scala` with `newGame()` and `calculatePrice()`
+3. ✅ Create `trader.html` with basic structure
+4. ✅ Create `trader.css` extending base styles
+5. ✅ Create `TraderClient.scala` with basic rendering
+6. ✅ Add route in Cask server for `/trader`
+7. ✅ Add to landing page
 
 **Deliverables:**
-- Player can see the map and their starting state
-- Market prices displayed (read-only)
-- No interactions yet
+- ✅ Player can see the map and their starting state
+- ✅ Market prices displayed (read-only)
+- ✅ No interactions yet
 
-### Phase 2: Single City Trading
+**Files Created:**
+- `shared/src/main/scala/shared/Trader/Trader.scala`
+- `shared/src/main/scala/shared/Trader/TraderLogic.scala`
+- `shared/src/test/scala/shared/Trader/TraderLogicSpec.scala` (35 tests)
+- `js/src/main/scala/client/TraderClient.scala`
+- `jvm/src/main/resources/static/trader.html`
+- `jvm/src/main/resources/static/trader.css`
+
+### Phase 2: Single City Trading ✅ COMPLETE
 **Goal:** Enable buying and selling in current city
 
 **Tasks:**
-1. Implement `buyItem()` and `sellItem()` in TraderLogic
-2. Add buy/sell UI interactions
-3. Implement inventory display
-4. Add action log
-5. Write unit tests for buy/sell logic
+1. ✅ Implement `buyItem()` and `sellItem()` in TraderLogic
+2. ✅ Add buy/sell UI interactions
+3. ✅ Implement inventory display
+4. ✅ Add action log
+5. ✅ Write unit tests for buy/sell logic
 
 **Deliverables:**
-- Player can buy items (gold decreases, inventory updates)
-- Player can sell items (gold increases, inventory updates)
-- Capacity limits enforced
-- Actions logged
+- ✅ Player can buy items (gold decreases, inventory updates)
+- ✅ Player can sell items (gold increases, inventory updates)
+- ✅ Capacity limits enforced
+- ✅ Actions logged
 
-### Phase 3: Travel & Multi-City
+### Phase 3: Travel & Multi-City ✅ COMPLETE
 **Goal:** Enable movement between cities
 
 **Tasks:**
-1. Implement distance calculation
-2. Implement `travelCost()` function
-3. Implement `travel()` function
-4. Add travel UI with cost display
-5. Different cities show different prices
-6. Write unit tests for travel logic
+1. ✅ Implement distance calculation
+2. ✅ Implement `travelCost()` function
+3. ✅ Implement `travel()` function
+4. ✅ Add travel UI with cost display
+5. ✅ Different cities show different prices
+6. ✅ Write unit tests for travel logic
 
 **Deliverables:**
-- Player can travel between cities
-- Travel costs deducted
-- Different cities have different market conditions
-- Full trading loop possible
+- ✅ Player can travel between cities
+- ✅ Travel costs deducted
+- ✅ Different cities have different market conditions
+- ✅ Full trading loop possible
 
-### Phase 4: Seasons & Upgrades
+### Phase 4: Seasons & Upgrades ✅ COMPLETE
 **Goal:** Complete game mechanics
 
 **Tasks:**
-1. Implement turn tracking
-2. Implement `advanceTurn()` and `changeSeason()`
-3. Implement seasonal supply/demand shuffling
-4. Implement `upgradeCarriage()`
-5. Add season change notifications
-6. Add upgrade UI
-7. Write unit tests
+1. ✅ Implement turn tracking
+2. ✅ Implement `advanceTurn()` and `changeSeason()`
+3. ✅ Implement seasonal supply/demand shuffling
+4. ✅ Implement `upgradeCarriage()`
+5. ✅ Add season change notifications (via log)
+6. ✅ Add upgrade UI
+7. ✅ Write unit tests
 
 **Deliverables:**
-- Turns advance with each action
-- Seasons change every 5 turns
-- Markets shuffle on season change
-- Player can upgrade carriage
-- Full game loop complete
+- ✅ Turns advance with each action
+- ✅ Seasons change every 5 turns
+- ✅ Markets shuffle on season change
+- ✅ Player can upgrade carriage
+- ✅ Full game loop complete
 
-### Phase 5: Persistence & Polish
+### Phase 5: Persistence & Polish ✅ PARTIALLY COMPLETE
 **Goal:** Save/load and UX improvements
 
 **Tasks:**
-1. Implement `TraderStorage.scala` with localStorage
-2. Auto-save on each action
-3. Load game on page refresh
-4. Add "New Game" button with confirmation
-5. Add milestone notifications (wealth goals)
-6. Add sound effects (optional)
-7. Mobile-responsive layout
+1. ✅ Implement localStorage persistence (in TraderClient.scala)
+2. ✅ Auto-save on each action
+3. ✅ Load game on page refresh
+4. ✅ Add "New Game" button with confirmation
+5. ⬚ Add milestone notifications (wealth goals)
+6. ⬚ Add sound effects (optional)
+7. ⬚ Mobile-responsive layout improvements
 
 **Deliverables:**
-- Game persists across browser sessions
-- Clean restart option
-- Achievement feedback
+- ✅ Game persists across browser sessions
+- ✅ Clean restart option
+- ⬚ Achievement feedback
 
-### Phase 6: Server Integration (Future)
+### Phase 6: Server Integration (Future) ⬚ NOT STARTED
 **Goal:** Enable login and cloud saves
 
 **Tasks:**
-1. Add authentication (session/JWT)
-2. Create save/load API endpoints
-3. Database schema for game state
-4. Sync local and server state
-5. Leaderboard (optional)
+1. ⬚ Add authentication (session/JWT)
+2. ⬚ Create save/load API endpoints
+3. ⬚ Database schema for game state
+4. ⬚ Sync local and server state
+5. ⬚ Leaderboard (optional)
 
 **Deliverables:**
-- User accounts
-- Cloud save/load
-- Cross-device play
+- ⬚ User accounts
+- ⬚ Cloud save/load
+- ⬚ Cross-device play
 
 ## Testing Strategy
 
@@ -469,17 +478,17 @@ shared/src/test/scala/shared/Trader/
 - Bankruptcy scenario: run out of gold
 
 ### Manual Testing Checklist
-- [ ] New game starts correctly
-- [ ] Buy/sell updates gold and inventory
-- [ ] Cannot exceed carriage capacity
-- [ ] Cannot spend more gold than available
-- [ ] Travel updates current city
-- [ ] Travel costs scale with distance and cargo
-- [ ] Seasons change every 5 turns
-- [ ] Markets shuffle on season change
-- [ ] Upgrades increase capacity
-- [ ] Game saves to localStorage
-- [ ] Game loads on refresh
+- [x] New game starts correctly
+- [x] Buy/sell updates gold and inventory
+- [x] Cannot exceed carriage capacity
+- [x] Cannot spend more gold than available
+- [x] Travel updates current city
+- [x] Travel costs scale with distance and cargo
+- [x] Seasons change every 5 turns
+- [x] Markets shuffle on season change
+- [x] Upgrades increase capacity
+- [x] Game saves to localStorage
+- [x] Game loads on refresh
 
 ## Open Questions
 
