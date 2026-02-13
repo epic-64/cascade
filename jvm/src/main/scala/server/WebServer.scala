@@ -125,6 +125,10 @@ object WebServer extends MainRoutes:
   def tugOfWarWithLobby(lobbyId: String): cask.Response[java.io.InputStream] =
     serveGamePage("tug-of-war.html")
 
+  @cask.get("/trader")
+  def trader(): cask.Response[java.io.InputStream] =
+    serveGamePage("trader.html")
+
   private def serveGamePage(htmlFile: String): cask.Response[java.io.InputStream] =
     cask.Response(
       data = getClass.getClassLoader.getResourceAsStream(s"static/$htmlFile"),
