@@ -136,6 +136,7 @@ Stack:
 - ⏳ Database persistence, ORM (PostgreSQL + Doobie?)
 - ⏳ DB migration system (Flyway, Liquibase?)
 - ⏳ Cache across instances / across restarts (Redis?)
+- ⏳ Internationalization (German, English)
 
 Testing:
 - ✅ ScalaTest
@@ -159,6 +160,8 @@ Continuous Integration:
   - production → production environment
 
 Monitoring:
+- ✅ health endpoint
+- ⏳ endpoint for inspecting number of active games and websockets (with age)
 - ⏳ Exception tracing (Sentry, Datadog, BetterStack?)
 - ⏳ Log aggregation (Logstash, Datadog, BetterStack?)
 - ⏳ Health and Performance monitoring
