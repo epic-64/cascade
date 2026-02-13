@@ -103,6 +103,3 @@ class ClientMainBehaviorSpec extends AnyFunSpec with Matchers with BeforeAndAfte
 
         val lobby = document.getElementById("lobby")
         lobby shouldBe null
-
-
-
