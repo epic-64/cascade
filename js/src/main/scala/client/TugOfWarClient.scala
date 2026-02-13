@@ -240,7 +240,7 @@ def createTugOfWarWaitingArea(): HTMLElement =
 
     // Start button and leave button
     div(cls = "lobby-buttons")(
-      button(cls = "btn btn-secondary").tap: btn =>
+      button(id = "towLeaveButton", cls = "btn btn-secondary").tap: btn =>
         btn.textContent = "Leave Lobby"
         btn.addEventListener("click", (e: Event) => leaveTugOfWarLobby())
       ,
