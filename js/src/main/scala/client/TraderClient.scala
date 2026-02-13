@@ -199,8 +199,9 @@ private def renderMarket(game: TraderGame): HTMLElement =
       el("thead")(
         el("tr")(
           el("th", content = "Item"),
-          el("th", content = "Buy"),
-          el("th", content = "Sell"),
+          el("th", content = "Base"),
+          el("th", content = "Price"),
+          el("th", content = "Factors"),
           el("th", content = "Stock"),
           el("th", content = "Actions")
         )
@@ -213,36 +214,61 @@ private def renderMarket(game: TraderGame): HTMLElement =
 
 private def renderMarketRow(game: TraderGame, item: Item): HTMLElement =
   val city = game.currentCity
-  val buyPrice = TraderLogic.calculateBuyPrice(city, item, game.season)
-  val sellPrice = TraderLogic.calculateSellPrice(city, item, game.season)
+  val basePrice = Item.basePrice(item)
+  val currentPrice = TraderLogic.calculatePrice(city, item, game.season)
   val stock = game.player.inventory.getQuantity(item)
   val weight = Item.weight(item)
 
   val supplyLevel = city.market.supply.get(item)
   val demandLevel = city.market.demand.get(item)
+  val seasonMod = Season.modifier(game.season, item)
 
-  val supplyIndicator = supplyLevel match
-    case Some(SupplyLevel.Abundant) => " ↓"
-    case Some(SupplyLevel.Scarce) => " ↑"
-    case _ => ""
+  // Collect price factors
+  val factors = List(
+    supplyLevel.collect {
+      case SupplyLevel.Abundant => ("supply-abundant", "Supply ↑")
+      case SupplyLevel.Scarce => ("supply-scarce", "Supply ↓")
+    },
+    demandLevel.collect {
+      case DemandLevel.High => ("demand-high", "Demand ↑")
+      case DemandLevel.Low => ("demand-low", "Demand ↓")
+    },
+    Option.when(seasonMod != 1.0) {
+      if seasonMod > 1.0 then ("season-high", s"${game.season} ↑")
+      else ("season-low", s"${game.season} ↓")
+    }
+  ).flatten
 
-  val demandIndicator = demandLevel match
-    case Some(DemandLevel.High) => " ↑"
-    case Some(DemandLevel.Low) => " ↓"
-    case _ => ""
+  // Determine if price is good for buying (low = good) or selling (high = good)
+  // Compare to base price to determine color
+  val priceRatio = currentPrice.toDouble / basePrice
+  val priceClass = 
+    if priceRatio <= 0.75 then "price-very-low"      // Great buy, bad sell
+    else if priceRatio <= 0.95 then "price-low"      // Good buy, okay sell  
+    else if priceRatio >= 1.3 then "price-very-high" // Bad buy, great sell
+    else if priceRatio >= 1.1 then "price-high"      // Okay buy, good sell
+    else "price-normal"
 
   el("tr")(
     el("td")(
       span(cls = "item-name", content = item.toString),
       span(cls = "item-weight", content = s"(${weight}kg)")
     ),
-    el("td", cls = "price-buy", content = s"${buyPrice}g$supplyIndicator"),
-    el("td", cls = "price-sell", content = s"${sellPrice}g$demandIndicator"),
+    el("td", cls = "price-base", content = s"${basePrice}g"),
+    el("td", cls = s"price-current $priceClass", content = s"${currentPrice}g"),
+    el("td", cls = "price-factors")(
+      if factors.isEmpty then span(cls = "factor-none", content = "—")
+      else div(cls = "factors-list")(
+        factors.map { case (cls, label) => 
+          span(cls = s"factor-tag $cls", content = label)
+        }*
+      )
+    ),
     el("td", content = if stock > 0 then stock.toString else "-"),
     el("td")(
       div(cls = "trade-actions")(
         button(cls = "trade-btn buy", content = "Buy").tap { btn =>
-          val canBuy = game.player.gold >= buyPrice && game.player.availableCapacity >= weight
+          val canBuy = game.player.gold >= currentPrice && game.player.availableCapacity >= weight
           btn.disabled = !canBuy
           if canBuy then btn.with_click(_ => handleBuy(item, 1))
         },
