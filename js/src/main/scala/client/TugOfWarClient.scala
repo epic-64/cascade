@@ -218,6 +218,12 @@ def createTugOfWarWaitingArea(): HTMLElement =
     // Game settings (readonly display)
     div(id = "towLobbySettings", cls = "lobby-settings"),
 
+    // Unassigned players container (always visible to avoid layout shift)
+    div(id = "towUnassignedContainer", cls = "tow-unassigned-container")(
+      div(cls = "tow-unassigned-header", content = "⏳ Waiting to pick a team"),
+      div(id = "towUnassignedPlayers", cls = "players-container")
+    ),
+
     // Team lists (clickable to join)
     div(cls = "tow-teams-container")(
       div(id = "towRedTeamList", cls = "tow-team-list red clickable").tap: elem =>
@@ -686,6 +692,16 @@ def updateTugOfWarTeamLists(game: TugOfWarGame): Unit =
 
   // Update blue team header with count
   getElementById("towBlueHeader").foreach(_.textContent = s"🔵 Blue Team (${bluePlayers.size})")
+
+  // Update unassigned players container (always visible to avoid layout shift)
+  getElementById("towUnassignedPlayers").foreach: elem =>
+    if unassigned.nonEmpty then
+      elem.innerHTML = unassigned.map: player =>
+        val hostBadge = if game.hostId.contains(player.playerId) then "⭐ " else ""
+        s"""<span class="player-bean">$hostBadge${player.name}</span>"""
+      .mkString
+    else
+      elem.innerHTML = """<span class="all-assigned-hint">All players assigned</span>"""
 
 def updateTugOfWarLobbySettings(game: TugOfWarGame): Unit =
   val timeLimitText = if game.timeLimitSeconds > 0 then s"${game.timeLimitSeconds}s" else "No limit"
