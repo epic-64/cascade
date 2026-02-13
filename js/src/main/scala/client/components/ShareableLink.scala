@@ -42,4 +42,3 @@ object ShareableLink:
         // Clipboard API not available - show fallback message
         button.textContent = "Select & copy"
         dom.window.setTimeout(() => button.textContent = "📋 Copy", 2000)
-

@@ -163,7 +163,9 @@ object TugOfWarHandler extends ReconnectionSupport[PlayerState, TugOfWarGame]:
     val updatedGame = shared.TugOfWar.TugOfWar.addPlayer(game, playerId, playerName)
     gameManager.updateGame(gameId, updatedGame)
 
-    logger.info(s"Player $playerName ($playerId) created TugOfWar game $gameId (roundsToWin=$roundsToWin, timeLimit=$timeLimitSeconds)")
+    logger.info(
+      s"Player $playerName ($playerId) created TugOfWar game $gameId (roundsToWin=$roundsToWin, timeLimit=$timeLimitSeconds)"
+    )
 
     sendToChannel(channel, shared.TugOfWar.JoinedMessage(playerId, gameId))
     broadcastGameState(gameId)
@@ -445,4 +447,3 @@ object TugOfWarHandler extends ReconnectionSupport[PlayerState, TugOfWarGame]:
     gameManager.updateGame(gameId, game)
     gameManager.addConnection(gameId, null)
     gameManager.removeConnection(gameId, null)
-

@@ -196,12 +196,13 @@ def createTugOfWarLobbySetup(): HTMLElement =
               lbl.textContent = "Time per Round:"
             ,
             el("select", id = "towCreateTimeLimit").tap: select =>
-              Vector((0, "No Limit"), (10, "10 seconds"), (20, "20 seconds"), (30, "30 seconds"), (60, "60 seconds")).foreach: (secs, label) =>
-                val option = el("option").asInstanceOf[dom.HTMLOptionElement].tap: o =>
-                  o.value = secs.toString
-                  o.textContent = label
-                  if secs == 20 then o.selected = true
-                  select.appendChild(o)
+              Vector((0, "No Limit"), (10, "10 seconds"), (20, "20 seconds"), (30, "30 seconds"), (60, "60 seconds")).foreach:
+                (secs, label) =>
+                  val option = el("option").asInstanceOf[dom.HTMLOptionElement].tap: o =>
+                    o.value = secs.toString
+                    o.textContent = label
+                    if secs == 20 then o.selected = true
+                    select.appendChild(o)
           ),
           button("submit", content = "Create Game")
         )
@@ -226,8 +227,7 @@ def createTugOfWarWaitingArea(): HTMLElement =
           div(id = "towRedHeader", cls = "tow-team-header red", content = "🔴 Red Team (0)"),
           div(id = "towRedPlayers", cls = "players-container"),
           div(cls = "tow-team-join-hint", content = "Click to join")
-        )
-      ,
+        ),
       div(id = "towBlueTeamList", cls = "tow-team-list blue clickable").tap: elem =>
         elem.addEventListener("click", (e: Event) => selectTeam(Team.Blue))
       .pipe: elem =>
@@ -237,7 +237,6 @@ def createTugOfWarWaitingArea(): HTMLElement =
           div(cls = "tow-team-join-hint", content = "Click to join")
         )
     ),
-
 
     // Start button and leave button
     div(cls = "lobby-buttons")(
@@ -489,7 +488,6 @@ def selectTeam(team: Team): Unit =
   towWebSocket.foreach: ws =>
     sendTugOfWarMessage(ws, SelectTeamMessage(team))
 
-
 def startTugOfWarGame(): Unit =
   towWebSocket.foreach: ws =>
     sendTugOfWarMessage(ws, StartMessage())
@@ -661,9 +659,11 @@ def updateTugOfWarTeamLists(game: TugOfWarGame): Unit =
 
   // Update hint text based on selection
   document.querySelectorAll("#towRedTeamList .tow-team-join-hint").foreach: elem =>
-    elem.asInstanceOf[HTMLElement].textContent = if towPlayerTeam.contains(Team.Red) then "✓ Your team" else "Click to join"
+    elem.asInstanceOf[HTMLElement].textContent =
+      if towPlayerTeam.contains(Team.Red) then "✓ Your team" else "Click to join"
   document.querySelectorAll("#towBlueTeamList .tow-team-join-hint").foreach: elem =>
-    elem.asInstanceOf[HTMLElement].textContent = if towPlayerTeam.contains(Team.Blue) then "✓ Your team" else "Click to join"
+    elem.asInstanceOf[HTMLElement].textContent =
+      if towPlayerTeam.contains(Team.Blue) then "✓ Your team" else "Click to join"
 
   // Update red team list
   getElementById("towRedPlayers").foreach: elem =>
@@ -822,4 +822,3 @@ def showTugOfWarGameWinner(winner: Team, redRoundsWon: Int, blueRoundsWon: Int):
 
 def hideTugOfWarGameWinner(): Unit =
   getElementById("towGameWinner").foreach(_.classList.add("hidden"))
-

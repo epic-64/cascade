@@ -58,4 +58,3 @@ class RealRandomWordClient extends RandomWordClient:
           logger.error(s"Random word API request failed: ${ex.getMessage}", ex)
           throw ex
       .get
-

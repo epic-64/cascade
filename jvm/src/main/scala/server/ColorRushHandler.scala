@@ -84,7 +84,6 @@ object ColorRushHandler extends ReconnectionSupport[PlayerState, ColorRushGame]:
               case shared.ColorRush.RejoinMessage(playerId, rejoinGameId) =>
                 handleRejoinRequest(channel, gameId, playerId)
 
-
               case shared.ColorRush.StartMessage() =>
                 handleStart(gameId)
 
@@ -125,7 +124,6 @@ object ColorRushHandler extends ReconnectionSupport[PlayerState, ColorRushGame]:
 
     // Broadcast game state to all players
     broadcastGameState(gameId)
-
 
   private def handleStart(gameId: String): Unit =
     gameManager.getGame(gameId).foreach: game =>
