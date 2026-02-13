@@ -102,7 +102,6 @@ class RealOpenAIClient extends OpenAIClient:
   private val visionModel = "gpt-4o"
   private val textModel = "gpt-4o-mini"
 
-
   import shared.DrawingGame.CaptionStyle
 
   def captionImage(apiKey: String, imageBase64: String, captionStyle: CaptionStyle = CaptionStyle.Descriptive)(using

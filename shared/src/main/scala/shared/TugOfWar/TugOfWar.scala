@@ -152,10 +152,11 @@ object TugOfWar:
 
   def startPlaying(game: TugOfWarGame): TugOfWarGame =
     if game.status != GameStatus.Countdown then game
-    else game.copy(
-      status = GameStatus.Playing,
-      roundStartTime = Some(System.currentTimeMillis())
-    )
+    else
+      game.copy(
+        status = GameStatus.Playing,
+        roundStartTime = Some(System.currentTimeMillis())
+      )
 
   def handleClick(game: TugOfWarGame, playerId: String): TugOfWarGame =
     if game.status != GameStatus.Playing then return game
@@ -269,4 +270,3 @@ object TugOfWar:
     if game.status != GameStatus.RoundEnd then game
     else if shouldEndGame(game) then endGame(game)
     else startRound(game)
-

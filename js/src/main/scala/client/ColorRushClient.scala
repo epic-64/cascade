@@ -505,7 +505,6 @@ def updateRoundDisplay(roundNumber: Int, totalRounds: Int, round: Round, isRound
 
       grid.appendChild(button)
 
-
 def startGame(): Unit =
   gameWebSocket.foreach: ws =>
     sendMessage(ws, StartMessage())

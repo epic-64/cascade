@@ -23,7 +23,9 @@ def initializeDrawing(lobbyIdFromUrl: Option[String] = None): Unit =
   // URL is only used for initial join via shared link
   loadDrawingSession() match
     case Some(session) =>
-      println(s"[Drawing] Found existing session - attempting rejoin: lobbyId=${session.gameId}, playerId=${session.playerId}")
+      println(
+        s"[Drawing] Found existing session - attempting rejoin: lobbyId=${session.gameId}, playerId=${session.playerId}"
+      )
       currentLobbyId = Some(session.gameId)
       currentPlayerId = Some(session.playerId)
       currentPlayerName = Some(session.playerName)
