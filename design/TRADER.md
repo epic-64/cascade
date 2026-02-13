@@ -65,21 +65,23 @@ The map is arranged in a 3x3 grid with varying distances:
 
 ### Pricing Formula
 
-The actual buy/sell price is determined by supply and demand modifiers:
+The market price for an item in a city is determined by supply, demand, and seasonal modifiers:
 
 ```
-actualPrice = basePrice × supplyModifier × demandModifier × seasonModifier
+marketPrice = basePrice × supplyModifier × demandModifier × seasonModifier
 ```
 
-**Supply Modifier:** (lower supply = higher price)
-- Abundant: 0.6 (40% discount)
-- Normal: 1.0
-- Scarce: 1.5 (50% markup)
+**Important:** The buy and sell price are the **same** within a city. Profit comes from traveling to a different city with better prices, not from buying and selling in the same location.
 
-**Demand Modifier:** (higher demand = higher price)
-- Low: 0.7 (30% discount)
+**Supply Modifier:** (affects local availability)
+- Abundant: 0.6 (40% discount - lots of supply)
 - Normal: 1.0
-- High: 1.4 (40% markup)
+- Scarce: 1.5 (50% markup - limited supply)
+
+**Demand Modifier:** (affects local desire for goods)
+- Low: 0.7 (30% discount - nobody wants it)
+- Normal: 1.0
+- High: 1.4 (40% markup - everyone wants it)
 
 **Season Modifier:** (affects certain goods)
 - Spring: Wheat +20%, Wine -10%

@@ -21,19 +21,27 @@ object TraderLogic:
     val cargoCost = cargoWeight * 0.02
     math.ceil(baseCost + cargoCost).toInt
 
-  def calculateBuyPrice(city: City, item: Item, season: Season): Int =
+  /** Calculate the market price for an item in a city.
+    * This is the unified price - what you pay to buy AND what you receive when selling.
+    * Price is affected by:
+    * - Base item price
+    * - City's supply level (abundant = cheaper, scarce = expensive)
+    * - City's demand level (high = expensive, low = cheaper)  
+    * - Current season modifiers
+    */
+  def calculatePrice(city: City, item: Item, season: Season): Int =
     val base = Item.basePrice(item)
     val supplyMod = city.market.supply.get(item).map(SupplyLevel.modifier).getOrElse(1.0)
-    val seasonMod = Season.modifier(season, item)
-    math.ceil(base * supplyMod * seasonMod).toInt
-
-  def calculateSellPrice(city: City, item: Item, season: Season): Int =
-    val base = Item.basePrice(item)
     val demandMod = city.market.demand.get(item).map(DemandLevel.modifier).getOrElse(1.0)
     val seasonMod = Season.modifier(season, item)
-    // Sell price is slightly lower than equivalent buy price (merchant margin)
-    val sellMargin = 0.9
-    math.floor(base * demandMod * seasonMod * sellMargin).toInt
+    math.ceil(base * supplyMod * demandMod * seasonMod).toInt
+
+  // Buy and sell use the same price - profit comes from trading between cities
+  def calculateBuyPrice(city: City, item: Item, season: Season): Int =
+    calculatePrice(city, item, season)
+
+  def calculateSellPrice(city: City, item: Item, season: Season): Int =
+    calculatePrice(city, item, season)
 
   def buyItem(game: TraderGame, item: Item, qty: Int): Either[String, TraderGame] =
     if qty <= 0 then return Left("Quantity must be positive")

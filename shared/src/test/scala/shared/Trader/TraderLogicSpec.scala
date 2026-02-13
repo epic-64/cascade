@@ -201,7 +201,21 @@ class TraderLogicSpec extends AnyFunSpec with Matchers:
 
     describe("Feature: Price calculation"):
 
-      it("should calculate buy price based on supply"):
+      it("should have same buy and sell price in the same city"):
+        val city = City(
+          CityId.Wheatholm, "Wheatholm",
+          CityMarket(
+            Map(Item.Wheat -> SupplyLevel.Abundant),
+            Map(Item.Wheat -> DemandLevel.High)
+          ),
+          (1, 0)
+        )
+        val buyPrice = TraderLogic.calculateBuyPrice(city, Item.Wheat, Season.Spring)
+        val sellPrice = TraderLogic.calculateSellPrice(city, Item.Wheat, Season.Spring)
+
+        buyPrice shouldBe sellPrice
+
+      it("should calculate lower price when supply is abundant"):
         val city = City(
           CityId.Wheatholm, "Wheatholm",
           CityMarket(
@@ -210,17 +224,17 @@ class TraderLogicSpec extends AnyFunSpec with Matchers:
           ),
           (1, 0)
         )
-        val abundantPrice = TraderLogic.calculateBuyPrice(city, Item.Wheat, Season.Spring)
+        val abundantPrice = TraderLogic.calculatePrice(city, Item.Wheat, Season.Spring)
 
         val normalCity = city.copy(market = CityMarket(
           Map(Item.Wheat -> SupplyLevel.Normal),
           Map.empty
         ))
-        val normalPrice = TraderLogic.calculateBuyPrice(normalCity, Item.Wheat, Season.Spring)
+        val normalPrice = TraderLogic.calculatePrice(normalCity, Item.Wheat, Season.Spring)
 
         abundantPrice should be < normalPrice
 
-      it("should calculate sell price based on demand"):
+      it("should calculate higher price when demand is high"):
         val city = City(
           CityId.Northport, "Northport",
           CityMarket(
@@ -229,13 +243,13 @@ class TraderLogicSpec extends AnyFunSpec with Matchers:
           ),
           (0, 0)
         )
-        val highDemandPrice = TraderLogic.calculateSellPrice(city, Item.Silk, Season.Spring)
+        val highDemandPrice = TraderLogic.calculatePrice(city, Item.Silk, Season.Spring)
 
         val normalCity = city.copy(market = CityMarket(
           Map.empty,
           Map(Item.Silk -> DemandLevel.Normal)
         ))
-        val normalPrice = TraderLogic.calculateSellPrice(normalCity, Item.Silk, Season.Spring)
+        val normalPrice = TraderLogic.calculatePrice(normalCity, Item.Silk, Season.Spring)
 
         highDemandPrice should be > normalPrice
 
@@ -245,10 +259,35 @@ class TraderLogicSpec extends AnyFunSpec with Matchers:
           CityMarket(Map.empty, Map.empty),
           (1, 1)
         )
-        val winterCoalPrice = TraderLogic.calculateBuyPrice(city, Item.Coal, Season.Winter)
-        val springCoalPrice = TraderLogic.calculateBuyPrice(city, Item.Coal, Season.Spring)
+        val winterCoalPrice = TraderLogic.calculatePrice(city, Item.Coal, Season.Winter)
+        val springCoalPrice = TraderLogic.calculatePrice(city, Item.Coal, Season.Spring)
 
         winterCoalPrice should be > springCoalPrice
+
+      it("should combine supply and demand modifiers"):
+        // High supply (cheap) + high demand (expensive) should partially cancel out
+        val balancedCity = City(
+          CityId.Riverdale, "Riverdale",
+          CityMarket(
+            Map(Item.Silk -> SupplyLevel.Abundant),  // 0.6x
+            Map(Item.Silk -> DemandLevel.High)       // 1.4x
+          ),
+          (1, 1)
+        )
+        // Only high supply (cheap)
+        val cheapCity = City(
+          CityId.Riverdale, "Riverdale",
+          CityMarket(
+            Map(Item.Silk -> SupplyLevel.Abundant),
+            Map(Item.Silk -> DemandLevel.Normal)
+          ),
+          (1, 1)
+        )
+        
+        val balancedPrice = TraderLogic.calculatePrice(balancedCity, Item.Silk, Season.Spring)
+        val cheapPrice = TraderLogic.calculatePrice(cheapCity, Item.Silk, Season.Spring)
+        
+        balancedPrice should be > cheapPrice
 
     describe("Feature: Season changes"):
 
