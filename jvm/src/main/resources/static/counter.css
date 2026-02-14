@@ -1,5 +1,4 @@
 /* Counter App Styles */
-@import url('/static/base.css');
 
 /* Counter-specific styles */
 .title {
@@ -39,40 +38,74 @@
 
 #btn-container {
   display: flex;
-  gap: 1rem;
+  gap: 1.25rem;
   justify-content: center;
   flex-wrap: wrap;
+  margin-top: 0.5rem;
 }
 
 #btn-container button {
-  font-size: 2rem;
-  padding: 0.75rem 2.5rem;
-  min-width: 100px;
-  border-radius: var(--radius-md);
-  font-weight: 600;
-  transition: all 0.2s;
+  position: relative;
+  font-size: 1.5rem;
+  padding: 1rem 2.5rem;
+  min-width: 120px;
+  background: rgba(39, 39, 42, 0.6);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
 }
 
-#btn-decrement {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-  color: white;
+#btn-container button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-pink) 100%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  z-index: -1;
+}
+
+#btn-container button:hover {
+  transform: translateY(-2px) scale(1.02);
+  border-color: var(--border-bright);
+  box-shadow: var(--shadow-lg);
+}
+
+#btn-container button:hover::before {
+  opacity: 0.15;
+}
+
+#btn-container button:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: var(--shadow-sm);
 }
 
 #btn-decrement:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+  border-color: rgba(239, 68, 68, 0.5);
+  box-shadow: 0 6px 24px rgba(239, 68, 68, 0.15);
 }
 
-#btn-increment {
-  background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-  color: white;
+#btn-decrement:hover::before {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  opacity: 0.2;
 }
 
 #btn-increment:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+  border-color: rgba(16, 185, 129, 0.5);
+  box-shadow: 0 6px 24px rgba(16, 185, 129, 0.15);
+}
+
+#btn-increment:hover::before {
+  background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
+  opacity: 0.2;
 }
 
 /* Status indicator */

@@ -1,217 +1,16 @@
 /* Color Rush Game Styles */
-@import url('/static/base.css');
 
-/* Game-specific overrides and additions */
-.subtitle {
-  text-align: center;
-  color: var(--text-secondary);
-  margin-bottom: 1.5rem;
-  font-size: 0.875rem;
-  font-weight: 400;
+/* Base styles (lobby-code, waiting-area, players, player-card, game-area,
+   game-controls, game-settings, round-info) are in base.css */
+
+/* ColorRush-specific player card styling */
+.player-card .player-wins {
+  font-size: 0.8rem;
+  color: var(--accent-yellow);
+  margin-left: 0.5rem;
 }
 
-/* Join Form Container - shown initially */
-.join-form-container {
-  background: var(--bg-card);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--border-subtle);
-  padding: 1.5rem;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  margin-bottom: 1rem;
-  max-width: 500px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.join-form-container h2 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  color: var(--text-primary);
-}
-
-.join-form-container input {
-  margin-bottom: 1rem;
-}
-
-.join-form-container button {
-  width: 100%;
-  font-size: 0.95rem;
-  padding: 0.875rem;
-  background: linear-gradient(135deg, var(--accent-purple-dark) 0%, #8b5cf6 100%);
-  color: white;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-weight: 600;
-  transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-}
-
-.join-form-container button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
-}
-
-.join-form-container button:active {
-  transform: translateY(0);
-}
-
-/* Waiting Area Container - shown after joining */
-.waiting-area-container {
-  background: var(--bg-card);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--border-subtle);
-  padding: 1.5rem;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  margin-bottom: 1rem;
-  max-width: 500px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.waiting-area-container h3 {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  color: var(--text-primary);
-}
-
-.players {
-  margin: 0 0 1rem 0;
-}
-
-.game-settings {
-  background: rgba(39, 39, 42, 0.4);
-  border: 1px solid var(--border-subtle);
-  padding: 1rem;
-  border-radius: var(--radius-md);
-  margin-bottom: 1rem;
-}
-
-.game-settings label {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  color: var(--text-primary);
-  font-size: 0.95rem;
-  font-weight: 500;
-}
-
-.game-settings select {
-  padding: 0.5rem 0.75rem;
-  background: rgba(24, 24, 27, 0.8);
-  color: var(--text-primary);
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-sm);
-  font-size: 0.95rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.game-settings select:hover {
-  border-color: var(--border-bright);
-  background: rgba(39, 39, 42, 0.9);
-}
-
-.game-settings select:focus {
-  outline: none;
-  border-color: var(--accent-purple);
-  box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.2);
-}
-
-.player-card {
-  background: rgba(39, 39, 42, 0.55);
-  border: 1px solid var(--border-medium);
-  padding: 0.875rem 1rem;
-  margin: 0.5rem 0;
-  border-radius: var(--radius-md);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: all 0.2s;
-}
-
-.player-card:hover {
-  background: var(--bg-card-hover);
-  border-color: var(--border-bright);
-}
-
-.player-name {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.player-score {
-  color: var(--accent-purple);
-  font-size: 1.1rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.game-area {
-  text-align: center;
-  margin-bottom: 1rem;
-}
-
-.game-controls {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.game-controls button {
-  min-width: 140px;
-}
-
-.secondary-button {
-  padding: 0.75rem 1.5rem;
-  background: rgba(39, 39, 42, 0.8);
-  color: var(--text-primary);
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-md);
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: var(--shadow-sm);
-}
-
-.secondary-button:hover {
-  background: rgba(63, 63, 70, 0.9);
-  border-color: var(--border-bright);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.secondary-button:active {
-  transform: translateY(0);
-  box-shadow: var(--shadow-sm);
-}
-
-.round-info {
-  background: rgba(24, 24, 27, 0.7);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--border-subtle);
-  padding: 1.5rem;
-  border-radius: var(--radius-lg);
-  margin-bottom: 1.5rem;
-  max-width: 480px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.round-number {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  margin-bottom: 1rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 500;
-}
-
+/* ColorRush-specific round info elements */
 .target-color-label {
   font-size: 1.1rem;
   font-weight: 500;
@@ -441,28 +240,7 @@
 .close-winner-button:active {
   transform: translateY(0);
 }
-.start-button {
-  width: 100%;
-  font-size: 0.95rem;
-  padding: 0.875rem;
-  background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
-  color: white;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-weight: 600;
-  transition: all 0.2s;
-  margin-top: 1.5rem;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-}
 
-.start-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
-}
-
-.start-button:active {
-  transform: translateY(0);
-}
 
 /* Desktop layout: side-by-side */
 @media (min-width: 900px) {
@@ -485,14 +263,17 @@
     margin-bottom: 2rem;
   }
 
-  .join-form-container,
-  .waiting-area-container {
+  .waiting-area,
+  .lobby-setup,
+  #lobby {
     grid-column: 1 / -1;
+  }
+
+  .waiting-area {
     padding: 2rem;
   }
 
-  .join-form-container h2,
-  .waiting-area-container h3 {
+  .waiting-area h3 {
     font-size: 1.5rem;
     margin-bottom: 1.5rem;
   }
@@ -516,7 +297,6 @@
 
   .player-card {
     padding: 1rem 1.25rem;
-    margin: 0.75rem 0;
   }
 
   .winner-announcement {

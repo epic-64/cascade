@@ -28,4 +28,3 @@ object HealthEndpoint:
       ),
       "timestamp" -> System.currentTimeMillis()
     )
-

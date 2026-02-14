@@ -7,10 +7,35 @@
     <meta name="theme-color" content="#818cf8" />
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/color-rush.css" />
+    <!-- Cache-buster: loads static assets with server version query param -->
+    <script>
+      (function() {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', '/api/version', false);
+        try { xhr.send(); } catch (e) { return; }
+        if (xhr.status !== 200) return;
+        const v = JSON.parse(xhr.responseText)['buildVersion'];
+
+        const baseCss = document.createElement('link');
+        baseCss.rel = 'stylesheet';
+        baseCss.href = '/static/base.css?v=' + v;
+        document.head.appendChild(baseCss);
+
+        const css = document.createElement('link');
+        css.rel = 'stylesheet';
+        css.href = '/static/color-rush.css?v=' + v;
+        document.head.appendChild(css);
+
+        const js = document.createElement('script');
+        js.src = '/static/js/main.js?v=' + v;
+        document.head.appendChild(js);
+      })();
+    </script>
+    <noscript>
+      <link rel="stylesheet" href="/static/base.css">
+      <link rel="stylesheet" href="/static/color-rush.css">
+    </noscript>
   </head>
   <body>
-    <!-- Scala.js compiled client (handles all UI rendering) -->
-    <script src="/static/js/main.js"></script>
   </body>
 </html>

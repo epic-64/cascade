@@ -14,19 +14,24 @@ Full-stack web application using Scala 3, Scala.js, Cask, and WebSockets.
 ## Features
 
 **Counter App with Real-Time Sync**
-- Server maintains counter state (Scala 3 + Cask)
-- Client displays and controls counter (Scala.js)
-- WebSocket broadcasts updates to all tabs in real-time
-- **Thread-safe** concurrent access using `AtomicInteger`
-- Shared types between client and server for type safety
-- **HTTP caching** with ETag validation for optimal performance
+- Simple shared counter that syncs across all browser tabs
+- Click to increment or decrement
+- Watch updates appear instantly everywhere
+- Demonstrates real-time WebSocket synchronization
 
 **Color Rush - Multiplayer Game**
-- Fast-paced color matching game
-- Real-time multiplayer with WebSocket synchronization
-- Type-safe client (ScalaJS) and server communication
-- Shared game models across client/server boundary
-- 10 rounds, speed bonuses, live scoreboard
+- Fast-paced color matching challenge
+- Compete against other players in real-time
+- 10 rounds with speed bonuses
+- Live scoreboard updates as you play
+
+**AI Drawing Challenge - Multiplayer Game**
+- Draw prompts and let AI caption your artwork
+- OpenAI Vision API analyzes drawings
+- AI judge picks the best match with witty commentary
+- Players vote for their favorite drawing
+- Real-time lobby system with WebSocket sync
+- Bring your own OpenAI API key
 
 ## Quick Start
 
@@ -84,6 +89,11 @@ Transpile client (production):
 sbt "js/fullLinkJS"
 ```
 
+Generate coverage report:
+```bash
+ENABLE_COVERAGE=true sbt clean coverage test coverageReport
+```
+
 ## Endpoints
 
 **Landing Page:**
@@ -100,11 +110,15 @@ sbt "js/fullLinkJS"
 - `GET /color-rush` → Color Rush game client
 - `WS /ws/color-rush/:gameId` → Game WebSocket endpoint
 
+**AI Drawing Challenge:**
+- `GET /drawing` → AI Drawing Challenge game client
+- `WS /ws/drawing/:lobbyId` → Lobby WebSocket endpoint
+
 **Static Assets:**
 - `GET /static/*` → Static files (HTML, CSS, JS)
-  - `/static/js/main.js` → Compiled Scala.js (includes both apps)
-  - `/static/index.html`, `/static/counter.html`, `/static/color-rush.html` → HTML files
-  - `/static/base.css`, `/static/counter.css`, `/static/color-rush.css` → Stylesheets
+  - `/static/js/main.js` → Compiled Scala.js (includes all apps)
+  - `/static/index.html`, `/static/counter.html`, `/static/color-rush.html`, `/static/drawing-game.html` → HTML files
+  - `/static/base.css`, `/static/counter.css`, `/static/color-rush.css`, `/static/drawing-game.css` → Stylesheets
 
 **System:**
 - `GET /health` → Server health and statistics (JSON)
@@ -116,10 +130,13 @@ Stack:
 - ✅ Cask for lightweight server framework
 - ✅ Scala.js for client-side code sharing
 - ✅ WebSockets for real-time communication
-- ⏳ Cache-busting system for static assets (build-step)
+- ✅ Cache-busting system for static assets
+  - ✅ currently solved via client-side hack (manually append server version as query param on static asset URLs)
+  - ⏳ build proper solution with hashed filenames and manifest mapping
 - ⏳ Database persistence, ORM (PostgreSQL + Doobie?)
 - ⏳ DB migration system (Flyway, Liquibase?)
 - ⏳ Cache across instances / across restarts (Redis?)
+- ⏳ Internationalization (German, English)
 
 Testing:
 - ✅ ScalaTest
@@ -143,11 +160,23 @@ Continuous Integration:
   - production → production environment
 
 Monitoring:
+- ✅ health endpoint
+- ⏳ endpoint for inspecting number of active games and websockets (with age)
 - ⏳ Exception tracing (Sentry, Datadog, BetterStack?)
 - ⏳ Log aggregation (Logstash, Datadog, BetterStack?)
 - ⏳ Health and Performance monitoring
 
+## Known Issues / Todos
+- Missing tests for Drawing game
+
+## Previous Challenges
+- ✅ WebSocket closes on its own after some time of inactivity (1-2 minutes)
+  - fixed by implementing a heartbeat mechanism: client sends ping every N seconds
+- ✅ WebSocket connection is lost on page refresh
+  - fixed by storing player id in localStorage and rejoining the game/lobby on page load if player id is found
+
 ## Documentation
 
 - **[Health Endpoint](docs/HEALTH_ENDPOINT.md)** - Detailed documentation of the `/health` endpoint and its stats
+- **[Game Cleanup](docs/GAME_CLEANUP.md)** - Documentation of automatic game/lobby cleanup mechanisms
 
