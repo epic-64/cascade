@@ -26,7 +26,7 @@ object TraderLogic:
     * Price is affected by:
     * - Base item price
     * - City's supply level (abundant = cheaper, scarce = expensive)
-    * - City's demand level (high = expensive, low = cheaper)  
+    * - City's demand level (high = expensive, low = cheaper)
     * - Current season modifiers
     */
   def calculatePrice(city: City, item: Item, season: Season): Int =
@@ -45,10 +45,10 @@ object TraderLogic:
 
   def buyItem(game: TraderGame, item: Item, qty: Int): Either[String, TraderGame] =
     if qty <= 0 then return Left("Quantity must be positive")
-    
+
     val price = calculateBuyPrice(game.currentCity, item, game.season) * qty
     val weight = Item.weight(item) * qty
-    
+
     if price > game.player.gold then
       Left(s"Not enough gold. Need $price, have ${game.player.gold}")
     else if weight > game.player.availableCapacity then
@@ -66,7 +66,7 @@ object TraderLogic:
 
   def sellItem(game: TraderGame, item: Item, qty: Int): Either[String, TraderGame] =
     if qty <= 0 then return Left("Quantity must be positive")
-    
+
     val currentQty = game.player.inventory.getQuantity(item)
     if currentQty < qty then
       Left(s"Not enough ${item.toString}. Have $currentQty, trying to sell $qty")
@@ -93,7 +93,7 @@ object TraderLogic:
       val fromCity = game.currentCity
       val toCity = game.cities(destination)
       val cost = travelCost(fromCity, toCity, game.player.inventory.totalWeight)
-      
+
       if cost > game.player.gold then
         Left(s"Not enough gold for travel. Need ${cost}g, have ${game.player.gold}g")
       else
@@ -104,6 +104,7 @@ object TraderLogic:
         val logEntry = s"Traveled to ${toCity.name} (-${cost}g)"
         Right(advanceTurn(game.copy(
           player = newPlayer,
+          visitedCities = game.visitedCities + destination, // Mark city as visited
           log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)
         )))
 
@@ -144,26 +145,27 @@ object TraderLogic:
     game.copy(
       season = newSeason,
       cities = newCities,
+      visitedCities = Set(game.player.currentCity), // Reset - only current city is known
       log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)
     )
 
   private def shuffleMarket(city: City, cityId: CityId): CityMarket =
     val (highSupply, highDemand) = citySpecialization(cityId)
-    
+
     val supply = Item.all.map { item =>
-      val level = 
+      val level =
         if highSupply.contains(item) then SupplyLevel.Abundant
         else randomSupplyLevel()
       item -> level
     }.toMap
-    
+
     val demand = Item.all.map { item =>
       val level =
         if highDemand.contains(item) then DemandLevel.High
         else randomDemandLevel()
       item -> level
     }.toMap
-    
+
     CityMarket(supply, demand)
 
   private def randomSupplyLevel(): SupplyLevel =
@@ -190,7 +192,7 @@ object TraderLogic:
     case CityId.Saltmarsh   => (Set(Item.Salt, Item.Fish), Set(Item.Lumber, Item.Livestock))
     case CityId.Vineyard    => (Set(Item.Wine, Item.Wheat), Set(Item.Gems))
     case CityId.Timberfall  => (Set(Item.Lumber, Item.Livestock), Set(Item.Salt, Item.Fish))
-  
+
   def newGame(): TraderGame =
     val cities = Map(
       CityId.Northport   -> City(CityId.Northport, "Northport", CityMarket(Map.empty, Map.empty), (0, 0)),
@@ -203,24 +205,25 @@ object TraderLogic:
       CityId.Vineyard    -> City(CityId.Vineyard, "Vineyard", CityMarket(Map.empty, Map.empty), (2, 1)),
       CityId.Timberfall  -> City(CityId.Timberfall, "Timberfall", CityMarket(Map.empty, Map.empty), (2, 2))
     )
-    
+
     // Initialize markets based on specializations
     val citiesWithMarkets = cities.map { (id, city) =>
       id -> city.copy(market = shuffleMarket(city, id))
     }
-    
+
     val player = Player(
       gold = 100,
       inventory = Inventory.empty,
       carriageLevel = 1,
       currentCity = CityId.Riverdale
     )
-    
+
     TraderGame(
       player = player,
       cities = citiesWithMarkets,
       turn = 1,
       season = Season.Spring,
+      visitedCities = Set(CityId.Riverdale), // Start with knowledge of starting city
       log = List("Welcome to Trader! Buy low, sell high, and build your fortune.")
     )
 
@@ -235,4 +238,24 @@ object TraderLogic:
         destId -> travelCost(currentCity, destCity, cargoWeight)
       }
       .sortBy(_._2)
+
+  /** Get the cheapest items in a city (good for buying).
+    * Returns up to 2 items with prices significantly below base price.
+    */
+  def getCheapestItems(city: City, season: Season, limit: Int = 2): List[(Item, Int)] =
+    Item.all
+      .map(item => item -> calculatePrice(city, item, season))
+      .filter((item, price) => price < Item.basePrice(item)) // Only items below base price
+      .sortBy((item, price) => price.toDouble / Item.basePrice(item)) // Sort by discount ratio
+      .take(limit)
+
+  /** Get the most expensive items in a city (good for selling).
+    * Returns up to 2 items with prices significantly above base price.
+    */
+  def getMostExpensiveItems(city: City, season: Season, limit: Int = 2): List[(Item, Int)] =
+    Item.all
+      .map(item => item -> calculatePrice(city, item, season))
+      .filter((item, price) => price > Item.basePrice(item)) // Only items above base price
+      .sortBy((item, price) => -price.toDouble / Item.basePrice(item)) // Sort by markup ratio (descending)
+      .take(limit)
 

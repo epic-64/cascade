@@ -358,3 +358,67 @@ class TraderLogicSpec extends AnyFunSpec with Matchers:
         val costs = options.map(_._2)
         costs shouldBe costs.sorted
 
+    describe("Feature: City market discovery"):
+
+      it("should start with only the starting city visited"):
+        val game = TraderLogic.newGame()
+        game.visitedCities shouldBe Set(CityId.Riverdale)
+
+      it("should mark destination city as visited when traveling"):
+        val game = TraderLogic.newGame()
+        val result = TraderLogic.travel(game, CityId.Ironforge)
+        
+        result.toOption.get.visitedCities should contain (CityId.Ironforge)
+        result.toOption.get.visitedCities should contain (CityId.Riverdale)
+
+      it("should accumulate visited cities across multiple travels"):
+        var game = TraderLogic.newGame().copy(
+          player = TraderLogic.newGame().player.copy(gold = 500)
+        )
+        
+        TraderLogic.travel(game, CityId.Ironforge).foreach(g => game = g)
+        TraderLogic.travel(game, CityId.Crystalpeak).foreach(g => game = g)
+        
+        game.visitedCities should contain allOf (CityId.Riverdale, CityId.Ironforge, CityId.Crystalpeak)
+
+      it("should reset visited cities when season changes, keeping only current city"):
+        var game = TraderLogic.newGame().copy(
+          player = TraderLogic.newGame().player.copy(gold = 1000)
+        )
+        
+        // Visit some cities
+        TraderLogic.travel(game, CityId.Ironforge).foreach(g => game = g)
+        TraderLogic.travel(game, CityId.Crystalpeak).foreach(g => game = g)
+        game.visitedCities.size should be > 1
+        
+        // Travel until season changes (5 total travels trigger season change)
+        TraderLogic.travel(game, CityId.Ironforge).foreach(g => game = g)
+        TraderLogic.travel(game, CityId.Crystalpeak).foreach(g => game = g)
+        TraderLogic.travel(game, CityId.Ironforge).foreach(g => game = g)
+        
+        // After season change, only current city should be visited
+        game.season shouldBe Season.Summer
+        game.visitedCities shouldBe Set(game.player.currentCity)
+
+      it("should return cheapest items for a city"):
+        val game = TraderLogic.newGame()
+        val city = game.cities(CityId.Wheatholm) // Has abundant Wheat, Livestock
+        
+        val cheapest = TraderLogic.getCheapestItems(city, game.season)
+        
+        cheapest should not be empty
+        cheapest.foreach { case (item, price) =>
+          price should be < Item.basePrice(item)
+        }
+
+      it("should return most expensive items for a city"):
+        val game = TraderLogic.newGame()
+        val city = game.cities(CityId.Wheatholm) // Has high demand for Gems, Silk
+        
+        val expensive = TraderLogic.getMostExpensiveItems(city, game.season)
+        
+        expensive should not be empty
+        expensive.foreach { case (item, price) =>
+          price should be > Item.basePrice(item)
+        }
+
