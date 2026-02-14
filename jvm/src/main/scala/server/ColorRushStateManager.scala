@@ -6,9 +6,9 @@ import org.slf4j.LoggerFactory
 class ColorRushStateManager:
   private val logger = LoggerFactory.getLogger(getClass)
 
-  private val colorRushGames  = java.util.concurrent.ConcurrentHashMap[String, shared.ColorRush.ColorRushGame]()
+  private val colorRushGames = java.util.concurrent.ConcurrentHashMap[String, shared.ColorRush.ColorRushGame]()
   private val gameConnections = java.util.concurrent.ConcurrentHashMap[String, java.util.Set[cask.WsChannelActor]]()
-  private val playerToGame    = java.util.concurrent.ConcurrentHashMap[cask.WsChannelActor, (String, String)]()
+  private val playerToGame = java.util.concurrent.ConcurrentHashMap[cask.WsChannelActor, (String, String)]()
 
   def getGame(gameId: String): Option[shared.ColorRush.ColorRushGame] =
     Option(colorRushGames.get(gameId))
@@ -70,6 +70,16 @@ class ColorRushStateManager:
   def cleanupEmptyGames(): Int =
     import scala.jdk.CollectionConverters.*
 
+    // First, clean up disconnected players in all games
+    colorRushGames.asScala.foreach:
+      case (gameId, game) =>
+        val cleanedGame = shared.ColorRush.ColorRush.cleanupDisconnectedPlayers(game)
+        if cleanedGame.players.size != game.players.size then
+          colorRushGames.put(gameId, cleanedGame)
+          logger.info(
+            s"Cleaned up ${game.players.size - cleanedGame.players.size} disconnected player(s) from game $gameId"
+          )
+
     val gamesToCleanup = gameConnections.asScala
       .filter:
         case (gameId, connections) => connections.isEmpty
@@ -86,4 +96,3 @@ class ColorRushStateManager:
   def getAllGames: Map[String, shared.ColorRush.ColorRushGame] =
     import scala.jdk.CollectionConverters.*
     colorRushGames.asScala.toMap
-

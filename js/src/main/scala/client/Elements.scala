@@ -18,6 +18,7 @@ def p(id: String = "", cls: String = "", content: String = ""): HTMLElement = el
 def h1(id: String = "", cls: String = "", content: String = ""): HTMLElement = el("h1", id, cls, content)
 def h2(id: String = "", cls: String = "", content: String = ""): HTMLElement = el("h2", id, cls, content)
 def h3(id: String = "", cls: String = "", content: String = ""): HTMLElement = el("h3", id, cls, content)
+def h4(id: String = "", cls: String = "", content: String = ""): HTMLElement = el("h4", id, cls, content)
 
 def form(id: String = "", cls: String = ""): HTMLFormElement =
   el("form", id, cls).asInstanceOf[HTMLFormElement]
@@ -25,6 +26,16 @@ def form(id: String = "", cls: String = ""): HTMLFormElement =
 def input(input_type: String, id: String = "", cls: String = ""): HTMLInputElement =
   el("input", id, cls).asInstanceOf[HTMLInputElement].tap: input =>
     input.`type` = input_type
+
+/** Creates a floating label input field */
+def floatingInput(input_type: String, id: String, label: String): HTMLElement =
+  div(cls = "floating-field")(
+    input(input_type, id = id, cls = "floating-input").tap: inp =>
+      inp.placeholder = " " // Required for :placeholder-shown CSS selector
+    ,
+    el("label", cls = "floating-label", content = label).tap: lbl =>
+      lbl.setAttribute("for", id)
+  )
 
 def button(button_type: String = "button", id: String = "", cls: String = "", content: String = ""): HTMLButtonElement =
   el("button", id, cls, content).asInstanceOf[HTMLButtonElement].tap: button =>

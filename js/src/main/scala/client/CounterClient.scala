@@ -41,7 +41,7 @@ def createCounterContainer(): HTMLElement =
 def connectWebSocket(): Unit =
   // Use relative WebSocket URL - will connect to same host/port as the page
   val protocol = if dom.window.location.protocol == "https:" then "wss:" else "ws:"
-  val wsUrl    = s"$protocol//${dom.window.location.host}/ws/counter"
+  val wsUrl = s"$protocol//${dom.window.location.host}/ws/counter"
 
   val ws = new WebSocket(wsUrl)
   counterWebSocket = Some(ws)
@@ -54,7 +54,7 @@ def connectWebSocket(): Unit =
       case Success(counter) =>
         println(s"[Counter] Received counter update: $counter")
         updateCounterDisplay(counter)
-      case Failure(e)       =>
+      case Failure(e) =>
         println(s"[Counter] Error parsing WebSocket message: $e")
 
   ws.onclose = (event: CloseEvent) =>
@@ -65,7 +65,7 @@ def connectWebSocket(): Unit =
 
 def modifyCounter(action: String): Unit =
   // Use relative URL - will use same origin as the page
-  val url  = s"/api/counter/$action"
+  val url = s"/api/counter/$action"
   val init = js.Dynamic
     .literal(
       method = "POST"
@@ -81,7 +81,7 @@ def modifyCounter(action: String): Unit =
       case Success(value) =>
         // No need to update display here - WebSocket will broadcast the update
         println(s"[Counter] Counter modified via $action")
-      case Failure(e)     =>
+      case Failure(e) =>
         println(s"[Counter] Error during $action: $e")
 
 def updateCounterDisplay(value: Int): Unit =

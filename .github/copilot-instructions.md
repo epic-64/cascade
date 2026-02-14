@@ -16,3 +16,12 @@ Test style:
 - the tests should call one and only one high-level function and treat it as a black box
 - tests should avoid shared state and invisible dependencies
 - tests must not rely on if-statements and should avoid loops
+
+sbt configuration:
+- This is a cross-project with three modules: `shared`, `js`, and `jvm`
+- shared is not compiled standalone, but is included in both js and jvm
+- to build the js, run `sbt js/fastLinkJS`
+- to build the jvm, run `sbt jvm/compile`
+
+ui library:
+- we are using a fully custom css lib, defined in `jvm/src/main/resources/static/base.css`

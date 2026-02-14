@@ -7,7 +7,22 @@
     <meta name="theme-color" content="#818cf8" />
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
     <link rel="manifest" href="/static/manifest.json" />
-    <link rel="stylesheet" href="/static/base.css" />
+    <!-- Cache-buster: loads static assets with server version query param -->
+    <script>
+      (function() {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', '/api/version', false);
+        try { xhr.send(); } catch (e) { return; }
+        if (xhr.status !== 200) return;
+        const v = JSON.parse(xhr.responseText)['buildVersion'];
+
+        const css = document.createElement('link');
+        css.rel = 'stylesheet';
+        css.href = '/static/base.css?v=' + v;
+        document.head.appendChild(css);
+      })();
+    </script>
+    <noscript><link rel="stylesheet" href="/static/base.css"></noscript>
     <style>
       .app-grid {
         display: grid;
@@ -111,6 +126,26 @@
             <li>Real-time multiplayer gameplay</li>
             <li>WebSocket synchronization</li>
             <li>First to 10 points wins</li>
+          </ul>
+        </a>
+
+        <a href="/ai-drawing" class="app-card">
+          <h2>🖌️ AI Drawing Challenge</h2>
+          <p>Draw a prompt, let AI caption your art, and compete for the best match!</p>
+          <ul class="features">
+            <li>AI-powered image captioning</li>
+            <li>Multiplayer voting system</li>
+            <li>Creative & competitive fun</li>
+          </ul>
+        </a>
+
+        <a href="/tug-of-war" class="app-card">
+          <h2>🪢 Tug of War</h2>
+          <p>Pick a team and spam-click to pull the rope to your side. First to the goal wins!</p>
+          <ul class="features">
+            <li>Team-based multiplayer</li>
+            <li>Real-time rope physics</li>
+            <li>Round-based competition</li>
           </ul>
         </a>
 

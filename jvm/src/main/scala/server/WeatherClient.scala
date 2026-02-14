@@ -35,7 +35,7 @@ class RealWeatherClient extends WeatherClient:
         normalizedCity,
         throw new IllegalArgumentException(s"City '$city' not found. Try: ${cityCoordinates.keys.mkString(", ")}")
       )
-      
+
       // Using Open-Meteo API - free weather API that doesn't require API keys
       val response = requests.get(
         s"https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code&temperature_unit=celsius",
@@ -57,4 +57,3 @@ object WeatherClient:
 
   def resetInstance(): Unit =
     _instance = RealWeatherClient()
-

@@ -58,13 +58,18 @@ class ClientMainBehaviorSpec extends AnyFunSpec with Matchers with BeforeAndAfte
         val joinForm = document.getElementById("joinForm")
         joinForm should not be null
 
-        val gameIdInput = document.getElementById("gameId")
+        val gameIdInput = document.getElementById("joinGameId")
         gameIdInput should not be null
-        gameIdInput.asInstanceOf[dom.HTMLInputElement].placeholder should include("Game ID")
+        // The floating input uses a label element instead of placeholder
+        val gameIdLabel = joinForm.querySelector("label[for='joinGameId']")
+        gameIdLabel should not be null
+        gameIdLabel.textContent should include("Game")
 
-        val playerNameInput = document.getElementById("playerName")
+        val playerNameInput = document.getElementById("joinPlayerName")
         playerNameInput should not be null
-        playerNameInput.asInstanceOf[dom.HTMLInputElement].placeholder should include("Name")
+        val playerNameLabel = joinForm.querySelector("label[for='joinPlayerName']")
+        playerNameLabel should not be null
+        playerNameLabel.textContent should include("Name")
 
         val gameArea = document.getElementById("gameArea")
         gameArea should not be null
@@ -98,6 +103,3 @@ class ClientMainBehaviorSpec extends AnyFunSpec with Matchers with BeforeAndAfte
 
         val lobby = document.getElementById("lobby")
         lobby shouldBe null
-
-
-
