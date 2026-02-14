@@ -46,7 +46,15 @@ private def loadTraderGame(): Option[TraderGame] =
   Try {
     Option(dom.window.localStorage.getItem(TraderStorageKey))
       .filter(_.nonEmpty)
-      .map(upickle.default.read[TraderGame](_))
+      .map { json =>
+        println(s"[Trader] Loading saved game...")
+        upickle.default.read[TraderGame](json)
+      }
+  }.recover { case e =>
+    println(s"[Trader] Failed to load saved game (schema may have changed): ${e.getMessage}")
+    // Clear corrupted/outdated save
+    clearTraderGame()
+    None
   }.toOption.flatten
 
 private def clearTraderGame(): Unit =
