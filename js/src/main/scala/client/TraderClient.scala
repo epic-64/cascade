@@ -116,10 +116,12 @@ private def renderMap(game: TraderGame): HTMLElement =
 private def renderCityNode(game: TraderGame, cityId: CityId, travelCost: Option[Int]): HTMLElement =
   val city = game.cities(cityId)
   val isCurrent = cityId == game.player.currentCity
-  val cls = if isCurrent then "city-node current" else "city-node"
+  val isVisited = game.isCityVisited(cityId)
+  val cls = if isCurrent then "city-node current" else if isVisited then "city-node visited" else "city-node"
 
   val node = div(cls = cls)(
     div(cls = "city-name", content = city.name),
+    renderCityMarketInfo(game, city, isVisited),
     travelCost.map(cost => div(cls = "city-travel-cost", content = s"${cost}g")).getOrElse(div())
   )
 
@@ -129,6 +131,44 @@ private def renderCityNode(game: TraderGame, cityId: CityId, travelCost: Option[
     }
 
   node
+
+private def renderCityMarketInfo(game: TraderGame, city: City, isVisited: Boolean): HTMLElement =
+  if !isVisited then
+    // Unknown market - show placeholders
+    div(cls = "city-market-info unknown")(
+      div(cls = "market-hint", content = "Market unknown"),
+      div(cls = "market-items")(
+        span(cls = "cheap-item unknown", content = "?? "),
+        span(cls = "expensive-item unknown", content = "??")
+      )
+    )
+  else
+    // Visited - show actual cheap/expensive items
+    val cheapItems = TraderLogic.getCheapestItems(city, game.season)
+    val expensiveItems = TraderLogic.getMostExpensiveItems(city, game.season)
+    
+    div(cls = "city-market-info")(
+      // Cheap items (good for buying)
+      div(cls = "market-row cheap")(
+        span(cls = "market-label", content = "Buy: "),
+        if cheapItems.isEmpty then span(cls = "market-none", content = "—")
+        else span()(
+          cheapItems.map { case (item, price) =>
+            span(cls = "cheap-item", content = s"${item.toString.take(4)} ${price}g ")
+          }*
+        )
+      ),
+      // Expensive items (good for selling)
+      div(cls = "market-row expensive")(
+        span(cls = "market-label", content = "Sell: "),
+        if expensiveItems.isEmpty then span(cls = "market-none", content = "—")
+        else span()(
+          expensiveItems.map { case (item, price) =>
+            span(cls = "expensive-item", content = s"${item.toString.take(4)} ${price}g ")
+          }*
+        )
+      )
+    )
 
 private def renderCarriage(game: TraderGame): HTMLElement =
   val player = game.player

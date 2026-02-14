@@ -133,9 +133,11 @@ case class TraderGame(
     cities: Map[CityId, City],
     turn: Int,
     season: Season,
+    visitedCities: Set[CityId], // Cities visited this season (market info revealed)
     log: List[String] // Recent actions/events (newest first)
 ) derives ReadWriter:
   def currentCity: City = cities(player.currentCity)
+  def isCityVisited(cityId: CityId): Boolean = visitedCities.contains(cityId)
 
 object TraderGame:
   val MaxLogEntries: Int = 20

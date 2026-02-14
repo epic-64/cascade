@@ -117,6 +117,79 @@
   font-size: 1.2rem;
 }
 
+/* Visited cities have a subtle indicator */
+.city-node.visited {
+  border-color: rgba(139, 92, 246, 0.4);
+}
+
+.city-node.visited::before {
+  content: '👁';
+  position: absolute;
+  top: -8px;
+  left: -5px;
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+/* City market info */
+.city-market-info {
+  margin: var(--spacing-xs) 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.city-market-info.unknown {
+  opacity: 0.6;
+}
+
+.market-hint {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 0.7rem;
+}
+
+.market-items {
+  margin-top: 2px;
+}
+
+.market-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.market-label {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+}
+
+.market-none {
+  color: var(--text-muted);
+}
+
+.cheap-item {
+  color: #22c55e;
+  font-weight: 600;
+  font-size: 0.7rem;
+}
+
+.cheap-item.unknown {
+  color: var(--text-muted);
+}
+
+.expensive-item {
+  color: #f97316;
+  font-weight: 600;
+  font-size: 0.7rem;
+}
+
+.expensive-item.unknown {
+  color: var(--text-muted);
+}
+
 .city-name {
   font-weight: 600;
   color: var(--text-primary);
