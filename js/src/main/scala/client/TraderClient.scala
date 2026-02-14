@@ -223,19 +223,20 @@ private def renderMarketRow(game: TraderGame, item: Item): HTMLElement =
   val demandLevel = city.market.demand.get(item)
   val seasonMod = Season.modifier(game.season, item)
 
-  // Collect price factors
+  // Collect price factors with +/- to indicate price impact
+  // (+) = increases price, (-) = decreases price
   val factors = List(
     supplyLevel.collect {
-      case SupplyLevel.Abundant => ("supply-abundant", "Supply ↑")
-      case SupplyLevel.Scarce => ("supply-scarce", "Supply ↓")
+      case SupplyLevel.Abundant => ("factor-supply", "Supply ↑ (−)")  // More supply = lower price
+      case SupplyLevel.Scarce => ("factor-supply", "Supply ↓ (+)")    // Less supply = higher price
     },
     demandLevel.collect {
-      case DemandLevel.High => ("demand-high", "Demand ↑")
-      case DemandLevel.Low => ("demand-low", "Demand ↓")
+      case DemandLevel.High => ("factor-demand", "Demand ↑ (+)")      // More demand = higher price
+      case DemandLevel.Low => ("factor-demand", "Demand ↓ (−)")       // Less demand = lower price
     },
     Option.when(seasonMod != 1.0) {
-      if seasonMod > 1.0 then ("season-high", s"${game.season} ↑")
-      else ("season-low", s"${game.season} ↓")
+      if seasonMod > 1.0 then ("factor-season", s"${game.season} (+)")
+      else ("factor-season", s"${game.season} (−)")
     }
   ).flatten
 
