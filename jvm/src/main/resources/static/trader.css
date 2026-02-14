@@ -388,44 +388,32 @@
   color: var(--text-muted);
 }
 
-/* Supply factors - affects buying */
-.factor-tag.supply-abundant {
-  background: rgba(34, 197, 94, 0.2);
-  color: #22c55e;
-  border: 1px solid rgba(34, 197, 94, 0.3);
+/* All factor tags use neutral styling */
+.factor-tag {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--text-secondary);
+  border: 1px solid rgba(148, 163, 184, 0.3);
 }
 
-.factor-tag.supply-scarce {
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+/* Slightly different tints for visual distinction */
+.factor-tag.factor-supply {
+  background: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+  border: 1px solid rgba(139, 92, 246, 0.3);
 }
 
-/* Demand factors - affects selling */
-.factor-tag.demand-high {
-  background: rgba(34, 197, 94, 0.2);
-  color: #22c55e;
-  border: 1px solid rgba(34, 197, 94, 0.3);
+.factor-tag.factor-demand {
+  background: rgba(6, 182, 212, 0.15);
+  color: #22d3ee;
+  border: 1px solid rgba(6, 182, 212, 0.3);
 }
 
-.factor-tag.demand-low {
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-/* Season factors */
-.factor-tag.season-high {
-  background: rgba(251, 191, 36, 0.2);
+.factor-tag.factor-season {
+  background: rgba(251, 191, 36, 0.15);
   color: var(--accent-yellow);
   border: 1px solid rgba(251, 191, 36, 0.3);
 }
 
-.factor-tag.season-low {
-  background: rgba(96, 165, 250, 0.2);
-  color: #60a5fa;
-  border: 1px solid rgba(96, 165, 250, 0.3);
-}
 
 /* Trade buttons */
 .trade-btn {
