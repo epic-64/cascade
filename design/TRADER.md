@@ -142,6 +142,23 @@ Formula: `upgradeCost = 100 × 2^(currentLevel - 1)`
   - All cities randomize supply/demand levels (within their specialization constraints)
   - Seasonal price modifiers apply
   - Player receives notification of new season
+  - **Market knowledge is reset** (see Market Discovery below)
+
+### Market Discovery
+
+Players must **visit cities to discover their market conditions**. This adds an exploration element to the game.
+
+- **Unknown Markets:** Cities not yet visited this season show "??" for their cheap/expensive items on the map
+- **Visited Cities:** Once you travel to a city, its market info is revealed:
+  - Up to 2 cheapest items (good for buying)
+  - Up to 2 most expensive items (good for selling)
+- **Season Reset:** When a new season begins, all market knowledge is reset except for your current city
+- **Current City:** You always know the market conditions of the city you're currently in
+
+**Map Display:**
+- 📍 Current city (highlighted, market known)
+- 👁 Visited cities (market info visible)
+- Unvisited cities show "Market unknown" with "??" placeholders
 
 ### Win/Loss Conditions
 
@@ -244,8 +261,11 @@ case class TraderGame(
   cities: Map[CityId, City],
   turn: Int,
   season: Season,
+  visitedCities: Set[CityId], // Cities visited this season (market info revealed)
   log: List[String] // Recent actions/events
-) derives ReadWriter
+) derives ReadWriter:
+  def isCityVisited(cityId: CityId): Boolean = 
+    cityId == player.currentCity || visitedCities.contains(cityId)
 ```
 
 ### Pure State Transitions
@@ -261,6 +281,10 @@ object TraderLogic:
   def advanceTurn(game: TraderGame): TraderGame = ???
   def changeSeason(game: TraderGame): TraderGame = ???
   def newGame(): TraderGame = ???
+  
+  // Market discovery helpers
+  def getCheapestItems(city: City, season: Season, limit: Int = 2): List[(Item, Int)] = ???
+  def getMostExpensiveItems(city: City, season: Season, limit: Int = 2): List[(Item, Int)] = ???
 ```
 
 ## UI Design
@@ -373,7 +397,7 @@ game is single-player and doesn't require WebSocket complexity.
 **Files Created:**
 - `shared/src/main/scala/shared/Trader/Trader.scala`
 - `shared/src/main/scala/shared/Trader/TraderLogic.scala`
-- `shared/src/test/scala/shared/Trader/TraderLogicSpec.scala` (35 tests)
+- `shared/src/test/scala/shared/Trader/TraderLogicSpec.scala` (44 tests)
 - `js/src/main/scala/client/TraderClient.scala`
 - `jvm/src/main/resources/static/trader.html`
 - `jvm/src/main/resources/static/trader.css`
@@ -424,13 +448,13 @@ game is single-player and doesn't require WebSocket complexity.
 7. ✅ Write unit tests
 
 **Deliverables:**
-- ✅ Turns advance with each action
-- ✅ Seasons change every 5 turns
+- ✅ Turns advance only on travel (not buy/sell)
+- ✅ Seasons change every 5 travels
 - ✅ Markets shuffle on season change
 - ✅ Player can upgrade carriage
 - ✅ Full game loop complete
 
-### Phase 5: Persistence & Polish ✅ PARTIALLY COMPLETE
+### Phase 5: Persistence & Polish ✅ MOSTLY COMPLETE
 **Goal:** Save/load and UX improvements
 
 **Tasks:**
@@ -438,13 +462,20 @@ game is single-player and doesn't require WebSocket complexity.
 2. ✅ Auto-save on each action
 3. ✅ Load game on page refresh
 4. ✅ Add "New Game" button with confirmation
-5. ⬚ Add milestone notifications (wealth goals)
-6. ⬚ Add sound effects (optional)
-7. ⬚ Mobile-responsive layout improvements
+5. ✅ Market discovery system (visited cities reveal market info)
+6. ✅ Enhanced market UI showing base price, current price, and price factors
+7. ✅ Color-coded prices (green = good deal, red = bad deal)
+8. ✅ Price factor tags with +/- indicators (Supply, Demand, Season effects)
+9. ⬚ Add milestone notifications (wealth goals)
+10. ⬚ Add sound effects (optional)
+11. ⬚ Mobile-responsive layout improvements
 
 **Deliverables:**
 - ✅ Game persists across browser sessions
 - ✅ Clean restart option
+- ✅ Map shows cheap/expensive items for visited cities
+- ✅ Unknown cities show "??" until visited
+- ✅ Market knowledge resets each season
 - ⬚ Achievement feedback
 
 ### Phase 6: Server Integration (Future) ⬚ NOT STARTED
@@ -464,15 +495,23 @@ game is single-player and doesn't require WebSocket complexity.
 
 ## Testing Strategy
 
-### Unit Tests (TraderLogicSpec.scala)
+### Unit Tests (TraderLogicSpec.scala) - 44 tests
 - `buyItem` respects gold limits
 - `buyItem` respects capacity limits
+- `buyItem` does not advance turn
 - `sellItem` requires items in inventory
 - `travel` deducts correct cost
 - `travel` prevents travel without funds
-- `calculatePrice` applies modifiers correctly
+- `travel` advances turn
+- `travel` marks destination city as visited
+- `calculatePrice` applies supply, demand, and season modifiers
+- `calculatePrice` returns same value for buy and sell
 - `changeSeason` shuffles markets
+- `changeSeason` resets visited cities
 - `upgradeCarriage` costs escalate correctly
+- `getCheapestItems` returns items below base price
+- `getMostExpensiveItems` returns items above base price
+- Starting city is visited by default
 
 ### Integration Tests
 - Full trade cycle: buy → travel → sell → profit
@@ -486,11 +525,14 @@ game is single-player and doesn't require WebSocket complexity.
 - [x] Cannot spend more gold than available
 - [x] Travel updates current city
 - [x] Travel costs scale with distance and cargo
-- [x] Seasons change every 5 turns
+- [x] Seasons change every 5 travels
 - [x] Markets shuffle on season change
 - [x] Upgrades increase capacity
 - [x] Game saves to localStorage
 - [x] Game loads on refresh
+- [x] Map shows market info for visited cities
+- [x] Unvisited cities show "??" placeholders
+- [x] Market knowledge resets on season change
 
 ## Open Questions
 
