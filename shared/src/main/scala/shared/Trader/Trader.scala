@@ -144,3 +144,31 @@ case class TraderGame(
 object TraderGame:
   val MaxLogEntries: Int = 20
 
+// Risk system types
+
+/** Possible outcomes when bandits are encountered during travel */
+enum EncounterOutcome derives ReadWriter:
+  case Escaped                                                      // Got away clean
+  case Toll(goldLost: Int)                                         // Paid off the bandits
+  case Robbery(itemsLost: Map[Item, Int])                          // Lost some cargo
+  case DevastatingLoss(itemsLost: Map[Item, Int], goldLost: Int)   // Major loss
+
+/** Risk calculation result for current cargo */
+case class RiskAssessment(
+    cargoValue: Int,
+    cargoWeight: Int,
+    valuePerKg: Double,
+    riskScore: Double,
+    encounterChance: Double // 0.0 to 1.0
+) derives ReadWriter
+
+object RiskAssessment:
+  val safe: RiskAssessment = RiskAssessment(0, 0, 0.0, 0.0, 0.0)
+
+/** Encounter event for logging/display */
+case class BanditEncounter(
+    outcome: EncounterOutcome,
+    fromCity: CityId,
+    toCity: CityId,
+    turn: Int
+) derives ReadWriter
