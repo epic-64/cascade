@@ -212,7 +212,7 @@ private def renderCarriage(game: TraderGame): HTMLElement =
   val riskPercent = (risk.encounterChance * 100).toInt
 
   div(cls = "trader-carriage")(
-    h2(content = "🚗 Your Carriage"),
+    h2(content = "🐴 Your Carriage"),
     div(cls = "trader-gold")(
       span(cls = "trader-gold-icon", content = "💰"),
       span(content = s"${player.gold}g")
@@ -474,7 +474,7 @@ private def renderTravelAnimation(game: TraderGame): HTMLElement =
 
   div(cls = "travel-animation-overlay")(
     div(cls = "travel-animation")(
-      div(cls = "travel-icon", content = "🚗"),
+      div(cls = "travel-icon", content = "🐴"),
       div(cls = "travel-text", content = "Traveling..."),
       div(cls = "travel-route", content = s"→ {toCity}")
     )
