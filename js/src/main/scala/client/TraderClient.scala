@@ -81,6 +81,11 @@ private def renderTraderUI(): Unit =
         renderNewGameButton()
       )
       body.appendChild(container)
+      
+      // Show encounter modal if there was an encounter
+      game.lastEncounter.foreach { encounter =>
+        body.appendChild(renderEncounterModal(encounter, game))
+      }
     case None =>
       body.appendChild(div(content = "Loading..."))
 
@@ -371,6 +376,68 @@ private def renderLog(game: TraderGame): HTMLElement =
       game.log.map(entry => div(cls = "log-entry", content = entry))*
     )
   )
+
+private def renderEncounterModal(encounter: BanditEncounter, game: TraderGame): HTMLElement =
+  val (title, icon, outcomeClass, description, losses) = encounter.outcome match
+    case EncounterOutcome.Escaped =>
+      ("Narrow Escape!", "🏃", "encounter-escaped",
+       "Bandits ambushed you on the road, but you managed to escape!",
+       List.empty[(String, String)])
+    
+    case EncounterOutcome.Toll(goldLost) =>
+      ("Toll Demanded!", "💰", "encounter-toll",
+       "Bandits blocked the road and demanded payment for safe passage.",
+       List(("Gold paid", s"-${goldLost}g")))
+    
+    case EncounterOutcome.Robbery(itemsLost) =>
+      val lossLines = itemsLost.map { (item, qty) => 
+        (item.toString, s"-$qty") 
+      }.toList
+      ("Robbery!", "🗡️", "encounter-robbery",
+       "Bandits overpowered your guards and stole your most valuable cargo!",
+       lossLines)
+    
+    case EncounterOutcome.DevastatingLoss(itemsLost, goldLost) =>
+      val lossLines = itemsLost.map { (item, qty) => 
+        (item.toString, s"-$qty") 
+      }.toList ++ (if goldLost > 0 then List(("Gold", s"-${goldLost}g")) else Nil)
+      ("Devastating Attack!", "💀", "encounter-devastating",
+       "A large bandit gang overwhelmed you completely!",
+       lossLines)
+
+  val fromCityName = game.cities(encounter.fromCity).name
+  val toCityName = game.cities(encounter.toCity).name
+
+  div(cls = "encounter-modal-overlay")(
+    div(cls = s"encounter-modal $outcomeClass")(
+      div(cls = "encounter-icon", content = icon),
+      h2(cls = "encounter-title", content = title),
+      div(cls = "encounter-route", content = s"$fromCityName → $toCityName"),
+      p(cls = "encounter-description", content = description),
+      if losses.nonEmpty then
+        div(cls = "encounter-losses")(
+          h3(content = "Losses:"),
+          div(cls = "loss-list")(
+            losses.map { (name, amount) =>
+              div(cls = "loss-item")(
+                span(cls = "loss-name", content = name),
+                span(cls = "loss-amount", content = amount)
+              )
+            }*
+          )
+        )
+      else
+        div(cls = "encounter-no-loss", content = "No losses!"),
+      button(cls = "encounter-continue-btn", content = "Continue").with_click { _ =>
+        dismissEncounter()
+      }
+    )
+  )
+
+private def dismissEncounter(): Unit =
+  traderGame = traderGame.map(_.copy(lastEncounter = None))
+  saveTraderGame()
+  renderTraderUI()
 
 private def renderNewGameButton(): HTMLElement =
   button(cls = "new-game-btn", content = "New Game").with_click { _ =>

@@ -249,47 +249,47 @@ These can be exposed as game settings for difficulty levels:
 
 ## Implementation Phases
 
-### Phase 1: Risk Calculation & Display ⬚
+### Phase 1: Risk Calculation & Display ✅
 **Goal:** Show risk information without affecting gameplay
 
 **Tasks:**
-1. ⬚ Add `RiskAssessment` and `EncounterOutcome` types to `Trader.scala`
-2. ⬚ Implement `assessRisk()` in new `TraderRisk.scala` (or in TraderLogic)
-3. ⬚ Add risk indicator to travel UI showing encounter chance
-4. ⬚ Color-code risk levels (green/yellow/red)
-5. ⬚ Write unit tests for risk calculation formula
+1. ✅ Add `RiskAssessment` and `EncounterOutcome` types to `Trader.scala`
+2. ✅ Implement `assessRisk()` in new `TraderRisk.scala` (or in TraderLogic)
+3. ✅ Add risk indicator to travel UI showing encounter chance
+4. ✅ Color-code risk levels (green/yellow/red)
+5. ✅ Write unit tests for risk calculation formula
 
 **Deliverables:**
 - Players see risk percentage when considering travel
 - No actual risk events yet (informational only)
 - Tests verify formula produces expected values
 
-### Phase 2: Basic Encounters ⬚
+### Phase 2: Basic Encounters ✅
 **Goal:** Implement the core risk/reward mechanic
 
 **Tasks:**
-1. ⬚ Implement `rollEncounter()` function
-2. ⬚ Implement `resolveEncounter()` with all outcome types
-3. ⬚ Implement `applyEncounter()` to modify game state
-4. ⬚ Integrate encounter check into `travel()` function
-5. ⬚ Add encounter results to game log
-6. ⬚ Update game state with `lastEncounter` and `totalLossesToBandits`
-7. ⬚ Write unit tests for encounter resolution
+1. ✅ Implement `rollEncounter()` function
+2. ✅ Implement `resolveEncounter()` with all outcome types
+3. ✅ Implement `applyEncounter()` to modify game state
+4. ✅ Integrate encounter check into `travel()` function
+5. ✅ Add encounter results to game log
+6. ⬚ Update game state with `lastEncounter` and `totalLossesToBandits` (deferred)
+7. ✅ Write unit tests for encounter resolution
 
 **Deliverables:**
 - Bandits can strike during travel
 - Cargo/gold can be lost
 - Losses recorded in log and stats
 
-### Phase 3: Encounter UI ⬚
+### Phase 3: Encounter UI ✅
 **Goal:** Create engaging encounter experience
 
 **Tasks:**
-1. ⬚ Create encounter dialog/modal showing outcome
-2. ⬚ Add dramatic reveal animation (optional)
-3. ⬚ Show itemized losses clearly
-4. ⬚ Add "Continue" button to dismiss
-5. ⬚ Update travel confirmation to show risk warning
+1. ✅ Create encounter dialog/modal showing outcome
+2. ✅ Add dramatic reveal animation (optional)
+3. ✅ Show itemized losses clearly
+4. ✅ Add "Continue" button to dismiss
+5. ✅ Update travel confirmation to show risk warning
 
 **Deliverables:**
 - Encounters feel impactful and dramatic
