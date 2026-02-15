@@ -278,6 +278,52 @@
   color: var(--text-secondary);
 }
 
+/* Carriage risk indicator */
+.carriage-risk {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-md);
+  font-size: 0.85rem;
+}
+
+.carriage-risk.risk-safe {
+  background: rgba(74, 222, 128, 0.15);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  color: #4ade80;
+}
+
+.carriage-risk.risk-moderate {
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+}
+
+.carriage-risk.risk-dangerous {
+  background: rgba(248, 113, 113, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: #f87171;
+}
+
+.carriage-risk .risk-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.carriage-risk .risk-label {
+  font-weight: 600;
+}
+
+.carriage-risk .risk-level {
+  font-weight: 700;
+}
+
+.carriage-risk .risk-details {
+  margin-top: 2px;
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
 .trader-inventory {
   margin-top: var(--spacing-lg);
   border-top: 1px solid var(--border-subtle);
@@ -934,6 +980,256 @@
 .encounter-continue-btn:hover {
   background: var(--accent-purple-dark);
   transform: translateY(-2px);
+}
+
+/* Unscathed outcome (safe arrival) */
+.encounter-modal.encounter-unscathed {
+  border-color: #4ade80;
+}
+
+.encounter-unscathed .encounter-title {
+  color: #4ade80;
+}
+
+/* City Selection Modal */
+.city-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+.city-modal {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  max-width: 420px;
+  width: 90%;
+  border: 2px solid var(--accent-purple);
+  animation: slideIn 0.2s ease;
+}
+
+.city-modal-header {
+  text-align: center;
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.city-modal-header h2 {
+  font-size: 1.5rem;
+  color: var(--accent-yellow);
+  margin-bottom: var(--spacing-xs);
+}
+
+.city-modal-route {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.city-modal-section {
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.city-modal-section .section-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--spacing-xs);
+}
+
+.city-modal-section .section-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.city-modal-section .section-value.unaffordable {
+  color: #ef4444;
+}
+
+.cost-amount {
+  color: var(--accent-yellow);
+}
+
+.cost-warning {
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+/* Risk section in city modal */
+.risk-section.risk-safe {
+  border-left: 3px solid #4ade80;
+}
+
+.risk-section.risk-moderate {
+  border-left: 3px solid #fbbf24;
+}
+
+.risk-section.risk-dangerous {
+  border-left: 3px solid #f87171;
+}
+
+.risk-section .section-value.safe {
+  color: #4ade80;
+}
+
+.risk-section .risk-subtext {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+  margin-top: 2px;
+}
+
+/* Market preview in city modal */
+.market-section {
+  background: var(--bg-secondary);
+}
+
+.market-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.market-preview-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.preview-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.preview-item {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.preview-item.cheap {
+  color: #4ade80;
+}
+
+.preview-item.expensive {
+  color: #f97316;
+}
+
+.preview-none {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.market-unknown {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* City modal action buttons */
+.city-modal-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+.city-modal-actions .modal-btn {
+  flex: 1;
+  padding: var(--spacing-md);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.city-modal-actions .modal-btn.cancel {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.city-modal-actions .modal-btn.cancel:hover {
+  background: var(--bg-card-hover);
+}
+
+.city-modal-actions .modal-btn.travel {
+  background: var(--accent-purple);
+  color: white;
+}
+
+.city-modal-actions .modal-btn.travel:hover:not(:disabled) {
+  background: var(--accent-purple-dark);
+  transform: translateY(-2px);
+}
+
+.city-modal-actions .modal-btn.travel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Travel Animation */
+.travel-animation-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.travel-animation {
+  text-align: center;
+}
+
+.travel-icon {
+  font-size: 5rem;
+  animation: travelBounce 0.6s ease infinite;
+}
+
+@keyframes travelBounce {
+  0%, 100% { 
+    transform: translateX(-30px);
+  }
+  50% { 
+    transform: translateX(30px);
+  }
+}
+
+.travel-text {
+  font-size: 1.5rem;
+  color: var(--text-primary);
+  margin-top: var(--spacing-md);
+  animation: travelPulse 1s ease infinite;
+}
+
+@keyframes travelPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.travel-route {
+  font-size: 1.1rem;
+  color: var(--accent-yellow);
+  margin-top: var(--spacing-sm);
 }
 
 /* Responsive adjustments */

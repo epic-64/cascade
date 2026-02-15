@@ -147,8 +147,9 @@ object TraderGame:
 
 // Risk system types
 
-/** Possible outcomes when bandits are encountered during travel */
+/** Possible outcomes when traveling - includes safe arrival and bandit encounters */
 enum EncounterOutcome derives ReadWriter:
+  case Unscathed                                                    // Safe arrival, no bandits
   case Escaped                                                      // Got away clean
   case Toll(goldLost: Int)                                         // Paid off the bandits
   case Robbery(itemsLost: Map[Item, Int])                          // Lost some cargo
