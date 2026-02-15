@@ -134,7 +134,8 @@ case class TraderGame(
     turn: Int,
     season: Season,
     visitedCities: Set[CityId], // Cities visited this season (market info revealed)
-    log: List[String] // Recent actions/events (newest first)
+    log: List[String], // Recent actions/events (newest first)
+    lastEncounter: Option[BanditEncounter] = None // Most recent encounter for UI display
 ) derives ReadWriter:
   def currentCity: City = cities(player.currentCity)
   // Current city is always considered visited (you can see the market you're in)

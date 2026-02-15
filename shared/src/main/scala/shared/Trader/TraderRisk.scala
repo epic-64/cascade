@@ -75,17 +75,26 @@ object TraderRisk:
       toCity: CityId,
       rng: Random
   ): TraderGame =
+    val turn = game.turn
+    
     outcome match
       case EncounterOutcome.Escaped =>
+        val encounter = BanditEncounter(EncounterOutcome.Escaped, fromCity, toCity, turn)
         val logEntry = "⚔️ Bandits attacked but you escaped unharmed!"
-        game.copy(log = (logEntry :: game.log).take(TraderGame.MaxLogEntries))
+        game.copy(
+          lastEncounter = Some(encounter),
+          log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)
+        )
 
       case EncounterOutcome.Toll(goldLost) =>
         val actualLoss = math.min(goldLost, game.player.gold)
+        val actualOutcome = EncounterOutcome.Toll(actualLoss)
+        val encounter = BanditEncounter(actualOutcome, fromCity, toCity, turn)
         val newPlayer = game.player.copy(gold = game.player.gold - actualLoss)
         val logEntry = s"⚔️ Bandits demanded a toll! Lost ${actualLoss}g"
         game.copy(
           player = newPlayer,
+          lastEncounter = Some(encounter),
           log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)
         )
 
@@ -93,12 +102,15 @@ object TraderRisk:
         // Calculate actual robbery: 30-50% of highest-value items
         val lossPercent = 0.30 + rng.nextDouble() * 0.20
         val itemsLost = calculateRobbery(game.player.inventory, lossPercent, rng)
+        val actualOutcome = EncounterOutcome.Robbery(itemsLost)
+        val encounter = BanditEncounter(actualOutcome, fromCity, toCity, turn)
         val newInventory = removeItems(game.player.inventory, itemsLost)
         val newPlayer = game.player.copy(inventory = newInventory)
         val lostItemsDesc = formatItemsLost(itemsLost)
         val logEntry = s"⚔️ Bandits robbed your cargo! Lost $lostItemsDesc"
         game.copy(
           player = newPlayer,
+          lastEncounter = Some(encounter),
           log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)
         )
 
@@ -107,6 +119,8 @@ object TraderRisk:
         val lossPercent = 0.50 + rng.nextDouble() * 0.30
         val itemsLost = calculateDevastatingLoss(game.player.inventory, lossPercent, rng)
         val goldLost = math.min((game.player.gold * 0.2).toInt, game.player.gold)
+        val actualOutcome = EncounterOutcome.DevastatingLoss(itemsLost, goldLost)
+        val encounter = BanditEncounter(actualOutcome, fromCity, toCity, turn)
         val newInventory = removeItems(game.player.inventory, itemsLost)
         val newPlayer = game.player.copy(
           gold = game.player.gold - goldLost,
@@ -117,6 +131,7 @@ object TraderRisk:
         val logEntry = s"⚔️ Devastating bandit attack! Lost $lostItemsDesc$goldDesc"
         game.copy(
           player = newPlayer,
+          lastEncounter = Some(encounter),
           log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)
         )
 
