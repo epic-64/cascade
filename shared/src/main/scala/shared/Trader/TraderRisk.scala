@@ -78,6 +78,12 @@ object TraderRisk:
     val turn = game.turn
     
     outcome match
+      case EncounterOutcome.Unscathed =>
+        // Safe arrival - this case is handled in TraderLogic.travel directly
+        // but we include it here for completeness
+        val encounter = BanditEncounter(EncounterOutcome.Unscathed, fromCity, toCity, turn)
+        game.copy(lastEncounter = Some(encounter))
+
       case EncounterOutcome.Escaped =>
         val encounter = BanditEncounter(EncounterOutcome.Escaped, fromCity, toCity, turn)
         val logEntry = "⚔️ Bandits attacked but you escaped unharmed!"

@@ -296,6 +296,28 @@ These can be exposed as game settings for difficulty levels:
 - Players clearly understand what they lost
 - Risk is prominently displayed before travel
 
+### Phase 3.5: Travel UI Overhaul ✅
+**Goal:** Improve travel UX with city selection modal
+
+**Tasks:**
+1. ✅ Move risk indicator near the cart/carriage section
+2. ✅ Remove the separate "Travel To" section at the bottom
+3. ✅ Create city click modal with:
+   - Travel cost
+   - Risk factor (with current cargo)
+   - Cheap items to buy there
+   - Expensive items to sell there
+   - Travel / Cancel buttons
+4. ✅ Add travel animation between cities
+5. ✅ Always show outcome feedback:
+   - "Unscathed" for safe arrival
+   - Existing encounter modals for bandit events
+
+**Deliverables:**
+- Cleaner UI with travel integrated into map
+- Better information at decision point
+- More engaging travel experience with animation
+
 ### Phase 4: Balance & Polish ⬚
 **Goal:** Fine-tune the system for fun gameplay
 

@@ -111,15 +111,17 @@ object TraderLogic:
           visitedCities = game.visitedCities + destination,
           log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)
         )
-        
-        // Check for bandit encounter
+
+        // Check for bandit encounter - always set lastEncounter for UI feedback
         val risk = TraderRisk.assessRisk(game.player.inventory)
         val gameAfterEncounter = TraderRisk.rollEncounter(risk, rng) match
           case Some(outcome) =>
             TraderRisk.applyEncounter(gameAfterTravel, outcome, game.player.currentCity, destination, rng)
           case None =>
-            gameAfterTravel
-        
+            // Safe arrival - record Unscathed outcome
+            val encounter = BanditEncounter(EncounterOutcome.Unscathed, game.player.currentCity, destination, game.turn)
+            gameAfterTravel.copy(lastEncounter = Some(encounter))
+
         Right(advanceTurn(gameAfterEncounter))
 
   def upgradeCarriage(game: TraderGame): Either[String, TraderGame] =

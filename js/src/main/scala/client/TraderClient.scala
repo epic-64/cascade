@@ -14,6 +14,10 @@ private val TraderStorageKey = "traderGame"
 // Current game state
 private var traderGame: Option[TraderGame] = None
 
+// UI state for travel modal and animation
+private var selectedCity: Option[CityId] = None
+private var isTraveling: Boolean = false
+
 def initializeTrader(): Unit =
   println("[Trader] Starting Trader game...")
 
@@ -76,15 +80,22 @@ private def renderTraderUI(): Unit =
           renderCarriage(game),
           renderMarket(game)
         ),
-        renderTravel(game),
         renderLog(game),
         renderNewGameButton()
       )
       body.appendChild(container)
-      
-      // Show encounter modal if there was an encounter
+
+      // Show travel animation if traveling
+      if isTraveling then
+        body.appendChild(renderTravelAnimation(game))
+      // Show city modal if a city is selected
+      else selectedCity.foreach { cityId =>
+        body.appendChild(renderCityModal(game, cityId))
+      }
+      // Show encounter modal if there was an encounter (after travel completes)
       game.lastEncounter.foreach { encounter =>
-        body.appendChild(renderEncounterModal(encounter, game))
+        if !isTraveling then
+          body.appendChild(renderEncounterModal(encounter, game))
       }
     case None =>
       body.appendChild(div(content = "Loading..."))
@@ -140,7 +151,8 @@ private def renderCityNode(game: TraderGame, cityId: CityId, travelCost: Option[
 
   if !isCurrent then
     node.with_click { _ =>
-      handleTravel(cityId)
+      selectedCity = Some(cityId)
+      renderTraderUI()
     }
 
   node
@@ -193,6 +205,12 @@ private def renderCarriage(game: TraderGame): HTMLElement =
     else if percentage >= 70 then "capacity-fill warning"
     else "capacity-fill"
 
+  // Risk assessment for current cargo
+  val risk = TraderRisk.assessRisk(player.inventory)
+  val riskLevel = TraderRisk.getRiskLevel(risk)
+  val riskColor = TraderRisk.getRiskColor(risk)
+  val riskPercent = (risk.encounterChance * 100).toInt
+
   div(cls = "trader-carriage")(
     h2(content = "🚗 Your Carriage"),
     div(cls = "trader-gold")(
@@ -204,6 +222,23 @@ private def renderCarriage(game: TraderGame): HTMLElement =
       div(cls = "capacity-bar")(
         div(cls = fillClass).tap(_.style.width = s"$percentage%")
       )
+    ),
+    // Risk indicator moved here
+    div(cls = s"carriage-risk $riskColor")(
+      if risk.cargoWeight > 0 then
+        div()(
+          div(cls = "risk-header")(
+            span(cls = "risk-label", content = "⚠️ Travel Risk: "),
+            span(cls = "risk-level", content = s"$riskLevel ($riskPercent%)")
+          ),
+          div(cls = "risk-details")(
+            span(content = s"Value: ${risk.cargoValue}g @ ${f"${risk.valuePerKg}%.1f"} g/kg")
+          )
+        )
+      else
+        div(cls = "risk-header")(
+          span(content = "✓ Empty cargo - safe travels!")
+        )
     ),
     div(cls = "trader-inventory")(
       h3(content = "Inventory"),
@@ -334,41 +369,6 @@ private def renderMarketRow(game: TraderGame, item: Item): HTMLElement =
     )
   )
 
-private def renderTravel(game: TraderGame): HTMLElement =
-  val (travelOptions, risk) = TraderLogic.getTravelOptionsWithRisk(game)
-  val riskLevel = TraderRisk.getRiskLevel(risk)
-  val riskColor = TraderRisk.getRiskColor(risk)
-  val riskPercent = (risk.encounterChance * 100).toInt
-
-  div(cls = "trader-travel")(
-    h2(content = "Travel To"),
-    // Risk indicator
-    if risk.cargoWeight > 0 then
-      div(cls = s"travel-risk $riskColor")(
-        span(cls = "risk-label", content = "⚠️ Bandit Risk: "),
-        span(cls = "risk-level", content = s"$riskLevel ($riskPercent%)"),
-        div(cls = "risk-details")(
-          span(content = s"Cargo: ${risk.cargoValue}g / ${risk.cargoWeight}kg"),
-          span(content = s" (${f"${risk.valuePerKg}%.1f"} g/kg)")
-        )
-      )
-    else
-      div(cls = "travel-risk risk-safe")(
-        span(content = "✓ Empty cargo - safe travels!")
-      ),
-    div(cls = "travel-options")(
-      travelOptions.map { case (cityId, cost) =>
-        val city = game.cities(cityId)
-        val canAfford = game.player.gold >= cost
-        button(cls = "travel-btn").tap { btn =>
-          btn.innerHTML = s"${city.name} - <span class='cost'>${cost}g</span>"
-          btn.disabled = !canAfford
-          if canAfford then btn.with_click(_ => handleTravel(cityId))
-        }
-      }*
-    )
-  )
-
 private def renderLog(game: TraderGame): HTMLElement =
   div(cls = "trader-log")(
     h2(content = "Log"),
@@ -377,29 +377,161 @@ private def renderLog(game: TraderGame): HTMLElement =
     )
   )
 
+private def renderCityModal(game: TraderGame, cityId: CityId): HTMLElement =
+  val city = game.cities(cityId)
+  val fromCity = game.currentCity
+  val travelCost = TraderLogic.travelCost(fromCity, city, game.player.inventory.totalWeight)
+  val canAfford = game.player.gold >= travelCost
+  val isVisited = game.isCityVisited(cityId)
+
+  // Risk info
+  val risk = TraderRisk.assessRisk(game.player.inventory)
+  val riskLevel = TraderRisk.getRiskLevel(risk)
+  val riskColor = TraderRisk.getRiskColor(risk)
+  val riskPercent = (risk.encounterChance * 100).toInt
+
+  // Market info (if visited)
+  val cheapItems = if isVisited then TraderLogic.getCheapestItems(city, game.season) else Nil
+  val expensiveItems = if isVisited then TraderLogic.getMostExpensiveItems(city, game.season) else Nil
+
+  div(cls = "city-modal-overlay")(
+    div(cls = "city-modal")(
+      div(cls = "city-modal-header")(
+        h2(content = city.name),
+        div(cls = "city-modal-route", content = s"From ${fromCity.name}")
+      ),
+
+      // Travel cost
+      div(cls = "city-modal-section")(
+        div(cls = "section-label", content = "Travel Cost"),
+        div(cls = s"section-value ${if canAfford then "" else "unaffordable"}")(
+          span(cls = "cost-amount", content = s"${travelCost}g"),
+          if !canAfford then span(cls = "cost-warning", content = " (insufficient gold)") else span()
+        )
+      ),
+
+      // Risk factor
+      div(cls = s"city-modal-section risk-section $riskColor")(
+        div(cls = "section-label", content = "Bandit Risk"),
+        if risk.cargoWeight > 0 then
+          div(cls = "section-value")(
+            span(cls = "risk-level", content = s"$riskLevel ($riskPercent%)"),
+            div(cls = "risk-subtext", content = s"${risk.cargoValue}g cargo @ ${f"${risk.valuePerKg}%.1f"} g/kg")
+          )
+        else
+          div(cls = "section-value safe", content = "None (empty cargo)")
+      ),
+
+      // Market info
+      div(cls = "city-modal-section market-section")(
+        div(cls = "section-label", content = "Market"),
+        if isVisited then
+          div(cls = "market-preview")(
+            div(cls = "market-preview-row")(
+              span(cls = "preview-label", content = "Buy cheap: "),
+              if cheapItems.isEmpty then span(cls = "preview-none", content = "Nothing special")
+              else span()(
+                cheapItems.map { case (item, price) =>
+                  span(cls = "preview-item cheap", content = s"${item.toString} ${price}g ")
+                }*
+              )
+            ),
+            div(cls = "market-preview-row")(
+              span(cls = "preview-label", content = "Sell high: "),
+              if expensiveItems.isEmpty then span(cls = "preview-none", content = "Nothing special")
+              else span()(
+                expensiveItems.map { case (item, price) =>
+                  span(cls = "preview-item expensive", content = s"${item.toString} ${price}g ")
+                }*
+              )
+            )
+          )
+        else
+          div(cls = "market-unknown", content = "Market conditions unknown (not yet visited)")
+      ),
+
+      // Action buttons
+      div(cls = "city-modal-actions")(
+        button(cls = "modal-btn cancel", content = "Cancel").with_click { _ =>
+          selectedCity = None
+          renderTraderUI()
+        },
+        button(cls = "modal-btn travel", content = s"Travel (${travelCost}g)").tap { btn =>
+          btn.disabled = !canAfford
+          if canAfford then btn.with_click { _ =>
+            selectedCity = None
+            startTravel(cityId)
+          }
+        }
+      )
+    )
+  )
+
+private def renderTravelAnimation(game: TraderGame): HTMLElement =
+  val fromCity = game.cities.values.find(_.id != game.player.currentCity)
+    .map(_.name).getOrElse("???")
+  val toCity = game.currentCity.name
+
+  div(cls = "travel-animation-overlay")(
+    div(cls = "travel-animation")(
+      div(cls = "travel-icon", content = "🚗"),
+      div(cls = "travel-text", content = "Traveling..."),
+      div(cls = "travel-route", content = s"→ {toCity}")
+    )
+  )
+
+private def startTravel(destination: CityId): Unit =
+  traderGame.foreach { game =>
+    // Start animation
+    isTraveling = true
+    renderTraderUI()
+
+    // After animation delay, execute travel
+    dom.window.setTimeout(
+      () => {
+        TraderLogic.travel(game, destination) match
+          case Right(newGame) =>
+            traderGame = Some(newGame)
+            saveTraderGame()
+            isTraveling = false
+            renderTraderUI()
+          case Left(error) =>
+            isTraveling = false
+            dom.window.alert(error)
+            renderTraderUI()
+      },
+      1200 // 1.2 second animation
+    )
+  }
+
 private def renderEncounterModal(encounter: BanditEncounter, game: TraderGame): HTMLElement =
   val (title, icon, outcomeClass, description, losses) = encounter.outcome match
+    case EncounterOutcome.Unscathed =>
+      ("Safe Arrival!", "✅", "encounter-unscathed",
+       "You arrived safely without any trouble on the road.",
+       List.empty[(String, String)])
+
     case EncounterOutcome.Escaped =>
       ("Narrow Escape!", "🏃", "encounter-escaped",
        "Bandits ambushed you on the road, but you managed to escape!",
        List.empty[(String, String)])
-    
+
     case EncounterOutcome.Toll(goldLost) =>
       ("Toll Demanded!", "💰", "encounter-toll",
        "Bandits blocked the road and demanded payment for safe passage.",
        List(("Gold paid", s"-${goldLost}g")))
-    
+
     case EncounterOutcome.Robbery(itemsLost) =>
-      val lossLines = itemsLost.map { (item, qty) => 
-        (item.toString, s"-$qty") 
+      val lossLines = itemsLost.map { (item, qty) =>
+        (item.toString, s"-$qty")
       }.toList
       ("Robbery!", "🗡️", "encounter-robbery",
        "Bandits overpowered your guards and stole your most valuable cargo!",
        lossLines)
-    
+
     case EncounterOutcome.DevastatingLoss(itemsLost, goldLost) =>
-      val lossLines = itemsLost.map { (item, qty) => 
-        (item.toString, s"-$qty") 
+      val lossLines = itemsLost.map { (item, qty) =>
+        (item.toString, s"-$qty")
       }.toList ++ (if goldLost > 0 then List(("Gold", s"-${goldLost}g")) else Nil)
       ("Devastating Attack!", "💀", "encounter-devastating",
        "A large bandit gang overwhelmed you completely!",
@@ -427,7 +559,7 @@ private def renderEncounterModal(encounter: BanditEncounter, game: TraderGame): 
           )
         )
       else
-        div(cls = "encounter-no-loss", content = "No losses!"),
+        div(cls = "encounter-no-loss", content = if encounter.outcome == EncounterOutcome.Unscathed then "" else "No losses!"),
       button(cls = "encounter-continue-btn", content = "Continue").with_click { _ =>
         dismissEncounter()
       }
@@ -465,17 +597,6 @@ private def handleBuy(item: Item, qty: Int): Unit =
 private def handleSell(item: Item, qty: Int): Unit =
   traderGame.foreach { game =>
     TraderLogic.sellItem(game, item, qty) match
-      case Right(newGame) =>
-        traderGame = Some(newGame)
-        saveTraderGame()
-        renderTraderUI()
-      case Left(error) =>
-        dom.window.alert(error)
-  }
-
-private def handleTravel(destination: CityId): Unit =
-  traderGame.foreach { game =>
-    TraderLogic.travel(game, destination) match
       case Right(newGame) =>
         traderGame = Some(newGame)
         saveTraderGame()
