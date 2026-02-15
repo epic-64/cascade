@@ -330,10 +330,27 @@ private def renderMarketRow(game: TraderGame, item: Item): HTMLElement =
   )
 
 private def renderTravel(game: TraderGame): HTMLElement =
-  val travelOptions = TraderLogic.getTravelOptions(game)
+  val (travelOptions, risk) = TraderLogic.getTravelOptionsWithRisk(game)
+  val riskLevel = TraderRisk.getRiskLevel(risk)
+  val riskColor = TraderRisk.getRiskColor(risk)
+  val riskPercent = (risk.encounterChance * 100).toInt
 
   div(cls = "trader-travel")(
     h2(content = "Travel To"),
+    // Risk indicator
+    if risk.cargoWeight > 0 then
+      div(cls = s"travel-risk $riskColor")(
+        span(cls = "risk-label", content = "⚠️ Bandit Risk: "),
+        span(cls = "risk-level", content = s"$riskLevel ($riskPercent%)"),
+        div(cls = "risk-details")(
+          span(content = s"Cargo: ${risk.cargoValue}g / ${risk.cargoWeight}kg"),
+          span(content = s" (${f"${risk.valuePerKg}%.1f"} g/kg)")
+        )
+      )
+    else
+      div(cls = "travel-risk risk-safe")(
+        span(content = "✓ Empty cargo - safe travels!")
+      ),
     div(cls = "travel-options")(
       travelOptions.map { case (cityId, cost) =>
         val city = game.cities(cityId)

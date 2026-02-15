@@ -87,6 +87,10 @@ object TraderLogic:
           Left(s"Failed to remove items from inventory")
 
   def travel(game: TraderGame, destination: CityId): Either[String, TraderGame] =
+    travel(game, destination, Random)
+
+  /** Travel with explicit RNG for testability */
+  def travel(game: TraderGame, destination: CityId, rng: Random): Either[String, TraderGame] =
     if destination == game.player.currentCity then
       Left("Already in this city")
     else
@@ -102,11 +106,21 @@ object TraderLogic:
           currentCity = destination
         )
         val logEntry = s"Traveled to ${toCity.name} (-${cost}g)"
-        Right(advanceTurn(game.copy(
+        val gameAfterTravel = game.copy(
           player = newPlayer,
-          visitedCities = game.visitedCities + destination, // Mark city as visited
+          visitedCities = game.visitedCities + destination,
           log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)
-        )))
+        )
+        
+        // Check for bandit encounter
+        val risk = TraderRisk.assessRisk(game.player.inventory)
+        val gameAfterEncounter = TraderRisk.rollEncounter(risk, rng) match
+          case Some(outcome) =>
+            TraderRisk.applyEncounter(gameAfterTravel, outcome, game.player.currentCity, destination, rng)
+          case None =>
+            gameAfterTravel
+        
+        Right(advanceTurn(gameAfterEncounter))
 
   def upgradeCarriage(game: TraderGame): Either[String, TraderGame] =
     if game.player.carriageLevel >= 8 then
@@ -238,6 +252,12 @@ object TraderLogic:
         destId -> travelCost(currentCity, destCity, cargoWeight)
       }
       .sortBy(_._2)
+
+  /** Get travel options with risk assessment for UI display */
+  def getTravelOptionsWithRisk(game: TraderGame): (List[(CityId, Int)], RiskAssessment) =
+    val options = getTravelOptions(game)
+    val risk = TraderRisk.assessRisk(game.player.inventory)
+    (options, risk)
 
   /** Get the cheapest items in a city (good for buying).
     * Returns up to 2 items with prices significantly below base price.
