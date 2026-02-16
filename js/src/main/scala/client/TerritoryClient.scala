@@ -82,9 +82,6 @@ object TerritoryClient:
         btn.disabled = true
         btn.onclick = (_: MouseEvent) => handleAbdicate()
       ,
-      button(id = "territory-unlock-btn", cls = "btn-secondary", content = "Unlock Tile (100 gold)").tap: btn =>
-        btn.onclick = (_: MouseEvent) => handleUnlockTile()
-      ,
       button(id = "territory-reset-btn", cls = "btn-danger", content = "Reset").tap: btn =>
         btn.onclick = (_: MouseEvent) => handleResetGame()
     )
@@ -107,7 +104,7 @@ object TerritoryClient:
           p(content = "📈 Farms boost nearby wheat fields by 25% per level"),
           p(content = "👑 Fill all unlocked tiles to abdicate"),
           p(content = "💰 Abdication earns gold based on income rate"),
-          p(content = "🔓 Use gold to unlock more tiles")
+          p(content = "🔓 Click adjacent tiles to expand your territory")
         )
       )
     )
@@ -153,17 +150,17 @@ object TerritoryClient:
         case Some(json) =>
           import upickle.default.*
           val loadedGame = read[TerritoryGame](json)
-          
+
           // Calculate offline progress
           val currentTime = System.currentTimeMillis()
           currentGame = TerritoryLogic.tick(loadedGame, currentTime)
-          
+
           val offlineSeconds = (currentTime - loadedGame.lastTickTime) / 1000.0
           if offlineSeconds > 60 then
             val offlineWheat = currentGame.wheat - loadedGame.wheat
             println(s"[Territory] Welcome back! You earned ${offlineWheat.toInt} wheat while away (${(offlineSeconds / 60).toInt} minutes)")
             showNotification(s"Welcome back! You earned ${offlineWheat.toInt} wheat while offline.")
-          
+
           println(s"[Territory] Game loaded from localStorage")
         case None =>
           println(s"[Territory] No saved game found, starting new game")
@@ -182,7 +179,6 @@ object TerritoryClient:
     renderResources()
     renderTiles()
     renderAbdicationButton()
-    renderUnlockButton()
 
   private def renderResources(): Unit =
     setElementText("territory-wheat", f"${currentGame.wheat.toInt}%,d")
@@ -204,7 +200,23 @@ object TerritoryClient:
 
     if !tile.unlocked then
       tileDiv.classList.add("locked")
-      tileDiv.appendChild(div(cls = "tile-content", content = "🔒"))
+      val isUnlockable = TerritoryLogic.unlockableTileIds(currentGame).contains(tile.id)
+      val cost = currentGame.nextTileUnlockCost
+      val canAfford = currentGame.gold >= cost
+
+      if isUnlockable then
+        tileDiv.classList.add("unlockable")
+        tileDiv.appendChild(
+          div(cls = "tile-content")(
+            div(cls = "tile-icon", content = "🔓"),
+            div(cls = "tile-cost", content = s"$cost 💰")
+          )
+        )
+        if canAfford then
+          tileDiv.classList.add("affordable")
+          tileDiv.onclick = (_: MouseEvent) => handleUnlockTile(tile.id)
+      else
+        tileDiv.appendChild(div(cls = "tile-content", content = "🔒"))
     else
       tileDiv.classList.add("unlocked")
       tile.tileType match
@@ -213,7 +225,7 @@ object TerritoryClient:
           val wheatCost = TerritoryLogic.wheatFieldBuildCost
           val farmCost = TerritoryLogic.farmBuildCost
           val canBuildFarm = currentGame.hasWheatField
-          
+
           if canBuildFarm then
             tileDiv.appendChild(
               div(cls = "tile-content tile-build-options")(
@@ -251,19 +263,19 @@ object TerritoryClient:
           val hasBonus = actualProduction > baseProduction
           val productionStr = f"$actualProduction%.1f"
           val upgradeCost = TerritoryLogic.wheatFieldLevelUpCost(level)
-          
+
           val content = div(cls = "tile-content")(
             div(cls = "tile-icon", content = "🌾"),
             div(cls = "tile-label", content = s"Lv$level")
           )
-          
+
           val prodDiv = div(cls = "tile-production", content = s"+$productionStr/s")
           if hasBonus then
             val bonusPercent = ((actualProduction / baseProduction - 1) * 100).toInt
             prodDiv.appendChild(span(cls = "bonus", content = s" +$bonusPercent%"))
           content.appendChild(prodDiv)
           content.appendChild(div(cls = "tile-upgrade", content = s"⬆$upgradeCost"))
-          
+
           tileDiv.appendChild(content)
           tileDiv.onclick = (_: MouseEvent) => handleLevelUpWheatField(tile.id)
 
@@ -272,7 +284,7 @@ object TerritoryClient:
           tileDiv.setAttribute("data-level", level.toString)
           val boostPercent = (level * TerritoryLogic.FarmBoostPerLevel * 100).toInt
           val upgradeCost = TerritoryLogic.farmLevelUpCost(level)
-          
+
           tileDiv.appendChild(
             div(cls = "tile-content")(
               div(cls = "tile-icon", content = "🏠"),
@@ -298,19 +310,6 @@ object TerritoryClient:
         btn.classList.add("disabled")
         btn.textContent = "Abdicate (fill all tiles first)"
 
-  private def renderUnlockButton(): Unit =
-    getElementById("territory-unlock-btn").foreach: elem =>
-      val btn = elem.asInstanceOf[HTMLButtonElement]
-      if currentGame.lockedTiles.isEmpty then
-        btn.style.display = "none"
-      else
-        btn.style.display = "block"
-        val cost = currentGame.nextTileUnlockCost
-        val canAfford = currentGame.gold >= cost
-        btn.disabled = !canAfford
-        if canAfford then btn.classList.remove("disabled")
-        else btn.classList.add("disabled")
-        btn.textContent = s"Unlock Tile ($cost gold)"
 
   // ============================================================================
   // Event Handlers
@@ -365,8 +364,8 @@ object TerritoryClient:
           case Left(error) =>
             showNotification(error)
 
-  private def handleUnlockTile(): Unit =
-    TerritoryLogic.unlockTile(currentGame) match
+  private def handleUnlockTile(tileId: Int): Unit =
+    TerritoryLogic.unlockTile(currentGame, tileId) match
       case Right(newGame) =>
         currentGame = newGame
         saveGame()

@@ -162,12 +162,15 @@ object TerritoryLogic:
     math.max(10, (totalIncomeRate * 20).toInt) // 20 gold per wheat/second
 
   // Create initial game state
+  // Initial 2x2 tiles in the center of the 8x8 grid (positions (3,3), (3,4), (4,3), (4,4))
+  private val InitialUnlockedTileIds: Set[Int] = Set(27, 28, 35, 36)
+
   def newGame(currentTimeMillis: Long): TerritoryGame =
     val initialTiles = (0 until MaxTiles).map: id =>
       id -> Tile(
         id = id,
         tileType = TileType.Empty,
-        unlocked = id < InitialTileCount
+        unlocked = InitialUnlockedTileIds.contains(id)
       )
     .toMap
 
@@ -272,11 +275,20 @@ object TerritoryLogic:
         totalAbdications = game.totalAbdications + 1
       ))
 
-  // Unlock next tile with gold
-  def unlockTile(game: TerritoryGame): Either[String, TerritoryGame] =
-    val nextTile = game.lockedTiles.headOption
-    nextTile match
-      case None => Left("No more tiles to unlock")
+  // Get all tiles that can be unlocked (locked tiles adjacent to unlocked tiles)
+  def unlockableTileIds(game: TerritoryGame): Set[Int] =
+    val gSize = gridSize(game.unlockedTiles.size)
+    val unlockedIds = game.unlockedTiles.map(_.id).toSet
+    val allAdjacentToUnlocked = unlockedIds.flatMap(id => adjacentTileIds(id, gSize))
+    allAdjacentToUnlocked.filter(id => game.tiles.get(id).exists(!_.unlocked))
+
+  // Unlock a specific tile with gold (must be adjacent to an unlocked tile)
+  def unlockTile(game: TerritoryGame, tileId: Int): Either[String, TerritoryGame] =
+    game.tiles.get(tileId) match
+      case None => Left("Tile not found")
+      case Some(tile) if tile.unlocked => Left("Tile is already unlocked")
+      case Some(tile) if !unlockableTileIds(game).contains(tileId) =>
+        Left("Can only unlock tiles adjacent to your territory")
       case Some(tile) =>
         val cost = tileUnlockCost(game.unlockedTiles.size)
         if game.gold < cost then
@@ -284,7 +296,7 @@ object TerritoryLogic:
         else
           val updatedTile = tile.copy(unlocked = true)
           Right(game.copy(
-            tiles = game.tiles.updated(tile.id, updatedTile),
+            tiles = game.tiles.updated(tileId, updatedTile),
             gold = game.gold - cost
           ))
 
