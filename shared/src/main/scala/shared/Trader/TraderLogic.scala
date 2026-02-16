@@ -21,13 +21,12 @@ object TraderLogic:
     val cargoCost = cargoWeight * 0.02
     math.ceil(baseCost + cargoCost).toInt
 
-  /** Calculate the market price for an item in a city.
-    * This is the unified price - what you pay to buy AND what you receive when selling.
-    * Price is affected by:
-    * - Base item price
-    * - City's supply level (abundant = cheaper, scarce = expensive)
-    * - City's demand level (high = expensive, low = cheaper)
-    * - Current season modifiers
+  /** Calculate the market price for an item in a city. This is the unified price - what you pay to buy AND what you
+    * receive when selling. Price is affected by:
+    *   - Base item price
+    *   - City's supply level (abundant = cheaper, scarce = expensive)
+    *   - City's demand level (high = expensive, low = cheaper)
+    *   - Current season modifiers
     */
   def calculatePrice(city: City, item: Item, season: Season): Int =
     val base = Item.basePrice(item)
@@ -211,15 +210,15 @@ object TraderLogic:
 
   def newGame(): TraderGame =
     val cities = Map(
-      CityId.Northport   -> City(CityId.Northport, "Northport", CityMarket(Map.empty, Map.empty), (0, 0)),
-      CityId.Ironforge   -> City(CityId.Ironforge, "Ironforge", CityMarket(Map.empty, Map.empty), (0, 1)),
+      CityId.Northport -> City(CityId.Northport, "Northport", CityMarket(Map.empty, Map.empty), (0, 0)),
+      CityId.Ironforge -> City(CityId.Ironforge, "Ironforge", CityMarket(Map.empty, Map.empty), (0, 1)),
       CityId.Crystalpeak -> City(CityId.Crystalpeak, "Crystalpeak", CityMarket(Map.empty, Map.empty), (0, 2)),
-      CityId.Wheatholm   -> City(CityId.Wheatholm, "Wheatholm", CityMarket(Map.empty, Map.empty), (1, 0)),
-      CityId.Riverdale   -> City(CityId.Riverdale, "Riverdale", CityMarket(Map.empty, Map.empty), (1, 1)),
-      CityId.Silkwood    -> City(CityId.Silkwood, "Silkwood", CityMarket(Map.empty, Map.empty), (1, 2)),
-      CityId.Saltmarsh   -> City(CityId.Saltmarsh, "Saltmarsh", CityMarket(Map.empty, Map.empty), (2, 0)),
-      CityId.Vineyard    -> City(CityId.Vineyard, "Vineyard", CityMarket(Map.empty, Map.empty), (2, 1)),
-      CityId.Timberfall  -> City(CityId.Timberfall, "Timberfall", CityMarket(Map.empty, Map.empty), (2, 2))
+      CityId.Wheatholm -> City(CityId.Wheatholm, "Wheatholm", CityMarket(Map.empty, Map.empty), (1, 0)),
+      CityId.Riverdale -> City(CityId.Riverdale, "Riverdale", CityMarket(Map.empty, Map.empty), (1, 1)),
+      CityId.Silkwood -> City(CityId.Silkwood, "Silkwood", CityMarket(Map.empty, Map.empty), (1, 2)),
+      CityId.Saltmarsh -> City(CityId.Saltmarsh, "Saltmarsh", CityMarket(Map.empty, Map.empty), (2, 0)),
+      CityId.Vineyard -> City(CityId.Vineyard, "Vineyard", CityMarket(Map.empty, Map.empty), (2, 1)),
+      CityId.Timberfall -> City(CityId.Timberfall, "Timberfall", CityMarket(Map.empty, Map.empty), (2, 2))
     )
 
     // Initialize markets based on specializations
@@ -261,8 +260,8 @@ object TraderLogic:
     val risk = TraderRisk.assessRisk(game.player.inventory)
     (options, risk)
 
-  /** Get the cheapest items in a city (good for buying).
-    * Returns up to 2 items with prices significantly below base price.
+  /** Get the cheapest items in a city (good for buying). Returns up to 2 items with prices significantly below base
+    * price.
     */
   def getCheapestItems(city: City, season: Season, limit: Int = 2): List[(Item, Int)] =
     Item.all
@@ -271,8 +270,8 @@ object TraderLogic:
       .sortBy((item, price) => price.toDouble / Item.basePrice(item)) // Sort by discount ratio
       .take(limit)
 
-  /** Get the most expensive items in a city (good for selling).
-    * Returns up to 2 items with prices significantly above base price.
+  /** Get the most expensive items in a city (good for selling). Returns up to 2 items with prices significantly above
+    * base price.
     */
   def getMostExpensiveItems(city: City, season: Season, limit: Int = 2): List[(Item, Int)] =
     Item.all
@@ -280,4 +279,3 @@ object TraderLogic:
       .filter((item, price) => price > Item.basePrice(item)) // Only items above base price
       .sortBy((item, price) => -price.toDouble / Item.basePrice(item)) // Sort by markup ratio (descending)
       .take(limit)
-

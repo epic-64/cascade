@@ -116,11 +116,9 @@ object TerritoryClient:
         btn.onclick = (_: MouseEvent) => handleAbdicate()
       ,
       button(id = "territory-center-btn", cls = "btn-secondary", content = "⌖ Center").tap: btn =>
-        btn.onclick = (_: MouseEvent) => centerOnTerritory(animated = true)
-      ,
+        btn.onclick = (_: MouseEvent) => centerOnTerritory(animated = true),
       button(id = "territory-reset-btn", cls = "btn-danger", content = "Reset").tap: btn =>
-        btn.onclick = (_: MouseEvent) => handleResetGame()
-      ,
+        btn.onclick = (_: MouseEvent) => handleResetGame(),
       button(id = "territory-dev-btn", cls = "btn-dev", content = "🛠️ Dev").tap: btn =>
         btn.onclick = (_: MouseEvent) => toggleDevTools()
     )
@@ -227,54 +225,62 @@ object TerritoryClient:
         snapBackIfNeeded()
 
     // Touch support
-    viewport.addEventListener("touchstart", (e: TouchEvent) =>
-      if e.touches.length == 1 then
-        val touch = e.touches(0)
-        isDragging = true
-        dragStartX = touch.clientX
-        dragStartY = touch.clientY
-        panStartX = panOffsetX
-        panStartY = panOffsetY
+    viewport.addEventListener(
+      "touchstart",
+      (e: TouchEvent) =>
+        if e.touches.length == 1 then
+          val touch = e.touches(0)
+          isDragging = true
+          dragStartX = touch.clientX
+          dragStartY = touch.clientY
+          panStartX = panOffsetX
+          panStartY = panOffsetY
     )
 
-    viewport.addEventListener("touchmove", (e: TouchEvent) =>
-      if isDragging && e.touches.length == 1 then
-        e.preventDefault()
-        val touch = e.touches(0)
-        val dx = touch.clientX - dragStartX
-        val dy = touch.clientY - dragStartY
-        panOffsetX = panStartX + dx
-        panOffsetY = panStartY + dy
-        updateGridPosition()
+    viewport.addEventListener(
+      "touchmove",
+      (e: TouchEvent) =>
+        if isDragging && e.touches.length == 1 then
+          e.preventDefault()
+          val touch = e.touches(0)
+          val dx = touch.clientX - dragStartX
+          val dy = touch.clientY - dragStartY
+          panOffsetX = panStartX + dx
+          panOffsetY = panStartY + dy
+          updateGridPosition()
     )
 
-    viewport.addEventListener("touchend", (_: TouchEvent) =>
-      if isDragging then
-        isDragging = false
-        snapBackIfNeeded()
+    viewport.addEventListener(
+      "touchend",
+      (_: TouchEvent) =>
+        if isDragging then
+          isDragging = false
+          snapBackIfNeeded()
     )
 
     // Mouse wheel zoom
-    viewport.addEventListener("wheel", (e: WheelEvent) =>
-      e.preventDefault()
+    viewport.addEventListener(
+      "wheel",
+      (e: WheelEvent) =>
+        e.preventDefault()
 
-      val mouseX = e.clientX
-      val mouseY = e.clientY
+        val mouseX = e.clientX
+        val mouseY = e.clientY
 
-      // Calculate the world position under the mouse before zoom
-      val worldXBefore = (mouseX - panOffsetX) / TileSize
-      val worldYBefore = (mouseY - panOffsetY) / TileSize
+        // Calculate the world position under the mouse before zoom
+        val worldXBefore = (mouseX - panOffsetX) / TileSize
+        val worldYBefore = (mouseY - panOffsetY) / TileSize
 
-      // Apply zoom
-      val delta = if e.deltaY < 0 then ZoomStep else -ZoomStep
-      zoomLevel = math.max(MinZoom, math.min(MaxZoom, zoomLevel + delta))
+        // Apply zoom
+        val delta = if e.deltaY < 0 then ZoomStep else -ZoomStep
+        zoomLevel = math.max(MinZoom, math.min(MaxZoom, zoomLevel + delta))
 
-      // Adjust pan to keep the same world position under the mouse
-      panOffsetX = mouseX - worldXBefore * TileSize
-      panOffsetY = mouseY - worldYBefore * TileSize
+        // Adjust pan to keep the same world position under the mouse
+        panOffsetX = mouseX - worldXBefore * TileSize
+        panOffsetY = mouseY - worldYBefore * TileSize
 
-      updateGridPosition()
-      renderTiles()
+        updateGridPosition()
+        renderTiles()
     )
 
   private def updateGridPosition(): Unit =
@@ -302,7 +308,7 @@ object TerritoryClient:
       val tileScreenX = coord.col * TileSize + panOffsetX
       val tileScreenY = coord.row * TileSize + panOffsetY
       tileScreenX > -TileSize + margin && tileScreenX < viewportWidth - margin &&
-        tileScreenY > -TileSize + margin && tileScreenY < viewportHeight - margin
+      tileScreenY > -TileSize + margin && tileScreenY < viewportHeight - margin
 
     if !anyVisible then
       // Animate snap back to center
@@ -424,12 +430,14 @@ object TerritoryClient:
             // Collect upgrade info to show after render
             val upgradedTile = updatedGame.tiles.get(upgradedCoord)
             val upgradeCost = upgradedTile
-              .flatMap(t => TerritoryLogic.getUpgradeCost(t.copy(tileType = t.tileType match
-                case TileType.WheatField(lvl) => TileType.WheatField(lvl - 1)
-                case TileType.Farm(lvl) => TileType.Farm(lvl - 1)
-                case TileType.Woodcutter(lvl) => TileType.Woodcutter(lvl - 1)
-                case other => other
-              )))
+              .flatMap(t =>
+                TerritoryLogic.getUpgradeCost(t.copy(tileType = t.tileType match
+                  case TileType.WheatField(lvl) => TileType.WheatField(lvl - 1)
+                  case TileType.Farm(lvl)       => TileType.Farm(lvl - 1)
+                  case TileType.Woodcutter(lvl) => TileType.Woodcutter(lvl - 1)
+                  case other                    => other
+                ))
+              )
               .getOrElse(0)
             val newLevel = upgradedTile.map(_.level).getOrElse(1)
             bureauUpgrades = bureauUpgrades :+ (upgradedCoord, newLevel, tile.coord, upgradeCost)
@@ -532,7 +540,6 @@ object TerritoryClient:
             case TileType.Bureau(_) =>
               grid.appendChild(renderInfluenceIndicator(coord, TerritoryLogic.BureauRadius, "bureau-influence"))
             case _ => // No indicator
-
       // Get all coords we need to render (existing tiles + unlockable if affordable)
       val unlockableCoords = TerritoryLogic.unlockableCoords(currentGame)
       val canAffordUnlock = currentGame.gold >= currentGame.nextTileUnlockCost
@@ -547,19 +554,18 @@ object TerritoryClient:
             case None if canAffordUnlock && unlockableCoords.contains(coord) =>
               grid.appendChild(renderUnlockableTile(coord))
             case _ => // Don't render
-
   private def renderInfluenceIndicator(center: Coord, radius: Int, cssClass: String): HTMLElement =
     val indicator = div(cls = s"influence-indicator $cssClass")
-    
+
     // Calculate the rectangle bounds
     val left = (center.col - radius) * TileSize
     val top = (center.row - radius) * TileSize
     val width = (radius * 2 + 1) * TileSize - 4 // -4 for gap
     val height = (radius * 2 + 1) * TileSize - 4
-    
-    indicator.style.cssText = 
+
+    indicator.style.cssText =
       s"position: absolute; left: ${left}px; top: ${top}px; width: ${width}px; height: ${height}px;"
-    
+
     indicator
 
   private def renderTile(tile: Tile): HTMLElement =
@@ -571,7 +577,8 @@ object TerritoryClient:
 
     // Position the tile absolutely with zoom-adjusted size
     tileDiv.asInstanceOf[HTMLElement].style.cssText =
-      s"position: absolute; left: ${coord.col * TileSize}px; top: ${coord.row * TileSize}px; width: ${tilePixelSize}px; height: ${tilePixelSize}px; font-size: ${fontScale}em;"
+      s"position: absolute; left: ${coord.col * TileSize}px; top: ${coord
+          .row * TileSize}px; width: ${tilePixelSize}px; height: ${tilePixelSize}px; font-size: ${fontScale}em;"
 
     tileDiv.classList.add("unlocked")
     tile.tileType match
@@ -702,7 +709,8 @@ object TerritoryClient:
         // Add progress bar
         val progress = tileProgress.getOrElse(coord, 0.0)
         val progressContainer = div(cls = "tile-progress-container")
-        val progressBar = div(id = s"progress-bar-${coord.row}-${coord.col}", cls = "tile-progress-bar woodcutter-progress")
+        val progressBar =
+          div(id = s"progress-bar-${coord.row}-${coord.col}", cls = "tile-progress-bar woodcutter-progress")
         progressBar.style.width = s"${(progress * 100).toInt}%"
         progressContainer.appendChild(progressBar)
         tileDiv.appendChild(progressContainer)
@@ -746,7 +754,8 @@ object TerritoryClient:
 
     // Position the tile absolutely with zoom-adjusted size
     tileDiv.style.cssText =
-      s"position: absolute; left: ${coord.col * TileSize}px; top: ${coord.row * TileSize}px; width: ${tilePixelSize}px; height: ${tilePixelSize}px; font-size: ${fontScale}em;"
+      s"position: absolute; left: ${coord.col * TileSize}px; top: ${coord
+          .row * TileSize}px; width: ${tilePixelSize}px; height: ${tilePixelSize}px; font-size: ${fontScale}em;"
 
     val cost = currentGame.nextTileUnlockCost
 
@@ -918,9 +927,11 @@ object TerritoryClient:
     getElementById("territory-notification").foreach: notification =>
       notification.textContent = message
       notification.classList.add("show")
-      window.setTimeout(() =>
-        notification.classList.remove("show")
-      , 3000)
+      window.setTimeout(
+        () =>
+          notification.classList.remove("show"),
+        3000
+      )
 
   private def updateProgressBars(): Unit =
     currentGame.unlockedTiles.filter(t => t.isWheatField || t.isWoodcutter || t.isBureau).foreach: tile =>
@@ -949,4 +960,3 @@ object TerritoryClient:
 
       // Remove after animation completes
       window.setTimeout(() => floater.remove(), 1000)
-

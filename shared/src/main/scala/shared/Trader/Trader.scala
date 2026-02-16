@@ -58,15 +58,15 @@ enum Season derives ReadWriter:
 
 object Season:
   def modifier(season: Season, item: Item): Double = (season, item) match
-    case (Season.Spring, Item.Wheat) => 1.2
-    case (Season.Spring, Item.Wine)  => 0.9
-    case (Season.Summer, Item.Fish)  => 1.3
-    case (Season.Summer, Item.Salt)  => 0.8
-    case (Season.Autumn, Item.Wine)  => 1.3
-    case (Season.Autumn, Item.Wheat) => 1.1
-    case (Season.Winter, Item.Coal)  => 1.4
+    case (Season.Spring, Item.Wheat)     => 1.2
+    case (Season.Spring, Item.Wine)      => 0.9
+    case (Season.Summer, Item.Fish)      => 1.3
+    case (Season.Summer, Item.Salt)      => 0.8
+    case (Season.Autumn, Item.Wine)      => 1.3
+    case (Season.Autumn, Item.Wheat)     => 1.1
+    case (Season.Winter, Item.Coal)      => 1.4
     case (Season.Winter, Item.Livestock) => 1.2
-    case _ => 1.0
+    case _                               => 1.0
 
   def next(season: Season): Season = season match
     case Season.Spring => Season.Summer
@@ -76,8 +76,8 @@ object Season:
 
 // City identifiers
 enum CityId derives ReadWriter:
-  case Northport, Ironforge, Crystalpeak, Wheatholm, Riverdale, 
-       Silkwood, Saltmarsh, Vineyard, Timberfall
+  case Northport, Ironforge, Crystalpeak, Wheatholm, Riverdale,
+    Silkwood, Saltmarsh, Vineyard, Timberfall
 
 // City market conditions
 case class CityMarket(
@@ -139,7 +139,7 @@ case class TraderGame(
 ) derives ReadWriter:
   def currentCity: City = cities(player.currentCity)
   // Current city is always considered visited (you can see the market you're in)
-  def isCityVisited(cityId: CityId): Boolean = 
+  def isCityVisited(cityId: CityId): Boolean =
     cityId == player.currentCity || visitedCities.contains(cityId)
 
 object TraderGame:
@@ -149,11 +149,11 @@ object TraderGame:
 
 /** Possible outcomes when traveling - includes safe arrival and bandit encounters */
 enum EncounterOutcome derives ReadWriter:
-  case Unscathed                                                    // Safe arrival, no bandits
-  case Escaped                                                      // Got away clean
-  case Toll(goldLost: Int)                                         // Paid off the bandits
-  case Robbery(itemsLost: Map[Item, Int])                          // Lost some cargo
-  case DevastatingLoss(itemsLost: Map[Item, Int], goldLost: Int)   // Major loss
+  case Unscathed // Safe arrival, no bandits
+  case Escaped // Got away clean
+  case Toll(goldLost: Int) // Paid off the bandits
+  case Robbery(itemsLost: Map[Item, Int]) // Lost some cargo
+  case DevastatingLoss(itemsLost: Map[Item, Int], goldLost: Int) // Major loss
 
 /** Risk calculation result for current cargo */
 case class RiskAssessment(

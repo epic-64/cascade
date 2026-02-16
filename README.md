@@ -1,7 +1,7 @@
 # Cascade
 [![Coverage](https://epic-64.github.io/cascade/coverage/coverage-badge.svg)](https://epic-64.github.io/cascade/coverage/index.html)
 [![Lines of Code](https://epic-64.github.io/cascade/coverage/loc-badge.svg)](https://epic-64.github.io/cascade/coverage/coverage-index.html)
-[![Scala](https://img.shields.io/badge/Scala-3.7.4-red)](https://www.scala-lang.org/)
+[![Scala](https://img.shields.io/badge/Scala-3.8.1-red)](https://www.scala-lang.org/)
 [![Sbt](https://img.shields.io/badge/sbt-1.12.1-red)](https://www.scala-lang.org/)
 [![Scala.js](https://img.shields.io/badge/Scala.js-1.20.2-blue)](https://www.scala-js.org/)
 [![Cask](https://img.shields.io/badge/Cask-0.11.3-orange)](https://com-lihaoyi.github.io/cask/)

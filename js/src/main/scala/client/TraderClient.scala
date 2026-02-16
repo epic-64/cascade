@@ -89,9 +89,10 @@ private def renderTraderUI(): Unit =
       if isTraveling then
         body.appendChild(renderTravelAnimation(game))
       // Show city modal if a city is selected
-      else selectedCity.foreach { cityId =>
-        body.appendChild(renderCityModal(game, cityId))
-      }
+      else
+        selectedCity.foreach { cityId =>
+          body.appendChild(renderCityModal(game, cityId))
+        }
       // Show encounter modal if there was an encounter (after travel completes)
       game.lastEncounter.foreach { encounter =>
         if !isTraveling then
@@ -171,27 +172,29 @@ private def renderCityMarketInfo(game: TraderGame, city: City, isVisited: Boolea
     // Visited - show actual cheap/expensive items
     val cheapItems = TraderLogic.getCheapestItems(city, game.season)
     val expensiveItems = TraderLogic.getMostExpensiveItems(city, game.season)
-    
+
     div(cls = "city-market-info")(
       // Cheap items (good for buying)
       div(cls = "market-row cheap")(
         span(cls = "market-label", content = "Buy: "),
         if cheapItems.isEmpty then span(cls = "market-none", content = "—")
-        else span()(
-          cheapItems.map { case (item, price) =>
-            span(cls = "cheap-item", content = s"${item.toString.take(4)} ${price}g ")
-          }*
-        )
+        else
+          span()(
+            cheapItems.map { case (item, price) =>
+              span(cls = "cheap-item", content = s"${item.toString.take(4)} ${price}g ")
+            }*
+          )
       ),
       // Expensive items (good for selling)
       div(cls = "market-row expensive")(
         span(cls = "market-label", content = "Sell: "),
         if expensiveItems.isEmpty then span(cls = "market-none", content = "—")
-        else span()(
-          expensiveItems.map { case (item, price) =>
-            span(cls = "expensive-item", content = s"${item.toString.take(4)} ${price}g ")
-          }*
-        )
+        else
+          span()(
+            expensiveItems.map { case (item, price) =>
+              span(cls = "expensive-item", content = s"${item.toString.take(4)} ${price}g ")
+            }*
+          )
       )
     )
 
@@ -315,12 +318,12 @@ private def renderMarketRow(game: TraderGame, item: Item): HTMLElement =
   // (+) = increases price, (-) = decreases price
   val factors = List(
     supplyLevel.collect {
-      case SupplyLevel.Abundant => ("factor-supply", "Supply ↑ (−)")  // More supply = lower price
-      case SupplyLevel.Scarce => ("factor-supply", "Supply ↓ (+)")    // Less supply = higher price
+      case SupplyLevel.Abundant => ("factor-supply", "Supply ↑ (−)") // More supply = lower price
+      case SupplyLevel.Scarce   => ("factor-supply", "Supply ↓ (+)") // Less supply = higher price
     },
     demandLevel.collect {
-      case DemandLevel.High => ("factor-demand", "Demand ↑ (+)")      // More demand = higher price
-      case DemandLevel.Low => ("factor-demand", "Demand ↓ (−)")       // Less demand = lower price
+      case DemandLevel.High => ("factor-demand", "Demand ↑ (+)") // More demand = higher price
+      case DemandLevel.Low  => ("factor-demand", "Demand ↓ (−)") // Less demand = lower price
     },
     Option.when(seasonMod != 1.0) {
       if seasonMod > 1.0 then ("factor-season", s"${game.season} (+)")
@@ -331,11 +334,11 @@ private def renderMarketRow(game: TraderGame, item: Item): HTMLElement =
   // Determine if price is good for buying (low = good) or selling (high = good)
   // Compare to base price to determine color
   val priceRatio = currentPrice.toDouble / basePrice
-  val priceClass = 
-    if priceRatio <= 0.75 then "price-very-low"      // Great buy, bad sell
-    else if priceRatio <= 0.95 then "price-low"      // Good buy, okay sell  
+  val priceClass =
+    if priceRatio <= 0.75 then "price-very-low" // Great buy, bad sell
+    else if priceRatio <= 0.95 then "price-low" // Good buy, okay sell
     else if priceRatio >= 1.3 then "price-very-high" // Bad buy, great sell
-    else if priceRatio >= 1.1 then "price-high"      // Okay buy, good sell
+    else if priceRatio >= 1.1 then "price-high" // Okay buy, good sell
     else "price-normal"
 
   el("tr")(
@@ -347,11 +350,12 @@ private def renderMarketRow(game: TraderGame, item: Item): HTMLElement =
     el("td", cls = s"price-current $priceClass", content = s"${currentPrice}g"),
     el("td", cls = "price-factors")(
       if factors.isEmpty then span(cls = "factor-none", content = "—")
-      else div(cls = "factors-list")(
-        factors.map { case (cls, label) => 
-          span(cls = s"factor-tag $cls", content = label)
-        }*
-      )
+      else
+        div(cls = "factors-list")(
+          factors.map { case (cls, label) =>
+            span(cls = s"factor-tag $cls", content = label)
+          }*
+        )
     ),
     el("td", content = if stock > 0 then stock.toString else "-"),
     el("td")(
@@ -430,20 +434,22 @@ private def renderCityModal(game: TraderGame, cityId: CityId): HTMLElement =
             div(cls = "market-preview-row")(
               span(cls = "preview-label", content = "Buy cheap: "),
               if cheapItems.isEmpty then span(cls = "preview-none", content = "Nothing special")
-              else span()(
-                cheapItems.map { case (item, price) =>
-                  span(cls = "preview-item cheap", content = s"${item.toString} ${price}g ")
-                }*
-              )
+              else
+                span()(
+                  cheapItems.map { case (item, price) =>
+                    span(cls = "preview-item cheap", content = s"${item.toString} ${price}g ")
+                  }*
+                )
             ),
             div(cls = "market-preview-row")(
               span(cls = "preview-label", content = "Sell high: "),
               if expensiveItems.isEmpty then span(cls = "preview-none", content = "Nothing special")
-              else span()(
-                expensiveItems.map { case (item, price) =>
-                  span(cls = "preview-item expensive", content = s"${item.toString} ${price}g ")
-                }*
-              )
+              else
+                span()(
+                  expensiveItems.map { case (item, price) =>
+                    span(cls = "preview-item expensive", content = s"${item.toString} ${price}g ")
+                  }*
+                )
             )
           )
         else
@@ -458,10 +464,11 @@ private def renderCityModal(game: TraderGame, cityId: CityId): HTMLElement =
         },
         button(cls = "modal-btn travel", content = s"Travel (${travelCost}g)").tap { btn =>
           btn.disabled = !canAfford
-          if canAfford then btn.with_click { _ =>
-            selectedCity = None
-            startTravel(cityId)
-          }
+          if canAfford then
+            btn.with_click { _ =>
+              selectedCity = None
+              startTravel(cityId)
+            }
         }
       )
     )
@@ -488,7 +495,7 @@ private def startTravel(destination: CityId): Unit =
 
     // After animation delay, execute travel
     dom.window.setTimeout(
-      () => {
+      () =>
         TraderLogic.travel(game, destination) match
           case Right(newGame) =>
             traderGame = Some(newGame)
@@ -499,7 +506,7 @@ private def startTravel(destination: CityId): Unit =
             isTraveling = false
             dom.window.alert(error)
             renderTraderUI()
-      },
+      ,
       1200 // 1.2 second animation
     )
   }
@@ -507,35 +514,55 @@ private def startTravel(destination: CityId): Unit =
 private def renderEncounterModal(encounter: BanditEncounter, game: TraderGame): HTMLElement =
   val (title, icon, outcomeClass, description, losses) = encounter.outcome match
     case EncounterOutcome.Unscathed =>
-      ("Safe Arrival!", "✅", "encounter-unscathed",
-       "You arrived safely without any trouble on the road.",
-       List.empty[(String, String)])
+      (
+        "Safe Arrival!",
+        "✅",
+        "encounter-unscathed",
+        "You arrived safely without any trouble on the road.",
+        List.empty[(String, String)]
+      )
 
     case EncounterOutcome.Escaped =>
-      ("Narrow Escape!", "🏃", "encounter-escaped",
-       "Bandits ambushed you on the road, but you managed to escape!",
-       List.empty[(String, String)])
+      (
+        "Narrow Escape!",
+        "🏃",
+        "encounter-escaped",
+        "Bandits ambushed you on the road, but you managed to escape!",
+        List.empty[(String, String)]
+      )
 
     case EncounterOutcome.Toll(goldLost) =>
-      ("Toll Demanded!", "💰", "encounter-toll",
-       "Bandits blocked the road and demanded payment for safe passage.",
-       List(("Gold paid", s"-${goldLost}g")))
+      (
+        "Toll Demanded!",
+        "💰",
+        "encounter-toll",
+        "Bandits blocked the road and demanded payment for safe passage.",
+        List(("Gold paid", s"-${goldLost}g"))
+      )
 
     case EncounterOutcome.Robbery(itemsLost) =>
       val lossLines = itemsLost.map { (item, qty) =>
         (item.toString, s"-$qty")
       }.toList
-      ("Robbery!", "🗡️", "encounter-robbery",
-       "Bandits overpowered your guards and stole your most valuable cargo!",
-       lossLines)
+      (
+        "Robbery!",
+        "🗡️",
+        "encounter-robbery",
+        "Bandits overpowered your guards and stole your most valuable cargo!",
+        lossLines
+      )
 
     case EncounterOutcome.DevastatingLoss(itemsLost, goldLost) =>
       val lossLines = itemsLost.map { (item, qty) =>
         (item.toString, s"-$qty")
       }.toList ++ (if goldLost > 0 then List(("Gold", s"-${goldLost}g")) else Nil)
-      ("Devastating Attack!", "💀", "encounter-devastating",
-       "A large bandit gang overwhelmed you completely!",
-       lossLines)
+      (
+        "Devastating Attack!",
+        "💀",
+        "encounter-devastating",
+        "A large bandit gang overwhelmed you completely!",
+        lossLines
+      )
 
   val fromCityName = game.cities(encounter.fromCity).name
   val toCityName = game.cities(encounter.toCity).name
@@ -559,7 +586,11 @@ private def renderEncounterModal(encounter: BanditEncounter, game: TraderGame): 
           )
         )
       else
-        div(cls = "encounter-no-loss", content = if encounter.outcome == EncounterOutcome.Unscathed then "" else "No losses!"),
+        div(
+          cls = "encounter-no-loss",
+          content = if encounter.outcome == EncounterOutcome.Unscathed then "" else "No losses!"
+        )
+      ,
       button(cls = "encounter-continue-btn", content = "Continue").with_click { _ =>
         dismissEncounter()
       }
@@ -615,4 +646,3 @@ private def handleUpgrade(): Unit =
       case Left(error) =>
         dom.window.alert(error)
   }
-

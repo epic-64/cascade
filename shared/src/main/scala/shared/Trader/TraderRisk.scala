@@ -3,41 +3,40 @@ package shared.Trader
 import scala.util.Random
 
 /** Risk system for Trader game.
-  * 
+  *
   * High-value cargo attracts bandits. The risk scales with value per kg:
-  * - Gems (40 g/kg) = very high risk
-  * - Bulk goods (<1 g/kg) = essentially safe
-  * - Mixed cargo = proportionally reduced risk
+  *   - Gems (40 g/kg) = very high risk
+  *   - Bulk goods (<1 g/kg) = essentially safe
+  *   - Mixed cargo = proportionally reduced risk
   */
 object TraderRisk:
 
   // Risk formula constants (can be tuned for balance)
-  private val BaseDivisor: Double = 10.0       // Higher = lower risk overall
-  private val RiskExponent: Double = 1.5       // Higher = steeper penalty for high-value cargo
+  private val BaseDivisor: Double = 10.0 // Higher = lower risk overall
+  private val RiskExponent: Double = 1.5 // Higher = steeper penalty for high-value cargo
   private val EncounterMultiplier: Double = 0.1 // Higher = more frequent encounters
-  private val EncounterCap: Double = 0.8       // Maximum encounter chance (80%)
+  private val EncounterCap: Double = 0.8 // Maximum encounter chance (80%)
 
-  /** Calculate the risk assessment for current cargo.
-    * Uses item base prices (not market prices) for consistent risk calculation.
+  /** Calculate the risk assessment for current cargo. Uses item base prices (not market prices) for consistent risk
+    * calculation.
     */
   def assessRisk(inventory: Inventory): RiskAssessment =
     val totalWeight = inventory.totalWeight
-    
+
     if totalWeight == 0 then
       RiskAssessment.safe
     else
       val totalValue = inventory.items.map { (item, qty) =>
         Item.basePrice(item) * qty
       }.sum
-      
+
       val valuePerKg = totalValue.toDouble / totalWeight
       val riskScore = math.pow(valuePerKg / BaseDivisor, RiskExponent)
       val encounterChance = math.min(riskScore * EncounterMultiplier, EncounterCap)
-      
+
       RiskAssessment(totalValue, totalWeight, valuePerKg, riskScore, encounterChance)
 
-  /** Roll for a bandit encounter during travel.
-    * Returns None if no encounter, Some(outcome) if bandits strike.
+  /** Roll for a bandit encounter during travel. Returns None if no encounter, Some(outcome) if bandits strike.
     */
   def rollEncounter(risk: RiskAssessment, rng: Random): Option[EncounterOutcome] =
     if risk.encounterChance <= 0.0 then None
@@ -45,12 +44,12 @@ object TraderRisk:
     else Some(resolveEncounter(risk, rng))
 
   /** Determine the outcome of a bandit encounter.
-    * 
+    *
     * Probability distribution:
-    * - 20% Escaped (no loss)
-    * - 40% Toll (10-20% cargo value in gold)
-    * - 25% Robbery (30-50% of highest-value items)
-    * - 15% Devastating Loss (50-80% of all cargo)
+    *   - 20% Escaped (no loss)
+    *   - 40% Toll (10-20% cargo value in gold)
+    *   - 25% Robbery (30-50% of highest-value items)
+    *   - 15% Devastating Loss (50-80% of all cargo)
     */
   private def resolveEncounter(risk: RiskAssessment, rng: Random): EncounterOutcome =
     val roll = rng.nextInt(100)
@@ -65,8 +64,7 @@ object TraderRisk:
     else
       EncounterOutcome.DevastatingLoss(Map.empty, 0) // Placeholder - calculated in applyEncounter
 
-  /** Apply encounter outcome to game state.
-    * Returns updated game with losses applied and log entry added.
+  /** Apply encounter outcome to game state. Returns updated game with losses applied and log entry added.
     */
   def applyEncounter(
       game: TraderGame,
@@ -76,7 +74,7 @@ object TraderRisk:
       rng: Random
   ): TraderGame =
     val turn = game.turn
-    
+
     outcome match
       case EncounterOutcome.Unscathed =>
         // Safe arrival - this case is handled in TraderLogic.travel directly
@@ -141,8 +139,7 @@ object TraderRisk:
           log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)
         )
 
-  /** Calculate which items are lost in a robbery.
-    * Targets highest value-per-kg items first.
+  /** Calculate which items are lost in a robbery. Targets highest value-per-kg items first.
     */
   private def calculateRobbery(
       inventory: Inventory,
@@ -151,13 +148,13 @@ object TraderRisk:
   ): Map[Item, Int] =
     val itemsByValue = inventory.items.toList
       .sortBy((item, _) => -Item.basePrice(item).toDouble / Item.weight(item))
-    
+
     val totalValue = inventory.items.map((item, qty) => Item.basePrice(item) * qty).sum
     val targetLossValue = (totalValue * lossPercent).toInt
-    
+
     var lostValue = 0
     var result = Map.empty[Item, Int]
-    
+
     itemsByValue.foreach { (item, qty) =>
       if lostValue < targetLossValue && qty > 0 then
         val itemValue = Item.basePrice(item)
@@ -167,11 +164,10 @@ object TraderRisk:
           result = result.updated(item, qtyToLose)
           lostValue += qtyToLose * itemValue
     }
-    
+
     result
 
-  /** Calculate which items are lost in a devastating attack.
-    * Loses a percentage of ALL items.
+  /** Calculate which items are lost in a devastating attack. Loses a percentage of ALL items.
     */
   private def calculateDevastatingLoss(
       inventory: Inventory,
@@ -207,4 +203,3 @@ object TraderRisk:
     if risk.encounterChance < 0.20 then "risk-safe"
     else if risk.encounterChance < 0.50 then "risk-moderate"
     else "risk-dangerous"
-
