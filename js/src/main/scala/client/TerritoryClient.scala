@@ -394,6 +394,9 @@ object TerritoryClient:
       lastTickTime = currentTime
     )
 
+    // Track upgrades to show floating text after render
+    var bureauUpgrades: List[(Coord, Int, Coord, Int)] = List.empty // (upgradedCoord, newLevel, bureauCoord, wheatCost)
+
     bureaus.foreach: tile =>
       val currentProgress = tileProgress.getOrElse(tile.coord, 0.0)
       val progressIncrement = elapsedMs / BureauIntervalMs
@@ -404,7 +407,7 @@ object TerritoryClient:
         TerritoryLogic.bureauAutoUpgrade(updatedGame, tile.coord, currentTime) match
           case Some((newGame, upgradedCoord)) =>
             updatedGame = newGame
-            // Show feedback on the upgraded tile
+            // Collect upgrade info to show after render
             val upgradedTile = updatedGame.tiles.get(upgradedCoord)
             val upgradeCost = upgradedTile
               .flatMap(t => TerritoryLogic.getUpgradeCost(t.copy(tileType = t.tileType match
@@ -415,9 +418,7 @@ object TerritoryClient:
               )))
               .getOrElse(0)
             val newLevel = upgradedTile.map(_.level).getOrElse(1)
-            showFloatingReward(upgradedCoord, upgradeCost, "🌾", isSpend = true)
-            showFloatingLevel(upgradedCoord, newLevel)
-            showFloatingReward(tile.coord, TerritoryLogic.BureauWoodCostPerUpgrade, "🪵", isSpend = true)
+            bureauUpgrades = bureauUpgrades :+ (upgradedCoord, newLevel, tile.coord, upgradeCost)
             tileProgress = tileProgress.updated(tile.coord, 0.0) // Reset progress after successful upgrade
           case None =>
             // No upgrade possible, keep progress at 1.0 to retry next tick
@@ -432,6 +433,12 @@ object TerritoryClient:
     renderResources()
     // Re-render tiles if bureau performed upgrades
     if bureaus.nonEmpty then renderTiles()
+
+    // Show floating text after render so elements exist
+    bureauUpgrades.foreach: (upgradedCoord, newLevel, bureauCoord, wheatCost) =>
+      showFloatingReward(upgradedCoord, wheatCost, "🌾", isSpend = true)
+      showFloatingLevel(upgradedCoord, newLevel)
+      showFloatingReward(bureauCoord, TerritoryLogic.BureauWoodCostPerUpgrade, "🪵", isSpend = true)
 
   // ============================================================================
   // Persistence
