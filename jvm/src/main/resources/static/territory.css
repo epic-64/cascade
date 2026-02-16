@@ -688,6 +688,11 @@
   z-index: 100;
 }
 
+/* Red variant for spending resources */
+.floating-reward.floating-spend {
+  color: #ef4444;
+}
+
 @keyframes floatUp {
   0% {
     opacity: 1;
