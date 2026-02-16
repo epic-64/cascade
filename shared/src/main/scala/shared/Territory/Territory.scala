@@ -534,47 +534,64 @@ object TerritoryLogic:
     
     total / maxValue
 
-  // Dev tool: Unlock many tiles for free (creates continent-like shapes using Perlin noise)
+  // Dev tool: Unlock many tiles for free (creates continent-like shapes)
   def unlockManyTiles(game: TerritoryGame, count: Int): TerritoryGame =
-    val seed = System.currentTimeMillis()
-    val noiseScale = 0.15 // Controls how "zoomed in" the noise is
+    val random = new scala.util.Random(System.currentTimeMillis())
+    
+    // Pick 3-5 random growth directions (angles in radians)
+    val numDirections = 3 + random.nextInt(3)
+    val growthDirections = (0 until numDirections).map: _ =>
+      random.nextDouble() * 2 * math.Pi
+    .toList
+    
+    // Each direction has a random "strength" 
+    val directionStrengths = growthDirections.map(_ => 0.5 + random.nextDouble() * 0.5)
     
     // Find center of current territory
-    val existingCoords = game.tiles.keySet
-    val centerRow = existingCoords.map(_.row).sum.toDouble / existingCoords.size
-    val centerCol = existingCoords.map(_.col).sum.toDouble / existingCoords.size
+    val startCoords = game.tiles.keySet
+    val startCenterRow = startCoords.map(_.row).sum.toDouble / startCoords.size
+    val startCenterCol = startCoords.map(_.col).sum.toDouble / startCoords.size
     
-    (1 to count).foldLeft(game): (currentGame, _) =>
+    (1 to count).foldLeft(game): (currentGame, i) =>
       val available = unlockableCoords(currentGame)
       if available.isEmpty then currentGame
       else
         val currentCoords = currentGame.tiles.keySet
         
-        // Score each candidate using Perlin noise + distance from center
+        // Score each candidate
         val scored = available.toList.map: coord =>
           val neighborCount = coord.neighbors.count(currentCoords.contains)
           
-          // Use Perlin noise to create organic boundary
-          val noiseVal = perlinNoise(coord.col * noiseScale, coord.row * noiseScale, seed)
+          // Calculate angle from start center to this coord
+          val dx = coord.col - startCenterCol
+          val dy = coord.row - startCenterRow
+          val angle = math.atan2(dy, dx)
           
-          // Distance from center (normalized)
-          val dist = math.sqrt(math.pow(coord.row - centerRow, 2) + math.pow(coord.col - centerCol, 2))
-          val maxDist = math.sqrt(currentCoords.size.toDouble) * 1.5
-          val normalizedDist = dist / maxDist
+          // Score based on alignment with growth directions
+          val directionScore = growthDirections.zip(directionStrengths).map: (dir, strength) =>
+            val angleDiff = math.abs(((angle - dir) + math.Pi) % (2 * math.Pi) - math.Pi)
+            val alignment = math.cos(angleDiff) // 1.0 when aligned, -1.0 when opposite
+            if alignment > 0 then alignment * strength else 0.0
+          .max
           
-          // Threshold based on noise - tiles further out need higher noise to be included
-          val threshold = 0.3 + normalizedDist * 0.4
-          val noiseScore = if noiseVal > threshold then 1.0 else 0.3
+          // Add some noise for organic feel
+          val noise = random.nextDouble() * 0.3
           
-          // Strongly prefer filling holes (high neighbor count)
-          val holeFillingScore = neighborCount match
-            case n if n >= 5 => 2.0  // Definitely fill holes
-            case 4 => 1.5
-            case 3 => 1.0
-            case 2 => 0.8
+          // Only fill holes when really necessary (7-8 neighbors)
+          val holeScore = neighborCount match
+            case 8 => 3.0  // Must fill
+            case 7 => 2.0  // Should fill
+            case _ => 0.0  // Don't prioritize filling
+          
+          // Prefer tiles on the edge (1-3 neighbors) for exploration
+          val edgeBonus = neighborCount match
+            case 1 => 0.8
+            case 2 => 1.0
+            case 3 => 0.9
             case _ => 0.5
           
-          (coord, noiseScore * holeFillingScore)
+          val finalScore = directionScore * edgeBonus + noise + holeScore
+          (coord, finalScore)
         
         // Pick the best candidate
         val best = scored.maxBy(_._2)._1
