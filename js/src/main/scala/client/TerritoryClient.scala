@@ -107,7 +107,7 @@ object TerritoryClient:
         btn.onclick = (_: MouseEvent) => handleAbdicate()
       ,
       button(id = "territory-center-btn", cls = "btn-secondary", content = "⌖ Center").tap: btn =>
-        btn.onclick = (_: MouseEvent) => centerOnTerritory()
+        btn.onclick = (_: MouseEvent) => centerOnTerritory(animated = true)
       ,
       button(id = "territory-reset-btn", cls = "btn-danger", content = "Reset").tap: btn =>
         btn.onclick = (_: MouseEvent) => handleResetGame()
@@ -201,17 +201,13 @@ object TerritoryClient:
     getElementById("territory-grid").foreach: grid =>
       grid.asInstanceOf[HTMLElement].style.transform = s"translate(${panOffsetX}px, ${panOffsetY}px)"
 
-  private def centerOnTerritory(): Unit =
-    val unlockedCoords = currentGame.unlockedTiles.map(_.coord)
-    if unlockedCoords.nonEmpty then
-      val centerRow = unlockedCoords.map(_.row).sum.toDouble / unlockedCoords.size
-      val centerCol = unlockedCoords.map(_.col).sum.toDouble / unlockedCoords.size
-
-      val viewportWidth = window.innerWidth
-      val viewportHeight = window.innerHeight
-
-      panOffsetX = viewportWidth / 2 - (centerCol + 0.5) * TileSize
-      panOffsetY = viewportHeight / 2 - (centerRow + 0.5) * TileSize
+  private def centerOnTerritory(animated: Boolean = false): Unit =
+    val target = calculateCenterOffset()
+    if animated then
+      animateTo(target)
+    else
+      panOffsetX = target._1
+      panOffsetY = target._2
       updateGridPosition()
       renderTiles()
 
@@ -219,18 +215,56 @@ object TerritoryClient:
     val viewportWidth = window.innerWidth
     val viewportHeight = window.innerHeight
 
-    // Check if any unlocked tile is visible
+    // Check if any unlocked tile is sufficiently visible (at least 50% in viewport)
     val unlockedCoords = currentGame.unlockedTiles.map(_.coord)
+    val margin = TileSize * 0.5 // Tile must be at least 50% visible
     val anyVisible = unlockedCoords.exists: coord =>
       val tileScreenX = coord.col * TileSize + panOffsetX
       val tileScreenY = coord.row * TileSize + panOffsetY
-      tileScreenX > -TileSize && tileScreenX < viewportWidth &&
-        tileScreenY > -TileSize && tileScreenY < viewportHeight
+      tileScreenX > -TileSize + margin && tileScreenX < viewportWidth - margin &&
+        tileScreenY > -TileSize + margin && tileScreenY < viewportHeight - margin
 
     if !anyVisible then
-      // Snap back to center
-      centerOnTerritory()
+      // Animate snap back to center
+      animateTo(calculateCenterOffset())
       showNotification("Snapped back to territory")
+
+  private def calculateCenterOffset(): (Double, Double) =
+    val unlockedCoords = currentGame.unlockedTiles.map(_.coord)
+    if unlockedCoords.nonEmpty then
+      val centerRow = unlockedCoords.map(_.row).sum.toDouble / unlockedCoords.size
+      val centerCol = unlockedCoords.map(_.col).sum.toDouble / unlockedCoords.size
+      val viewportWidth = window.innerWidth
+      val viewportHeight = window.innerHeight
+      val targetX = viewportWidth / 2 - (centerCol + 0.5) * TileSize
+      val targetY = viewportHeight / 2 - (centerRow + 0.5) * TileSize
+      (targetX, targetY)
+    else
+      (panOffsetX, panOffsetY)
+
+  private def animateTo(target: (Double, Double)): Unit =
+    val (targetX, targetY) = target
+    val startX = panOffsetX
+    val startY = panOffsetY
+    val duration = 300.0 // milliseconds
+    val startTime = System.currentTimeMillis().toDouble
+
+    def animate(): Unit =
+      val elapsed = System.currentTimeMillis().toDouble - startTime
+      val progress = math.min(1.0, elapsed / duration)
+      // Ease-out cubic for smooth deceleration
+      val eased = 1.0 - math.pow(1.0 - progress, 3)
+
+      panOffsetX = startX + (targetX - startX) * eased
+      panOffsetY = startY + (targetY - startY) * eased
+      updateGridPosition()
+
+      if progress < 1.0 then
+        window.requestAnimationFrame((_: Double) => animate())
+      else
+        renderTiles() // Final render at destination
+
+    animate()
 
   // ============================================================================
   // Game Loop
