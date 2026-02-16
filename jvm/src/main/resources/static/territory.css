@@ -347,6 +347,23 @@
   background: linear-gradient(90deg, #7c3aed 0%, #a78bfa 100%);
 }
 
+/* Influence Indicators */
+.influence-indicator {
+  pointer-events: none;
+  border-radius: var(--radius-sm);
+  z-index: 1;
+}
+
+.influence-indicator.farm-influence {
+  border: 2px dashed rgba(59, 130, 246, 0.5);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.influence-indicator.bureau-influence {
+  border: 2px dashed rgba(124, 58, 237, 0.5);
+  background: rgba(124, 58, 237, 0.05);
+}
+
 /* Build Options (when farm is available) */
 .tile-build-options {
   display: flex;
