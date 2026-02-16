@@ -127,8 +127,8 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
     val actualLobbyId = Option(channelToLobby.get(channel)).getOrElse(lobbyId)
 
     msg match
-      case ClientMessage.CreateLobby(playerName, apiKey, gameMode, captionStyle) =>
-        handleCreateLobby(channel, playerName, apiKey, gameMode, captionStyle)
+      case ClientMessage.CreateLobby(playerName, apiKey, gameMode) =>
+        handleCreateLobby(channel, playerName, apiKey, gameMode)
 
       case ClientMessage.JoinLobby(joinLobbyId, playerName) =>
         handleJoinLobby(channel, joinLobbyId, playerName)
@@ -156,12 +156,11 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
       channel: cask.WsChannelActor,
       playerName: String,
       apiKey: String,
-      gameMode: GameMode,
-      captionStyle: CaptionStyle
+      gameMode: GameMode
   ): Unit =
     val lobbyId = generateLobbyId()
     val playerId = generatePlayerId()
-    val lobby = DrawingGame.createLobby(lobbyId, playerId, playerName, gameMode = gameMode, captionStyle = captionStyle)
+    val lobby = DrawingGame.createLobby(lobbyId, playerId, playerName, gameMode = gameMode)
 
     lobbies.put(lobbyId, (lobby, apiKey))
     playerLobbies.put(playerId, lobbyId)
@@ -172,7 +171,7 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
     addConnection(lobbyId, channel)
 
     logger.info(
-      s"Created lobby $lobbyId for player $playerName (playerId: $playerId, gameMode: $gameMode, captionStyle: $captionStyle)"
+      s"Created lobby $lobbyId for player $playerName (playerId: $playerId, gameMode: $gameMode)"
     )
 
     sendToClient(channel, ServerMessage.LobbyCreated(lobbyId, playerId))
@@ -232,7 +231,7 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
 
               // Send AI winner if already revealed
               Option(aiWinners.get(lobbyId)).foreach: winnerName =>
-                sendToClient(channel, ServerMessage.AIVoteRevealed(winnerName, "AI's earlier pick"))
+                sendToClient(channel, ServerMessage.AIVoteRevealed(winnerName))
 
               // If in voting phase, notify client
               if lobby.status == LobbyStatus.Voting then
@@ -514,7 +513,7 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
         else
           // Caption all drawings in parallel
           val captioningFutures = lobby.drawings.map: (playerId, drawing) =>
-            OpenAIClient.captionImage(apiKey, drawing.imageData, lobby.captionStyle).map: caption =>
+            OpenAIClient.captionImage(apiKey, drawing.imageData).map: caption =>
               (playerId, drawing.playerName, caption)
 
           Future.sequence(captioningFutures).map: captionResults =>
@@ -567,9 +566,9 @@ object DrawingGameHandler extends ReconnectionSupport[PlayerInfo, DrawingLobby]:
             // No prompt, skip to voting
             transitionTo(lobbyId, LobbyStatus.Voting)
           case Some(prompt) =>
-            OpenAIClient.selectWinner(apiKey, prompt, captions, lobby.captionStyle).map: selection =>
-              aiWinners.put(lobbyId, selection.winnerName)
-              broadcast(lobbyId, ServerMessage.AIVoteRevealed(selection.winnerName, selection.reasoning))
+            OpenAIClient.selectWinner(apiKey, prompt, captions).map: winnerName =>
+              aiWinners.put(lobbyId, winnerName)
+              broadcast(lobbyId, ServerMessage.AIVoteRevealed(winnerName))
               // Wait 2 seconds then start voting
               timerScheduler.schedule(
                 (() => transitionTo(lobbyId, LobbyStatus.Voting)): Runnable,
