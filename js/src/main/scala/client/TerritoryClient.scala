@@ -172,6 +172,20 @@ object TerritoryClient:
               saveGame()
               renderGame()
               showNotification(s"Added 1000 wheat")
+          ,
+          button(cls = "btn-dev-action", content = "🪵 Wood +1000").tap: btn =>
+            btn.onclick = (_: MouseEvent) =>
+              currentGame = currentGame.copy(wood = currentGame.wood + 1000)
+              saveGame()
+              renderGame()
+              showNotification(s"Added 1000 wood")
+          ,
+          button(cls = "btn-dev-action", content = "🗺️ +100 Tiles").tap: btn =>
+            btn.onclick = (_: MouseEvent) =>
+              currentGame = TerritoryLogic.unlockManyTiles(currentGame, 100)
+              saveGame()
+              renderGame()
+              showNotification(s"Added 100 tiles")
         )
       )
     )
