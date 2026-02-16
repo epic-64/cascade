@@ -3,6 +3,18 @@ package shared.Territory
 import upickle.default.ReadWriter
 
 // ============================================================================
+// Coordinate type for infinite grid
+// ============================================================================
+
+case class Coord(row: Int, col: Int) derives ReadWriter:
+  def neighbors: Set[Coord] =
+    (for
+      dr <- -1 to 1
+      dc <- -1 to 1
+      if !(dr == 0 && dc == 0)
+    yield Coord(row + dr, col + dc)).toSet
+
+// ============================================================================
 // Tile Types
 // ============================================================================
 
@@ -16,7 +28,7 @@ enum TileType derives ReadWriter:
 // ============================================================================
 
 case class Tile(
-    id: Int,
+    coord: Coord,
     tileType: TileType,
     unlocked: Boolean
 ) derives ReadWriter:
@@ -44,7 +56,7 @@ case class Tile(
 // ============================================================================
 
 case class TerritoryGame(
-    tiles: Map[Int, Tile],
+    tiles: Map[Coord, Tile],
     wheat: Double, // Can be fractional for smooth accumulation
     gold: Int,
     lastTickTime: Long, // Timestamp in milliseconds for offline progress
@@ -52,10 +64,10 @@ case class TerritoryGame(
 ) derives ReadWriter:
 
   def unlockedTiles: List[Tile] =
-    tiles.values.filter(_.unlocked).toList.sortBy(_.id)
+    tiles.values.filter(_.unlocked).toList.sortBy(t => (t.coord.row, t.coord.col))
 
   def lockedTiles: List[Tile] =
-    tiles.values.filterNot(_.unlocked).toList.sortBy(_.id)
+    tiles.values.filterNot(_.unlocked).toList.sortBy(t => (t.coord.row, t.coord.col))
 
   def allTilesFilled: Boolean =
     unlockedTiles.nonEmpty && unlockedTiles.forall(_.isBuilding)
@@ -82,28 +94,13 @@ object TerritoryLogic:
   val TickIntervalSeconds: Int = 1
   val ProductionIntervalSeconds: Int = 10 // Wheat fields produce every 10 seconds
   val InitialTileCount: Int = 4
-  val MaxTiles: Int = 64
   val FarmBoostPerLevel: Double = 0.25 // 25% boost per farm level
 
-  // Grid size calculation based on tile count (always 8x8 for 64 tiles)
-  def gridSize(unlockedCount: Int): Int = 8
-
-  // Convert tile ID to (row, col) based on current grid size
-  def tilePosition(tileId: Int, gridWidth: Int): (Int, Int) =
-    (tileId / gridWidth, tileId % gridWidth)
-
-  // Get adjacent tile IDs (including diagonals) within radius 1
-  def adjacentTileIds(tileId: Int, gridWidth: Int): Set[Int] =
-    val (row, col) = tilePosition(tileId, gridWidth)
-    val adjacent = for
-      dr <- -1 to 1
-      dc <- -1 to 1
-      if !(dr == 0 && dc == 0) // exclude self
-      newRow = row + dr
-      newCol = col + dc
-      if newRow >= 0 && newRow < gridWidth && newCol >= 0 && newCol < gridWidth
-    yield newRow * gridWidth + newCol
-    adjacent.toSet
+  // Initial 2x2 tiles at origin (center of infinite grid)
+  val InitialUnlockedCoords: Set[Coord] = Set(
+    Coord(0, 0), Coord(0, 1),
+    Coord(1, 0), Coord(1, 1)
+  )
 
   // Base production per harvest (wheat per 10-second interval) - without bonuses
   def baseProductionRate(tile: Tile): Double = tile.tileType match
@@ -113,11 +110,9 @@ object TerritoryLogic:
   // Production rate per second (for display and total income calculation)
   def productionPerSecond(tile: Tile): Double = baseProductionRate(tile) / ProductionIntervalSeconds
 
-  // Calculate farm bonus multiplier for a wheat field at given position
-  def farmBonusMultiplier(game: TerritoryGame, tileId: Int): Double =
-    val gSize = gridSize(game.unlockedTiles.size)
-    val adjacentIds = adjacentTileIds(tileId, gSize)
-    val farmBonus = adjacentIds.flatMap(game.tiles.get).collect:
+  // Calculate farm bonus multiplier for a wheat field at given coord
+  def farmBonusMultiplier(game: TerritoryGame, coord: Coord): Double =
+    val farmBonus = coord.neighbors.flatMap(game.tiles.get).collect:
       case tile if tile.isFarm => tile.level * FarmBoostPerLevel
     .sum
     1.0 + farmBonus
@@ -125,7 +120,7 @@ object TerritoryLogic:
   // Production rate for a specific tile per second (with farm bonuses applied)
   def productionRate(game: TerritoryGame, tile: Tile): Double =
     val base = productionPerSecond(tile)
-    if base > 0 then base * farmBonusMultiplier(game, tile.id)
+    if base > 0 then base * farmBonusMultiplier(game, tile.coord)
     else 0.0
 
   // Legacy method for backwards compatibility
@@ -134,7 +129,7 @@ object TerritoryLogic:
   // Production per harvest for a specific tile (with farm bonuses applied)
   def productionPerHarvest(game: TerritoryGame, tile: Tile): Double =
     val base = baseProductionRate(tile)
-    if base > 0 then base * farmBonusMultiplier(game, tile.id)
+    if base > 0 then base * farmBonusMultiplier(game, tile.coord)
     else 0.0
 
   // Total production rate for the game (all wheat fields with bonuses)
@@ -172,15 +167,12 @@ object TerritoryLogic:
     math.max(10, (totalIncomeRate * 20).toInt) // 20 gold per wheat/second
 
   // Create initial game state
-  // Initial 2x2 tiles in the center of the 8x8 grid (positions (3,3), (3,4), (4,3), (4,4))
-  private val InitialUnlockedTileIds: Set[Int] = Set(27, 28, 35, 36)
-
   def newGame(currentTimeMillis: Long): TerritoryGame =
-    val initialTiles = (0 until MaxTiles).map: id =>
-      id -> Tile(
-        id = id,
+    val initialTiles = InitialUnlockedCoords.map: coord =>
+      coord -> Tile(
+        coord = coord,
         tileType = TileType.Empty,
-        unlocked = InitialUnlockedTileIds.contains(id)
+        unlocked = true
       )
     .toMap
 
@@ -203,8 +195,8 @@ object TerritoryLogic:
     )
 
   // Build a wheat field on an empty tile
-  def buildWheatField(game: TerritoryGame, tileId: Int): Either[String, TerritoryGame] =
-    game.tiles.get(tileId) match
+  def buildWheatField(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+    game.tiles.get(coord) match
       case None => Left("Tile not found")
       case Some(tile) if !tile.unlocked => Left("Tile is locked")
       case Some(tile) if !tile.isEmpty => Left("Tile is not empty")
@@ -212,13 +204,13 @@ object TerritoryLogic:
       case Some(tile) =>
         val updatedTile = tile.copy(tileType = TileType.WheatField(1))
         Right(game.copy(
-          tiles = game.tiles.updated(tileId, updatedTile),
+          tiles = game.tiles.updated(coord, updatedTile),
           wheat = game.wheat - wheatFieldBuildCost
         ))
 
   // Build a farm on an empty tile (requires at least one wheat field)
-  def buildFarm(game: TerritoryGame, tileId: Int): Either[String, TerritoryGame] =
-    game.tiles.get(tileId) match
+  def buildFarm(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+    game.tiles.get(coord) match
       case None => Left("Tile not found")
       case Some(tile) if !tile.unlocked => Left("Tile is locked")
       case Some(tile) if !tile.isEmpty => Left("Tile is not empty")
@@ -227,13 +219,13 @@ object TerritoryLogic:
       case Some(tile) =>
         val updatedTile = tile.copy(tileType = TileType.Farm(1))
         Right(game.copy(
-          tiles = game.tiles.updated(tileId, updatedTile),
+          tiles = game.tiles.updated(coord, updatedTile),
           wheat = game.wheat - farmBuildCost
         ))
 
   // Level up a wheat field
-  def levelUpWheatField(game: TerritoryGame, tileId: Int): Either[String, TerritoryGame] =
-    game.tiles.get(tileId) match
+  def levelUpWheatField(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+    game.tiles.get(coord) match
       case None => Left("Tile not found")
       case Some(tile) => tile.tileType match
         case TileType.WheatField(level) =>
@@ -243,14 +235,14 @@ object TerritoryLogic:
           else
             val updatedTile = tile.copy(tileType = TileType.WheatField(level + 1))
             Right(game.copy(
-              tiles = game.tiles.updated(tileId, updatedTile),
+              tiles = game.tiles.updated(coord, updatedTile),
               wheat = game.wheat - cost
             ))
         case _ => Left("Tile is not a wheat field")
 
   // Level up a farm
-  def levelUpFarm(game: TerritoryGame, tileId: Int): Either[String, TerritoryGame] =
-    game.tiles.get(tileId) match
+  def levelUpFarm(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+    game.tiles.get(coord) match
       case None => Left("Tile not found")
       case Some(tile) => tile.tileType match
         case TileType.Farm(level) =>
@@ -260,7 +252,7 @@ object TerritoryLogic:
           else
             val updatedTile = tile.copy(tileType = TileType.Farm(level + 1))
             Right(game.copy(
-              tiles = game.tiles.updated(tileId, updatedTile),
+              tiles = game.tiles.updated(coord, updatedTile),
               wheat = game.wheat - cost
             ))
         case _ => Left("Tile is not a farm")
@@ -272,10 +264,10 @@ object TerritoryLogic:
     else
       val goldReward = abdicationReward(game.totalIncomeRate)
       val resetTiles = game.tiles.map:
-        case (id, tile) if tile.unlocked =>
-          id -> tile.copy(tileType = TileType.Empty)
-        case (id, tile) =>
-          id -> tile
+        case (coord, tile) if tile.unlocked =>
+          coord -> tile.copy(tileType = TileType.Empty)
+        case (coord, tile) =>
+          coord -> tile
 
       Right(game.copy(
         tiles = resetTiles,
@@ -285,28 +277,26 @@ object TerritoryLogic:
         totalAbdications = game.totalAbdications + 1
       ))
 
-  // Get all tiles that can be unlocked (locked tiles adjacent to unlocked tiles)
-  def unlockableTileIds(game: TerritoryGame): Set[Int] =
-    val gSize = gridSize(game.unlockedTiles.size)
-    val unlockedIds = game.unlockedTiles.map(_.id).toSet
-    val allAdjacentToUnlocked = unlockedIds.flatMap(id => adjacentTileIds(id, gSize))
-    allAdjacentToUnlocked.filter(id => game.tiles.get(id).exists(!_.unlocked))
+  // Get all coords that can be unlocked (coords adjacent to unlocked tiles that aren't already tiles)
+  def unlockableCoords(game: TerritoryGame): Set[Coord] =
+    val unlockedCoords = game.unlockedTiles.map(_.coord).toSet
+    val allAdjacentToUnlocked = unlockedCoords.flatMap(_.neighbors)
+    allAdjacentToUnlocked.filterNot(game.tiles.contains)
 
   // Unlock a specific tile with gold (must be adjacent to an unlocked tile)
-  def unlockTile(game: TerritoryGame, tileId: Int): Either[String, TerritoryGame] =
-    game.tiles.get(tileId) match
-      case None => Left("Tile not found")
-      case Some(tile) if tile.unlocked => Left("Tile is already unlocked")
-      case Some(tile) if !unlockableTileIds(game).contains(tileId) =>
-        Left("Can only unlock tiles adjacent to your territory")
-      case Some(tile) =>
-        val cost = tileUnlockCost(game.unlockedTiles.size)
-        if game.gold < cost then
-          Left(s"Not enough gold (need $cost)")
-        else
-          val updatedTile = tile.copy(unlocked = true)
-          Right(game.copy(
-            tiles = game.tiles.updated(tileId, updatedTile),
-            gold = game.gold - cost
-          ))
+  def unlockTile(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+    if game.tiles.contains(coord) then
+      Left("Tile already exists")
+    else if !unlockableCoords(game).contains(coord) then
+      Left("Can only unlock tiles adjacent to your territory")
+    else
+      val cost = tileUnlockCost(game.unlockedTiles.size)
+      if game.gold < cost then
+        Left(s"Not enough gold (need $cost)")
+      else
+        val newTile = Tile(coord = coord, tileType = TileType.Empty, unlocked = true)
+        Right(game.copy(
+          tiles = game.tiles.updated(coord, newTile),
+          gold = game.gold - cost
+        ))
 
