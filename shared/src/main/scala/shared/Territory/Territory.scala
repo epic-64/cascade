@@ -14,6 +14,13 @@ case class Coord(row: Int, col: Int) derives ReadWriter:
       if !(dr == 0 && dc == 0)
     yield Coord(row + dr, col + dc)).toSet
 
+  def neighborsWithinRadius(radius: Int): Set[Coord] =
+    (for
+      dr <- -radius to radius
+      dc <- -radius to radius
+      if !(dr == 0 && dc == 0)
+    yield Coord(row + dr, col + dc)).toSet
+
 // ============================================================================
 // Tile Types
 // ============================================================================
@@ -23,6 +30,7 @@ enum TileType derives ReadWriter:
   case WheatField(level: Int) // level determines production rate
   case Farm(level: Int)       // boosts nearby wheat fields
   case Woodcutter(level: Int) // produces wood
+  case Bureau(level: Int)     // auto-upgrades nearby buildings, costs wood
 
 // ============================================================================
 // Tile
@@ -49,12 +57,19 @@ case class Tile(
     case TileType.Woodcutter(_) => true
     case _ => false
 
-  def isBuilding: Boolean = isWheatField || isFarm || isWoodcutter
+  def isBureau: Boolean = tileType match
+    case TileType.Bureau(_) => true
+    case _ => false
+
+  def isBuilding: Boolean = isWheatField || isFarm || isWoodcutter || isBureau
+
+  def isUpgradeable: Boolean = isWheatField || isFarm || isWoodcutter
 
   def level: Int = tileType match
     case TileType.WheatField(lvl) => lvl
     case TileType.Farm(lvl) => lvl
     case TileType.Woodcutter(lvl) => lvl
+    case TileType.Bureau(lvl) => lvl
     case _ => 0
 
 // ============================================================================
@@ -67,7 +82,8 @@ case class TerritoryGame(
     wood: Double,  // Wood resource
     gold: Int,
     lastTickTime: Long, // Timestamp in milliseconds for offline progress
-    totalAbdications: Int
+    totalAbdications: Int,
+    upgradeCooldowns: Map[Coord, Long] = Map.empty // Timestamp when tile can be auto-upgraded again
 ) derives ReadWriter:
 
   def unlockedTiles: List[Tile] =
@@ -103,11 +119,40 @@ object TerritoryLogic:
   val InitialTileCount: Int = 4
   val FarmBoostPerLevel: Double = 0.25 // 25% boost per farm level
 
+  // Bureau constants
+  val BureauIntervalSeconds: Int = 5      // Bureau attempts upgrade every 5 seconds
+  val BureauRadius: Int = 2               // Bureau affects tiles within 2 tile radius
+  val BureauUpgradeCooldownMs: Long = 60000 // 60 seconds cooldown after auto-upgrade
+  val BureauWoodCostPerUpgrade: Int = 100  // Wood cost for each auto-upgrade
+  val ForestGroupBonusPerTile: Double = 0.10 // 10% bonus per connected woodcutter
+
   // Initial 2x2 tiles at origin (center of infinite grid)
   val InitialUnlockedCoords: Set[Coord] = Set(
     Coord(0, 0), Coord(0, 1),
     Coord(1, 0), Coord(1, 1)
   )
+
+  // Find all woodcutters in the same connected group as the given coord
+  def findConnectedWoodcutters(game: TerritoryGame, startCoord: Coord): Set[Coord] =
+    def floodFill(toVisit: Set[Coord], visited: Set[Coord]): Set[Coord] =
+      if toVisit.isEmpty then visited
+      else
+        val current = toVisit.head
+        val remaining = toVisit.tail
+        if visited.contains(current) then floodFill(remaining, visited)
+        else
+          game.tiles.get(current) match
+            case Some(tile) if tile.isWoodcutter =>
+              val newNeighbors = current.neighbors.filterNot(visited.contains)
+              floodFill(remaining ++ newNeighbors, visited + current)
+            case _ =>
+              floodFill(remaining, visited)
+    floodFill(Set(startCoord), Set.empty)
+
+  // Calculate forest group bonus multiplier for a woodcutter
+  def forestGroupBonusMultiplier(game: TerritoryGame, coord: Coord): Double =
+    val groupSize = findConnectedWoodcutters(game, coord).size
+    1.0 + (groupSize - 1) * ForestGroupBonusPerTile // -1 because we don't count self for bonus
 
   // Base production per harvest (wheat per 10-second interval) - without bonuses
   def baseWheatProductionRate(tile: Tile): Double = tile.tileType match
@@ -139,9 +184,11 @@ object TerritoryLogic:
     if base > 0 then base * farmBonusMultiplier(game, tile.coord)
     else 0.0
 
-  // Wood production rate for a specific tile per second
+  // Wood production rate for a specific tile per second (with forest group bonus)
   def woodProductionRate(game: TerritoryGame, tile: Tile): Double =
-    woodProductionPerSecond(tile) // No bonuses for wood currently
+    val base = woodProductionPerSecond(tile)
+    if base > 0 then base * forestGroupBonusMultiplier(game, tile.coord)
+    else 0.0
 
   // Legacy method for backwards compatibility
   def productionRate(tile: Tile): Double = productionPerSecond(tile)
@@ -152,9 +199,11 @@ object TerritoryLogic:
     if base > 0 then base * farmBonusMultiplier(game, tile.coord)
     else 0.0
 
-  // Wood production per harvest for a specific tile
+  // Wood production per harvest for a specific tile (with forest group bonus)
   def woodProductionPerHarvest(game: TerritoryGame, tile: Tile): Double =
-    baseWoodProductionRate(tile)
+    val base = baseWoodProductionRate(tile)
+    if base > 0 then base * forestGroupBonusMultiplier(game, tile.coord)
+    else 0.0
 
   // Total production rate for the game (all wheat fields with bonuses)
   def totalProductionRate(game: TerritoryGame): Double =
@@ -173,6 +222,9 @@ object TerritoryLogic:
   // Cost to build a woodcutter on an empty tile
   def woodcutterBuildCost: Int = 20
 
+  // Cost to build a bureau on an empty tile (costs wood, not wheat)
+  def bureauBuildCost: Int = 500
+
   // Legacy alias
   def buildCost: Int = wheatFieldBuildCost
 
@@ -187,6 +239,13 @@ object TerritoryLogic:
   // Cost to level up a woodcutter
   def woodcutterLevelUpCost(currentLevel: Int): Int =
     currentLevel * 25 // Level 1→2 costs 25, 2→3 costs 50, etc.
+
+  // Get upgrade cost for any upgradeable tile (returns wheat cost)
+  def getUpgradeCost(tile: Tile): Option[Int] = tile.tileType match
+    case TileType.WheatField(level) => Some(wheatFieldLevelUpCost(level))
+    case TileType.Farm(level) => Some(farmLevelUpCost(level))
+    case TileType.Woodcutter(level) => Some(woodcutterLevelUpCost(level))
+    case _ => None
 
   // Legacy alias
   def levelUpCost(currentLevel: Int): Int = wheatFieldLevelUpCost(currentLevel)
@@ -274,6 +333,21 @@ object TerritoryLogic:
           wheat = game.wheat - woodcutterBuildCost
         ))
 
+  // Build a bureau on an empty tile (costs wood, requires at least one wheat field)
+  def buildBureau(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+    game.tiles.get(coord) match
+      case None => Left("Tile not found")
+      case Some(tile) if !tile.unlocked => Left("Tile is locked")
+      case Some(tile) if !tile.isEmpty => Left("Tile is not empty")
+      case Some(_) if !game.hasWheatField => Left("Build a wheat field first")
+      case Some(tile) if game.wood < bureauBuildCost => Left(s"Not enough wood (need $bureauBuildCost)")
+      case Some(tile) =>
+        val updatedTile = tile.copy(tileType = TileType.Bureau(1))
+        Right(game.copy(
+          tiles = game.tiles.updated(coord, updatedTile),
+          wood = game.wood - bureauBuildCost
+        ))
+
   // Level up a wheat field
   def levelUpWheatField(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
     game.tiles.get(coord) match
@@ -325,6 +399,44 @@ object TerritoryLogic:
             ))
         case _ => Left("Tile is not a woodcutter")
 
+  // Bureau auto-upgrade: upgrade a tile, pay wheat cost + wood cost, set cooldown
+  // Returns updated game and the coord that was upgraded (if any)
+  def bureauAutoUpgrade(game: TerritoryGame, bureauCoord: Coord, currentTimeMillis: Long): Option[(TerritoryGame, Coord)] =
+    game.tiles.get(bureauCoord) match
+      case Some(bureauTile) if bureauTile.isBureau =>
+        // Find upgradeable tiles within radius that aren't on cooldown
+        val nearbyCoords = bureauCoord.neighborsWithinRadius(BureauRadius)
+        val upgradeableCoords = nearbyCoords.filter: coord =>
+          game.tiles.get(coord).exists: tile =>
+            tile.isUpgradeable &&
+              game.upgradeCooldowns.get(coord).forall(_ <= currentTimeMillis)
+        
+        // Try to upgrade the first one we can afford
+        upgradeableCoords.flatMap(coord => game.tiles.get(coord).map(coord -> _)).find: (coord, tile) =>
+          val wheatCost = getUpgradeCost(tile).getOrElse(0)
+          val totalWoodCost = BureauWoodCostPerUpgrade
+          game.wheat >= wheatCost && game.wood >= totalWoodCost
+        .flatMap: (targetCoord, targetTile) =>
+          val wheatCost = getUpgradeCost(targetTile).getOrElse(0)
+          // Perform the upgrade based on tile type
+          val upgradedTileType = targetTile.tileType match
+            case TileType.WheatField(lvl) => TileType.WheatField(lvl + 1)
+            case TileType.Farm(lvl) => TileType.Farm(lvl + 1)
+            case TileType.Woodcutter(lvl) => TileType.Woodcutter(lvl + 1)
+            case other => other
+          
+          val upgradedTile = targetTile.copy(tileType = upgradedTileType)
+          val newCooldown = currentTimeMillis + BureauUpgradeCooldownMs
+          
+          val newGame = game.copy(
+            tiles = game.tiles.updated(targetCoord, upgradedTile),
+            wheat = game.wheat - wheatCost,
+            wood = game.wood - BureauWoodCostPerUpgrade,
+            upgradeCooldowns = game.upgradeCooldowns.updated(targetCoord, newCooldown)
+          )
+          Some((newGame, targetCoord))
+      case _ => None
+
   // Destroy a building on a tile (returns it to empty state, no refund)
   def destroyBuilding(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
     game.tiles.get(coord) match
@@ -355,7 +467,8 @@ object TerritoryLogic:
         wood = 0.0,   // Reset wood
         gold = game.gold + goldReward,
         lastTickTime = currentTimeMillis,
-        totalAbdications = game.totalAbdications + 1
+        totalAbdications = game.totalAbdications + 1,
+        upgradeCooldowns = Map.empty // Reset cooldowns
       ))
 
   // Get all coords that can be unlocked (coords adjacent to unlocked tiles that aren't already tiles)
