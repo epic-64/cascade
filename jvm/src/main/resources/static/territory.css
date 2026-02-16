@@ -267,6 +267,52 @@
   color: #1e40af;
 }
 
+/* Woodcutter Tiles */
+.territory-tile.woodcutter {
+  background: #fef2f2;
+  border: 2px solid #b45309;
+}
+
+.territory-tile.woodcutter:hover {
+  background: #fee2e2;
+  transform: scale(1.08);
+  box-shadow: var(--shadow-lg);
+  z-index: 10;
+}
+
+.territory-tile.woodcutter[data-level="2"] {
+  background: #fecaca;
+  border-color: #92400e;
+}
+
+.territory-tile.woodcutter[data-level="3"] {
+  background: #fca5a5;
+  border-color: #78350f;
+}
+
+.territory-tile.woodcutter[data-level="4"],
+.territory-tile.woodcutter[data-level="5"],
+.territory-tile.woodcutter[data-level="6"] {
+  background: #f87171;
+  border-color: #451a03;
+}
+
+/* Text colors for woodcutter tiles */
+.territory-tile.woodcutter .tile-label,
+.territory-tile.woodcutter .tile-cost,
+.territory-tile.woodcutter .tile-upgrade {
+  color: #78350f;
+}
+
+.territory-tile.woodcutter .tile-production {
+  color: #92400e;
+}
+
+/* Woodcutter progress bar */
+.tile-progress-bar.woodcutter-progress {
+  background: linear-gradient(90deg, #b45309 0%, #d97706 100%);
+}
+
 /* Build Options (when farm is available) */
 .tile-build-options {
   display: flex;

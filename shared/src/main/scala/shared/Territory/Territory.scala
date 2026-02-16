@@ -22,6 +22,7 @@ enum TileType derives ReadWriter:
   case Empty
   case WheatField(level: Int) // level determines production rate
   case Farm(level: Int)       // boosts nearby wheat fields
+  case Woodcutter(level: Int) // produces wood
 
 // ============================================================================
 // Tile
@@ -44,11 +45,16 @@ case class Tile(
     case TileType.Farm(_) => true
     case _ => false
 
-  def isBuilding: Boolean = isWheatField || isFarm
+  def isWoodcutter: Boolean = tileType match
+    case TileType.Woodcutter(_) => true
+    case _ => false
+
+  def isBuilding: Boolean = isWheatField || isFarm || isWoodcutter
 
   def level: Int = tileType match
     case TileType.WheatField(lvl) => lvl
     case TileType.Farm(lvl) => lvl
+    case TileType.Woodcutter(lvl) => lvl
     case _ => 0
 
 // ============================================================================
@@ -58,6 +64,7 @@ case class Tile(
 case class TerritoryGame(
     tiles: Map[Coord, Tile],
     wheat: Double, // Can be fractional for smooth accumulation
+    wood: Double,  // Wood resource
     gold: Int,
     lastTickTime: Long, // Timestamp in milliseconds for offline progress
     totalAbdications: Int
@@ -103,12 +110,21 @@ object TerritoryLogic:
   )
 
   // Base production per harvest (wheat per 10-second interval) - without bonuses
-  def baseProductionRate(tile: Tile): Double = tile.tileType match
+  def baseWheatProductionRate(tile: Tile): Double = tile.tileType match
     case TileType.WheatField(level) => level * 5.0 // 5 wheat at level 1, 10 at level 2, etc. (per 10s)
     case _ => 0.0
 
+  // Base wood production per harvest (wood per 10-second interval)
+  def baseWoodProductionRate(tile: Tile): Double = tile.tileType match
+    case TileType.Woodcutter(level) => level * 3.0 // 3 wood at level 1, 6 at level 2, etc. (per 10s)
+    case _ => 0.0
+
+  // Legacy alias
+  def baseProductionRate(tile: Tile): Double = baseWheatProductionRate(tile)
+
   // Production rate per second (for display and total income calculation)
-  def productionPerSecond(tile: Tile): Double = baseProductionRate(tile) / ProductionIntervalSeconds
+  def productionPerSecond(tile: Tile): Double = baseWheatProductionRate(tile) / ProductionIntervalSeconds
+  def woodProductionPerSecond(tile: Tile): Double = baseWoodProductionRate(tile) / ProductionIntervalSeconds
 
   // Calculate farm bonus multiplier for a wheat field at given coord
   def farmBonusMultiplier(game: TerritoryGame, coord: Coord): Double =
@@ -123,24 +139,39 @@ object TerritoryLogic:
     if base > 0 then base * farmBonusMultiplier(game, tile.coord)
     else 0.0
 
+  // Wood production rate for a specific tile per second
+  def woodProductionRate(game: TerritoryGame, tile: Tile): Double =
+    woodProductionPerSecond(tile) // No bonuses for wood currently
+
   // Legacy method for backwards compatibility
   def productionRate(tile: Tile): Double = productionPerSecond(tile)
 
   // Production per harvest for a specific tile (with farm bonuses applied)
   def productionPerHarvest(game: TerritoryGame, tile: Tile): Double =
-    val base = baseProductionRate(tile)
+    val base = baseWheatProductionRate(tile)
     if base > 0 then base * farmBonusMultiplier(game, tile.coord)
     else 0.0
+
+  // Wood production per harvest for a specific tile
+  def woodProductionPerHarvest(game: TerritoryGame, tile: Tile): Double =
+    baseWoodProductionRate(tile)
 
   // Total production rate for the game (all wheat fields with bonuses)
   def totalProductionRate(game: TerritoryGame): Double =
     game.unlockedTiles.map(tile => productionRate(game, tile)).sum
+
+  // Total wood production rate
+  def totalWoodProductionRate(game: TerritoryGame): Double =
+    game.unlockedTiles.map(tile => woodProductionRate(game, tile)).sum
 
   // Cost to build a wheat field on an empty tile
   def wheatFieldBuildCost: Int = 10
 
   // Cost to build a farm on an empty tile
   def farmBuildCost: Int = 25
+
+  // Cost to build a woodcutter on an empty tile
+  def woodcutterBuildCost: Int = 20
 
   // Legacy alias
   def buildCost: Int = wheatFieldBuildCost
@@ -152,6 +183,10 @@ object TerritoryLogic:
   // Cost to level up a farm
   def farmLevelUpCost(currentLevel: Int): Int =
     currentLevel * 30 // Level 1→2 costs 30, 2→3 costs 60, etc.
+
+  // Cost to level up a woodcutter
+  def woodcutterLevelUpCost(currentLevel: Int): Int =
+    currentLevel * 25 // Level 1→2 costs 25, 2→3 costs 50, etc.
 
   // Legacy alias
   def levelUpCost(currentLevel: Int): Int = wheatFieldLevelUpCost(currentLevel)
@@ -179,6 +214,7 @@ object TerritoryLogic:
     TerritoryGame(
       tiles = initialTiles,
       wheat = 50.0, // Start with some wheat to build first field
+      wood = 0.0,
       gold = 0,
       lastTickTime = currentTimeMillis,
       totalAbdications = 0
@@ -223,6 +259,21 @@ object TerritoryLogic:
           wheat = game.wheat - farmBuildCost
         ))
 
+  // Build a woodcutter on an empty tile (requires at least one wheat field)
+  def buildWoodcutter(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+    game.tiles.get(coord) match
+      case None => Left("Tile not found")
+      case Some(tile) if !tile.unlocked => Left("Tile is locked")
+      case Some(tile) if !tile.isEmpty => Left("Tile is not empty")
+      case Some(_) if !game.hasWheatField => Left("Build a wheat field first")
+      case Some(tile) if game.wheat < woodcutterBuildCost => Left(s"Not enough wheat (need $woodcutterBuildCost)")
+      case Some(tile) =>
+        val updatedTile = tile.copy(tileType = TileType.Woodcutter(1))
+        Right(game.copy(
+          tiles = game.tiles.updated(coord, updatedTile),
+          wheat = game.wheat - woodcutterBuildCost
+        ))
+
   // Level up a wheat field
   def levelUpWheatField(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
     game.tiles.get(coord) match
@@ -257,6 +308,23 @@ object TerritoryLogic:
             ))
         case _ => Left("Tile is not a farm")
 
+  // Level up a woodcutter
+  def levelUpWoodcutter(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+    game.tiles.get(coord) match
+      case None => Left("Tile not found")
+      case Some(tile) => tile.tileType match
+        case TileType.Woodcutter(level) =>
+          val cost = woodcutterLevelUpCost(level)
+          if game.wheat < cost then
+            Left(s"Not enough wheat (need $cost)")
+          else
+            val updatedTile = tile.copy(tileType = TileType.Woodcutter(level + 1))
+            Right(game.copy(
+              tiles = game.tiles.updated(coord, updatedTile),
+              wheat = game.wheat - cost
+            ))
+        case _ => Left("Tile is not a woodcutter")
+
   // Destroy a building on a tile (returns it to empty state, no refund)
   def destroyBuilding(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
     game.tiles.get(coord) match
@@ -284,6 +352,7 @@ object TerritoryLogic:
       Right(game.copy(
         tiles = resetTiles,
         wheat = 50.0, // Reset wheat, give starting amount
+        wood = 0.0,   // Reset wood
         gold = game.gold + goldReward,
         lastTickTime = currentTimeMillis,
         totalAbdications = game.totalAbdications + 1
