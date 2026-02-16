@@ -1,0 +1,308 @@
+/* Territory Idle Game Styles */
+
+.territory-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.territory-container h1 {
+  text-align: center;
+  margin-bottom: 2rem;
+  color: var(--text-primary);
+}
+
+/* Resources Panel */
+.territory-resources {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+
+.resource-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+}
+
+.resource-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.resource-value {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+/* Tile Grid */
+.territory-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  min-height: 300px;
+}
+
+/* Individual Tiles */
+.territory-tile {
+  aspect-ratio: 1;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.territory-tile.locked {
+  background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.territory-tile.locked:hover {
+  transform: none;
+}
+
+.territory-tile.empty {
+  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e0 100%);
+  border: 2px dashed #94a3b8;
+}
+
+.territory-tile.empty:hover {
+  background: linear-gradient(135deg, #cbd5e0 0%, #a0aec0 100%);
+  transform: scale(1.05);
+  box-shadow: var(--shadow-lg);
+}
+
+.territory-tile.wheat-field {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde047 100%);
+  border: 2px solid #facc15;
+}
+
+.territory-tile.wheat-field:hover {
+  background: linear-gradient(135deg, #fde047 0%, #facc15 100%);
+  transform: scale(1.05);
+  box-shadow: var(--shadow-lg);
+}
+
+.territory-tile.wheat-field[data-level="2"] {
+  background: linear-gradient(135deg, #fde047 0%, #eab308 100%);
+  border-color: #eab308;
+}
+
+.territory-tile.wheat-field[data-level="3"] {
+  background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+  border-color: #ca8a04;
+}
+
+.territory-tile.wheat-field[data-level="4"] {
+  background: linear-gradient(135deg, #ca8a04 0%, #a16207 100%);
+  border-color: #a16207;
+}
+
+.territory-tile.wheat-field[data-level="5"],
+.territory-tile.wheat-field[data-level="6"],
+.territory-tile.wheat-field[data-level="7"],
+.territory-tile.wheat-field[data-level="8"],
+.territory-tile.wheat-field[data-level="9"],
+.territory-tile.wheat-field[data-level="10"] {
+  background: linear-gradient(135deg, #a16207 0%, #854d0e 100%);
+  border-color: #854d0e;
+}
+
+/* Tile Content */
+.tile-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1rem;
+  width: 100%;
+  height: 100%;
+}
+
+.tile-icon {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+}
+
+.tile-label {
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+  color: var(--text-primary);
+}
+
+.tile-cost,
+.tile-upgrade {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.tile-production {
+  font-size: 0.875rem;
+  color: #059669;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+/* Actions */
+.territory-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.territory-actions button {
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-radius: var(--radius);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #818cf8 0%, #6366f1 100%);
+  color: white;
+}
+
+.btn-primary:hover:not(.disabled) {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.btn-primary.disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: white;
+}
+
+.btn-secondary:hover:not(.disabled) {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.btn-secondary.disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  margin-top: 1rem;
+}
+
+.btn-danger:hover {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Info Section */
+.territory-info {
+  padding: 1.5rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+
+.territory-info h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.territory-info ul {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.territory-info li {
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+}
+
+/* Notification */
+.notification {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1rem 2rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-xl);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 1000;
+  max-width: 90%;
+  text-align: center;
+}
+
+.notification.show {
+  opacity: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .territory-container {
+    padding: 1rem;
+  }
+
+  .territory-grid {
+    gap: 0.5rem;
+    padding: 1rem;
+  }
+
+  .tile-icon {
+    font-size: 2rem;
+  }
+
+  .tile-label {
+    font-size: 0.875rem;
+  }
+
+  .territory-actions button {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+  }
+}
+

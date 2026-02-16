@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Territory Idle - Cascade</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#818cf8" />
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+    <link rel="manifest" href="/static/manifest.json" />
+    <!-- Cache-buster: loads static assets with server version query param -->
+    <script>
+      (function() {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', '/api/version', false);
+        try { xhr.send(); } catch (e) { return; }
+        if (xhr.status !== 200) return;
+        const v = JSON.parse(xhr.responseText)['buildVersion'];
+
+        const baseCss = document.createElement('link');
+        baseCss.rel = 'stylesheet';
+        baseCss.href = '/static/base.css?v=' + v;
+        document.head.appendChild(baseCss);
+
+        const css = document.createElement('link');
+        css.rel = 'stylesheet';
+        css.href = '/static/territory.css?v=' + v;
+        document.head.appendChild(css);
+
+        const js = document.createElement('script');
+        js.src = '/static/js/main.js?v=' + v;
+        document.head.appendChild(js);
+      })();
+    </script>
+    <noscript>
+      <link rel="stylesheet" href="/static/base.css">
+      <link rel="stylesheet" href="/static/territory.css">
+    </noscript>
+  </head>
+  <body>
+    <div class="territory-container">
+      <h1>🏰 Territory Idle</h1>
+
+      <!-- Resources Panel -->
+      <div class="territory-resources">
+        <div class="resource-item">
+          <span class="resource-label">🌾 Wheat:</span>
+          <span class="resource-value" id="territory-wheat">0</span>
+        </div>
+        <div class="resource-item">
+          <span class="resource-label">💰 Gold:</span>
+          <span class="resource-value" id="territory-gold">0</span>
+        </div>
+        <div class="resource-item">
+          <span class="resource-label">⚡ Income:</span>
+          <span class="resource-value" id="territory-income-rate">0.0 wheat/s</span>
+        </div>
+        <div class="resource-item">
+          <span class="resource-label">👑 Abdications:</span>
+          <span class="resource-value" id="territory-abdications">0</span>
+        </div>
+      </div>
+
+      <!-- Tile Grid -->
+      <div class="territory-grid" id="territory-grid">
+        <!-- Tiles rendered dynamically by client -->
+      </div>
+
+      <!-- Actions -->
+      <div class="territory-actions">
+        <button id="territory-abdicate-btn" class="btn-primary disabled" disabled>
+          Abdicate (fill all tiles first)
+        </button>
+        <button id="territory-unlock-btn" class="btn-secondary">
+          Unlock Tile (100 gold)
+        </button>
+      </div>
+
+      <!-- Info -->
+      <div class="territory-info">
+        <h3>How to Play</h3>
+        <ul>
+          <li>Click empty tiles to build wheat fields (costs wheat)</li>
+          <li>Click wheat fields to level them up (costs wheat)</li>
+          <li>Higher levels produce more wheat per second</li>
+          <li>Fill all tiles to unlock abdication</li>
+          <li>Abdicate to earn gold and reset the field</li>
+          <li>Use gold to unlock more tiles</li>
+        </ul>
+        <button id="territory-reset-btn" class="btn-danger">Reset Game</button>
+      </div>
+
+      <!-- Notification -->
+      <div id="territory-notification" class="notification"></div>
+    </div>
+  </body>
+</html>
+
