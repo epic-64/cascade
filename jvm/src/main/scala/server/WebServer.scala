@@ -129,6 +129,10 @@ object WebServer extends MainRoutes:
   def trader(): cask.Response[java.io.InputStream] =
     serveGamePage("trader.html")
 
+  @cask.get("/territory")
+  def territory(): cask.Response[java.io.InputStream] =
+    serveGamePage("territory.html")
+
   private def serveGamePage(htmlFile: String): cask.Response[java.io.InputStream] =
     cask.Response(
       data = getClass.getClassLoader.getResourceAsStream(s"static/$htmlFile"),

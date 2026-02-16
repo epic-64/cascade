@@ -9,6 +9,7 @@ enum AppRoute:
   case AIDrawing
   case TugOfWar
   case Trader
+  case Territory
   case Landing
 
 /** Route with optional lobby ID extracted from URL path */
@@ -23,6 +24,7 @@ def parseRoute(pathname: String): GameRoute =
     case "tug-of-war" :: lobbyId :: _ => GameRoute(AppRoute.TugOfWar, Some(lobbyId.toUpperCase))
     case "tug-of-war" :: Nil          => GameRoute(AppRoute.TugOfWar, None)
     case "trader" :: _                => GameRoute(AppRoute.Trader, None)
+    case "territory" :: _             => GameRoute(AppRoute.Territory, None)
     case "counter" :: _               => GameRoute(AppRoute.Counter, None)
     case _                            => GameRoute(AppRoute.Landing, None)
 
@@ -60,6 +62,9 @@ def clientMain(pathnameOverride: Option[String] = None): Unit =
     case AppRoute.Trader =>
       println("[client] Routing to Trader...")
       safeInitialize(client.initializeTrader())
+    case AppRoute.Territory =>
+      println("[client] Routing to Territory...")
+      safeInitialize(client.initializeTerritory())
     case AppRoute.Landing =>
       println("[client] Landing page - no app initialization needed")
 
