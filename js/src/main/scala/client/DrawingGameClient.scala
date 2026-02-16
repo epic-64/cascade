@@ -201,21 +201,6 @@ def createLobbySetup(): HTMLElement =
                 opt.textContent = "2-Word Scene (AI-generated)"
             )
           ),
-          div(cls = "select-row")(
-            el("label").tap: lbl =>
-              lbl.setAttribute("for", "captionStyle")
-              lbl.textContent = "Caption Style:"
-            ,
-            el("select", id = "captionStyle")(
-              el("option").tap: opt =>
-                opt.setAttribute("value", "Descriptive")
-                opt.textContent = "Descriptive"
-              ,
-              el("option").tap: opt =>
-                opt.setAttribute("value", "Roast")
-                opt.textContent = "Roast Mode 🔥"
-            )
-          ),
           div(cls = "warning", content = "⚠️ You'll pay for OpenAI API usage (~$0.02-0.04 per round)"),
           button("submit", content = "Create Lobby")
         )
@@ -447,12 +432,6 @@ def createDrawingLobby(): Unit =
       case "TwoWordScene" => GameMode.TwoWordScene
       case _              => GameMode.SingleWord
     .getOrElse(GameMode.SingleWord)
-  val captionStyle = getElementById("captionStyle")
-    .map(_.asInstanceOf[HTMLSelectElement].value)
-    .map:
-      case "Roast" => CaptionStyle.Roast
-      case _       => CaptionStyle.Descriptive
-    .getOrElse(CaptionStyle.Descriptive)
 
   if playerName.nonEmpty && apiKey.nonEmpty then
     // First connect to temporary WebSocket
@@ -463,8 +442,8 @@ def createDrawingLobby(): Unit =
     drawingWebSocket = Some(ws)
 
     ws.onopen = (e: Event) =>
-      println(s"[Drawing] WebSocket connected, creating lobby (gameMode: $gameMode, captionStyle: $captionStyle)...")
-      sendDrawingMessage(ClientMessage.CreateLobby(playerName, apiKey, gameMode, captionStyle))
+      println(s"[Drawing] WebSocket connected, creating lobby (gameMode: $gameMode)...")
+      sendDrawingMessage(ClientMessage.CreateLobby(playerName, apiKey, gameMode))
       drawingKeepAlive.start()
 
     ws.onmessage = (event: MessageEvent) =>
@@ -586,8 +565,8 @@ def processServerMessage(msg: ServerMessage): Unit =
     case ServerMessage.CaptionRevealed(playerName, caption) =>
       revealCaption(playerName, caption)
 
-    case ServerMessage.AIVoteRevealed(winnerName, reasoning) =>
-      revealAIVote(winnerName, reasoning)
+    case ServerMessage.AIVoteRevealed(winnerName) =>
+      revealAIVote(winnerName)
 
     case ServerMessage.VotingStarted(secondsRemaining) =>
       startVotingUI(secondsRemaining)
@@ -621,19 +600,12 @@ def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
         val promptModeText = lobby.gameMode match
           case GameMode.SingleWord   => "Single Word"
           case GameMode.TwoWordScene => "2-Word Scene"
-        val captionStyleText = lobby.captionStyle match
-          case CaptionStyle.Descriptive => "Descriptive"
-          case CaptionStyle.Roast       => "Roast Mode 🔥"
         elem.innerHTML = ""
         elem.appendChild(
           div(cls = "settings-display")(
             span(cls = "setting-item")(
               span(cls = "setting-label", content = "Prompt:"),
               span(cls = "setting-value", content = promptModeText)
-            ),
-            span(cls = "setting-item")(
-              span(cls = "setting-label", content = "Caption:"),
-              span(cls = "setting-value", content = captionStyleText)
             )
           )
         )
@@ -774,7 +746,7 @@ def revealCaption(playerName: String, caption: String): Unit =
     elem.classList.add("caption-reveal")
 
 // Phase 3: AI reveals its vote
-def revealAIVote(winnerName: String, reasoning: String): Unit =
+def revealAIVote(winnerName: String): Unit =
   getElementById("galleryStatus").foreach: elem =>
     elem.textContent = s"🤖 AI picked: $winnerName"
     elem.className = "gallery-status phase-ai-vote"
@@ -783,10 +755,9 @@ def revealAIVote(winnerName: String, reasoning: String): Unit =
   getElementById(s"badges-${winnerName}").foreach: elem =>
     elem.appendChild(span(cls = "badge badge-ai", content = "🤖 AI Pick"))
 
-  // Add reasoning to the winning card
+  // Mark the card as AI winner
   getElementById(s"card-${winnerName}").foreach: card =>
     card.classList.add("ai-winner")
-    card.appendChild(div(cls = "ai-reasoning", content = s"\"$reasoning\""))
 
 // Phase 4: Start voting
 def startVotingUI(secondsRemaining: Int): Unit =

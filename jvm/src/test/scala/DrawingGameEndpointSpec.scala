@@ -20,15 +20,14 @@ class DrawingGameEndpointSpec extends AnyFunSuite with TestServerHelper with Web
 
   // Mock OpenAI client that returns fake responses without calling the real API
   private val mockOpenAIClient = new OpenAIClient:
-    def captionImage(apiKey: String, imageBase64: String, captionStyle: CaptionStyle)(using ec: ExecutionContext): Future[String] =
-      Future.successful("A skillfully rendered masterpiece of abstract art")
+    def captionImage(apiKey: String, imageBase64: String)(using ec: ExecutionContext): Future[String] =
+      Future.successful("A drawing of something")
 
     def generatePromptFromWords(apiKey: String, words: Seq[String])(using ec: ExecutionContext): Future[String] =
       Future.successful(words.mkString(" "))
 
-    def selectWinner(apiKey: String, originalPrompt: String, captions: Map[String, String], captionStyle: CaptionStyle)(using ec: ExecutionContext): Future[OpenAIClient.WinnerSelection] =
-      val winnerName = captions.keys.headOption.getOrElse("Unknown")
-      Future.successful(OpenAIClient.WinnerSelection(winnerName, "An excellent interpretation!"))
+    def selectWinner(apiKey: String, originalPrompt: String, captions: Map[String, String])(using ec: ExecutionContext): Future[String] =
+      Future.successful(captions.keys.headOption.getOrElse("Unknown"))
 
   override def beforeAll(): Unit =
     // Inject mocks before server starts (super.beforeAll() starts the server)
@@ -142,22 +141,21 @@ class DrawingGameEndpointSpec extends AnyFunSuite with TestServerHelper with Web
       .get
 
 
-  test("lobby creation uses specified game mode and caption style"):
+  test("lobby creation uses specified game mode"):
     val messages = createMessageBuffer[ServerMessage]()
     val createdLatch, updateLatch = CountDownLatch(1)
     val ws = connectWebSocket(tempWsUrl, createGameListener(messages, Seq(createdLatch, updateLatch)))
 
     withWebSockets(ws):
-      sendMessage(ws, ClientMessage.CreateLobby("Alice", testApiKey, GameMode.TwoWordScene, CaptionStyle.Roast))
+      sendMessage(ws, ClientMessage.CreateLobby("Alice", testApiKey, GameMode.TwoWordScene))
       awaitLatch(createdLatch, "Timeout waiting for LobbyCreated")
       awaitLatch(updateLatch, "Timeout waiting for LobbyUpdate")
 
       messages.toSeq.collectFirst { case ServerMessage.LobbyUpdate(l) => l } match
         case Some(lobby) =>
           assert(lobby.gameMode == GameMode.TwoWordScene)
-          assert(lobby.captionStyle == CaptionStyle.Roast)
         case None =>
-          fail("Expected LobbyUpdate with game mode and caption style")
+          fail("Expected LobbyUpdate with game mode")
 
 
   test("joining non-existent lobby returns error"):
@@ -381,7 +379,6 @@ class DrawingGameEndpointSpec extends AnyFunSuite with TestServerHelper with Web
       messages.toSeq.collectFirst { case ServerMessage.LobbyUpdate(l) => l } match
         case Some(lobby) =>
           assert(lobby.gameMode == GameMode.SingleWord)
-          assert(lobby.captionStyle == CaptionStyle.Descriptive)
         case None =>
           fail("Expected LobbyUpdate")
 
