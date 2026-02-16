@@ -242,22 +242,22 @@ object TerritoryClient:
     // Mouse wheel zoom
     viewport.addEventListener("wheel", (e: WheelEvent) =>
       e.preventDefault()
-      
+
       val mouseX = e.clientX
       val mouseY = e.clientY
-      
+
       // Calculate the world position under the mouse before zoom
       val worldXBefore = (mouseX - panOffsetX) / TileSize
       val worldYBefore = (mouseY - panOffsetY) / TileSize
-      
+
       // Apply zoom
       val delta = if e.deltaY < 0 then ZoomStep else -ZoomStep
       zoomLevel = math.max(MinZoom, math.min(MaxZoom, zoomLevel + delta))
-      
+
       // Adjust pan to keep the same world position under the mouse
       panOffsetX = mouseX - worldXBefore * TileSize
       panOffsetY = mouseY - worldYBefore * TileSize
-      
+
       updateGridPosition()
       renderTiles()
     )
@@ -465,10 +465,12 @@ object TerritoryClient:
     val coord = tile.coord
     val tileDiv = div(id = s"tile-${coord.row}-${coord.col}", cls = "territory-tile")
     val tilePixelSize = (70 * zoomLevel).toInt
+    // Scale font size with zoom, but clamp to reasonable range
+    val fontScale = math.max(0.6, math.min(1.0, zoomLevel))
 
     // Position the tile absolutely with zoom-adjusted size
     tileDiv.asInstanceOf[HTMLElement].style.cssText =
-      s"position: absolute; left: ${coord.col * TileSize}px; top: ${coord.row * TileSize}px; width: ${tilePixelSize}px; height: ${tilePixelSize}px;"
+      s"position: absolute; left: ${coord.col * TileSize}px; top: ${coord.row * TileSize}px; width: ${tilePixelSize}px; height: ${tilePixelSize}px; font-size: ${fontScale}em;"
 
     tileDiv.classList.add("unlocked")
     tile.tileType match
@@ -566,10 +568,11 @@ object TerritoryClient:
   private def renderUnlockableTile(coord: Coord): HTMLElement =
     val tileDiv = div(id = s"tile-${coord.row}-${coord.col}", cls = "territory-tile locked unlockable")
     val tilePixelSize = (70 * zoomLevel).toInt
+    val fontScale = math.max(0.6, math.min(1.0, zoomLevel))
 
     // Position the tile absolutely with zoom-adjusted size
     tileDiv.asInstanceOf[HTMLElement].style.cssText =
-      s"position: absolute; left: ${coord.col * TileSize}px; top: ${coord.row * TileSize}px; width: ${tilePixelSize}px; height: ${tilePixelSize}px;"
+      s"position: absolute; left: ${coord.col * TileSize}px; top: ${coord.row * TileSize}px; width: ${tilePixelSize}px; height: ${tilePixelSize}px; font-size: ${fontScale}em;"
 
     val cost = currentGame.nextTileUnlockCost
     val canAfford = currentGame.gold >= cost
