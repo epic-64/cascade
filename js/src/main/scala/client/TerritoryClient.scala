@@ -508,6 +508,17 @@ object TerritoryClient:
       val minRow = ((-panOffsetY - TileSize * VisiblePadding) / TileSize).floor.toInt
       val maxRow = ((-panOffsetY + viewportHeight + TileSize * VisiblePadding) / TileSize).ceil.toInt
 
+      // Render influence indicators first (so they appear behind tiles)
+      currentGame.unlockedTiles.foreach: tile =>
+        val coord = tile.coord
+        if coord.row >= minRow - 3 && coord.row <= maxRow + 3 && coord.col >= minCol - 3 && coord.col <= maxCol + 3 then
+          tile.tileType match
+            case TileType.Farm(_) =>
+              grid.appendChild(renderInfluenceIndicator(coord, 1, "farm-influence"))
+            case TileType.Bureau(_) =>
+              grid.appendChild(renderInfluenceIndicator(coord, TerritoryLogic.BureauRadius, "bureau-influence"))
+            case _ => // No indicator
+
       // Get all coords we need to render (existing tiles + unlockable if affordable)
       val unlockableCoords = TerritoryLogic.unlockableCoords(currentGame)
       val canAffordUnlock = currentGame.gold >= currentGame.nextTileUnlockCost
@@ -522,6 +533,20 @@ object TerritoryClient:
             case None if canAffordUnlock && unlockableCoords.contains(coord) =>
               grid.appendChild(renderUnlockableTile(coord))
             case _ => // Don't render
+
+  private def renderInfluenceIndicator(center: Coord, radius: Int, cssClass: String): HTMLElement =
+    val indicator = div(cls = s"influence-indicator $cssClass")
+    
+    // Calculate the rectangle bounds
+    val left = (center.col - radius) * TileSize
+    val top = (center.row - radius) * TileSize
+    val width = (radius * 2 + 1) * TileSize - 4 // -4 for gap
+    val height = (radius * 2 + 1) * TileSize - 4
+    
+    indicator.style.cssText = 
+      s"position: absolute; left: ${left}px; top: ${top}px; width: ${width}px; height: ${height}px;"
+    
+    indicator
 
   private def renderTile(tile: Tile): HTMLElement =
     val coord = tile.coord
