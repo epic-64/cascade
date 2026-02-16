@@ -69,6 +69,7 @@ object TerritoryClient:
     container.appendChild(buildActions())
     container.appendChild(buildNotification())
     container.appendChild(buildHelpPopup())
+    container.appendChild(buildDevToolsPopup())
 
     // Setup drag handlers
     setupDragHandlers(viewport)
@@ -111,6 +112,9 @@ object TerritoryClient:
       ,
       button(id = "territory-reset-btn", cls = "btn-danger", content = "Reset").tap: btn =>
         btn.onclick = (_: MouseEvent) => handleResetGame()
+      ,
+      button(id = "territory-dev-btn", cls = "btn-dev", content = "🛠️ Dev").tap: btn =>
+        btn.onclick = (_: MouseEvent) => toggleDevTools()
     )
 
   private def buildNotification(): HTMLElement =
@@ -132,10 +136,41 @@ object TerritoryClient:
           p(content = "👑 Fill all unlocked tiles to abdicate"),
           p(content = "💰 Abdication earns gold based on income rate"),
           p(content = "🔓 Click adjacent tiles to expand your territory"),
-          p(content = "🖱️ Drag to pan around the infinite map")
+          p(content = "🖱️ Drag to pan around the infinite map"),
+          p(content = "🗑️ Right-click a building to destroy it")
         )
       )
     )
+
+  private def buildDevToolsPopup(): HTMLElement =
+    div(id = "territory-dev-popup", cls = "help-popup")(
+      div(cls = "help-popup-content dev-tools-content")(
+        div(cls = "help-popup-header")(
+          h3(content = "🛠️ Dev Tools"),
+          button(cls = "help-close-btn", content = "✕").tap: btn =>
+            btn.onclick = (_: MouseEvent) => toggleDevTools()
+        ),
+        div(cls = "help-popup-body")(
+          button(cls = "btn-dev-action", content = "💰 Gold x10").tap: btn =>
+            btn.onclick = (_: MouseEvent) =>
+              currentGame = currentGame.copy(gold = math.max(currentGame.gold * 10, 100))
+              saveGame()
+              renderGame()
+              showNotification(s"Gold is now ${currentGame.gold}")
+          ,
+          button(cls = "btn-dev-action", content = "🌾 Wheat +1000").tap: btn =>
+            btn.onclick = (_: MouseEvent) =>
+              currentGame = currentGame.copy(wheat = currentGame.wheat + 1000)
+              saveGame()
+              renderGame()
+              showNotification(s"Added 1000 wheat")
+        )
+      )
+    )
+
+  private def toggleDevTools(): Unit =
+    getElementById("territory-dev-popup").foreach: popup =>
+      popup.classList.toggle("show")
 
   private def toggleHelpPopup(): Unit =
     getElementById("territory-help-popup").foreach: popup =>
@@ -472,6 +507,9 @@ object TerritoryClient:
         tileDiv.appendChild(progressContainer)
 
         tileDiv.onclick = (_: MouseEvent) => handleLevelUpWheatField(coord)
+        tileDiv.oncontextmenu = (e: MouseEvent) =>
+          e.preventDefault()
+          handleDestroyBuilding(coord)
 
       case TileType.Farm(level) =>
         tileDiv.classList.add("farm")
@@ -488,6 +526,9 @@ object TerritoryClient:
           )
         )
         tileDiv.onclick = (_: MouseEvent) => handleLevelUpFarm(coord)
+        tileDiv.oncontextmenu = (e: MouseEvent) =>
+          e.preventDefault()
+          handleDestroyBuilding(coord)
 
     tileDiv
 
@@ -564,6 +605,17 @@ object TerritoryClient:
         currentGame = newGame
         saveGame()
         renderGame()
+      case Left(error) =>
+        showNotification(error)
+
+  private def handleDestroyBuilding(coord: Coord): Unit =
+    TerritoryLogic.destroyBuilding(currentGame, coord) match
+      case Right(newGame) =>
+        currentGame = newGame
+        tileProgress = tileProgress.removed(coord) // Remove progress tracking for this tile
+        saveGame()
+        renderGame()
+        showNotification("Building destroyed")
       case Left(error) =>
         showNotification(error)
 
