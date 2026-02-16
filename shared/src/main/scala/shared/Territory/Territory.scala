@@ -257,6 +257,18 @@ object TerritoryLogic:
             ))
         case _ => Left("Tile is not a farm")
 
+  // Destroy a building on a tile (returns it to empty state, no refund)
+  def destroyBuilding(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+    game.tiles.get(coord) match
+      case None => Left("Tile not found")
+      case Some(tile) if !tile.unlocked => Left("Tile is locked")
+      case Some(tile) if tile.isEmpty => Left("Tile is already empty")
+      case Some(tile) =>
+        val updatedTile = tile.copy(tileType = TileType.Empty)
+        Right(game.copy(
+          tiles = game.tiles.updated(coord, updatedTile)
+        ))
+
   // Abdicate: reset tiles, gain gold based on income rate
   def abdicate(game: TerritoryGame, currentTimeMillis: Long): Either[String, TerritoryGame] =
     if !game.allTilesFilled then
