@@ -156,30 +156,30 @@
 }
 
 .territory-tile.wheat-field {
-  background: #fef9c3;
-  border: 2px solid #eab308;
+  background: #fefce8;
+  border: 2px solid #ca8a04;
 }
 
 .territory-tile.wheat-field:hover {
-  background: #fef08a;
+  background: #fef9c3;
   transform: scale(1.08);
   box-shadow: var(--shadow-lg);
   z-index: 10;
 }
 
 .territory-tile.wheat-field[data-level="2"] {
-  background: #fde047;
-  border-color: #ca8a04;
-}
-
-.territory-tile.wheat-field[data-level="3"] {
-  background: #facc15;
+  background: #fef08a;
   border-color: #a16207;
 }
 
-.territory-tile.wheat-field[data-level="4"] {
-  background: #eab308;
+.territory-tile.wheat-field[data-level="3"] {
+  background: #fde047;
   border-color: #854d0e;
+}
+
+.territory-tile.wheat-field[data-level="4"] {
+  background: #facc15;
+  border-color: #713f12;
 }
 
 .territory-tile.wheat-field[data-level="5"],
@@ -188,38 +188,83 @@
 .territory-tile.wheat-field[data-level="8"],
 .territory-tile.wheat-field[data-level="9"],
 .territory-tile.wheat-field[data-level="10"] {
-  background: #ca8a04;
-  border-color: #713f12;
+  background: #eab308;
+  border-color: #422006;
+}
+
+/* Text colors for wheat fields - ensure contrast */
+.territory-tile.wheat-field .tile-label,
+.territory-tile.wheat-field .tile-cost,
+.territory-tile.wheat-field .tile-upgrade {
+  color: #422006;
+}
+
+.territory-tile.wheat-field .tile-production {
+  color: #166534;
+}
+
+.territory-tile.wheat-field .bonus {
+  color: #15803d;
 }
 
 /* Farm Tiles */
 .territory-tile.farm {
-  background: #dbeafe;
+  background: #eff6ff;
   border: 2px solid #3b82f6;
 }
 
 .territory-tile.farm:hover {
-  background: #bfdbfe;
+  background: #dbeafe;
   transform: scale(1.08);
   box-shadow: var(--shadow-lg);
   z-index: 10;
 }
 
 .territory-tile.farm[data-level="2"] {
-  background: #93c5fd;
+  background: #bfdbfe;
   border-color: #2563eb;
 }
 
 .territory-tile.farm[data-level="3"] {
-  background: #60a5fa;
+  background: #93c5fd;
   border-color: #1d4ed8;
 }
 
 .territory-tile.farm[data-level="4"],
 .territory-tile.farm[data-level="5"],
 .territory-tile.farm[data-level="6"] {
-  background: #3b82f6;
+  background: #60a5fa;
   border-color: #1e40af;
+}
+
+/* Text colors for farm tiles */
+.territory-tile.farm .tile-label,
+.territory-tile.farm .tile-cost,
+.territory-tile.farm .tile-upgrade {
+  color: #1e3a5f;
+}
+
+.territory-tile.farm .tile-production {
+  color: #1d4ed8;
+}
+
+/* Higher level farms need lighter text */
+.territory-tile.farm[data-level="4"] .tile-label,
+.territory-tile.farm[data-level="4"] .tile-cost,
+.territory-tile.farm[data-level="4"] .tile-upgrade,
+.territory-tile.farm[data-level="5"] .tile-label,
+.territory-tile.farm[data-level="5"] .tile-cost,
+.territory-tile.farm[data-level="5"] .tile-upgrade,
+.territory-tile.farm[data-level="6"] .tile-label,
+.territory-tile.farm[data-level="6"] .tile-cost,
+.territory-tile.farm[data-level="6"] .tile-upgrade {
+  color: #1e3a8a;
+}
+
+.territory-tile.farm[data-level="4"] .tile-production,
+.territory-tile.farm[data-level="5"] .tile-production,
+.territory-tile.farm[data-level="6"] .tile-production {
+  color: #1e40af;
 }
 
 /* Build Options (when farm is available) */
@@ -249,25 +294,27 @@
 }
 
 .build-icon {
-  font-size: 0.875rem;
+  font-size: 1rem;
   line-height: 1;
 }
 
 .build-label {
-  font-size: 0.5rem;
-  font-weight: 600;
-  color: var(--text-primary);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #1e293b;
 }
 
 .build-cost {
-  font-size: 0.45rem;
-  color: var(--text-secondary);
+  font-size: 0.55rem;
+  color: #475569;
+  font-weight: 600;
 }
 
 /* Bonus indicator on wheat fields */
 .bonus {
-  color: #059669;
-  font-size: 0.45rem;
+  color: #15803d;
+  font-size: 0.6rem;
+  font-weight: 700;
 }
 
 /* Tile Content */
@@ -283,26 +330,26 @@
 }
 
 .tile-icon {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   line-height: 1;
 }
 
 .tile-label {
   font-weight: 700;
-  font-size: 0.6rem;
-  color: var(--text-primary);
+  font-size: 0.75rem;
+  color: #1e293b;
 }
 
 .tile-cost,
 .tile-upgrade {
-  font-size: 0.55rem;
-  color: var(--text-secondary);
+  font-size: 0.65rem;
+  color: #475569;
   font-weight: 600;
 }
 
 .tile-production {
-  font-size: 0.5rem;
-  color: #059669;
+  font-size: 0.65rem;
+  color: #166534;
   font-weight: 700;
 }
 
