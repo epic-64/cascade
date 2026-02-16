@@ -658,58 +658,73 @@ object TerritoryClient:
   // ============================================================================
 
   private def handleBuildWheatField(coord: Coord): Unit =
+    val cost = TerritoryLogic.wheatFieldBuildCost
     TerritoryLogic.buildWheatField(currentGame, coord) match
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
         renderGame()
+        showFloatingReward(coord, cost, "🌾", isSpend = true)
       case Left(error) =>
         showNotification(error)
 
   private def handleBuildFarm(coord: Coord): Unit =
+    val cost = TerritoryLogic.farmBuildCost
     TerritoryLogic.buildFarm(currentGame, coord) match
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
         renderGame()
+        showFloatingReward(coord, cost, "🌾", isSpend = true)
       case Left(error) =>
         showNotification(error)
 
   private def handleBuildWoodcutter(coord: Coord): Unit =
+    val cost = TerritoryLogic.woodcutterBuildCost
     TerritoryLogic.buildWoodcutter(currentGame, coord) match
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
         renderGame()
+        showFloatingReward(coord, cost, "🌾", isSpend = true)
       case Left(error) =>
         showNotification(error)
 
   private def handleLevelUpWheatField(coord: Coord): Unit =
-    TerritoryLogic.levelUpWheatField(currentGame, coord) match
-      case Right(newGame) =>
-        currentGame = newGame
-        saveGame()
-        renderGame()
-      case Left(error) =>
-        showNotification(error)
+    currentGame.tiles.get(coord).foreach: tile =>
+      val cost = TerritoryLogic.wheatFieldLevelUpCost(tile.level)
+      TerritoryLogic.levelUpWheatField(currentGame, coord) match
+        case Right(newGame) =>
+          currentGame = newGame
+          saveGame()
+          renderGame()
+          showFloatingReward(coord, cost, "🌾", isSpend = true)
+        case Left(error) =>
+          showNotification(error)
 
   private def handleLevelUpFarm(coord: Coord): Unit =
-    TerritoryLogic.levelUpFarm(currentGame, coord) match
-      case Right(newGame) =>
-        currentGame = newGame
-        saveGame()
-        renderGame()
-      case Left(error) =>
-        showNotification(error)
+    currentGame.tiles.get(coord).foreach: tile =>
+      val cost = TerritoryLogic.farmLevelUpCost(tile.level)
+      TerritoryLogic.levelUpFarm(currentGame, coord) match
+        case Right(newGame) =>
+          currentGame = newGame
+          saveGame()
+          renderGame()
+          showFloatingReward(coord, cost, "🌾", isSpend = true)
+        case Left(error) =>
+          showNotification(error)
 
   private def handleLevelUpWoodcutter(coord: Coord): Unit =
-    TerritoryLogic.levelUpWoodcutter(currentGame, coord) match
-      case Right(newGame) =>
-        currentGame = newGame
-        saveGame()
-        renderGame()
-      case Left(error) =>
-        showNotification(error)
+    currentGame.tiles.get(coord).foreach: tile =>
+      val cost = TerritoryLogic.woodcutterLevelUpCost(tile.level)
+      TerritoryLogic.levelUpWoodcutter(currentGame, coord) match
+        case Right(newGame) =>
+          currentGame = newGame
+          saveGame()
+          renderGame()
+          showFloatingReward(coord, cost, "🌾", isSpend = true)
+        case Left(error) =>
+          showNotification(error)
 
   private def handleDestroyBuilding(coord: Coord): Unit =
     TerritoryLogic.destroyBuilding(currentGame, coord) match
@@ -737,12 +752,13 @@ object TerritoryClient:
             showNotification(error)
 
   private def handleUnlockTile(coord: Coord): Unit =
+    val cost = currentGame.nextTileUnlockCost
     TerritoryLogic.unlockTile(currentGame, coord) match
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
         renderGame()
-        showNotification("Tile unlocked!")
+        showFloatingReward(coord, cost, "💰", isSpend = true)
       case Left(error) =>
         showNotification(error)
 
@@ -776,13 +792,14 @@ object TerritoryClient:
       val coord = tile.coord
       val progress = tileProgress.getOrElse(coord, 0.0)
       getElementById(s"progress-bar-${coord.row}-${coord.col}").foreach: bar =>
-        bar.asInstanceOf[HTMLElement].style.width = s"${(progress * 100).toInt}%"
+        bar.style.width = s"${(progress * 100).toInt}%"
 
-  private def showFloatingReward(coord: Coord, amount: Int, emoji: String = ""): Unit =
+  private def showFloatingReward(coord: Coord, amount: Int, emoji: String = "", isSpend: Boolean = false): Unit =
     getElementById(s"tile-${coord.row}-${coord.col}").foreach: tileElem =>
-      val floater = document.createElement("div").asInstanceOf[HTMLElement]
-      floater.className = "floating-reward"
-      floater.textContent = s"+$amount$emoji"
+      val floater = div()
+      floater.className = if isSpend then "floating-reward floating-spend" else "floating-reward"
+      val sign = if isSpend then "-" else "+"
+      floater.textContent = s"$sign$amount$emoji"
       tileElem.appendChild(floater)
 
       // Remove after animation completes
