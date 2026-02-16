@@ -250,10 +250,11 @@ object TerritoryLogic:
   // Legacy alias
   def levelUpCost(currentLevel: Int): Int = wheatFieldLevelUpCost(currentLevel)
 
-  // Cost to unlock next tile (exponential)
+  // Cost to unlock next tile (exponential, capped to prevent overflow)
   def tileUnlockCost(currentUnlockedCount: Int): Int =
     val tilesAfterInitial = math.max(0, currentUnlockedCount - InitialTileCount)
     if tilesAfterInitial == 0 then 100
+    else if tilesAfterInitial >= 20 then 100_000_000 // Cap at 100 million
     else 100 * math.pow(2, tilesAfterInitial).toInt
 
   // Gold reward for abdication based on total income rate
@@ -493,4 +494,91 @@ object TerritoryLogic:
           tiles = game.tiles.updated(coord, newTile),
           gold = game.gold - cost
         ))
+
+  // Simple Perlin-like noise for continent generation
+  private def noise2D(x: Double, y: Double, seed: Long): Double =
+    val random = new scala.util.Random(seed ^ (x.toLong * 73856093L) ^ (y.toLong * 19349663L))
+    random.nextDouble()
+
+  private def smoothNoise(x: Double, y: Double, seed: Long): Double =
+    val x0 = x.floor.toInt
+    val y0 = y.floor.toInt
+    val fx = x - x0
+    val fy = y - y0
+    
+    // Get values at corners
+    val v00 = noise2D(x0, y0, seed)
+    val v10 = noise2D(x0 + 1, y0, seed)
+    val v01 = noise2D(x0, y0 + 1, seed)
+    val v11 = noise2D(x0 + 1, y0 + 1, seed)
+    
+    // Smooth interpolation
+    val sx = fx * fx * (3 - 2 * fx)
+    val sy = fy * fy * (3 - 2 * fy)
+    
+    val i0 = v00 * (1 - sx) + v10 * sx
+    val i1 = v01 * (1 - sx) + v11 * sx
+    i0 * (1 - sy) + i1 * sy
+
+  private def perlinNoise(x: Double, y: Double, seed: Long, octaves: Int = 3): Double =
+    var total = 0.0
+    var frequency = 1.0
+    var amplitude = 1.0
+    var maxValue = 0.0
+    
+    for _ <- 0 until octaves do
+      total += smoothNoise(x * frequency, y * frequency, seed) * amplitude
+      maxValue += amplitude
+      amplitude *= 0.5
+      frequency *= 2
+    
+    total / maxValue
+
+  // Dev tool: Unlock many tiles for free (creates continent-like shapes using Perlin noise)
+  def unlockManyTiles(game: TerritoryGame, count: Int): TerritoryGame =
+    val seed = System.currentTimeMillis()
+    val noiseScale = 0.15 // Controls how "zoomed in" the noise is
+    
+    // Find center of current territory
+    val existingCoords = game.tiles.keySet
+    val centerRow = existingCoords.map(_.row).sum.toDouble / existingCoords.size
+    val centerCol = existingCoords.map(_.col).sum.toDouble / existingCoords.size
+    
+    (1 to count).foldLeft(game): (currentGame, _) =>
+      val available = unlockableCoords(currentGame)
+      if available.isEmpty then currentGame
+      else
+        val currentCoords = currentGame.tiles.keySet
+        
+        // Score each candidate using Perlin noise + distance from center
+        val scored = available.toList.map: coord =>
+          val neighborCount = coord.neighbors.count(currentCoords.contains)
+          
+          // Use Perlin noise to create organic boundary
+          val noiseVal = perlinNoise(coord.col * noiseScale, coord.row * noiseScale, seed)
+          
+          // Distance from center (normalized)
+          val dist = math.sqrt(math.pow(coord.row - centerRow, 2) + math.pow(coord.col - centerCol, 2))
+          val maxDist = math.sqrt(currentCoords.size.toDouble) * 1.5
+          val normalizedDist = dist / maxDist
+          
+          // Threshold based on noise - tiles further out need higher noise to be included
+          val threshold = 0.3 + normalizedDist * 0.4
+          val noiseScore = if noiseVal > threshold then 1.0 else 0.3
+          
+          // Strongly prefer filling holes (high neighbor count)
+          val holeFillingScore = neighborCount match
+            case n if n >= 5 => 2.0  // Definitely fill holes
+            case 4 => 1.5
+            case 3 => 1.0
+            case 2 => 0.8
+            case _ => 0.5
+          
+          (coord, noiseScore * holeFillingScore)
+        
+        // Pick the best candidate
+        val best = scored.maxBy(_._2)._1
+        
+        val newTile = Tile(coord = best, tileType = TileType.Empty, unlocked = true)
+        currentGame.copy(tiles = currentGame.tiles.updated(best, newTile))
 

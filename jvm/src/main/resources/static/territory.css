@@ -269,43 +269,43 @@
 
 /* Woodcutter Tiles */
 .territory-tile.woodcutter {
-  background: #fef2f2;
-  border: 2px solid #b45309;
+  background: #f0fdf4;
+  border: 2px solid #16a34a;
 }
 
 .territory-tile.woodcutter:hover {
-  background: #fee2e2;
+  background: #dcfce7;
   transform: scale(1.08);
   box-shadow: var(--shadow-lg);
   z-index: 10;
 }
 
 .territory-tile.woodcutter[data-level="2"] {
-  background: #fecaca;
-  border-color: #92400e;
+  background: #bbf7d0;
+  border-color: #15803d;
 }
 
 .territory-tile.woodcutter[data-level="3"] {
-  background: #fca5a5;
-  border-color: #78350f;
+  background: #86efac;
+  border-color: #166534;
 }
 
 .territory-tile.woodcutter[data-level="4"],
 .territory-tile.woodcutter[data-level="5"],
 .territory-tile.woodcutter[data-level="6"] {
-  background: #f87171;
-  border-color: #451a03;
+  background: #4ade80;
+  border-color: #14532d;
 }
 
 /* Text colors for woodcutter tiles */
 .territory-tile.woodcutter .tile-label,
 .territory-tile.woodcutter .tile-cost,
 .territory-tile.woodcutter .tile-upgrade {
-  color: #78350f;
+  color: #14532d;
 }
 
 .territory-tile.woodcutter .tile-production {
-  color: #92400e;
+  color: #166534;
 }
 
 /* Forest group bonus indicator */
@@ -315,7 +315,7 @@
 
 /* Woodcutter progress bar */
 .tile-progress-bar.woodcutter-progress {
-  background: linear-gradient(90deg, #b45309 0%, #d97706 100%);
+  background: linear-gradient(90deg, #16a34a 0%, #4ade80 100%);
 }
 
 /* Bureau Tiles */
