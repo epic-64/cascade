@@ -80,6 +80,7 @@ object TerritoryLogic:
 
   // Constants
   val TickIntervalSeconds: Int = 1
+  val ProductionIntervalSeconds: Int = 10 // Wheat fields produce every 10 seconds
   val InitialTileCount: Int = 4
   val MaxTiles: Int = 64
   val FarmBoostPerLevel: Double = 0.25 // 25% boost per farm level
@@ -104,10 +105,13 @@ object TerritoryLogic:
     yield newRow * gridWidth + newCol
     adjacent.toSet
 
-  // Base production rate per level (wheat per second) - without bonuses
+  // Base production per harvest (wheat per 10-second interval) - without bonuses
   def baseProductionRate(tile: Tile): Double = tile.tileType match
-    case TileType.WheatField(level) => level * 0.5 // 0.5/s at level 1, 1.0/s at level 2, etc.
+    case TileType.WheatField(level) => level * 5.0 // 5 wheat at level 1, 10 at level 2, etc. (per 10s)
     case _ => 0.0
+
+  // Production rate per second (for display and total income calculation)
+  def productionPerSecond(tile: Tile): Double = baseProductionRate(tile) / ProductionIntervalSeconds
 
   // Calculate farm bonus multiplier for a wheat field at given position
   def farmBonusMultiplier(game: TerritoryGame, tileId: Int): Double =
@@ -118,14 +122,20 @@ object TerritoryLogic:
     .sum
     1.0 + farmBonus
 
-  // Production rate for a specific tile (with farm bonuses applied)
+  // Production rate for a specific tile per second (with farm bonuses applied)
   def productionRate(game: TerritoryGame, tile: Tile): Double =
-    val base = baseProductionRate(tile)
+    val base = productionPerSecond(tile)
     if base > 0 then base * farmBonusMultiplier(game, tile.id)
     else 0.0
 
   // Legacy method for backwards compatibility
-  def productionRate(tile: Tile): Double = baseProductionRate(tile)
+  def productionRate(tile: Tile): Double = productionPerSecond(tile)
+
+  // Production per harvest for a specific tile (with farm bonuses applied)
+  def productionPerHarvest(game: TerritoryGame, tile: Tile): Double =
+    val base = baseProductionRate(tile)
+    if base > 0 then base * farmBonusMultiplier(game, tile.id)
+    else 0.0
 
   // Total production rate for the game (all wheat fields with bonuses)
   def totalProductionRate(game: TerritoryGame): Double =
