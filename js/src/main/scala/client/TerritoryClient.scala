@@ -13,6 +13,10 @@ object TerritoryClient:
   private val StorageKey = "territory_game_state"
   private var currentGame: TerritoryGame = TerritoryLogic.newGame(System.currentTimeMillis())
   private var gameTickerHandle: Option[Int] = None
+  
+  // Track progress (0.0 to 1.0) for each wheat field tile
+  private var tileProgress: Map[Int, Double] = Map.empty
+  private val ProductionIntervalMs: Double = TerritoryLogic.ProductionIntervalSeconds * 1000.0
 
   // ============================================================================
   // Initialization
@@ -128,9 +132,38 @@ object TerritoryClient:
 
   private def gameTick(): Unit =
     val currentTime = System.currentTimeMillis()
-    currentGame = TerritoryLogic.tick(currentGame, currentTime)
+    val elapsedMs = (currentTime - currentGame.lastTickTime).toDouble
+    
+    // Update progress for each wheat field and collect harvests
+    var totalHarvested = 0.0
+    val wheatFields = currentGame.unlockedTiles.filter(_.isWheatField)
+    
+    wheatFields.foreach: tile =>
+      val currentProgress = tileProgress.getOrElse(tile.id, 0.0)
+      val progressIncrement = elapsedMs / ProductionIntervalMs
+      val newProgress = currentProgress + progressIncrement
+      
+      if newProgress >= 1.0 then
+        // Harvest!
+        val harvests = newProgress.toInt
+        val production = TerritoryLogic.productionPerHarvest(currentGame, tile)
+        totalHarvested += production * harvests
+        tileProgress = tileProgress.updated(tile.id, newProgress - harvests)
+        
+        // Show floating reward
+        showFloatingReward(tile.id, (production * harvests).toInt)
+      else
+        tileProgress = tileProgress.updated(tile.id, newProgress)
+    
+    // Add harvested wheat to game state
+    currentGame = currentGame.copy(
+      wheat = currentGame.wheat + totalHarvested,
+      lastTickTime = currentTime
+    )
+    
     saveGame()
-    renderGame()
+    updateProgressBars()
+    renderResources()
 
   // ============================================================================
   // Persistence
@@ -260,7 +293,8 @@ object TerritoryClient:
           tileDiv.setAttribute("data-level", level.toString)
           val baseProduction = TerritoryLogic.baseProductionRate(tile)
           val actualProduction = TerritoryLogic.productionRate(currentGame, tile)
-          val hasBonus = actualProduction > baseProduction
+          val harvestAmount = TerritoryLogic.productionPerHarvest(currentGame, tile)
+          val hasBonus = actualProduction > TerritoryLogic.productionPerSecond(tile)
           val productionStr = f"$actualProduction%.1f"
           val upgradeCost = TerritoryLogic.wheatFieldLevelUpCost(level)
 
@@ -269,14 +303,23 @@ object TerritoryClient:
             div(cls = "tile-label", content = s"Lv$level")
           )
 
-          val prodDiv = div(cls = "tile-production", content = s"+$productionStr/s")
+          val prodDiv = div(cls = "tile-production", content = s"+${harvestAmount.toInt}")
           if hasBonus then
-            val bonusPercent = ((actualProduction / baseProduction - 1) * 100).toInt
+            val bonusPercent = ((TerritoryLogic.farmBonusMultiplier(currentGame, tile.id) - 1) * 100).toInt
             prodDiv.appendChild(span(cls = "bonus", content = s" +$bonusPercent%"))
           content.appendChild(prodDiv)
           content.appendChild(div(cls = "tile-upgrade", content = s"⬆$upgradeCost"))
 
           tileDiv.appendChild(content)
+          
+          // Add progress bar
+          val progress = tileProgress.getOrElse(tile.id, 0.0)
+          val progressContainer = div(cls = "tile-progress-container")
+          val progressBar = div(id = s"progress-bar-${tile.id}", cls = "tile-progress-bar")
+          progressBar.asInstanceOf[HTMLElement].style.width = s"${(progress * 100).toInt}%"
+          progressContainer.appendChild(progressBar)
+          tileDiv.appendChild(progressContainer)
+          
           tileDiv.onclick = (_: MouseEvent) => handleLevelUpWheatField(tile.id)
 
         case TileType.Farm(level) =>
@@ -396,3 +439,20 @@ object TerritoryClient:
       window.setTimeout(() =>
         notification.classList.remove("show")
       , 3000)
+
+  private def updateProgressBars(): Unit =
+    currentGame.unlockedTiles.filter(_.isWheatField).foreach: tile =>
+      val progress = tileProgress.getOrElse(tile.id, 0.0)
+      getElementById(s"progress-bar-${tile.id}").foreach: bar =>
+        bar.asInstanceOf[HTMLElement].style.width = s"${(progress * 100).toInt}%"
+
+  private def showFloatingReward(tileId: Int, amount: Int): Unit =
+    getElementById(s"tile-$tileId").foreach: tileElem =>
+      val floater = document.createElement("div").asInstanceOf[HTMLElement]
+      floater.className = "floating-reward"
+      floater.textContent = s"+$amount"
+      tileElem.appendChild(floater)
+      
+      // Remove after animation completes
+      window.setTimeout(() => floater.remove(), 1000)
+
