@@ -351,7 +351,7 @@ object TerritoryClient:
     // Update progress for each producing tile and collect harvests
     var totalWheatHarvested = 0.0
     var totalWoodHarvested = 0.0
-    
+
     val wheatFields = currentGame.unlockedTiles.filter(_.isWheatField)
     val woodcutters = currentGame.unlockedTiles.filter(_.isWoodcutter)
 
@@ -464,9 +464,10 @@ object TerritoryClient:
       val minRow = ((-panOffsetY - TileSize * VisiblePadding) / TileSize).floor.toInt
       val maxRow = ((-panOffsetY + viewportHeight + TileSize * VisiblePadding) / TileSize).ceil.toInt
 
-      // Get all coords we need to render (existing tiles + unlockable)
+      // Get all coords we need to render (existing tiles + unlockable if affordable)
       val unlockableCoords = TerritoryLogic.unlockableCoords(currentGame)
-      val coordsToRender = currentGame.tiles.keySet ++ unlockableCoords
+      val canAffordUnlock = currentGame.gold >= currentGame.nextTileUnlockCost
+      val coordsToRender = currentGame.tiles.keySet ++ (if canAffordUnlock then unlockableCoords else Set.empty)
 
       // Render tiles within visible range
       coordsToRender.foreach: coord =>
@@ -474,7 +475,7 @@ object TerritoryClient:
           currentGame.tiles.get(coord) match
             case Some(tile) =>
               grid.appendChild(renderTile(tile))
-            case None if unlockableCoords.contains(coord) =>
+            case None if canAffordUnlock && unlockableCoords.contains(coord) =>
               grid.appendChild(renderUnlockableTile(coord))
             case _ => // Don't render
 
@@ -627,7 +628,6 @@ object TerritoryClient:
       s"position: absolute; left: ${coord.col * TileSize}px; top: ${coord.row * TileSize}px; width: ${tilePixelSize}px; height: ${tilePixelSize}px; font-size: ${fontScale}em;"
 
     val cost = currentGame.nextTileUnlockCost
-    val canAfford = currentGame.gold >= cost
 
     tileDiv.appendChild(
       div(cls = "tile-content")(
@@ -636,9 +636,7 @@ object TerritoryClient:
       )
     )
 
-    if canAfford then
-      tileDiv.classList.add("affordable")
-      tileDiv.onclick = (_: MouseEvent) => handleUnlockTile(coord)
+    tileDiv.onclick = (_: MouseEvent) => handleUnlockTile(coord)
 
     tileDiv
 

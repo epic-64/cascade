@@ -703,29 +703,15 @@
   }
 }
 
-/* Unlockable tiles styling */
+/* Unlockable tiles styling - only shown when player can afford */
 .territory-tile.unlockable {
-  opacity: 0.7;
-  cursor: default;
-}
-
-.territory-tile.unlockable.affordable {
   opacity: 1;
   cursor: pointer;
-  animation: pulse-unlock 2s infinite;
 }
 
-.territory-tile.unlockable.affordable:hover {
+.territory-tile.unlockable:hover {
   transform: scale(1.05);
   box-shadow: 0 0 12px rgba(234, 179, 8, 0.5);
 }
 
-@keyframes pulse-unlock {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.4);
-  }
-  50% {
-    box-shadow: 0 0 8px 4px rgba(234, 179, 8, 0.2);
-  }
-}
 
