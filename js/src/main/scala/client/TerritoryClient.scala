@@ -27,8 +27,15 @@ object TerritoryClient:
   private var panStartX: Double = 0.0
   private var panStartY: Double = 0.0
 
+  // Zoom state
+  private var zoomLevel: Double = 1.0
+  private val MinZoom: Double = 0.3
+  private val MaxZoom: Double = 2.0
+  private val ZoomStep: Double = 0.1
+
   // Grid rendering constants
-  private val TileSize: Int = 74 // 70px tile + 4px gap
+  private val BaseTileSize: Int = 74 // 70px tile + 4px gap
+  private def TileSize: Double = BaseTileSize * zoomLevel
   private val VisiblePadding: Int = 2 // Extra tiles to render outside viewport
 
   // ============================================================================
@@ -136,7 +143,7 @@ object TerritoryClient:
           p(content = "👑 Fill all unlocked tiles to abdicate"),
           p(content = "💰 Abdication earns gold based on income rate"),
           p(content = "🔓 Click adjacent tiles to expand your territory"),
-          p(content = "🖱️ Drag to pan around the infinite map"),
+          p(content = "🖱️ Drag to pan, scroll to zoom"),
           p(content = "🗑️ Right-click a building to destroy it")
         )
       )
@@ -230,6 +237,29 @@ object TerritoryClient:
       if isDragging then
         isDragging = false
         snapBackIfNeeded()
+    )
+
+    // Mouse wheel zoom
+    viewport.addEventListener("wheel", (e: WheelEvent) =>
+      e.preventDefault()
+      
+      val mouseX = e.clientX
+      val mouseY = e.clientY
+      
+      // Calculate the world position under the mouse before zoom
+      val worldXBefore = (mouseX - panOffsetX) / TileSize
+      val worldYBefore = (mouseY - panOffsetY) / TileSize
+      
+      // Apply zoom
+      val delta = if e.deltaY < 0 then ZoomStep else -ZoomStep
+      zoomLevel = math.max(MinZoom, math.min(MaxZoom, zoomLevel + delta))
+      
+      // Adjust pan to keep the same world position under the mouse
+      panOffsetX = mouseX - worldXBefore * TileSize
+      panOffsetY = mouseY - worldYBefore * TileSize
+      
+      updateGridPosition()
+      renderTiles()
     )
 
   private def updateGridPosition(): Unit =
@@ -434,10 +464,11 @@ object TerritoryClient:
   private def renderTile(tile: Tile): HTMLElement =
     val coord = tile.coord
     val tileDiv = div(id = s"tile-${coord.row}-${coord.col}", cls = "territory-tile")
+    val tilePixelSize = (70 * zoomLevel).toInt
 
-    // Position the tile absolutely
+    // Position the tile absolutely with zoom-adjusted size
     tileDiv.asInstanceOf[HTMLElement].style.cssText =
-      s"position: absolute; left: ${coord.col * TileSize}px; top: ${coord.row * TileSize}px;"
+      s"position: absolute; left: ${coord.col * TileSize}px; top: ${coord.row * TileSize}px; width: ${tilePixelSize}px; height: ${tilePixelSize}px;"
 
     tileDiv.classList.add("unlocked")
     tile.tileType match
@@ -534,10 +565,11 @@ object TerritoryClient:
 
   private def renderUnlockableTile(coord: Coord): HTMLElement =
     val tileDiv = div(id = s"tile-${coord.row}-${coord.col}", cls = "territory-tile locked unlockable")
+    val tilePixelSize = (70 * zoomLevel).toInt
 
-    // Position the tile absolutely
+    // Position the tile absolutely with zoom-adjusted size
     tileDiv.asInstanceOf[HTMLElement].style.cssText =
-      s"position: absolute; left: ${coord.col * TileSize}px; top: ${coord.row * TileSize}px;"
+      s"position: absolute; left: ${coord.col * TileSize}px; top: ${coord.row * TileSize}px; width: ${tilePixelSize}px; height: ${tilePixelSize}px;"
 
     val cost = currentGame.nextTileUnlockCost
     val canAfford = currentGame.gold >= cost
