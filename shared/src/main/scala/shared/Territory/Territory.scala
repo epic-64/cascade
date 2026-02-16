@@ -81,14 +81,11 @@ object TerritoryLogic:
   // Constants
   val TickIntervalSeconds: Int = 1
   val InitialTileCount: Int = 4
-  val MaxTiles: Int = 16
+  val MaxTiles: Int = 64
   val FarmBoostPerLevel: Double = 0.25 // 25% boost per farm level
 
-  // Grid size calculation based on tile count
-  def gridSize(unlockedCount: Int): Int =
-    if unlockedCount <= 4 then 2
-    else if unlockedCount <= 9 then 3
-    else 4
+  // Grid size calculation based on tile count (always 8x8 for 64 tiles)
+  def gridSize(unlockedCount: Int): Int = 8
 
   // Convert tile ID to (row, col) based on current grid size
   def tilePosition(tileId: Int, gridWidth: Int): (Int, Int) =
