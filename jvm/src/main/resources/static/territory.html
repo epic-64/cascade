@@ -37,62 +37,8 @@
     </noscript>
   </head>
   <body>
-    <div class="territory-container">
-      <h1>🏰 Territory Idle</h1>
-
-      <!-- Resources Panel -->
-      <div class="territory-resources">
-        <div class="resource-item">
-          <span class="resource-label">🌾 Wheat:</span>
-          <span class="resource-value" id="territory-wheat">0</span>
-        </div>
-        <div class="resource-item">
-          <span class="resource-label">💰 Gold:</span>
-          <span class="resource-value" id="territory-gold">0</span>
-        </div>
-        <div class="resource-item">
-          <span class="resource-label">⚡ Income:</span>
-          <span class="resource-value" id="territory-income-rate">0.0 wheat/s</span>
-        </div>
-        <div class="resource-item">
-          <span class="resource-label">👑 Abdications:</span>
-          <span class="resource-value" id="territory-abdications">0</span>
-        </div>
-      </div>
-
-      <!-- Tile Grid -->
-      <div class="territory-grid" id="territory-grid">
-        <!-- Tiles rendered dynamically by client -->
-      </div>
-
-      <!-- Actions -->
-      <div class="territory-actions">
-        <button id="territory-abdicate-btn" class="btn-primary disabled" disabled>
-          Abdicate (fill all tiles first)
-        </button>
-        <button id="territory-unlock-btn" class="btn-secondary">
-          Unlock Tile (100 gold)
-        </button>
-      </div>
-
-      <!-- Info -->
-      <div class="territory-info">
-        <h3>How to Play</h3>
-        <ul>
-          <li>Click empty tiles to build wheat fields (costs wheat)</li>
-          <li>Click wheat fields to level them up (costs wheat)</li>
-          <li>Higher levels produce more wheat per second</li>
-          <li>After building your first wheat field, you can also build farms</li>
-          <li>Farms boost nearby wheat fields by 25% per farm level</li>
-          <li>Fill all tiles to unlock abdication</li>
-          <li>Abdicate to earn gold and reset the field</li>
-          <li>Use gold to unlock more tiles</li>
-        </ul>
-        <button id="territory-reset-btn" class="btn-danger">Reset Game</button>
-      </div>
-
-      <!-- Notification -->
-      <div id="territory-notification" class="notification"></div>
+    <div id="territory-container" class="territory-container">
+      <!-- UI built dynamically by TerritoryClient -->
     </div>
   </body>
 </html>
