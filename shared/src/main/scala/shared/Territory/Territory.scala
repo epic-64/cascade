@@ -9,6 +9,7 @@ import upickle.default.ReadWriter
 enum TileType derives ReadWriter:
   case Empty
   case WheatField(level: Int) // level determines production rate
+  case Farm(level: Int)       // boosts nearby wheat fields
 
 // ============================================================================
 // Tile
@@ -27,8 +28,15 @@ case class Tile(
     case TileType.WheatField(_) => true
     case _ => false
 
+  def isFarm: Boolean = tileType match
+    case TileType.Farm(_) => true
+    case _ => false
+
+  def isBuilding: Boolean = isWheatField || isFarm
+
   def level: Int = tileType match
     case TileType.WheatField(lvl) => lvl
+    case TileType.Farm(lvl) => lvl
     case _ => 0
 
 // ============================================================================
@@ -49,11 +57,14 @@ case class TerritoryGame(
   def lockedTiles: List[Tile] =
     tiles.values.filterNot(_.unlocked).toList.sortBy(_.id)
 
-  def allTilesFilledWithWheat: Boolean =
-    unlockedTiles.nonEmpty && unlockedTiles.forall(_.isWheatField)
+  def allTilesFilled: Boolean =
+    unlockedTiles.nonEmpty && unlockedTiles.forall(_.isBuilding)
+
+  def hasWheatField: Boolean =
+    unlockedTiles.exists(_.isWheatField)
 
   def totalIncomeRate: Double =
-    unlockedTiles.map(TerritoryLogic.productionRate).sum
+    TerritoryLogic.totalProductionRate(this)
 
   def nextTileUnlockCost: Int =
     TerritoryLogic.tileUnlockCost(unlockedTiles.size)
@@ -71,18 +82,77 @@ object TerritoryLogic:
   val TickIntervalSeconds: Int = 1
   val InitialTileCount: Int = 4
   val MaxTiles: Int = 16
+  val FarmBoostPerLevel: Double = 0.25 // 25% boost per farm level
 
-  // Production rate per level (wheat per second)
-  def productionRate(tile: Tile): Double = tile.tileType match
+  // Grid size calculation based on tile count
+  def gridSize(unlockedCount: Int): Int =
+    if unlockedCount <= 4 then 2
+    else if unlockedCount <= 9 then 3
+    else 4
+
+  // Convert tile ID to (row, col) based on current grid size
+  def tilePosition(tileId: Int, gridWidth: Int): (Int, Int) =
+    (tileId / gridWidth, tileId % gridWidth)
+
+  // Get adjacent tile IDs (including diagonals) within radius 1
+  def adjacentTileIds(tileId: Int, gridWidth: Int): Set[Int] =
+    val (row, col) = tilePosition(tileId, gridWidth)
+    val adjacent = for
+      dr <- -1 to 1
+      dc <- -1 to 1
+      if !(dr == 0 && dc == 0) // exclude self
+      newRow = row + dr
+      newCol = col + dc
+      if newRow >= 0 && newRow < gridWidth && newCol >= 0 && newCol < gridWidth
+    yield newRow * gridWidth + newCol
+    adjacent.toSet
+
+  // Base production rate per level (wheat per second) - without bonuses
+  def baseProductionRate(tile: Tile): Double = tile.tileType match
     case TileType.WheatField(level) => level * 0.5 // 0.5/s at level 1, 1.0/s at level 2, etc.
     case _ => 0.0
 
+  // Calculate farm bonus multiplier for a wheat field at given position
+  def farmBonusMultiplier(game: TerritoryGame, tileId: Int): Double =
+    val gSize = gridSize(game.unlockedTiles.size)
+    val adjacentIds = adjacentTileIds(tileId, gSize)
+    val farmBonus = adjacentIds.flatMap(game.tiles.get).collect:
+      case tile if tile.isFarm => tile.level * FarmBoostPerLevel
+    .sum
+    1.0 + farmBonus
+
+  // Production rate for a specific tile (with farm bonuses applied)
+  def productionRate(game: TerritoryGame, tile: Tile): Double =
+    val base = baseProductionRate(tile)
+    if base > 0 then base * farmBonusMultiplier(game, tile.id)
+    else 0.0
+
+  // Legacy method for backwards compatibility
+  def productionRate(tile: Tile): Double = baseProductionRate(tile)
+
+  // Total production rate for the game (all wheat fields with bonuses)
+  def totalProductionRate(game: TerritoryGame): Double =
+    game.unlockedTiles.map(tile => productionRate(game, tile)).sum
+
   // Cost to build a wheat field on an empty tile
-  def buildCost: Int = 10
+  def wheatFieldBuildCost: Int = 10
+
+  // Cost to build a farm on an empty tile
+  def farmBuildCost: Int = 25
+
+  // Legacy alias
+  def buildCost: Int = wheatFieldBuildCost
 
   // Cost to level up a wheat field
-  def levelUpCost(currentLevel: Int): Int =
+  def wheatFieldLevelUpCost(currentLevel: Int): Int =
     currentLevel * 20 // Level 1→2 costs 20, 2→3 costs 40, etc.
+
+  // Cost to level up a farm
+  def farmLevelUpCost(currentLevel: Int): Int =
+    currentLevel * 30 // Level 1→2 costs 30, 2→3 costs 60, etc.
+
+  // Legacy alias
+  def levelUpCost(currentLevel: Int): Int = wheatFieldLevelUpCost(currentLevel)
 
   // Cost to unlock next tile (exponential)
   def tileUnlockCost(currentUnlockedCount: Int): Int =
@@ -128,12 +198,27 @@ object TerritoryLogic:
       case None => Left("Tile not found")
       case Some(tile) if !tile.unlocked => Left("Tile is locked")
       case Some(tile) if !tile.isEmpty => Left("Tile is not empty")
-      case Some(tile) if game.wheat < buildCost => Left(s"Not enough wheat (need $buildCost)")
+      case Some(tile) if game.wheat < wheatFieldBuildCost => Left(s"Not enough wheat (need $wheatFieldBuildCost)")
       case Some(tile) =>
         val updatedTile = tile.copy(tileType = TileType.WheatField(1))
         Right(game.copy(
           tiles = game.tiles.updated(tileId, updatedTile),
-          wheat = game.wheat - buildCost
+          wheat = game.wheat - wheatFieldBuildCost
+        ))
+
+  // Build a farm on an empty tile (requires at least one wheat field)
+  def buildFarm(game: TerritoryGame, tileId: Int): Either[String, TerritoryGame] =
+    game.tiles.get(tileId) match
+      case None => Left("Tile not found")
+      case Some(tile) if !tile.unlocked => Left("Tile is locked")
+      case Some(tile) if !tile.isEmpty => Left("Tile is not empty")
+      case Some(_) if !game.hasWheatField => Left("Build a wheat field first")
+      case Some(tile) if game.wheat < farmBuildCost => Left(s"Not enough wheat (need $farmBuildCost)")
+      case Some(tile) =>
+        val updatedTile = tile.copy(tileType = TileType.Farm(1))
+        Right(game.copy(
+          tiles = game.tiles.updated(tileId, updatedTile),
+          wheat = game.wheat - farmBuildCost
         ))
 
   // Level up a wheat field
@@ -142,7 +227,7 @@ object TerritoryLogic:
       case None => Left("Tile not found")
       case Some(tile) => tile.tileType match
         case TileType.WheatField(level) =>
-          val cost = levelUpCost(level)
+          val cost = wheatFieldLevelUpCost(level)
           if game.wheat < cost then
             Left(s"Not enough wheat (need $cost)")
           else
@@ -153,10 +238,27 @@ object TerritoryLogic:
             ))
         case _ => Left("Tile is not a wheat field")
 
+  // Level up a farm
+  def levelUpFarm(game: TerritoryGame, tileId: Int): Either[String, TerritoryGame] =
+    game.tiles.get(tileId) match
+      case None => Left("Tile not found")
+      case Some(tile) => tile.tileType match
+        case TileType.Farm(level) =>
+          val cost = farmLevelUpCost(level)
+          if game.wheat < cost then
+            Left(s"Not enough wheat (need $cost)")
+          else
+            val updatedTile = tile.copy(tileType = TileType.Farm(level + 1))
+            Right(game.copy(
+              tiles = game.tiles.updated(tileId, updatedTile),
+              wheat = game.wheat - cost
+            ))
+        case _ => Left("Tile is not a farm")
+
   // Abdicate: reset tiles, gain gold based on income rate
   def abdicate(game: TerritoryGame, currentTimeMillis: Long): Either[String, TerritoryGame] =
-    if !game.allTilesFilledWithWheat then
-      Left("Must fill all unlocked tiles with wheat fields before abdicating")
+    if !game.allTilesFilled then
+      Left("Must fill all unlocked tiles with buildings before abdicating")
     else
       val goldReward = abdicationReward(game.totalIncomeRate)
       val resetTiles = game.tiles.map:

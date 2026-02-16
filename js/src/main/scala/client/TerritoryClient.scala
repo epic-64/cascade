@@ -138,38 +138,86 @@ object TerritoryClient:
       tile.tileType match
         case TileType.Empty =>
           tileDiv.classList.add("empty")
-          val cost = TerritoryLogic.buildCost
-          tileDiv.innerHTML = s"""
-            <div class="tile-content">
-              <div class="tile-icon">➕</div>
-              <div class="tile-label">Build</div>
-              <div class="tile-cost">$cost 🌾</div>
-            </div>
-          """
-          tileDiv.onclick = (e: MouseEvent) => handleBuildWheatField(tile.id)
+          val wheatCost = TerritoryLogic.wheatFieldBuildCost
+          val farmCost = TerritoryLogic.farmBuildCost
+          val canBuildFarm = currentGame.hasWheatField
+          
+          if canBuildFarm then
+            tileDiv.innerHTML = s"""
+              <div class="tile-content tile-build-options">
+                <div class="build-option" data-build="wheat">
+                  <div class="build-icon">🌾</div>
+                  <div class="build-label">Wheat</div>
+                  <div class="build-cost">$wheatCost 🌾</div>
+                </div>
+                <div class="build-option" data-build="farm">
+                  <div class="build-icon">🏠</div>
+                  <div class="build-label">Farm</div>
+                  <div class="build-cost">$farmCost 🌾</div>
+                </div>
+              </div>
+            """
+            // Attach click handlers to build options
+            tileDiv.querySelector(".build-option[data-build='wheat']")
+              .asInstanceOf[HTMLElement]
+              .onclick = (e: MouseEvent) => 
+                e.stopPropagation()
+                handleBuildWheatField(tile.id)
+            tileDiv.querySelector(".build-option[data-build='farm']")
+              .asInstanceOf[HTMLElement]
+              .onclick = (e: MouseEvent) => 
+                e.stopPropagation()
+                handleBuildFarm(tile.id)
+          else
+            tileDiv.innerHTML = s"""
+              <div class="tile-content">
+                <div class="tile-icon">➕</div>
+                <div class="tile-label">Build</div>
+                <div class="tile-cost">$wheatCost 🌾</div>
+              </div>
+            """
+            tileDiv.onclick = (e: MouseEvent) => handleBuildWheatField(tile.id)
 
         case TileType.WheatField(level) =>
           tileDiv.classList.add("wheat-field")
           tileDiv.setAttribute("data-level", level.toString)
-          val production = TerritoryLogic.productionRate(tile)
-          val productionStr = f"$production%.1f"
-          val upgradeCost = TerritoryLogic.levelUpCost(level)
+          val baseProduction = TerritoryLogic.baseProductionRate(tile)
+          val actualProduction = TerritoryLogic.productionRate(currentGame, tile)
+          val hasBonus = actualProduction > baseProduction
+          val productionStr = f"$actualProduction%.1f"
+          val bonusStr = if hasBonus then s" <span class='bonus'>(+${((actualProduction / baseProduction - 1) * 100).toInt}%)</span>" else ""
+          val upgradeCost = TerritoryLogic.wheatFieldLevelUpCost(level)
           tileDiv.innerHTML = s"""
             <div class="tile-content">
               <div class="tile-icon">🌾</div>
               <div class="tile-label">Level $level</div>
-              <div class="tile-production">+$productionStr/s</div>
+              <div class="tile-production">+$productionStr/s$bonusStr</div>
               <div class="tile-upgrade">⬆ $upgradeCost 🌾</div>
             </div>
           """
           tileDiv.onclick = (e: MouseEvent) => handleLevelUpWheatField(tile.id)
+
+        case TileType.Farm(level) =>
+          tileDiv.classList.add("farm")
+          tileDiv.setAttribute("data-level", level.toString)
+          val boostPercent = (level * TerritoryLogic.FarmBoostPerLevel * 100).toInt
+          val upgradeCost = TerritoryLogic.farmLevelUpCost(level)
+          tileDiv.innerHTML = s"""
+            <div class="tile-content">
+              <div class="tile-icon">🏠</div>
+              <div class="tile-label">Farm Lv$level</div>
+              <div class="tile-production">+$boostPercent% nearby</div>
+              <div class="tile-upgrade">⬆ $upgradeCost 🌾</div>
+            </div>
+          """
+          tileDiv.onclick = (e: MouseEvent) => handleLevelUpFarm(tile.id)
 
     container.appendChild(tileDiv)
 
   private def renderAbdicationButton(): Unit =
     val button = document.getElementById("territory-abdicate-btn").asInstanceOf[HTMLButtonElement]
     if button != null then
-      if currentGame.allTilesFilledWithWheat then
+      if currentGame.allTilesFilled then
         button.disabled = false
         button.classList.remove("disabled")
         val reward = currentGame.abdicationGoldReward
@@ -221,6 +269,15 @@ object TerritoryClient:
       case Left(error) =>
         showNotification(error)
 
+  private def handleBuildFarm(tileId: Int): Unit =
+    TerritoryLogic.buildFarm(currentGame, tileId) match
+      case Right(newGame) =>
+        currentGame = newGame
+        saveGame()
+        renderGame()
+      case Left(error) =>
+        showNotification(error)
+
   private def handleLevelUpWheatField(tileId: Int): Unit =
     TerritoryLogic.levelUpWheatField(currentGame, tileId) match
       case Right(newGame) =>
@@ -230,10 +287,19 @@ object TerritoryClient:
       case Left(error) =>
         showNotification(error)
 
+  private def handleLevelUpFarm(tileId: Int): Unit =
+    TerritoryLogic.levelUpFarm(currentGame, tileId) match
+      case Right(newGame) =>
+        currentGame = newGame
+        saveGame()
+        renderGame()
+      case Left(error) =>
+        showNotification(error)
+
   private def handleAbdicate(): Unit =
-    if currentGame.allTilesFilledWithWheat then
+    if currentGame.allTilesFilled then
       val reward = currentGame.abdicationGoldReward
-      if window.confirm(s"Abdicate and earn $reward gold? This will reset all your wheat fields.") then
+      if window.confirm(s"Abdicate and earn $reward gold? This will reset all your buildings.") then
         TerritoryLogic.abdicate(currentGame, System.currentTimeMillis()) match
           case Right(newGame) =>
             currentGame = newGame
