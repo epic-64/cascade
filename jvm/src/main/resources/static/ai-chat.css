@@ -508,8 +508,8 @@ body:has(.chat-container) {
 
   .chat-container {
     flex-direction: column;
-    /* Account for tab bar height (~44px) in addition to body padding, nav margin, nav content */
-    height: calc(100dvh - var(--spacing-md) * 2 - var(--spacing-lg) - 48px - 44px - var(--spacing-sm));
+    /* Account for body padding, nav, and tab bar */
+    height: calc(100dvh - 96px);
   }
 
   .chat-sidebar {
