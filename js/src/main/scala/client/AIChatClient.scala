@@ -120,7 +120,7 @@ object AIChatClient:
                 el("textarea", id = "messageInput", cls = "message-input").tap: textarea =>
                   val ta = textarea.asInstanceOf[HTMLTextAreaElement]
                   ta.placeholder = "Type your message..."
-                  ta.rows = 1
+                  ta.rows = 2
                   ta.addEventListener("keydown", (e: KeyboardEvent) =>
                     if e.key == "Enter" && !e.shiftKey then
                       e.preventDefault()
@@ -128,15 +128,18 @@ object AIChatClient:
                   )
                   ta.addEventListener("input", (e: Event) => autoResizeTextarea(ta))
                 ,
-                // Image upload button
-                button(cls = "btn btn-icon", content = "📷").tap: btn =>
-                  btn.title = "Add image"
-                  btn.addEventListener("click", (e: Event) => triggerImageUpload())
-                ,
-                // Send button
-                button(id = "sendBtn", cls = "btn btn-primary btn-icon", content = "✈️").tap: btn =>
-                  btn.title = "Send message"
-                  btn.addEventListener("click", (e: Event) => sendChatMessage())
+                // Buttons stacked vertically
+                div(cls = "input-buttons")(
+                  // Image upload button
+                  button(cls = "btn btn-icon", content = "📷").tap: btn =>
+                    btn.title = "Add image"
+                    btn.addEventListener("click", (e: Event) => triggerImageUpload())
+                  ,
+                  // Send button
+                  button(id = "sendBtn", cls = "btn btn-primary btn-icon", content = "✈️").tap: btn =>
+                    btn.title = "Send message"
+                    btn.addEventListener("click", (e: Event) => sendChatMessage())
+                )
               ),
               // Hidden file input for images
               input("file", id = "imageFileInput", cls = "hidden").tap: inp =>
