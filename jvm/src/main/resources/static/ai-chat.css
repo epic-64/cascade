@@ -352,7 +352,17 @@ body:has(.chat-container) {
 .input-row {
   display: flex;
   gap: var(--spacing-sm);
-  align-items: flex-end;
+  align-items: stretch;
+}
+
+.input-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.input-buttons .btn-icon {
+  flex: 1;
 }
 
 .message-input {
