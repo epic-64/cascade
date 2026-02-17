@@ -60,6 +60,8 @@ object AIChatClient:
             el("textarea", id = "systemPrompt", cls = "textarea-field").tap: textarea =>
               textarea.asInstanceOf[HTMLTextAreaElement].placeholder = AIChat.defaultSystemPrompt
               textarea.asInstanceOf[HTMLTextAreaElement].rows = 4
+            ,
+            span(id = "systemPromptStatus", cls = "status-text")
           ),
           // Actions
           div(cls = "sidebar-section sidebar-actions")(
@@ -192,6 +194,7 @@ object AIChatClient:
         chatMessages.clear()
         clearMessagesUI()
         showEmptyState()
+        resetSystemPromptStatus()
 
       case ServerMessage.ErrorMessage(message) =>
         println(s"[AIChat] Error: $message")
@@ -220,14 +223,22 @@ object AIChatClient:
       .getOrElse(AIChat.defaultSystemPrompt)
 
     // If chat is empty, add system message first
-    if chatMessages.isEmpty then
+    val isFirstMessage = chatMessages.isEmpty
+    if isFirstMessage then
       val systemMsg = ChatMessage(
         id = generateMessageId(),
         role = MessageRole.System,
         content = systemPrompt
       )
       chatMessages += systemMsg
-      // Don't show system message in UI, but include in API calls
+      // Show feedback that system prompt was applied
+      val isCustom = getElementById("systemPrompt")
+        .map(_.asInstanceOf[HTMLTextAreaElement].value.trim)
+        .exists(_.nonEmpty)
+      updateSystemPromptStatus(isCustom)
+      // Disable editing once applied
+      getElementById("systemPrompt").foreach: elem =>
+        elem.asInstanceOf[HTMLTextAreaElement].disabled = true
 
     // Create user message
     val userMessage = ChatMessage(
@@ -522,4 +533,21 @@ object AIChatClient:
 
     // Auto-remove after 5 seconds
     dom.window.setTimeout(() => toast.remove(), 5000)
+
+  private def updateSystemPromptStatus(isCustom: Boolean): Unit =
+    getElementById("systemPromptStatus").foreach: elem =>
+      if isCustom then
+        elem.textContent = "✓ Custom prompt active"
+        elem.classList.add("status-success")
+      else
+        elem.textContent = "✓ Default prompt active"
+        elem.classList.add("status-info")
+
+  private def resetSystemPromptStatus(): Unit =
+    getElementById("systemPromptStatus").foreach: elem =>
+      elem.textContent = ""
+      elem.classList.remove("status-success")
+      elem.classList.remove("status-info")
+    getElementById("systemPrompt").foreach: elem =>
+      elem.asInstanceOf[HTMLTextAreaElement].disabled = false
 

@@ -84,6 +84,11 @@
   color: var(--accent-green);
 }
 
+.status-info {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 .status-error {
   color: #ef4444;
 }
