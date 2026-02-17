@@ -6,6 +6,14 @@ body:has(.chat-container) {
   overflow: hidden;
 }
 
+/* Remove horizontal padding on mobile */
+@media (max-width: 768px) {
+  body:has(.chat-container) {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
 .chat-container {
   display: flex;
   gap: var(--spacing-lg);
@@ -472,11 +480,12 @@ body:has(.chat-container) {
   .mobile-tabs {
     display: flex;
     gap: var(--spacing-xs);
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: 0;
     background: var(--bg-card);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
     padding: var(--spacing-xs);
     border: 1px solid var(--border-subtle);
+    border-bottom: none;
   }
 
   .mobile-tab {
@@ -510,17 +519,32 @@ body:has(.chat-container) {
     flex-direction: column;
     /* Account for body padding, nav, and tab bar */
     height: calc(100dvh - 96px);
+    gap: 0;
   }
 
   .chat-sidebar {
     width: 100%;
     flex: 1;
     min-height: 0;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
   }
 
   .chat-main {
     flex: 1;
     min-height: 0;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+  }
+
+  .messages-container {
+    padding: var(--spacing-xs);
+  }
+
+  .chat-input-area {
+    padding: var(--spacing-xs);
+  }
+
+  .message {
+    padding: var(--spacing-sm);
   }
 
   .message-user,
