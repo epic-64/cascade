@@ -43,8 +43,16 @@ object AIChatClient:
     document.body(
       NavigationBar.render("AI Chat"),
       div(cls = "container chat-container")(
-        // Sidebar for settings
-        div(id = "chatSidebar", cls = "chat-sidebar")(
+        // Mobile tab bar
+        div(cls = "mobile-tabs")(
+          button(cls = "mobile-tab active", id = "tabChat", content = "💬 Chat").tap: btn =>
+            btn.addEventListener("click", (e: Event) => switchTab("chat"))
+          ,
+          button(cls = "mobile-tab", id = "tabSettings", content = "⚙️ Settings").tap: btn =>
+            btn.addEventListener("click", (e: Event) => switchTab("settings"))
+        ),
+        // Sidebar for settings (hidden by default on mobile)
+        div(id = "chatSidebar", cls = "chat-sidebar mobile-hidden")(
           h3(content = "Settings"),
           // API Key input
           div(cls = "sidebar-section")(
@@ -94,7 +102,7 @@ object AIChatClient:
           )
         ),
         // Main chat area
-        div(cls = "chat-main")(
+        div(id = "chatMain", cls = "chat-main")(
           // Messages container
           div(id = "messagesContainer", cls = "messages-container")(
             div(id = "emptyState", cls = "empty-state")(
@@ -573,6 +581,25 @@ object AIChatClient:
   private def scrollToBottom(): Unit =
     getElementById("messagesContainer").foreach: container =>
       container.scrollTop = container.scrollHeight
+
+  private def switchTab(tab: String): Unit =
+    val chatMain = getElementById("chatMain")
+    val chatSidebar = getElementById("chatSidebar")
+    val tabChat = getElementById("tabChat")
+    val tabSettings = getElementById("tabSettings")
+    
+    tab match
+      case "chat" =>
+        chatMain.foreach(_.classList.remove("mobile-hidden"))
+        chatSidebar.foreach(_.classList.add("mobile-hidden"))
+        tabChat.foreach(_.classList.add("active"))
+        tabSettings.foreach(_.classList.remove("active"))
+      case "settings" =>
+        chatMain.foreach(_.classList.add("mobile-hidden"))
+        chatSidebar.foreach(_.classList.remove("mobile-hidden"))
+        tabChat.foreach(_.classList.remove("active"))
+        tabSettings.foreach(_.classList.add("active"))
+      case _ => ()
 
   private def autoResizeTextarea(ta: HTMLTextAreaElement): Unit =
     ta.style.height = "auto"
