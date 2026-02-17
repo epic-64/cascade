@@ -134,7 +134,8 @@ object AIChatClient:
                   btn.addEventListener("click", (e: Event) => triggerImageUpload())
                 ,
                 // Send button
-                button(id = "sendBtn", cls = "btn btn-primary", content = "Send").tap: btn =>
+                button(id = "sendBtn", cls = "btn btn-primary btn-icon", content = "✈️").tap: btn =>
+                  btn.title = "Send message"
                   btn.addEventListener("click", (e: Event) => sendChatMessage())
               ),
               // Hidden file input for images
