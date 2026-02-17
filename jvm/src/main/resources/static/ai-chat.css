@@ -1,12 +1,26 @@
 /* AI Chat Styles */
 
+/* Prevent body scroll when chat is displayed */
+html:has(.chat-container),
+body:has(.chat-container) {
+  overflow: hidden;
+}
+
 .chat-container {
   display: flex;
   gap: var(--spacing-lg);
-  height: calc(100vh - 100px);
+  /* Height = viewport - body padding bottom - nav margin-bottom - nav content height */
+  height: calc(100dvh - var(--spacing-md) - var(--spacing-lg) - 48px);
   max-width: 1400px;
   margin: 0 auto;
 }
+
+@media (min-width: 768px) {
+  .chat-container {
+    height: calc(100dvh - var(--spacing-xl) - var(--spacing-xl) - 48px);
+  }
+}
+
 
 /* Sidebar */
 .chat-sidebar {
@@ -122,6 +136,7 @@
 /* Messages Container */
 .messages-container {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: var(--spacing-lg);
   display: flex;
@@ -452,7 +467,7 @@
   .chat-container {
     flex-direction: column;
     height: auto;
-    min-height: calc(100vh - 100px);
+    min-height: calc(100dvh - var(--spacing-md) - var(--spacing-lg) - 48px);
   }
 
   .chat-sidebar {
@@ -462,7 +477,7 @@
 
   .chat-main {
     order: 0;
-    min-height: 60vh;
+    min-height: 60dvh;
   }
 
   .message-user,
