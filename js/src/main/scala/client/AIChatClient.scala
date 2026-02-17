@@ -237,16 +237,10 @@ object AIChatClient:
       images = pendingImages.toSeq
     )
 
-    // Build full conversation for API
+    // Build full conversation for API (including the new user message)
     val fullConversation = chatMessages.toSeq :+ userMessage
 
-    // Send full conversation to server
-    sendClientMessage(ClientMessage.SendMessage(userMessage.copy(
-      content = messageText,
-      images = pendingImages.toSeq
-    )))
-
-    // Also send conversation context (system + history) via special mechanism
+    // Send only GenerateWithContext - it will handle both adding the message and generating response
     sendConversationContext(fullConversation)
 
     // Clear input
