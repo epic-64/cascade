@@ -120,6 +120,18 @@ body:has(.chat-container) {
 
 .sidebar-actions {
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.export-import-row {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.btn-half {
+  flex: 1;
 }
 
 .btn-full {
