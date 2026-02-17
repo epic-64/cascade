@@ -27,6 +27,11 @@ object AIChatClient:
   private var pendingImages: mutable.ArrayBuffer[String] = mutable.ArrayBuffer.empty
   private var messageIdCounter: Long = 0
 
+  // LocalStorage keys
+  private val StorageKeyMessages = "aiChat_messages"
+  private val StorageKeySystemPrompt = "aiChat_systemPrompt"
+  private val StorageKeyApiKey = "aiChat_apiKey"
+
   // Generate unique message IDs (ScalaJS-compatible)
   private def generateMessageId(): String =
     messageIdCounter += 1
@@ -72,6 +77,20 @@ object AIChatClient:
           div(cls = "sidebar-section sidebar-actions")(
             button(cls = "btn btn-secondary btn-full", content = "Clear Chat").tap: btn =>
               btn.addEventListener("click", (e: Event) => clearChat())
+            ,
+            div(cls = "export-import-row")(
+              button(cls = "btn btn-secondary btn-half", content = "Export").tap: btn =>
+                btn.title = "Export chat to file"
+                btn.addEventListener("click", (e: Event) => exportChat())
+              ,
+              button(cls = "btn btn-secondary btn-half", content = "Import").tap: btn =>
+                btn.title = "Import chat from file"
+                btn.addEventListener("click", (e: Event) => triggerImport())
+            ),
+            // Hidden file input for import
+            input("file", id = "importFileInput", cls = "hidden").tap: inp =>
+              inp.accept = ".json"
+              inp.addEventListener("change", (e: Event) => handleImport(e))
           )
         ),
         // Main chat area
@@ -130,6 +149,7 @@ object AIChatClient:
 
     ws.onopen = (e: Event) =>
       println("[AIChat] WebSocket connected")
+      loadFromLocalStorage()
 
     ws.onmessage = (event: MessageEvent) =>
       handleServerMessage(event.data.toString)
@@ -166,16 +186,19 @@ object AIChatClient:
         else
           addMessageToUI(message)
         scrollToBottom()
+        saveToLocalStorage()
 
       case ServerMessage.MessageUpdated(message) =>
         val idx = chatMessages.indexWhere(_.id == message.id)
         if idx >= 0 then
           chatMessages(idx) = message
           updateMessageInUI(message)
+          saveToLocalStorage()
 
       case ServerMessage.MessageDeleted(messageId) =>
         chatMessages = chatMessages.filterNot(_.id == messageId)
         removeMessageFromUI(messageId)
+        saveToLocalStorage()
 
       case ServerMessage.StreamingChunk(messageId, chunk) =>
         streamingContent.get(messageId) match
@@ -194,12 +217,15 @@ object AIChatClient:
             chatMessages(idx) = chatMessages(idx).copy(content = finalContent)
             finalizeStreamingMessage(messageId, finalContent)
         streamingContent.remove(messageId)
+        saveToLocalStorage()
 
       case ServerMessage.ChatCleared() =>
         chatMessages.clear()
         clearMessagesUI()
         showEmptyState()
         resetSystemPromptStatus()
+        // Clear messages from localStorage but keep settings
+        dom.window.localStorage.removeItem(StorageKeyMessages)
 
       case ServerMessage.ErrorMessage(message) =>
         println(s"[AIChat] Error: $message")
@@ -585,4 +611,155 @@ object AIChatClient:
       elem.textContent = ""
       elem.className = "status-text"
     getElementById("updateSystemPromptBtn").foreach(_.classList.add("hidden"))
+
+  // === LocalStorage Persistence ===
+
+  private def saveToLocalStorage(): Unit =
+    Try:
+      // Save messages
+      val messagesJson = upickle.default.write(chatMessages.toSeq)
+      dom.window.localStorage.setItem(StorageKeyMessages, messagesJson)
+
+      // Save system prompt
+      getElementById("systemPrompt").foreach: elem =>
+        val prompt = elem.asInstanceOf[HTMLTextAreaElement].value
+        dom.window.localStorage.setItem(StorageKeySystemPrompt, prompt)
+
+      // Save API key (if set)
+      getElementById("apiKeyInput").foreach: elem =>
+        val key = elem.asInstanceOf[HTMLInputElement].value
+        if key.nonEmpty then
+          dom.window.localStorage.setItem(StorageKeyApiKey, key)
+    .recover:
+      case ex => println(s"[AIChat] Failed to save to localStorage: ${ex.getMessage}")
+
+  private def loadFromLocalStorage(): Unit =
+    Try:
+      // Load API key first
+      Option(dom.window.localStorage.getItem(StorageKeyApiKey)).filter(_.nonEmpty).foreach: apiKey =>
+        getElementById("apiKeyInput").foreach: elem =>
+          elem.asInstanceOf[HTMLInputElement].value = apiKey
+        // Auto-set the API key
+        sendClientMessage(ClientMessage.SetApiKey(apiKey))
+
+      // Load system prompt
+      Option(dom.window.localStorage.getItem(StorageKeySystemPrompt)).filter(_.nonEmpty).foreach: prompt =>
+        getElementById("systemPrompt").foreach: elem =>
+          elem.asInstanceOf[HTMLTextAreaElement].value = prompt
+
+      // Load messages
+      Option(dom.window.localStorage.getItem(StorageKeyMessages)).filter(_.nonEmpty).foreach: messagesJson =>
+        val messages = upickle.default.read[Seq[ChatMessage]](messagesJson)
+        if messages.nonEmpty then
+          chatMessages.clear()
+          chatMessages ++= messages
+          restoreMessagesUI()
+    .recover:
+      case ex => println(s"[AIChat] Failed to load from localStorage: ${ex.getMessage}")
+
+  private def restoreMessagesUI(): Unit =
+    clearMessagesUI()
+    if chatMessages.nonEmpty then
+      hideEmptyState()
+      // Only show non-system messages in UI
+      chatMessages.filter(_.role != MessageRole.System).foreach: msg =>
+        addMessageToUI(msg)
+      // Update system prompt status if we have a system message
+      chatMessages.find(_.role == MessageRole.System).foreach: sysMsg =>
+        val isCustom = sysMsg.content != AIChat.defaultSystemPrompt
+        updateSystemPromptStatus(isCustom)
+        getElementById("updateSystemPromptBtn").foreach(_.classList.remove("hidden"))
+      scrollToBottom()
+    else
+      showEmptyState()
+
+  // === Export/Import ===
+
+  private case class ChatExport(
+    version: Int,
+    exportedAt: String,
+    systemPrompt: String,
+    messages: Seq[ChatMessage]
+  ) derives upickle.default.ReadWriter
+
+  private def exportChat(): Unit =
+    val systemPrompt = getElementById("systemPrompt")
+      .map(_.asInstanceOf[HTMLTextAreaElement].value)
+      .getOrElse("")
+
+    val chatExport = ChatExport(
+      version = 1,
+      exportedAt = new scala.scalajs.js.Date().toISOString(),
+      systemPrompt = systemPrompt,
+      messages = chatMessages.toSeq
+    )
+
+    val json = upickle.default.write(chatExport, indent = 2)
+    val blob = new dom.Blob(
+      js.Array(json),
+      new dom.BlobPropertyBag { `type` = "application/json" }
+    )
+
+    val url = dom.URL.createObjectURL(blob)
+    val link = document.createElement("a").asInstanceOf[HTMLAnchorElement]
+    link.href = url
+    link.setAttribute("download", s"ai-chat-export-${new scala.scalajs.js.Date().toISOString().take(10)}.json")
+    link.click()
+    dom.URL.revokeObjectURL(url)
+
+  private def triggerImport(): Unit =
+    getElementById("importFileInput").foreach: elem =>
+      elem.asInstanceOf[HTMLInputElement].click()
+
+  private def handleImport(e: Event): Unit =
+    val input = e.target.asInstanceOf[HTMLInputElement]
+    val files = input.files
+
+    if files.length > 0 then
+      val file = files(0)
+      val reader = new FileReader()
+      reader.onload = (e: Event) =>
+        Try:
+          val json = reader.result.asInstanceOf[String]
+          val chatExport = upickle.default.read[ChatExport](json)
+
+          // Confirm import
+          if dom.window.confirm(s"Import chat from ${chatExport.exportedAt.take(10)}? This will replace current chat.") then
+            // Clear current chat
+            chatMessages.clear()
+            clearMessagesUI()
+
+            // Restore system prompt
+            getElementById("systemPrompt").foreach: elem =>
+              elem.asInstanceOf[HTMLTextAreaElement].value = chatExport.systemPrompt
+
+            // Restore messages
+            chatMessages ++= chatExport.messages
+            restoreMessagesUI()
+
+            // Save to localStorage
+            saveToLocalStorage()
+
+            showSuccess("Chat imported successfully!")
+        .recover:
+          case ex =>
+            println(s"[AIChat] Import error: ${ex.getMessage}")
+            showError(s"Failed to import: ${ex.getMessage}")
+
+      reader.readAsText(file)
+
+    // Reset input
+    input.value = ""
+
+  private def showSuccess(message: String): Unit =
+    val toast: HTMLElement = div(cls = "success-toast")(
+      span(content = message),
+      button(cls = "toast-close", content = "×")
+    )
+
+    Option(toast.querySelector(".toast-close")).foreach: btn =>
+      btn.addEventListener("click", (e: Event) => toast.remove())
+
+    document.body.appendChild(toast)
+    dom.window.setTimeout(() => toast.remove(), 3000)
 
