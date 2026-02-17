@@ -6,11 +6,14 @@ body:has(.chat-container) {
   overflow: hidden;
 }
 
-/* Remove horizontal padding on mobile */
+/* Remove padding on mobile for full-screen chat */
 @media (max-width: 768px) {
   body:has(.chat-container) {
-    padding-left: 0;
-    padding-right: 0;
+    padding: 0;
+  }
+
+  body:has(.chat-container) .nav-bar {
+    display: none;
   }
 }
 
@@ -492,10 +495,10 @@ body:has(.chat-container) {
     gap: var(--spacing-xs);
     margin-bottom: 0;
     background: var(--bg-card);
-    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    border-radius: 0;
     padding: var(--spacing-xs);
-    border: 1px solid var(--border-subtle);
-    border-bottom: none;
+    border: none;
+    border-bottom: 1px solid var(--border-subtle);
   }
 
   .mobile-tab {
@@ -509,6 +512,10 @@ body:has(.chat-container) {
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
+  }
+
+  .mobile-tab.home-tab {
+    flex: 0 0 auto;
   }
 
   .mobile-tab:hover {
@@ -527,22 +534,25 @@ body:has(.chat-container) {
 
   .chat-container {
     flex-direction: column;
-    /* Account for body padding, nav, and tab bar */
-    height: calc(100dvh - 96px);
+    height: 100dvh;
     gap: 0;
+    border-radius: 0;
   }
 
   .chat-sidebar {
     width: 100%;
     flex: 1;
     min-height: 0;
-    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid var(--border-subtle);
   }
 
   .chat-main {
     flex: 1;
     min-height: 0;
-    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    border-radius: 0;
+    border: none;
   }
 
   .messages-container {
