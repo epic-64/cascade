@@ -51,6 +51,9 @@ object AIChatHandler:
       case Some(apiKey) =>
         Try:
           val messages = read[Seq[ChatMessage]](json("messages"))
+          // Echo back the user message (last message in conversation) before generating
+          messages.lastOption.filter(_.role == MessageRole.User).foreach: userMsg =>
+            sendMessage(channel, ServerMessage.MessageAdded(userMsg))
           generateResponse(channel, apiKey, messages)
         .recover:
           case ex: Exception =>
