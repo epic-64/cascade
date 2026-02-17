@@ -61,7 +61,12 @@ object AIChatClient:
               textarea.asInstanceOf[HTMLTextAreaElement].placeholder = AIChat.defaultSystemPrompt
               textarea.asInstanceOf[HTMLTextAreaElement].rows = 4
             ,
-            span(id = "systemPromptStatus", cls = "status-text")
+            div(cls = "system-prompt-actions")(
+              button(id = "updateSystemPromptBtn", cls = "btn btn-sm btn-secondary hidden", content = "Update").tap: btn =>
+                btn.addEventListener("click", (e: Event) => updateSystemPrompt())
+              ,
+              span(id = "systemPromptStatus", cls = "status-text")
+            )
           ),
           // Actions
           div(cls = "sidebar-section sidebar-actions")(
@@ -236,9 +241,8 @@ object AIChatClient:
         .map(_.asInstanceOf[HTMLTextAreaElement].value.trim)
         .exists(_.nonEmpty)
       updateSystemPromptStatus(isCustom)
-      // Disable editing once applied
-      getElementById("systemPrompt").foreach: elem =>
-        elem.asInstanceOf[HTMLTextAreaElement].disabled = true
+      // Show the update button now that conversation has started
+      getElementById("updateSystemPromptBtn").foreach(_.classList.remove("hidden"))
 
     // Create user message
     val userMessage = ChatMessage(
@@ -274,6 +278,36 @@ object AIChatClient:
 
   private def clearChat(): Unit =
     sendClientMessage(ClientMessage.ClearChat())
+
+  private def updateSystemPrompt(): Unit =
+    val newPrompt = getElementById("systemPrompt")
+      .map(_.asInstanceOf[HTMLTextAreaElement].value.trim)
+      .filter(_.nonEmpty)
+      .getOrElse(AIChat.defaultSystemPrompt)
+
+    // Find and update the system message in our conversation
+    chatMessages.indexWhere(_.role == MessageRole.System) match
+      case idx if idx >= 0 =>
+        val oldSystemMsg = chatMessages(idx)
+        val updatedSystemMsg = oldSystemMsg.copy(content = newPrompt)
+        chatMessages(idx) = updatedSystemMsg
+        // Update status to show the change was applied
+        val isCustom = getElementById("systemPrompt")
+          .map(_.asInstanceOf[HTMLTextAreaElement].value.trim)
+          .exists(_.nonEmpty)
+        updateSystemPromptStatus(isCustom, updated = true)
+      case _ =>
+        // No system message yet - add one
+        val systemMsg = ChatMessage(
+          id = generateMessageId(),
+          role = MessageRole.System,
+          content = newPrompt
+        )
+        chatMessages.prepend(systemMsg)
+        val isCustom = getElementById("systemPrompt")
+          .map(_.asInstanceOf[HTMLTextAreaElement].value.trim)
+          .exists(_.nonEmpty)
+        updateSystemPromptStatus(isCustom, updated = true)
 
   private def sendClientMessage(msg: ClientMessage): Unit =
     chatWebSocket.foreach: ws =>
@@ -534,20 +568,21 @@ object AIChatClient:
     // Auto-remove after 5 seconds
     dom.window.setTimeout(() => toast.remove(), 5000)
 
-  private def updateSystemPromptStatus(isCustom: Boolean): Unit =
+  private def updateSystemPromptStatus(isCustom: Boolean, updated: Boolean = false): Unit =
     getElementById("systemPromptStatus").foreach: elem =>
-      if isCustom then
+      if updated then
+        elem.textContent = "✓ System prompt updated"
+        elem.className = "status-text status-success"
+      else if isCustom then
         elem.textContent = "✓ Custom prompt active"
-        elem.classList.add("status-success")
+        elem.className = "status-text status-success"
       else
         elem.textContent = "✓ Default prompt active"
-        elem.classList.add("status-info")
+        elem.className = "status-text status-info"
 
   private def resetSystemPromptStatus(): Unit =
     getElementById("systemPromptStatus").foreach: elem =>
       elem.textContent = ""
-      elem.classList.remove("status-success")
-      elem.classList.remove("status-info")
-    getElementById("systemPrompt").foreach: elem =>
-      elem.asInstanceOf[HTMLTextAreaElement].disabled = false
+      elem.className = "status-text"
+    getElementById("updateSystemPromptBtn").foreach(_.classList.add("hidden"))
 
