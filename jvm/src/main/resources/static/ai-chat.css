@@ -17,6 +17,7 @@ body:has(.chat-container) {
   }
 }
 
+
 .chat-container {
   display: flex;
   gap: var(--spacing-lg);
@@ -549,6 +550,21 @@ body:has(.chat-container) {
     height: 100dvh;
     gap: 0;
     border-radius: 0;
+  }
+
+  /* PWA standalone mode on mobile - account for safe areas */
+  @media (display-mode: standalone) {
+    .chat-container {
+      height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    }
+
+    .mobile-tabs {
+      padding-top: calc(var(--spacing-xs) + env(safe-area-inset-top));
+    }
+
+    .chat-input-area {
+      padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom));
+    }
   }
 
   .chat-sidebar {
