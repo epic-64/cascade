@@ -45,6 +45,10 @@ object AIChatClient:
       div(cls = "container chat-container")(
         // Mobile tab bar
         div(cls = "mobile-tabs")(
+          button(cls = "mobile-tab home-tab", content = "🏠").tap: btn =>
+            btn.title = "Home"
+            btn.addEventListener("click", (e: Event) => dom.window.location.href = "/")
+          ,
           button(cls = "mobile-tab active", id = "tabChat", content = "💬 Chat").tap: btn =>
             btn.addEventListener("click", (e: Event) => switchTab("chat"))
           ,
