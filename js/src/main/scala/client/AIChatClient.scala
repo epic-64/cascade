@@ -478,12 +478,12 @@ object AIChatClient:
       ,
       // Content
       {
-        val contentElements: Seq[HTMLElement] =
-          if isStreaming then Seq(span(cls = "cursor", content = "▌"))
-          else formatMessageContent(message.content)
-        div(id = s"content-${message.id}", cls = s"message-content${if isStreaming then " streaming" else ""}")(
-          contentElements*
-        )
+        val contentDiv = div(id = s"content-${message.id}", cls = s"message-content${if isStreaming then " streaming" else ""}")()
+        if isStreaming then
+          contentDiv.innerHTML = """<span class="cursor">▌</span>"""
+        else
+          contentDiv.innerHTML = renderMarkdown(message.content)
+        contentDiv
       },
       // Edit form (hidden by default)
       div(id = s"edit-${message.id}", cls = "message-edit hidden")(
@@ -500,49 +500,25 @@ object AIChatClient:
       )
     )
 
-  private def formatMessageContent(content: String): Seq[HTMLElement] =
-    // Simple formatting - split by double newlines for paragraphs
-    // Handle code blocks
-    val parts = content.split("```")
-    val elements = mutable.ArrayBuffer[HTMLElement]()
-
-    parts.zipWithIndex.foreach: (part, idx) =>
-      if idx % 2 == 1 then
-        // Code block
-        val lines = part.split("\n", 2)
-        val lang = if lines.length > 1 && lines(0).nonEmpty then lines(0) else ""
-        val code = if lines.length > 1 then lines(1) else part
-        elements += el("pre", cls = "code-block")(
-          el("code", content = code)
-        )
-      else
-        // Regular text - split into paragraphs
-        part.split("\n\n").filter(_.nonEmpty).foreach: para =>
-          elements += p(content = para.trim)
-
-    if elements.isEmpty then Seq(p(content = content))
-    else elements.toSeq
+  private def renderMarkdown(content: String): String =
+    Markdown.render(content)
 
   private def updateMessageInUI(message: ChatMessage): Unit =
     getElementById(s"content-${message.id}").foreach: elem =>
-      elem.innerHTML = ""
-      formatMessageContent(message.content).foreach(elem.appendChild(_))
+      elem.innerHTML = renderMarkdown(message.content)
 
   private def removeMessageFromUI(messageId: String): Unit =
     getElementById(s"message-$messageId").foreach(_.remove())
 
   private def updateStreamingMessage(messageId: String, content: String): Unit =
     getElementById(s"content-$messageId").foreach: elem =>
-      elem.innerHTML = ""
-      formatMessageContent(content).foreach(elem.appendChild(_))
-      elem.appendChild(span(cls = "cursor", content = "▌"))
+      elem.innerHTML = renderMarkdown(content) + """<span class="cursor">▌</span>"""
     scrollToBottom()
 
   private def finalizeStreamingMessage(messageId: String, content: String): Unit =
     getElementById(s"content-$messageId").foreach: elem =>
       elem.classList.remove("streaming")
-      elem.innerHTML = ""
-      formatMessageContent(content).foreach(elem.appendChild(_))
+      elem.innerHTML = renderMarkdown(content)
 
   private def startEditMessage(messageId: String): Unit =
     currentEditingMessageId = Some(messageId)
