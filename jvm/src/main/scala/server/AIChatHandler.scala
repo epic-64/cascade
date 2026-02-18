@@ -141,6 +141,10 @@ object AIChatHandler:
         logger.error(s"[AIChat] Error generating response: ${ex.getMessage}", ex)
         sendMessage(channel, ServerMessage.ErrorMessage(s"Error: ${ex.getMessage}"))
 
+  private val httpClient = java.net.http.HttpClient.newBuilder()
+    .connectTimeout(java.time.Duration.ofSeconds(30))
+    .build()
+
   private def streamOpenAIRequest(
       channel: cask.WsChannelActor,
       messageId: String,
@@ -148,32 +152,27 @@ object AIChatHandler:
       apiKey: String,
       requestBody: ujson.Obj
   ): Unit =
-    val connection = java.net.URI.create(url).toURL.openConnection().asInstanceOf[java.net.HttpURLConnection]
+    val request = java.net.http.HttpRequest.newBuilder()
+      .uri(java.net.URI.create(url))
+      .header("Content-Type", "application/json")
+      .header("Authorization", s"Bearer $apiKey")
+      .header("Accept", "text/event-stream")
+      .timeout(java.time.Duration.ofSeconds(120))
+      .POST(java.net.http.HttpRequest.BodyPublishers.ofString(requestBody.toString))
+      .build()
 
     try
-      connection.setRequestMethod("POST")
-      connection.setRequestProperty("Content-Type", "application/json")
-      connection.setRequestProperty("Authorization", s"Bearer $apiKey")
-      connection.setDoOutput(true)
-      connection.setConnectTimeout(30000)
-      connection.setReadTimeout(120000) // Longer timeout for streaming
+      val response = httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofInputStream())
 
-      val outputStream = connection.getOutputStream
-      outputStream.write(requestBody.toString.getBytes("UTF-8"))
-      outputStream.flush()
-      outputStream.close()
-
-      val responseCode = connection.getResponseCode
-      if responseCode != 200 then
-        val errorStream = connection.getErrorStream
-        val errorResponse = scala.io.Source.fromInputStream(errorStream, "UTF-8").mkString
-        errorStream.close()
+      if response.statusCode() != 200 then
+        val errorResponse = scala.io.Source.fromInputStream(response.body(), "UTF-8").mkString
+        response.body().close()
         logger.error(s"[AIChat] OpenAI API error: $errorResponse")
-        sendMessage(channel, ServerMessage.ErrorMessage(s"API error (status $responseCode)"))
+        sendMessage(channel, ServerMessage.ErrorMessage(s"API error (status ${response.statusCode()})"))
         return
 
-      val inputStream = connection.getInputStream
-      val reader = new java.io.BufferedReader(new java.io.InputStreamReader(inputStream, "UTF-8"))
+      val inputStream = response.body()
+      val reader = new java.io.BufferedReader(new java.io.InputStreamReader(inputStream, "UTF-8"), 1)
 
       var line: String = null
       while { line = reader.readLine(); line != null } do
@@ -197,8 +196,6 @@ object AIChatHandler:
       case ex: Exception =>
         logger.error(s"[AIChat] Streaming error: ${ex.getMessage}", ex)
         sendMessage(channel, ServerMessage.ErrorMessage(s"Streaming error: ${ex.getMessage}"))
-    finally
-      connection.disconnect()
 
   private def sendMessage(channel: cask.WsChannelActor, msg: ServerMessage): Unit =
     Try:
