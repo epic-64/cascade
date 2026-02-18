@@ -290,7 +290,7 @@ body:has(.chat-container) {
 
 /* Code Blocks (markdown-rendered) */
 .message-content pre {
-  background: #1e1e2e;
+  background: #0d1117;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: var(--spacing-md);
@@ -301,15 +301,21 @@ body:has(.chat-container) {
 .message-content pre code {
   font-family: 'Fira Code', 'Monaco', 'Menlo', monospace;
   font-size: 0.85rem;
-  color: #cdd6f4;
+  color: #c9d1d9;
   white-space: pre;
   background: none;
   padding: 0;
   border-radius: 0;
 }
 
-/* Inline code */
-.message-content code {
+/* Override highlight.js background to match our code blocks */
+.message-content pre code.hljs {
+  background: transparent;
+  padding: 0;
+}
+
+/* Inline code (not inside code blocks) */
+.message-content :not(pre) > code {
   font-family: 'Fira Code', 'Monaco', 'Menlo', monospace;
   font-size: 0.85em;
   background: rgba(255, 255, 255, 0.08);
