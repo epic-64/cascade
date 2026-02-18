@@ -483,6 +483,7 @@ object AIChatClient:
           contentDiv.innerHTML = """<span class="cursor">▌</span>"""
         else
           contentDiv.innerHTML = renderMarkdown(message.content)
+          Markdown.highlightCodeBlocks(contentDiv)
         contentDiv
       },
       // Edit form (hidden by default)
@@ -506,6 +507,7 @@ object AIChatClient:
   private def updateMessageInUI(message: ChatMessage): Unit =
     getElementById(s"content-${message.id}").foreach: elem =>
       elem.innerHTML = renderMarkdown(message.content)
+      Markdown.highlightCodeBlocks(elem)
 
   private def removeMessageFromUI(messageId: String): Unit =
     getElementById(s"message-$messageId").foreach(_.remove())
@@ -519,6 +521,7 @@ object AIChatClient:
     getElementById(s"content-$messageId").foreach: elem =>
       elem.classList.remove("streaming")
       elem.innerHTML = renderMarkdown(content)
+      Markdown.highlightCodeBlocks(elem)
 
   private def startEditMessage(messageId: String): Unit =
     currentEditingMessageId = Some(messageId)
