@@ -24,6 +24,7 @@ object AIChatClient:
   private var chatMessages: mutable.ArrayBuffer[ChatMessage] = mutable.ArrayBuffer.empty
   private var currentEditingMessageId: Option[String] = None
   private var streamingContent: mutable.Map[String, String] = mutable.Map.empty
+  private var activeStreamingId: Option[String] = None
   private var pendingImages: mutable.ArrayBuffer[String] = mutable.ArrayBuffer.empty
   private var messageIdCounter: Long = 0
 
@@ -139,10 +140,15 @@ object AIChatClient:
                     btn.title = "Add image"
                     btn.addEventListener("click", (e: Event) => triggerImageUpload())
                   ,
-                  // Send button
+                  // Send button (hidden during streaming)
                   button(id = "sendBtn", cls = "btn btn-primary btn-icon", content = "✈️").tap: btn =>
                     btn.title = "Send message"
                     btn.addEventListener("click", (e: Event) => sendChatMessage())
+                  ,
+                  // Stop button (hidden by default, shown during streaming)
+                  button(id = "stopBtn", cls = "btn btn-danger btn-icon hidden", content = "⏹").tap: btn =>
+                    btn.title = "Stop generating"
+                    btn.addEventListener("click", (e: Event) => stopStreaming())
                 )
               ),
               // Hidden file input for images
@@ -198,6 +204,8 @@ object AIChatClient:
         if message.role == MessageRole.Assistant && message.content.isEmpty then
           // Start streaming - add placeholder
           streamingContent(message.id) = ""
+          activeStreamingId = Some(message.id)
+          showStopButton()
           addMessageToUI(message, isStreaming = true)
         else
           addMessageToUI(message)
@@ -233,6 +241,8 @@ object AIChatClient:
             chatMessages(idx) = chatMessages(idx).copy(content = finalContent)
             finalizeStreamingMessage(messageId, finalContent)
         streamingContent.remove(messageId)
+        activeStreamingId = None
+        hideStopButton()
         saveToLocalStorage()
 
       case ServerMessage.ChatCleared() =>
@@ -317,6 +327,18 @@ object AIChatClient:
         "messages" -> upickle.default.writeJs(messages)
       )
       ws.send(ujson.write(contextMsg))
+
+  private def stopStreaming(): Unit =
+    activeStreamingId.foreach: messageId =>
+      sendClientMessage(ClientMessage.StopStreaming(messageId))
+
+  private def showStopButton(): Unit =
+    getElementById("sendBtn").foreach(_.classList.add("hidden"))
+    getElementById("stopBtn").foreach(_.classList.remove("hidden"))
+
+  private def hideStopButton(): Unit =
+    getElementById("stopBtn").foreach(_.classList.add("hidden"))
+    getElementById("sendBtn").foreach(_.classList.remove("hidden"))
 
   private def clearChat(): Unit =
     sendClientMessage(ClientMessage.ClearChat())

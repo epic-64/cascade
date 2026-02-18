@@ -25,6 +25,7 @@ enum ClientMessage derives ReadWriter:
   case EditMessage(message: ChatMessage)
   case DeleteMessage(messageId: String)
   case RegenerateResponse(afterMessageId: String) // Regenerate response after a specific message
+  case StopStreaming(messageId: String) // Abort an in-progress streaming response
   case ClearChat()
 
 // Server -> Client messages  
