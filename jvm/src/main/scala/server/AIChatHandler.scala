@@ -24,6 +24,9 @@ object AIChatHandler:
   // Store API key per connection (in memory only, not persisted)
   private val connectionApiKeys = mutable.Map[cask.WsChannelActor, String]()
 
+  // Track active streaming message IDs per connection for cancellation
+  private val activeStreams = mutable.Map[cask.WsChannelActor, mutable.Set[String]]()
+
   def handleWebSocket(): WebsocketResult =
     cask.WsHandler: channel =>
       cask.WsActor:
@@ -31,6 +34,7 @@ object AIChatHandler:
           handleMessage(channel, data)
         case Ws.Close(_, _) =>
           connectionApiKeys.remove(channel)
+          activeStreams.remove(channel)
           logger.info("[AIChat] WebSocket connection closed")
 
   private def handleMessage(channel: cask.WsChannelActor, data: String): Unit =
@@ -89,6 +93,10 @@ object AIChatHandler:
         // Client will send the conversation history separately
         sendMessage(channel, ServerMessage.MessageDeleted(afterMessageId))
 
+      case ClientMessage.StopStreaming(messageId) =>
+        logger.info(s"[AIChat] Stop streaming requested for message $messageId")
+        activeStreams.get(channel).foreach(_.remove(messageId))
+
       case ClientMessage.ClearChat() =>
         sendMessage(channel, ServerMessage.ChatCleared())
 
@@ -134,6 +142,9 @@ object AIChatHandler:
     val initialMessage = ChatMessage(responseId, MessageRole.Assistant, "")
     sendMessage(channel, ServerMessage.MessageAdded(initialMessage))
 
+    // Register this stream as active (for cancellation support)
+    activeStreams.getOrElseUpdate(channel, mutable.Set.empty).add(responseId)
+
     Future:
       streamOpenAIRequest(channel, responseId, url, apiKey, requestBody)
     .recover:
@@ -144,6 +155,9 @@ object AIChatHandler:
   private val httpClient = java.net.http.HttpClient.newBuilder()
     .connectTimeout(java.time.Duration.ofSeconds(30))
     .build()
+
+  private def isStreamActive(channel: cask.WsChannelActor, messageId: String): Boolean =
+    activeStreams.get(channel).exists(_.contains(messageId))
 
   private def streamOpenAIRequest(
       channel: cask.WsChannelActor,
@@ -175,8 +189,12 @@ object AIChatHandler:
       val reader = new java.io.BufferedReader(new java.io.InputStreamReader(inputStream, "UTF-8"), 1)
 
       var line: String = null
-      while { line = reader.readLine(); line != null } do
-        if line.startsWith("data: ") then
+      var cancelled = false
+      while !cancelled && { line = reader.readLine(); line != null } do
+        if !isStreamActive(channel, messageId) then
+          cancelled = true
+          logger.info(s"[AIChat] Stream $messageId cancelled by user")
+        else if line.startsWith("data: ") then
           val data = line.substring(6)
           if data != "[DONE]" then
             Try(ujson.read(data)) match
@@ -196,6 +214,8 @@ object AIChatHandler:
       case ex: Exception =>
         logger.error(s"[AIChat] Streaming error: ${ex.getMessage}", ex)
         sendMessage(channel, ServerMessage.ErrorMessage(s"Streaming error: ${ex.getMessage}"))
+    finally
+      activeStreams.get(channel).foreach(_.remove(messageId))
 
   private def sendMessage(channel: cask.WsChannelActor, msg: ServerMessage): Unit =
     Try:
