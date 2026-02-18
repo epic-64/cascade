@@ -514,6 +514,7 @@ object AIChatClient:
       elem.innerHTML = ""
       formatMessageContent(content).foreach(elem.appendChild(_))
       elem.appendChild(span(cls = "cursor", content = "▌"))
+    scrollToBottom()
 
   private def finalizeStreamingMessage(messageId: String, content: String): Unit =
     getElementById(s"content-$messageId").foreach: elem =>
