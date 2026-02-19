@@ -128,6 +128,22 @@ object AIChatClient:
                 dom.window.localStorage.setItem(StorageKeyVoice, selectedVoice)
               )
           ),
+          // TTS Tone / Prompt
+          div(cls = "sidebar-section")(
+            el("label", cls = "sidebar-label", content = "TTS Tone"),
+            input("text", id = "ttsPromptInput", cls = "input-field").tap: inp =>
+              inp.placeholder = "e.g. Speak cheerfully with warmth"
+              // Restore saved prompt
+              Option(dom.window.localStorage.getItem(StorageKeyTTSPrompt))
+                .filter(_.nonEmpty)
+                .foreach: saved =>
+                  inp.value = saved
+                  ttsPrompt = saved
+              inp.addEventListener("input", (e: Event) =>
+                ttsPrompt = inp.value
+                dom.window.localStorage.setItem(StorageKeyTTSPrompt, ttsPrompt)
+              )
+          ),
           // System prompt
           div(cls = "sidebar-section")(
             el("label", cls = "sidebar-label", content = "System Prompt"),
@@ -689,7 +705,9 @@ object AIChatClient:
 
   private var currentAudio: Option[HTMLAudioElement] = None
   private var selectedVoice: String = "alloy"
+  private var ttsPrompt: String = ""
   private val StorageKeyVoice = "aiChat_ttsVoice"
+  private val StorageKeyTTSPrompt = "aiChat_ttsPrompt"
   private val ttsVoices = Seq("alloy", "ash", "ballad", "cedar", "coral", "echo", "fable", "marin", "nova", "onyx", "sage", "shimmer")
 
   private def toggleSpeakMessage(messageId: String): Unit =
@@ -710,7 +728,7 @@ object AIChatClient:
           case Some(apiKey) =>
             speakingMessageId = Some(messageId)
             updateSpeakButton(messageId, speaking = true)
-            sendClientMessage(ClientMessage.SpeakMessage(messageId, text, apiKey, selectedVoice))
+            sendClientMessage(ClientMessage.SpeakMessage(messageId, text, apiKey, selectedVoice, ttsPrompt))
           case None =>
             showError("Please set your API key for text-to-speech")
 
