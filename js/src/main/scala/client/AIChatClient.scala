@@ -204,6 +204,11 @@ object AIChatClient:
         ),
         // Main chat area
         div(id = "chatMain", cls = "chat-main")(
+          // Connection status banner
+          div(id = "connectionStatus", cls = "connection-status disconnected")(
+            span(cls = "connection-dot"),
+            span(id = "connectionLabel", content = "Connecting…")
+          ),
           // Messages container
           div(id = "messagesContainer", cls = "messages-container")(
             div(id = "emptyState", cls = "empty-state")(
@@ -269,6 +274,7 @@ object AIChatClient:
 
     ws.onopen = (e: Event) =>
       println("[AIChat] WebSocket connected")
+      setConnectionStatus("connected")
       loadFromLocalStorage()
 
     ws.onmessage = (event: MessageEvent) =>
@@ -279,6 +285,7 @@ object AIChatClient:
 
     ws.onclose = (event: CloseEvent) =>
       println("[AIChat] WebSocket disconnected")
+      setConnectionStatus("disconnected")
       // Attempt reconnect after delay
       dom.window.setTimeout(() => connectWebSocket(), 3000)
 
@@ -466,6 +473,15 @@ object AIChatClient:
   private def hideStopButton(): Unit =
     getElementById("stopBtn").foreach(_.classList.add("hidden"))
     getElementById("sendBtn").foreach(_.classList.remove("hidden"))
+
+  private def setConnectionStatus(status: String): Unit =
+    getElementById("connectionStatus").foreach: el =>
+      el.className = s"connection-status $status"
+    getElementById("connectionLabel").foreach: el =>
+      el.textContent = status match
+        case "connected"    => "Connected"
+        case "disconnected" => "Reconnecting…"
+        case _              => status
 
   private def clearChat(): Unit =
     sendClientMessage(ClientMessage.ClearChat())
