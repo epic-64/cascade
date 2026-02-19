@@ -47,8 +47,8 @@ object AIChatClient:
     s"msg-${System.currentTimeMillis()}-$messageIdCounter"
 
   private def getApiKey(): Option[String] =
-    getElementById("apiKeyInput")
-      .map(_.asInstanceOf[HTMLInputElement].value.trim)
+    getElementByIdAs[HTMLInputElement]("apiKeyInput")
+      .map(_.value.trim)
       .filter(_.nonEmpty)
 
   def buildUI(): Unit =
@@ -146,10 +146,10 @@ object AIChatClient:
           ),
           // System prompt
           div(cls = "sidebar-section")(
-            el("label", cls = "sidebar-label", content = "System Prompt"),
-            el("textarea", id = "systemPrompt", cls = "textarea-field").tap: textarea =>
-              textarea.asInstanceOf[HTMLTextAreaElement].placeholder = AIChat.defaultSystemPrompt
-              textarea.asInstanceOf[HTMLTextAreaElement].rows = 4
+            label(forId = "systemPrompt", cls = "sidebar-label", content = "System Prompt"),
+            textarea(id = "systemPrompt", cls = "textarea-field").tap: textarea =>
+              textarea.placeholder = AIChat.defaultSystemPrompt
+              textarea.rows = 4
             ,
             div(cls = "system-prompt-actions")(
               button(id = "updateSystemPromptBtn", cls = "btn btn-sm btn-secondary hidden", content = "Update").tap: btn =>
@@ -1010,10 +1010,10 @@ object AIChatClient:
     )
 
     val url = dom.URL.createObjectURL(blob)
-    val link = document.createElement("a").asInstanceOf[HTMLAnchorElement]
-    link.href = url
-    link.setAttribute("download", s"ai-chat-export-${new scala.scalajs.js.Date().toISOString().take(10)}.json")
-    link.click()
+    val link = a().tap: link =>
+      link.href = url
+      link.setAttribute("download", s"ai-chat-export-${new scala.scalajs.js.Date().toISOString().take(10)}.json")
+      link.click()
     dom.URL.revokeObjectURL(url)
 
   private def triggerImport(): Unit =
