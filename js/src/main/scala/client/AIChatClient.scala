@@ -86,7 +86,10 @@ object AIChatClient:
           div(id = "sidebarPanelGeneral", cls = "sidebar-panel")(
             // API Key input
             div(cls = "sidebar-section")(
-              el("label", cls = "sidebar-label", content = "OpenAI API Key"),
+              div(cls = "sidebar-label-row")(
+                el("label", cls = "sidebar-label", content = "OpenAI API Key"),
+                span(id = "apiKeySaved", cls = "saved-indicator", content = "✓")
+              ),
               div(cls = "api-key-input")(
                 input("text", id = "apiKeyInput", cls = "input-field api-key-masked").tap: inp =>
                   inp.placeholder = "sk-..."
@@ -104,7 +107,8 @@ object AIChatClient:
             div(cls = "sidebar-section")(
               div(cls = "sidebar-label-row")(
                 el("label", cls = "sidebar-label", content = "Model"),
-                span(id = "modelStatus", cls = "sidebar-label-hint")
+                span(id = "modelStatus", cls = "sidebar-label-hint"),
+                span(id = "modelSaved", cls = "saved-indicator", content = "✓")
               ),
               el("select", id = "modelSelect", cls = "input-field").tap: sel =>
                 val defaultOpt = document.createElement("option").asInstanceOf[HTMLOptionElement]
@@ -114,24 +118,29 @@ object AIChatClient:
                 sel.addEventListener("change", (e: Event) =>
                   selectedModel = sel.asInstanceOf[HTMLSelectElement].value
                   dom.window.localStorage.setItem(StorageKeyModel, selectedModel)
+                  flashSaved("modelSaved")
                 )
             ),
             // System prompt
             div(cls = "sidebar-section")(
-              label(forId = "systemPrompt", cls = "sidebar-label", content = "System Prompt"),
+              div(cls = "sidebar-label-row")(
+                label(forId = "systemPrompt", cls = "sidebar-label", content = "System Prompt"),
+                span(id = "systemPromptSaved", cls = "saved-indicator", content = "✓")
+              ),
               textarea(id = "systemPrompt", cls = "textarea-field").tap: textarea =>
                 textarea.placeholder = AIChat.defaultSystemPrompt
                 textarea.rows = 4
                 textarea.addEventListener("input", (e: Event) => updateSystemPrompt())
-              ,
-              span(id = "systemPromptStatus", cls = "status-text")
             )
           ),
           // === TTS settings panel ===
           div(id = "sidebarPanelTTS", cls = "sidebar-panel hidden")(
             // TTS Voice selector
             div(cls = "sidebar-section")(
-              el("label", cls = "sidebar-label", content = "Voice"),
+              div(cls = "sidebar-label-row")(
+                el("label", cls = "sidebar-label", content = "Voice"),
+                span(id = "voiceSaved", cls = "saved-indicator", content = "✓")
+              ),
               el("select", id = "voiceSelect", cls = "input-field").tap: sel =>
                 ttsVoices.foreach: voice =>
                   val opt = document.createElement("option").asInstanceOf[HTMLOptionElement]
@@ -148,11 +157,15 @@ object AIChatClient:
                 sel.addEventListener("change", (e: Event) =>
                   selectedVoice = sel.asInstanceOf[HTMLSelectElement].value
                   dom.window.localStorage.setItem(StorageKeyVoice, selectedVoice)
+                  flashSaved("voiceSaved")
                 )
             ),
             // TTS Tone / Prompt
             div(cls = "sidebar-section")(
-              el("label", cls = "sidebar-label", content = "Tone"),
+              div(cls = "sidebar-label-row")(
+                el("label", cls = "sidebar-label", content = "Tone"),
+                span(id = "toneSaved", cls = "saved-indicator", content = "✓")
+              ),
               textarea(id = "ttsPromptInput", cls = "textarea-field").tap: ta =>
                 ta.placeholder = "e.g. Speak cheerfully with warmth"
                 ta.rows = 3
@@ -165,6 +178,7 @@ object AIChatClient:
                 ta.addEventListener("input", (e: Event) =>
                   ttsPrompt = ta.value
                   dom.window.localStorage.setItem(StorageKeyTTSPrompt, ttsPrompt)
+                  flashSaved("toneSaved")
                 )
             )
           ),
@@ -333,7 +347,6 @@ object AIChatClient:
         messageMeta.clear()
         clearMessagesUI()
         showEmptyState()
-        resetSystemPromptStatus()
         // Clear messages from localStorage but keep settings
         dom.window.localStorage.removeItem(StorageKeyMessages)
         dom.window.localStorage.removeItem(StorageKeyMeta)
@@ -352,9 +365,21 @@ object AIChatClient:
       case ServerMessage.TTSError(messageId, error) =>
         handleTTSError(messageId, error)
 
+  private var flashTimers: mutable.Map[String, Int] = mutable.Map.empty
+
+  private def flashSaved(indicatorId: String): Unit =
+    getElementById(indicatorId).foreach: elem =>
+      elem.classList.add("visible")
+      flashTimers.get(indicatorId).foreach(dom.window.clearTimeout)
+      flashTimers(indicatorId) = dom.window.setTimeout(() =>
+        elem.classList.remove("visible")
+        flashTimers.remove(indicatorId)
+      , 2000)
+
   private def setApiKey(): Unit =
     getApiKey().foreach: apiKey =>
       dom.window.localStorage.setItem(StorageKeyApiKey, apiKey)
+      flashSaved("apiKeySaved")
       // Fetch models to validate the key and populate the selector
       sendClientMessage(ClientMessage.ListModels(apiKey))
 
@@ -384,11 +409,7 @@ object AIChatClient:
         content = systemPrompt
       )
       chatMessages += systemMsg
-      // Show feedback that system prompt was applied
-      val isCustom = getElementById("systemPrompt")
-        .map(_.asInstanceOf[HTMLTextAreaElement].value.trim)
-        .exists(_.nonEmpty)
-      updateSystemPromptStatus(isCustom)
+      flashSaved("systemPromptSaved")
 
     // Create user message
     val userMessage = ChatMessage(
@@ -450,11 +471,7 @@ object AIChatClient:
         val oldSystemMsg = chatMessages(idx)
         val updatedSystemMsg = oldSystemMsg.copy(content = newPrompt)
         chatMessages(idx) = updatedSystemMsg
-        // Update status to show the change was applied
-        val isCustom = getElementById("systemPrompt")
-          .map(_.asInstanceOf[HTMLTextAreaElement].value.trim)
-          .exists(_.nonEmpty)
-        updateSystemPromptStatus(isCustom, updated = true)
+        flashSaved("systemPromptSaved")
       case _ =>
         // No system message yet - add one
         val systemMsg = ChatMessage(
@@ -463,10 +480,7 @@ object AIChatClient:
           content = newPrompt
         )
         chatMessages.prepend(systemMsg)
-        val isCustom = getElementByIdAs[HTMLTextAreaElement]("systemPrompt")
-          .map(_.value.trim)
-          .exists(_.nonEmpty)
-        updateSystemPromptStatus(isCustom, updated = true)
+        flashSaved("systemPromptSaved")
 
   private def sendClientMessage(msg: ClientMessage): Unit =
     chatWebSocket.foreach: ws =>
@@ -895,22 +909,6 @@ object AIChatClient:
     getElementById("modelStatus").foreach: elem =>
       elem.textContent = s"(${models.size})"
 
-  private def updateSystemPromptStatus(isCustom: Boolean, updated: Boolean = false): Unit =
-    getElementById("systemPromptStatus").foreach: elem =>
-      if updated then
-        elem.textContent = "✓ System prompt updated"
-        elem.className = "status-text status-success"
-      else if isCustom then
-        elem.textContent = "✓ Custom prompt active"
-        elem.className = "status-text status-success"
-      else
-        elem.textContent = "✓ Default prompt active"
-        elem.className = "status-text status-info"
-
-  private def resetSystemPromptStatus(): Unit =
-    getElementById("systemPromptStatus").foreach: elem =>
-      elem.textContent = ""
-      elem.className = "status-text"
 
   // === LocalStorage Persistence ===
 
@@ -980,10 +978,6 @@ object AIChatClient:
       // Only show non-system messages in UI
       chatMessages.filter(_.role != MessageRole.System).foreach: msg =>
         addMessageToUI(msg)
-      // Update system prompt status if we have a system message
-      chatMessages.find(_.role == MessageRole.System).foreach: sysMsg =>
-        val isCustom = sysMsg.content != AIChat.defaultSystemPrompt
-        updateSystemPromptStatus(isCustom)
       scrollToBottom()
     else
       showEmptyState()

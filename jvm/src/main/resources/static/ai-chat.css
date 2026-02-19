@@ -159,22 +159,15 @@ select.input-field {
   line-height: 1.5;
 }
 
-.status-text {
+.saved-indicator {
   font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.status-success {
   color: var(--accent-green);
+  opacity: 0;
+  transition: opacity 0.3s;
 }
 
-.status-info {
-  color: var(--text-muted);
-  font-style: italic;
-}
-
-.status-error {
-  color: #ef4444;
+.saved-indicator.visible {
+  opacity: 1;
 }
 
 .sidebar-actions {
