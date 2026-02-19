@@ -20,7 +20,6 @@ def initializeAIChat(): Unit =
 object AIChatClient:
   // State
   private var chatWebSocket: Option[WebSocket] = None
-  private var apiKeySet: Boolean = false
   private var chatMessages: mutable.ArrayBuffer[ChatMessage] = mutable.ArrayBuffer.empty
   private var currentEditingMessageId: Option[String] = None
   private var streamingContent: mutable.Map[String, String] = mutable.Map.empty
@@ -44,6 +43,11 @@ object AIChatClient:
   private def generateMessageId(): String =
     messageIdCounter += 1
     s"msg-${System.currentTimeMillis()}-$messageIdCounter"
+
+  private def getApiKey(): Option[String] =
+    getElementById("apiKeyInput")
+      .map(_.asInstanceOf[HTMLInputElement].value.trim)
+      .filter(_.nonEmpty)
 
   def buildUI(): Unit =
     document.body.innerHTML = ""
@@ -214,14 +218,6 @@ object AIChatClient:
 
   private def processServerMessage(msg: ServerMessage): Unit =
     msg match
-      case ServerMessage.ApiKeySet(valid) =>
-        apiKeySet = valid
-        getElementById("apiKeyStatus").foreach: elem =>
-          elem.textContent = if valid then "✓ API key set" else "✗ Invalid"
-          elem.className = s"status-text ${if valid then "status-success" else "status-error"}"
-        // Fetch available models when API key is set
-        if valid then
-          sendClientMessage(ClientMessage.ListModels())
 
       case ServerMessage.MessageAdded(message) =>
         hideEmptyState()
@@ -293,12 +289,16 @@ object AIChatClient:
         populateModelSelector(models)
 
   private def setApiKey(): Unit =
-    getInputValue("apiKeyInput").foreach: apiKey =>
-      if apiKey.nonEmpty then
-        sendClientMessage(ClientMessage.SetApiKey(apiKey))
+    getApiKey().foreach: apiKey =>
+      dom.window.localStorage.setItem(StorageKeyApiKey, apiKey)
+      getElementById("apiKeyStatus").foreach: elem =>
+        elem.textContent = "✓ API key saved"
+        elem.className = "status-text status-success"
+      // Fetch models to validate the key and populate the selector
+      sendClientMessage(ClientMessage.ListModels(apiKey))
 
   private def sendChatMessage(): Unit =
-    if !apiKeySet then
+    if getApiKey().isEmpty then
       showError("Please set your API key first")
       return
 
@@ -354,12 +354,14 @@ object AIChatClient:
   // Send full conversation context with selected model for AI response
   private def sendConversationContext(messages: Seq[ChatMessage]): Unit =
     chatWebSocket.foreach: ws =>
-      val contextMsg = ujson.Obj(
-        "$type" -> "GenerateWithContext",
-        "messages" -> upickle.default.writeJs(messages),
-        "model" -> selectedModel
-      )
-      ws.send(ujson.write(contextMsg))
+      getApiKey().foreach: apiKey =>
+        val contextMsg = ujson.Obj(
+          "$type" -> "GenerateWithContext",
+          "messages" -> upickle.default.writeJs(messages),
+          "model" -> selectedModel,
+          "apiKey" -> apiKey
+        )
+        ws.send(ujson.write(contextMsg))
 
   private def stopStreaming(): Unit =
     activeStreamingId.foreach: messageId =>
@@ -775,8 +777,11 @@ object AIChatClient:
       Option(dom.window.localStorage.getItem(StorageKeyApiKey)).filter(_.nonEmpty).foreach: apiKey =>
         getElementById("apiKeyInput").foreach: elem =>
           elem.asInstanceOf[HTMLInputElement].value = apiKey
-        // Auto-set the API key
-        sendClientMessage(ClientMessage.SetApiKey(apiKey))
+        getElementById("apiKeyStatus").foreach: elem =>
+          elem.textContent = "✓ API key saved"
+          elem.className = "status-text status-success"
+        // Fetch models to populate the selector
+        sendClientMessage(ClientMessage.ListModels(apiKey))
 
       // Load system prompt
       Option(dom.window.localStorage.getItem(StorageKeySystemPrompt)).filter(_.nonEmpty).foreach: prompt =>

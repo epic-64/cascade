@@ -21,8 +21,6 @@ object AIChatHandler:
   // Cask logger for WebSocket operations
   given cask.util.Logger = cask.util.Logger.Console.globalLogger
 
-  // Store API key per connection (in memory only, not persisted)
-  private val connectionApiKeys = mutable.Map[cask.WsChannelActor, String]()
 
   // Track active streaming message IDs per connection for cancellation
   private val activeStreams = mutable.Map[cask.WsChannelActor, mutable.Set[String]]()
@@ -33,7 +31,6 @@ object AIChatHandler:
         case Ws.Text(data) =>
           handleMessage(channel, data)
         case Ws.Close(_, _) =>
-          connectionApiKeys.remove(channel)
           activeStreams.remove(channel)
           logger.info("[AIChat] WebSocket connection closed")
 
@@ -51,7 +48,7 @@ object AIChatHandler:
             sendMessage(channel, ServerMessage.ErrorMessage(s"Invalid message format: ${ex.getMessage}"))
 
   private def handleGenerateWithContext(channel: cask.WsChannelActor, json: ujson.Value): Unit =
-    connectionApiKeys.get(channel) match
+    json.obj.get("apiKey").map(_.str).filter(_.nonEmpty) match
       case Some(apiKey) =>
         Try:
           val messages = read[Seq[ChatMessage]](json("messages"))
@@ -65,24 +62,13 @@ object AIChatHandler:
             logger.error(s"[AIChat] Failed to parse context: ${ex.getMessage}")
             sendMessage(channel, ServerMessage.ErrorMessage(s"Failed to parse context: ${ex.getMessage}"))
       case None =>
-        sendMessage(channel, ServerMessage.ErrorMessage("Please set your API key first"))
+        sendMessage(channel, ServerMessage.ErrorMessage("Please include your API key"))
 
   private def processMessage(channel: cask.WsChannelActor, msg: ClientMessage): Unit =
     msg match
-      case ClientMessage.SetApiKey(apiKey) =>
-        connectionApiKeys(channel) = apiKey
-        logger.info("[AIChat] API key set for connection")
-        sendMessage(channel, ServerMessage.ApiKeySet(true))
-
       case ClientMessage.SendMessage(message) =>
-        connectionApiKeys.get(channel) match
-          case Some(apiKey) =>
-            // First, echo back the user message
-            sendMessage(channel, ServerMessage.MessageAdded(message))
-            // Then generate AI response
-            generateResponse(channel, apiKey, Seq(message), AIChat.defaultModel)
-          case None =>
-            sendMessage(channel, ServerMessage.ErrorMessage("Please set your API key first"))
+        // Single-message send without context; not used in normal flow
+        sendMessage(channel, ServerMessage.ErrorMessage("Please use the chat interface to send messages"))
 
       case ClientMessage.EditMessage(message) =>
         sendMessage(channel, ServerMessage.MessageUpdated(message))
@@ -101,17 +87,16 @@ object AIChatHandler:
       case ClientMessage.ClearChat() =>
         sendMessage(channel, ServerMessage.ChatCleared())
 
-      case ClientMessage.ListModels() =>
-        connectionApiKeys.get(channel) match
-          case Some(apiKey) =>
-            Future:
-              fetchModels(channel, apiKey)
-            .recover:
-              case ex: Exception =>
-                logger.error(s"[AIChat] Error fetching models: ${ex.getMessage}", ex)
-                sendMessage(channel, ServerMessage.ErrorMessage(s"Failed to fetch models: ${ex.getMessage}"))
-          case None =>
-            sendMessage(channel, ServerMessage.ErrorMessage("Please set your API key first"))
+      case ClientMessage.ListModels(apiKey) =>
+        if apiKey.nonEmpty then
+          Future:
+            fetchModels(channel, apiKey)
+          .recover:
+            case ex: Exception =>
+              logger.error(s"[AIChat] Error fetching models: ${ex.getMessage}", ex)
+              sendMessage(channel, ServerMessage.ErrorMessage(s"Failed to fetch models: ${ex.getMessage}"))
+        else
+          sendMessage(channel, ServerMessage.ErrorMessage("Please set your API key first"))
 
   private def generateResponse(channel: cask.WsChannelActor, apiKey: String, messages: Seq[ChatMessage], model: String): Unit =
     // Create a new message ID for the response
