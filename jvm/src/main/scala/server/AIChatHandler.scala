@@ -148,7 +148,8 @@ object AIChatHandler:
     val requestBody = ujson.Obj(
       "model" -> model,
       "messages" -> ujson.Arr(openAIMessages*),
-      "stream" -> true
+      "stream" -> true,
+      "stream_options" -> ujson.Obj("include_usage" -> true)
     )
 
     // Send initial message to indicate streaming has started
@@ -159,7 +160,7 @@ object AIChatHandler:
     activeStreams.getOrElseUpdate(channel, mutable.Set.empty).add(responseId)
 
     Future:
-      streamOpenAIRequest(channel, responseId, url, apiKey, requestBody)
+      streamOpenAIRequest(channel, responseId, url, apiKey, requestBody, model)
     .recover:
       case ex: Exception =>
         logger.error(s"[AIChat] Error generating response: ${ex.getMessage}", ex)
@@ -219,7 +220,8 @@ object AIChatHandler:
       messageId: String,
       url: String,
       apiKey: String,
-      requestBody: ujson.Obj
+      requestBody: ujson.Obj,
+      model: String
   ): Unit =
     val request = java.net.http.HttpRequest.newBuilder()
       .uri(java.net.URI.create(url))
@@ -229,6 +231,9 @@ object AIChatHandler:
       .timeout(java.time.Duration.ofSeconds(120))
       .POST(java.net.http.HttpRequest.BodyPublishers.ofString(requestBody.toString))
       .build()
+
+    var promptTokens = 0
+    var completionTokens = 0
 
     try
       val response = httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofInputStream())
@@ -254,16 +259,24 @@ object AIChatHandler:
           if data != "[DONE]" then
             Try(ujson.read(data)) match
               case Success(json) =>
-                val delta = json("choices")(0)("delta")
-                if delta.obj.contains("content") then
-                  val chunk = delta("content").str
-                  sendMessage(channel, ServerMessage.StreamingChunk(messageId, chunk))
+                // Extract usage from the final chunk (when stream_options include_usage is set)
+                json.obj.get("usage").foreach: usage =>
+                  Try:
+                    promptTokens = usage("prompt_tokens").num.toInt
+                    completionTokens = usage("completion_tokens").num.toInt
+
+                // Extract content delta
+                Try:
+                  val delta = json("choices")(0)("delta")
+                  if delta.obj.contains("content") then
+                    val chunk = delta("content").str
+                    sendMessage(channel, ServerMessage.StreamingChunk(messageId, chunk))
               case Failure(_) => // Ignore parse errors for SSE
 
       reader.close()
       inputStream.close()
 
-      sendMessage(channel, ServerMessage.StreamingComplete(messageId))
+      sendMessage(channel, ServerMessage.StreamingComplete(messageId, model, promptTokens, completionTokens))
 
     catch
       case ex: Exception =>
