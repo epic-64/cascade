@@ -20,18 +20,16 @@ case class ChatMessage(
 
 // Client -> Server messages
 enum ClientMessage derives ReadWriter:
-  case SetApiKey(apiKey: String)
   case SendMessage(message: ChatMessage)
   case EditMessage(message: ChatMessage)
   case DeleteMessage(messageId: String)
   case RegenerateResponse(afterMessageId: String) // Regenerate response after a specific message
   case StopStreaming(messageId: String) // Abort an in-progress streaming response
   case ClearChat()
-  case ListModels()
+  case ListModels(apiKey: String)
 
 // Server -> Client messages  
 enum ServerMessage derives ReadWriter:
-  case ApiKeySet(valid: Boolean)
   case MessageAdded(message: ChatMessage)
   case MessageUpdated(message: ChatMessage)
   case MessageDeleted(messageId: String)
