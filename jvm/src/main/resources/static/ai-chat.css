@@ -562,7 +562,7 @@ select.input-field {
 
 .input-buttons {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: var(--spacing-xs);
 }
 
