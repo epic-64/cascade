@@ -53,9 +53,11 @@ object AIChatHandler:
         Try:
           val messages = read[Seq[ChatMessage]](json("messages"))
           val model = json.obj.get("model").map(_.str).getOrElse(AIChat.defaultModel)
-          // Echo back the user message (last message in conversation) before generating
-          messages.lastOption.filter(_.role == MessageRole.User).foreach: userMsg =>
-            sendMessage(channel, ServerMessage.MessageAdded(userMsg))
+          val isRegenerate = json.obj.get("regenerate").exists(_.bool)
+          // Echo back the user message only for new messages, not regenerations
+          if !isRegenerate then
+            messages.lastOption.filter(_.role == MessageRole.User).foreach: userMsg =>
+              sendMessage(channel, ServerMessage.MessageAdded(userMsg))
           generateResponse(channel, apiKey, messages, model)
         .recover:
           case ex: Exception =>
