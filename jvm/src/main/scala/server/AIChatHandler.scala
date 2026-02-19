@@ -292,7 +292,7 @@ object AIChatHandler:
   ): Unit =
     val url = "https://api.openai.com/v1/audio/speech"
     val requestBody = ujson.Obj(
-      "model" -> "tts-1",
+      "model" -> "gpt-4o-mini-tts",
       "input" -> text,
       "voice" -> voice,
       "response_format" -> "mp3"
