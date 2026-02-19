@@ -53,11 +53,7 @@ object AIChatHandler:
         Try:
           val messages = read[Seq[ChatMessage]](json("messages"))
           val model = json.obj.get("model").map(_.str).getOrElse(AIChat.defaultModel)
-          val isRegenerate = json.obj.get("regenerate").exists(_.bool)
-          // Echo back the user message only for new messages, not regenerations
-          if !isRegenerate then
-            messages.lastOption.filter(_.role == MessageRole.User).foreach: userMsg =>
-              sendMessage(channel, ServerMessage.MessageAdded(userMsg))
+          // Client already added user message locally, just generate response
           generateResponse(channel, apiKey, messages, model)
         .recover:
           case ex: Exception =>
