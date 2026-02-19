@@ -63,6 +63,11 @@ object WebServer extends MainRoutes:
   def tugOfWarWebSocket(gameId: String): cask.WebsocketResult =
     TugOfWarHandler.handleWebSocket(gameId)
 
+  // AI Chat WebSocket endpoint
+  @cask.websocket("/ws/ai-chat")
+  def aiChatWebSocket(): cask.WebsocketResult =
+    AIChatHandler.handleWebSocket()
+
   // Start periodic cleanup task
   private def startCleanupTask(): Unit =
     val cleanupTask = new Runnable:
@@ -124,6 +129,18 @@ object WebServer extends MainRoutes:
   @cask.get("/tug-of-war/:lobbyId")
   def tugOfWarWithLobby(lobbyId: String): cask.Response[java.io.InputStream] =
     serveGamePage("tug-of-war.html")
+
+  @cask.get("/trader")
+  def trader(): cask.Response[java.io.InputStream] =
+    serveGamePage("trader.html")
+
+  @cask.get("/territory")
+  def territory(): cask.Response[java.io.InputStream] =
+    serveGamePage("territory.html")
+
+  @cask.get("/ai-chat")
+  def aiChat(): cask.Response[java.io.InputStream] =
+    serveGamePage("ai-chat.html")
 
   private def serveGamePage(htmlFile: String): cask.Response[java.io.InputStream] =
     cask.Response(
