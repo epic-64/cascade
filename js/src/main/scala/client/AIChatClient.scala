@@ -88,7 +88,7 @@ object AIChatClient:
             div(cls = "sidebar-section")(
               div(cls = "sidebar-label-row")(
                 el("label", cls = "sidebar-label", content = "OpenAI API Key"),
-                span(id = "apiKeySaved", cls = "saved-indicator", content = "✓")
+                savedIndicator("apiKeySaved")
               ),
               div(cls = "api-key-input")(
                 input("text", id = "apiKeyInput", cls = "input-field api-key-masked").tap: inp =>
@@ -108,7 +108,7 @@ object AIChatClient:
               div(cls = "sidebar-label-row")(
                 el("label", cls = "sidebar-label", content = "Model"),
                 span(id = "modelStatus", cls = "sidebar-label-hint"),
-                span(id = "modelSaved", cls = "saved-indicator", content = "✓")
+                savedIndicator("modelSaved")
               ),
               el("select", id = "modelSelect", cls = "input-field").tap: sel =>
                 val defaultOpt = document.createElement("option").asInstanceOf[HTMLOptionElement]
@@ -125,7 +125,7 @@ object AIChatClient:
             div(cls = "sidebar-section")(
               div(cls = "sidebar-label-row")(
                 label(forId = "systemPrompt", cls = "sidebar-label", content = "System Prompt"),
-                span(id = "systemPromptSaved", cls = "saved-indicator", content = "✓")
+                savedIndicator("systemPromptSaved")
               ),
               textarea(id = "systemPrompt", cls = "textarea-field").tap: textarea =>
                 textarea.placeholder = AIChat.defaultSystemPrompt
@@ -139,7 +139,7 @@ object AIChatClient:
             div(cls = "sidebar-section")(
               div(cls = "sidebar-label-row")(
                 el("label", cls = "sidebar-label", content = "Voice"),
-                span(id = "voiceSaved", cls = "saved-indicator", content = "✓")
+                savedIndicator("voiceSaved")
               ),
               el("select", id = "voiceSelect", cls = "input-field").tap: sel =>
                 ttsVoices.foreach: voice =>
@@ -164,7 +164,7 @@ object AIChatClient:
             div(cls = "sidebar-section")(
               div(cls = "sidebar-label-row")(
                 el("label", cls = "sidebar-label", content = "Tone"),
-                span(id = "toneSaved", cls = "saved-indicator", content = "✓")
+                savedIndicator("toneSaved")
               ),
               textarea(id = "ttsPromptInput", cls = "textarea-field").tap: ta =>
                 ta.placeholder = "e.g. Speak cheerfully with warmth"
@@ -367,8 +367,19 @@ object AIChatClient:
 
   private var flashTimers: mutable.Map[String, Int] = mutable.Map.empty
 
+  private val swirlCheckSvg =
+    """<svg viewBox="0 0 16 16"><circle class="swirl-circle" cx="8" cy="8" r="7.5"/><path class="check-path" d="M4.5 8.5 L7 11 L11.5 5.5"/></svg>"""
+
+  private def savedIndicator(id: String): HTMLElement =
+    span(id = id, cls = "saved-indicator").tap: el =>
+      el.innerHTML = swirlCheckSvg
+
   private def flashSaved(indicatorId: String): Unit =
     getElementById(indicatorId).foreach: elem =>
+      // Reset animation: remove class, force reflow, re-add
+      elem.classList.remove("visible")
+      elem.innerHTML = swirlCheckSvg
+      val _ = elem.offsetWidth // force reflow
       elem.classList.add("visible")
       flashTimers.get(indicatorId).foreach(dom.window.clearTimeout)
       flashTimers(indicatorId) = dom.window.setTimeout(() =>
