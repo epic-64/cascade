@@ -100,10 +100,10 @@ object AIChatHandler:
         else
           sendMessage(channel, ServerMessage.ErrorMessage("Please set your API key first"))
 
-      case ClientMessage.SpeakMessage(messageId, text, apiKey, voice) =>
+      case ClientMessage.SpeakMessage(messageId, text, apiKey, voice, prompt) =>
         if apiKey.nonEmpty then
           Future:
-            generateTTS(channel, messageId, text, apiKey, voice)
+            generateTTS(channel, messageId, text, apiKey, voice, prompt)
           .recover:
             case ex: Exception =>
               logger.error(s"[AIChat] TTS error: ${ex.getMessage}", ex)
@@ -288,7 +288,8 @@ object AIChatHandler:
       messageId: String,
       text: String,
       apiKey: String,
-      voice: String
+      voice: String,
+      prompt: String
   ): Unit =
     val url = "https://api.openai.com/v1/audio/speech"
     val requestBody = ujson.Obj(
@@ -297,6 +298,8 @@ object AIChatHandler:
       "voice" -> voice,
       "response_format" -> "mp3"
     )
+    if prompt.nonEmpty then
+      requestBody("instructions") = prompt
 
     val request = java.net.http.HttpRequest.newBuilder()
       .uri(java.net.URI.create(url))

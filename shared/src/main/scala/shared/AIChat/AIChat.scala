@@ -27,7 +27,7 @@ enum ClientMessage derives ReadWriter:
   case StopStreaming(messageId: String) // Abort an in-progress streaming response
   case ClearChat()
   case ListModels(apiKey: String)
-  case SpeakMessage(messageId: String, text: String, apiKey: String, voice: String = "alloy") // TTS via OpenAI
+  case SpeakMessage(messageId: String, text: String, apiKey: String, voice: String = "alloy", prompt: String = "") // TTS via OpenAI
 
 // Server -> Client messages  
 enum ServerMessage derives ReadWriter:
