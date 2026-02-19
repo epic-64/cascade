@@ -269,8 +269,7 @@ def createGameWinnerAnnouncement(): HTMLElement =
   // Click outside to close
   announcement.addEventListener(
     "click",
-    (e: Event) =>
-      if e.target == announcement then hideGameWinner()
+    (e: Event) => if e.target == announcement then hideGameWinner()
   )
 
   announcement

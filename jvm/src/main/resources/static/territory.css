@@ -1,0 +1,794 @@
+/* Territory Idle Game Styles */
+
+.territory-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #1a1a2e;
+}
+
+/* Header with help button - overlay */
+.territory-header {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  z-index: 100;
+  background: var(--bg-primary);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.territory-header h1 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.5rem;
+}
+
+.help-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--border-medium);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 1.25rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.help-button:hover {
+  background: var(--accent-purple-light);
+  color: white;
+  border-color: var(--accent-purple-light);
+}
+
+/* Resources Panel - overlay */
+.territory-resources {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 100;
+  background: var(--bg-primary);
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.resource-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.resource-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.resource-value {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+/* Infinite Grid Container */
+.territory-grid-viewport {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.territory-grid-viewport:active {
+  cursor: grabbing;
+}
+
+.territory-grid {
+  position: absolute;
+  display: grid;
+  gap: 4px;
+  padding: 0;
+  background: transparent;
+  /* Grid columns set dynamically via JS */
+}
+
+/* Individual Tiles */
+.territory-tile {
+  width: 70px;
+  height: 70px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.territory-tile.locked {
+  background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.territory-tile.locked .tile-content {
+  font-size: 1rem;
+}
+
+.territory-tile.locked:hover {
+  transform: none;
+}
+
+.territory-tile.empty {
+  background: #f1f5f9;
+  border: 1px dashed #94a3b8;
+}
+
+.territory-tile.empty:hover {
+  background: #e2e8f0;
+  transform: scale(1.08);
+  box-shadow: var(--shadow-lg);
+  z-index: 10;
+}
+
+.territory-tile.wheat-field {
+  background: #fefce8;
+  border: 2px solid #ca8a04;
+}
+
+.territory-tile.wheat-field:hover {
+  background: #fef9c3;
+  transform: scale(1.08);
+  box-shadow: var(--shadow-lg);
+  z-index: 10;
+}
+
+.territory-tile.wheat-field[data-level="2"] {
+  background: #fef08a;
+  border-color: #a16207;
+}
+
+.territory-tile.wheat-field[data-level="3"] {
+  background: #fde047;
+  border-color: #854d0e;
+}
+
+.territory-tile.wheat-field[data-level="4"] {
+  background: #facc15;
+  border-color: #713f12;
+}
+
+.territory-tile.wheat-field[data-level="5"],
+.territory-tile.wheat-field[data-level="6"],
+.territory-tile.wheat-field[data-level="7"],
+.territory-tile.wheat-field[data-level="8"],
+.territory-tile.wheat-field[data-level="9"],
+.territory-tile.wheat-field[data-level="10"] {
+  background: #eab308;
+  border-color: #422006;
+}
+
+/* Text colors for wheat fields - ensure contrast */
+.territory-tile.wheat-field .tile-label,
+.territory-tile.wheat-field .tile-cost,
+.territory-tile.wheat-field .tile-upgrade {
+  color: #422006;
+}
+
+.territory-tile.wheat-field .tile-production {
+  color: #166534;
+}
+
+.territory-tile.wheat-field .bonus {
+  color: #15803d;
+}
+
+/* Farm Tiles */
+.territory-tile.farm {
+  background: #eff6ff;
+  border: 2px solid #3b82f6;
+}
+
+.territory-tile.farm:hover {
+  background: #dbeafe;
+  transform: scale(1.08);
+  box-shadow: var(--shadow-lg);
+  z-index: 10;
+}
+
+.territory-tile.farm[data-level="2"] {
+  background: #bfdbfe;
+  border-color: #2563eb;
+}
+
+.territory-tile.farm[data-level="3"] {
+  background: #93c5fd;
+  border-color: #1d4ed8;
+}
+
+.territory-tile.farm[data-level="4"],
+.territory-tile.farm[data-level="5"],
+.territory-tile.farm[data-level="6"] {
+  background: #60a5fa;
+  border-color: #1e40af;
+}
+
+/* Text colors for farm tiles */
+.territory-tile.farm .tile-label,
+.territory-tile.farm .tile-cost,
+.territory-tile.farm .tile-upgrade {
+  color: #1e3a5f;
+}
+
+.territory-tile.farm .tile-production {
+  color: #1d4ed8;
+}
+
+/* Higher level farms need lighter text */
+.territory-tile.farm[data-level="4"] .tile-label,
+.territory-tile.farm[data-level="4"] .tile-cost,
+.territory-tile.farm[data-level="4"] .tile-upgrade,
+.territory-tile.farm[data-level="5"] .tile-label,
+.territory-tile.farm[data-level="5"] .tile-cost,
+.territory-tile.farm[data-level="5"] .tile-upgrade,
+.territory-tile.farm[data-level="6"] .tile-label,
+.territory-tile.farm[data-level="6"] .tile-cost,
+.territory-tile.farm[data-level="6"] .tile-upgrade {
+  color: #1e3a8a;
+}
+
+.territory-tile.farm[data-level="4"] .tile-production,
+.territory-tile.farm[data-level="5"] .tile-production,
+.territory-tile.farm[data-level="6"] .tile-production {
+  color: #1e40af;
+}
+
+/* Woodcutter Tiles */
+.territory-tile.woodcutter {
+  background: #f0fdf4;
+  border: 2px solid #16a34a;
+}
+
+.territory-tile.woodcutter:hover {
+  background: #dcfce7;
+  transform: scale(1.08);
+  box-shadow: var(--shadow-lg);
+  z-index: 10;
+}
+
+.territory-tile.woodcutter[data-level="2"] {
+  background: #bbf7d0;
+  border-color: #15803d;
+}
+
+.territory-tile.woodcutter[data-level="3"] {
+  background: #86efac;
+  border-color: #166534;
+}
+
+.territory-tile.woodcutter[data-level="4"],
+.territory-tile.woodcutter[data-level="5"],
+.territory-tile.woodcutter[data-level="6"] {
+  background: #4ade80;
+  border-color: #14532d;
+}
+
+/* Text colors for woodcutter tiles */
+.territory-tile.woodcutter .tile-label,
+.territory-tile.woodcutter .tile-cost,
+.territory-tile.woodcutter .tile-upgrade {
+  color: #14532d;
+}
+
+.territory-tile.woodcutter .tile-production {
+  color: #166534;
+}
+
+/* Forest group bonus indicator */
+.territory-tile.woodcutter .bonus.forest-bonus {
+  color: #166534;
+}
+
+/* Woodcutter progress bar */
+.tile-progress-bar.woodcutter-progress {
+  background: linear-gradient(90deg, #16a34a 0%, #4ade80 100%);
+}
+
+/* Bureau Tiles */
+.territory-tile.bureau {
+  background: #f5f3ff;
+  border: 2px solid #7c3aed;
+}
+
+.territory-tile.bureau:hover {
+  background: #ede9fe;
+  transform: scale(1.08);
+  box-shadow: var(--shadow-lg);
+  z-index: 10;
+}
+
+/* Text colors for bureau tiles */
+.territory-tile.bureau .tile-label,
+.territory-tile.bureau .tile-cost,
+.territory-tile.bureau .tile-upgrade {
+  color: #5b21b6;
+}
+
+.territory-tile.bureau .tile-production {
+  color: #7c3aed;
+}
+
+/* Bureau progress bar */
+.tile-progress-bar.bureau-progress {
+  background: linear-gradient(90deg, #7c3aed 0%, #a78bfa 100%);
+}
+
+/* Influence Indicators */
+.influence-indicator {
+  pointer-events: none;
+  border-radius: var(--radius-sm);
+  z-index: 1;
+}
+
+.influence-indicator.farm-influence {
+  border: 2px dashed rgba(59, 130, 246, 0.5);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.influence-indicator.bureau-influence {
+  border: 2px dashed rgba(124, 58, 237, 0.5);
+  background: rgba(124, 58, 237, 0.05);
+}
+
+/* Build Options (when farm is available) */
+.tile-build-options {
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+  padding: 2px;
+}
+
+.build-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.build-option:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: scale(1.1);
+}
+
+.build-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.build-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.build-cost {
+  font-size: 0.55rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+/* Bonus indicator on wheat fields */
+.bonus {
+  color: #15803d;
+  font-size: 0.6rem;
+  font-weight: 700;
+}
+
+/* Tile Content */
+.tile-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2px;
+  width: 100%;
+  height: 100%;
+}
+
+.tile-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.tile-label {
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: #1e293b;
+}
+
+.tile-cost,
+.tile-upgrade {
+  font-size: 0.65rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.tile-production {
+  font-size: 0.65rem;
+  color: #166534;
+  font-weight: 700;
+}
+
+/* Actions - overlay at bottom */
+.territory-actions {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+  z-index: 100;
+  background: var(--bg-primary);
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.territory-actions button {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #818cf8 0%, #6366f1 100%);
+  color: white;
+}
+
+.btn-primary:hover:not(.disabled) {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.btn-primary.disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: white;
+}
+
+.btn-secondary:hover:not(.disabled) {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.btn-secondary.disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+}
+
+.btn-danger:hover {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.btn-dev {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  color: white;
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+}
+
+.btn-dev:hover {
+  background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.dev-tools-content {
+  min-width: 200px;
+}
+
+.btn-dev-action {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-dev-action:hover {
+  background: var(--accent-purple-light);
+  color: white;
+}
+
+.btn-dev-action:last-child {
+  margin-bottom: 0;
+}
+
+/* Help Popup */
+.help-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.help-popup.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.help-popup-content {
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  max-width: 400px;
+  width: 90%;
+  overflow: hidden;
+}
+
+.help-popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-medium);
+}
+
+.help-popup-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.help-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.25rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.help-close-btn:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.help-popup-body {
+  padding: 1.5rem;
+}
+
+.help-popup-body p {
+  margin: 0 0 0.75rem 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.help-popup-body p:last-child {
+  margin-bottom: 0;
+}
+
+/* Notification */
+.notification {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.75rem 1.5rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xl);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 1001;
+  max-width: 90%;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.notification.show {
+  opacity: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .territory-header {
+    top: 0.5rem;
+    padding: 0.4rem 0.75rem;
+  }
+
+  .territory-header h1 {
+    font-size: 1.2rem;
+  }
+
+  .territory-resources {
+    top: 0.5rem;
+    left: 0.5rem;
+    padding: 0.5rem;
+  }
+
+  .territory-tile {
+    width: 60px;
+    height: 60px;
+  }
+
+  .tile-icon {
+    font-size: 1rem;
+  }
+
+  .territory-actions {
+    bottom: 0.5rem;
+    padding: 0.5rem;
+  }
+
+  .territory-actions button {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* Progress Bar */
+.tile-progress-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  overflow: hidden;
+}
+
+.tile-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%);
+  transition: width 0.1s linear;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+
+/* Floating Reward Animation */
+.floating-reward {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #22c55e;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  animation: floatUp 1s ease-out forwards;
+  z-index: 100;
+}
+
+/* Red variant for spending resources */
+.floating-reward.floating-spend {
+  color: #ef4444;
+}
+
+/* Blue variant for level up */
+.floating-reward.floating-level {
+  color: #3b82f6;
+  animation: floatUpLevel 1s ease-out forwards;
+}
+
+@keyframes floatUpLevel {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -200%) scale(1.3);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -300%) scale(1);
+  }
+}
+
+@keyframes floatUp {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -150%) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -250%) scale(0.8);
+  }
+}
+
+/* Unlockable tiles styling - only shown when player can afford */
+.territory-tile.unlockable {
+  opacity: 1;
+  cursor: pointer;
+}
+
+.territory-tile.unlockable:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 12px rgba(234, 179, 8, 0.5);
+}
+
+

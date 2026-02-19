@@ -1,0 +1,1256 @@
+/* Trader game specific styles */
+
+/* Main game layout */
+.trader-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-md);
+}
+
+/* Header with turn and season */
+.trader-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.trader-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--accent-yellow);
+}
+
+.trader-status {
+  display: flex;
+  gap: var(--spacing-lg);
+  align-items: center;
+}
+
+.trader-turn,
+.trader-season {
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
+.trader-turn span,
+.trader-season span {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Season indicators */
+.season-spring { color: #4ade80; }
+.season-summer { color: #fbbf24; }
+.season-autumn { color: #f97316; }
+.season-winter { color: #60a5fa; }
+
+/* City map */
+.trader-map {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  border: 1px solid var(--border-subtle);
+}
+
+.trader-map h2 {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.city-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-md);
+  position: relative;
+}
+
+/* City connections - visual lines between cities */
+.city-grid::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: var(--border-subtle);
+  z-index: 0;
+}
+
+.city-node {
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.city-node:hover {
+  border-color: var(--accent-purple);
+  background: var(--bg-card-hover);
+  transform: translateY(-2px);
+}
+
+.city-node.current {
+  border-color: var(--accent-yellow);
+  background: rgba(251, 191, 36, 0.15);
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.2);
+}
+
+.city-node.current::after {
+  content: '📍';
+  position: absolute;
+  top: -10px;
+  right: -5px;
+  font-size: 1.2rem;
+}
+
+/* Visited cities have a subtle indicator */
+.city-node.visited {
+  border-color: rgba(139, 92, 246, 0.4);
+}
+
+.city-node.visited::before {
+  content: '👁';
+  position: absolute;
+  top: -8px;
+  left: -5px;
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+/* City market info */
+.city-market-info {
+  margin: var(--spacing-xs) 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.city-market-info.unknown {
+  opacity: 0.6;
+}
+
+.market-hint {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 0.7rem;
+}
+
+.market-items {
+  margin-top: 2px;
+}
+
+.market-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.market-label {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+}
+
+.market-none {
+  color: var(--text-muted);
+}
+
+.cheap-item {
+  color: #22c55e;
+  font-weight: 600;
+  font-size: 0.7rem;
+}
+
+.cheap-item.unknown {
+  color: var(--text-muted);
+}
+
+.expensive-item {
+  color: #f97316;
+  font-weight: 600;
+  font-size: 0.7rem;
+}
+
+.expensive-item.unknown {
+  color: var(--text-muted);
+}
+
+.city-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.city-travel-cost {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: var(--spacing-xs);
+}
+
+/* Main content grid - inventory and market side by side */
+.trader-main {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+@media (max-width: 900px) {
+  .trader-main {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Player carriage/inventory panel */
+.trader-carriage {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  border: 1px solid var(--border-subtle);
+  height: fit-content;
+}
+
+.trader-carriage h2 {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.trader-gold {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-yellow);
+  margin-bottom: var(--spacing-md);
+}
+
+.trader-gold-icon {
+  margin-right: var(--spacing-xs);
+}
+
+.trader-capacity {
+  margin-bottom: var(--spacing-md);
+}
+
+.capacity-bar {
+  height: 12px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: var(--spacing-xs);
+}
+
+.capacity-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-green), var(--accent-green-dark));
+  transition: width 0.3s ease;
+}
+
+.capacity-fill.warning {
+  background: linear-gradient(90deg, var(--accent-yellow), #f59e0b);
+}
+
+.capacity-fill.full {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+.capacity-text {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+/* Carriage risk indicator */
+.carriage-risk {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-md);
+  font-size: 0.85rem;
+}
+
+.carriage-risk.risk-safe {
+  background: rgba(74, 222, 128, 0.15);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  color: #4ade80;
+}
+
+.carriage-risk.risk-moderate {
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+}
+
+.carriage-risk.risk-dangerous {
+  background: rgba(248, 113, 113, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: #f87171;
+}
+
+.carriage-risk .risk-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.carriage-risk .risk-label {
+  font-weight: 600;
+}
+
+.carriage-risk .risk-level {
+  font-weight: 700;
+}
+
+.carriage-risk .risk-details {
+  margin-top: 2px;
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.trader-inventory {
+  margin-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--spacing-md);
+}
+
+.inventory-empty {
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  padding: var(--spacing-md);
+}
+
+.inventory-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-xs) 0;
+  color: var(--text-secondary);
+}
+
+.inventory-item-name {
+  font-weight: 500;
+}
+
+.inventory-item-qty {
+  color: var(--text-primary);
+}
+
+/* Upgrade button */
+.upgrade-btn {
+  width: 100%;
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: linear-gradient(135deg, var(--accent-purple-dark), var(--accent-purple));
+  border: none;
+  border-radius: var(--radius-sm);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.upgrade-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.upgrade-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Market panel */
+.trader-market {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  border: 1px solid var(--border-subtle);
+}
+
+.trader-market h2 {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.market-city-name {
+  color: var(--accent-yellow);
+  font-weight: 600;
+}
+
+/* Market table */
+.market-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.market-table th {
+  text-align: left;
+  padding: var(--spacing-sm);
+  border-bottom: 2px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.market-table th:not(:first-child) {
+  text-align: center;
+}
+
+.market-table td {
+  padding: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.market-table td:not(:first-child) {
+  text-align: center;
+}
+
+.market-table tr:hover {
+  background: var(--bg-card-hover);
+}
+
+.item-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.item-weight {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-left: var(--spacing-xs);
+}
+
+/* Base price column */
+.price-base {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Current price - color coded by value */
+.price-current {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+/* Low price = good for buying (green), bad for selling */
+.price-very-low {
+  color: #22c55e;
+  text-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
+}
+
+.price-low {
+  color: #4ade80;
+}
+
+/* Normal price */
+.price-normal {
+  color: var(--text-primary);
+}
+
+/* High price = bad for buying (red), good for selling */
+.price-high {
+  color: #f97316;
+}
+
+.price-very-high {
+  color: #ef4444;
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+}
+
+/* Price factors column */
+.price-factors {
+  min-width: 120px;
+}
+
+.factors-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+}
+
+.factor-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.factor-none {
+  color: var(--text-muted);
+}
+
+/* All factor tags use neutral styling */
+.factor-tag {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--text-secondary);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+/* Slightly different tints for visual distinction */
+.factor-tag.factor-supply {
+  background: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.factor-tag.factor-demand {
+  background: rgba(6, 182, 212, 0.15);
+  color: #22d3ee;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+.factor-tag.factor-season {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--accent-yellow);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+
+/* Trade buttons */
+.trade-btn {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 50px;
+}
+
+.trade-btn.buy {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid #ef4444;
+}
+
+.trade-btn.buy:hover:not(:disabled) {
+  background: #ef4444;
+  color: white;
+}
+
+.trade-btn.sell {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--accent-green);
+  border: 1px solid var(--accent-green);
+}
+
+.trade-btn.sell:hover:not(:disabled) {
+  background: var(--accent-green);
+  color: white;
+}
+
+.trade-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Quantity selector */
+.qty-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  justify-content: center;
+}
+
+.qty-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.qty-btn:hover {
+  background: var(--accent-purple);
+  border-color: var(--accent-purple);
+}
+
+.qty-input {
+  width: 50px;
+  text-align: center;
+  padding: var(--spacing-xs);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Travel panel */
+.trader-travel {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  border: 1px solid var(--border-subtle);
+}
+
+.trader-travel h2 {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Risk indicator */
+.travel-risk {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-md);
+  font-size: 0.9rem;
+}
+
+.travel-risk.risk-safe {
+  background: rgba(74, 222, 128, 0.15);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  color: #4ade80;
+}
+
+.travel-risk.risk-moderate {
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+}
+
+.travel-risk.risk-dangerous {
+  background: rgba(248, 113, 113, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: #f87171;
+}
+
+.travel-risk .risk-label {
+  font-weight: 600;
+}
+
+.travel-risk .risk-level {
+  font-weight: 700;
+}
+
+.travel-risk .risk-details {
+  margin-top: var(--spacing-xs);
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.travel-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.travel-btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.travel-btn:hover:not(:disabled) {
+  border-color: var(--accent-purple);
+  background: var(--bg-card-hover);
+  transform: translateY(-2px);
+}
+
+.travel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.travel-btn .cost {
+  color: var(--accent-yellow);
+  font-weight: 600;
+}
+
+/* Log panel */
+.trader-log {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  border: 1px solid var(--border-subtle);
+}
+
+.trader-log h2 {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.log-entries {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.log-entry {
+  padding: var(--spacing-xs) 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.log-entry:last-child {
+  border-bottom: none;
+}
+
+.log-entry::before {
+  content: '›';
+  margin-right: var(--spacing-sm);
+  color: var(--accent-purple);
+}
+
+/* New game button */
+.new-game-btn {
+  position: fixed;
+  bottom: var(--spacing-lg);
+  right: var(--spacing-lg);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: rgba(239, 68, 68, 0.9);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 100;
+}
+
+.new-game-btn:hover {
+  background: #ef4444;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+/* Modal for trade confirmation */
+.trade-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.trade-modal-content {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  max-width: 400px;
+  width: 90%;
+  border: 1px solid var(--border-subtle);
+}
+
+.trade-modal h3 {
+  margin-bottom: var(--spacing-md);
+  color: var(--text-primary);
+}
+
+.trade-modal-info {
+  margin-bottom: var(--spacing-lg);
+  color: var(--text-secondary);
+}
+
+.trade-modal-buttons {
+  display: flex;
+  gap: var(--spacing-md);
+  justify-content: flex-end;
+}
+
+.modal-btn {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.modal-btn.cancel {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.modal-btn.cancel:hover {
+  background: var(--bg-card-hover);
+}
+
+.modal-btn.confirm {
+  background: var(--accent-purple);
+  color: white;
+}
+
+.modal-btn.confirm:hover {
+  background: var(--accent-purple-dark);
+}
+
+/* Encounter Modal */
+.encounter-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.encounter-modal {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  border: 2px solid var(--border-subtle);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from { 
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to { 
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.encounter-modal.encounter-escaped {
+  border-color: #4ade80;
+}
+
+.encounter-modal.encounter-toll {
+  border-color: #fbbf24;
+}
+
+.encounter-modal.encounter-robbery {
+  border-color: #f97316;
+}
+
+.encounter-modal.encounter-devastating {
+  border-color: #ef4444;
+}
+
+.encounter-icon {
+  font-size: 4rem;
+  margin-bottom: var(--spacing-md);
+  animation: bounce 0.5s ease;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+.encounter-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: var(--spacing-sm);
+}
+
+.encounter-escaped .encounter-title { color: #4ade80; }
+.encounter-toll .encounter-title { color: #fbbf24; }
+.encounter-robbery .encounter-title { color: #f97316; }
+.encounter-devastating .encounter-title { color: #ef4444; }
+
+.encounter-route {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: var(--spacing-md);
+}
+
+.encounter-description {
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-lg);
+  line-height: 1.5;
+}
+
+.encounter-losses {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.encounter-losses h3 {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.loss-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.loss-item {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--spacing-xs) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.loss-item:last-child {
+  border-bottom: none;
+}
+
+.loss-name {
+  color: var(--text-primary);
+}
+
+.loss-amount {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.encounter-no-loss {
+  color: #4ade80;
+  font-weight: 600;
+  margin-bottom: var(--spacing-lg);
+}
+
+.encounter-continue-btn {
+  width: 100%;
+  padding: var(--spacing-md);
+  background: var(--accent-purple);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.encounter-continue-btn:hover {
+  background: var(--accent-purple-dark);
+  transform: translateY(-2px);
+}
+
+/* Unscathed outcome (safe arrival) */
+.encounter-modal.encounter-unscathed {
+  border-color: #4ade80;
+}
+
+.encounter-unscathed .encounter-title {
+  color: #4ade80;
+}
+
+/* City Selection Modal */
+.city-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+.city-modal {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  max-width: 420px;
+  width: 90%;
+  border: 2px solid var(--accent-purple);
+  animation: slideIn 0.2s ease;
+}
+
+.city-modal-header {
+  text-align: center;
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.city-modal-header h2 {
+  font-size: 1.5rem;
+  color: var(--accent-yellow);
+  margin-bottom: var(--spacing-xs);
+}
+
+.city-modal-route {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.city-modal-section {
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.city-modal-section .section-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--spacing-xs);
+}
+
+.city-modal-section .section-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.city-modal-section .section-value.unaffordable {
+  color: #ef4444;
+}
+
+.cost-amount {
+  color: var(--accent-yellow);
+}
+
+.cost-warning {
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+/* Risk section in city modal */
+.risk-section.risk-safe {
+  border-left: 3px solid #4ade80;
+}
+
+.risk-section.risk-moderate {
+  border-left: 3px solid #fbbf24;
+}
+
+.risk-section.risk-dangerous {
+  border-left: 3px solid #f87171;
+}
+
+.risk-section .section-value.safe {
+  color: #4ade80;
+}
+
+.risk-section .risk-subtext {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+  margin-top: 2px;
+}
+
+/* Market preview in city modal */
+.market-section {
+  background: var(--bg-secondary);
+}
+
+.market-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.market-preview-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.preview-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.preview-item {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.preview-item.cheap {
+  color: #4ade80;
+}
+
+.preview-item.expensive {
+  color: #f97316;
+}
+
+.preview-none {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.market-unknown {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* City modal action buttons */
+.city-modal-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+.city-modal-actions .modal-btn {
+  flex: 1;
+  padding: var(--spacing-md);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.city-modal-actions .modal-btn.cancel {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.city-modal-actions .modal-btn.cancel:hover {
+  background: var(--bg-card-hover);
+}
+
+.city-modal-actions .modal-btn.travel {
+  background: var(--accent-purple);
+  color: white;
+}
+
+.city-modal-actions .modal-btn.travel:hover:not(:disabled) {
+  background: var(--accent-purple-dark);
+  transform: translateY(-2px);
+}
+
+.city-modal-actions .modal-btn.travel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Travel Animation */
+.travel-animation-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.travel-animation {
+  text-align: center;
+}
+
+.travel-icon {
+  font-size: 5rem;
+  animation: travelBounce 0.6s ease infinite;
+}
+
+@keyframes travelBounce {
+  0%, 100% { 
+    transform: translateX(-30px);
+  }
+  50% { 
+    transform: translateX(30px);
+  }
+}
+
+.travel-text {
+  font-size: 1.5rem;
+  color: var(--text-primary);
+  margin-top: var(--spacing-md);
+  animation: travelPulse 1s ease infinite;
+}
+
+@keyframes travelPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.travel-route {
+  font-size: 1.1rem;
+  color: var(--accent-yellow);
+  margin-top: var(--spacing-sm);
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .trader-header {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    text-align: center;
+  }
+
+  .trader-status {
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+
+  .market-table {
+    font-size: 0.85rem;
+  }
+
+  .trade-btn {
+    min-width: 40px;
+    padding: var(--spacing-xs);
+  }
+}

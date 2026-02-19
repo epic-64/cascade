@@ -3,28 +3,24 @@ package server
 import org.slf4j.LoggerFactory
 import scala.concurrent.{Future, ExecutionContext}
 import scala.util.Try
-import shared.DrawingGame.CaptionStyle
 
 // Trait to allow mocking in tests
 trait OpenAIClient:
-  def captionImage(apiKey: String, imageBase64: String, captionStyle: CaptionStyle = CaptionStyle.Descriptive)(using
+  def captionImage(apiKey: String, imageBase64: String)(using
       ec: ExecutionContext
   ): Future[String]
   def generatePromptFromWords(apiKey: String, words: Seq[String])(using ec: ExecutionContext): Future[String]
   def selectWinner(
       apiKey: String,
       originalPrompt: String,
-      captions: Map[String, String],
-      captionStyle: CaptionStyle = CaptionStyle.Descriptive
-  )(using ec: ExecutionContext): Future[OpenAIClient.WinnerSelection]
+      captions: Map[String, String]
+  )(using ec: ExecutionContext): Future[String]
 
 object OpenAIClient:
   private val logger = LoggerFactory.getLogger(getClass)
 
   private val visionModel = "gpt-4o"
   private val textModel = "gpt-4o-mini"
-
-  case class WinnerSelection(winnerName: String, reasoning: String)
 
   // Swappable instance for testing
   @volatile private var _instance: OpenAIClient = RealOpenAIClient()
@@ -38,10 +34,10 @@ object OpenAIClient:
 
   // Delegate methods to the swappable instance
 
-  def captionImage(apiKey: String, imageBase64: String, captionStyle: CaptionStyle = CaptionStyle.Descriptive)(using
+  def captionImage(apiKey: String, imageBase64: String)(using
       ec: ExecutionContext
   ): Future[String] =
-    _instance.captionImage(apiKey, imageBase64, captionStyle)
+    _instance.captionImage(apiKey, imageBase64)
 
   def generatePromptFromWords(apiKey: String, words: Seq[String])(using ec: ExecutionContext): Future[String] =
     _instance.generatePromptFromWords(apiKey, words)
@@ -49,10 +45,9 @@ object OpenAIClient:
   def selectWinner(
       apiKey: String,
       originalPrompt: String,
-      captions: Map[String, String],
-      captionStyle: CaptionStyle = CaptionStyle.Descriptive
-  )(using ec: ExecutionContext): Future[WinnerSelection] =
-    _instance.selectWinner(apiKey, originalPrompt, captions, captionStyle)
+      captions: Map[String, String]
+  )(using ec: ExecutionContext): Future[String] =
+    _instance.selectWinner(apiKey, originalPrompt, captions)
 
   // Internal helper for making OpenAI requests (used by RealOpenAIClient)
   private[server] def makeOpenAIRequest(
@@ -102,9 +97,7 @@ class RealOpenAIClient extends OpenAIClient:
   private val visionModel = "gpt-4o"
   private val textModel = "gpt-4o-mini"
 
-  import shared.DrawingGame.CaptionStyle
-
-  def captionImage(apiKey: String, imageBase64: String, captionStyle: CaptionStyle = CaptionStyle.Descriptive)(using
+  def captionImage(apiKey: String, imageBase64: String)(using
       ec: ExecutionContext
   ): Future[String] =
     val url = "https://api.openai.com/v1/chat/completions"
@@ -112,19 +105,7 @@ class RealOpenAIClient extends OpenAIClient:
     // Remove data URL prefix if present
     val cleanBase64 = imageBase64.replaceFirst("^data:image/png;base64,", "")
 
-    val promptText = captionStyle match
-      case CaptionStyle.Descriptive =>
-        """Describe this drawing in 10-20 words. Include:
-          |1. What the drawing depicts
-          |2. A brief comment on the artistic skill or style (e.g., "skillfully rendered", "charmingly simple", "impressively detailed", "delightfully wonky")
-          |Be witty and entertaining. Do not use quotes.""".stripMargin
-      case CaptionStyle.Roast =>
-        """Absolutely DESTROY this drawing in 10-20 words. Be ruthlessly savage about:
-          |1. What this disaster is supposedly meant to be
-          |2. The tragic artistic crimes committed here
-          |Channel your inner Gordon Ramsay meets Simon Cowell. Show NO mercy. 
-          |Mock everything - the wobbly lines, the questionable proportions, the artistic delusions.
-          |Make it hurt (but funny). Do not use quotes.""".stripMargin
+    val promptText = "Describe this drawing in 5-10 words. Just say what it depicts. Be short and direct. Do not use quotes."
 
     val requestBody = ujson.Obj(
       "model" -> visionModel,
@@ -145,7 +126,7 @@ class RealOpenAIClient extends OpenAIClient:
           )
         )
       ),
-      "max_tokens" -> 100
+      "max_tokens" -> 50
     )
 
     makeOpenAIRequest(url, apiKey, requestBody).map: responseJson =>
@@ -189,43 +170,24 @@ class RealOpenAIClient extends OpenAIClient:
   def selectWinner(
       apiKey: String,
       originalPrompt: String,
-      captions: Map[String, String],
-      captionStyle: CaptionStyle = CaptionStyle.Descriptive
-  )(using ec: ExecutionContext): Future[WinnerSelection] =
+      captions: Map[String, String]
+  )(using ec: ExecutionContext): Future[String] =
     val url = "https://api.openai.com/v1/chat/completions"
 
     val captionsList = captions.map((name, caption) => s"- $name: \"$caption\"").mkString("\n")
 
-    val systemPrompt = captionStyle match
-      case CaptionStyle.Descriptive =>
-        """You are a witty and insightful judge for a drawing game called "AI Drawing Challenge".
-          |Players drew an image based on a secret prompt. An AI then captioned each drawing without knowing the prompt.
-          |Your job is to pick the winner whose drawing (as interpreted by the AI caption) best matches the original prompt.
-          |
-          |Be entertaining and specific in your reasoning! Comment on what made the winning drawing stand out.
-          |Keep the reasoning to 1-2 sentences max.
-          |
-          |Respond in this exact JSON format:
-          |{"winner": "PlayerName", "reasoning": "Your witty explanation here"}""".stripMargin
-      case CaptionStyle.Roast =>
-        """You are a BRUTAL and merciless judge for a drawing game. You take pleasure in destroying artistic dreams.
-          |Players drew an image based on a secret prompt. An AI roasted each drawing.
-          |Your job is to pick the "winner" - but let's be real, everyone here is a loser at art.
-          |
-          |Be ABSOLUTELY SAVAGE in your reasoning. Mock the winner for barely being less terrible than the others.
-          |Roast their artistic abilities. Question their life choices. Make it personal but hilarious.
-          |Channel your inner Simon Cowell having a really bad day. Show NO mercy.
-          |Keep the reasoning to 1-2 brutal sentences max.
-          |
-          |Respond in this exact JSON format:
-          |{"winner": "PlayerName", "reasoning": "Your devastating roast here"}""".stripMargin
+    val systemPrompt = """You are a judge for a drawing game.
+      |Players drew an image based on a secret prompt. An AI then captioned each drawing without knowing the prompt.
+      |Your job is to pick the winner whose drawing (as interpreted by the AI caption) best matches the original prompt.
+      |
+      |Respond with ONLY the winner's name, nothing else.""".stripMargin
 
     val userPrompt = s"""The secret prompt was: "$originalPrompt"
       |
       |Here are the AI-generated captions for each player's drawing:
       |$captionsList
       |
-      |Pick the winner and explain your choice!""".stripMargin
+      |Pick the winner.""".stripMargin
 
     val requestBody = ujson.Obj(
       "model" -> textModel,
@@ -234,21 +196,13 @@ class RealOpenAIClient extends OpenAIClient:
         ujson.Obj("role" -> "user", "content" -> userPrompt)
       ),
       "temperature" -> 0.7,
-      "max_tokens" -> 150
+      "max_tokens" -> 50
     )
 
     makeOpenAIRequest(url, apiKey, requestBody).map: responseJson =>
       Try:
-        val content = responseJson("choices")(0)("message")("content").str.trim
-        val parsed = ujson.read(content)
-        WinnerSelection(
-          parsed("winner").str.trim,
-          parsed("reasoning").str.trim
-        )
+        responseJson("choices")(0)("message")("content").str.trim
       .getOrElse:
         logger.error(s"Failed to parse OpenAI winner response: $responseJson")
         // Fallback: return first player name
-        WinnerSelection(
-          captions.keys.headOption.getOrElse("Unknown"),
-          "The AI couldn't decide, so it picked randomly!"
-        )
+        captions.keys.headOption.getOrElse("Unknown")

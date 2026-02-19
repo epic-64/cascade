@@ -3,7 +3,7 @@ import org.portablescala.sbtplatformdeps.PlatformDepsPlugin.autoImport.*
 import sbtcrossproject.CrossPlugin.autoImport.*
 
 ThisBuild / version      := "0.1.0-SNAPSHOT"
-ThisBuild / scalaVersion := "3.7.4"
+ThisBuild / scalaVersion := "3.8.1"
 
 val caskVersion    = "0.11.3"
 val enableCoverage = sys.env.get("ENABLE_COVERAGE").contains("true")
