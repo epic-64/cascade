@@ -257,10 +257,11 @@ select.input-field {
 
 /* Main Chat Area */
 .chat-main {
-  flex: 1;
+  flex: 1 1 0%;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
   background: var(--bg-card);
   backdrop-filter: blur(16px);
   border: 1px solid var(--border-medium);
@@ -642,6 +643,7 @@ select.input-field {
 
 /* Input Area */
 .chat-input-area {
+  flex-shrink: 0;
   padding: var(--spacing-lg);
   border-top: 1px solid var(--border-subtle);
   background: var(--bg-secondary);
@@ -865,7 +867,7 @@ select.input-field {
   }
 
   .chat-main {
-    flex: 1;
+    flex: 1 1 0%;
     min-height: 0;
     border-radius: 0;
     border: none;
