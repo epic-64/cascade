@@ -55,10 +55,11 @@ object AIChatHandler:
       case Some(apiKey) =>
         Try:
           val messages = read[Seq[ChatMessage]](json("messages"))
+          val model = json.obj.get("model").map(_.str).getOrElse(AIChat.defaultModel)
           // Echo back the user message (last message in conversation) before generating
           messages.lastOption.filter(_.role == MessageRole.User).foreach: userMsg =>
             sendMessage(channel, ServerMessage.MessageAdded(userMsg))
-          generateResponse(channel, apiKey, messages)
+          generateResponse(channel, apiKey, messages, model)
         .recover:
           case ex: Exception =>
             logger.error(s"[AIChat] Failed to parse context: ${ex.getMessage}")
@@ -79,7 +80,7 @@ object AIChatHandler:
             // First, echo back the user message
             sendMessage(channel, ServerMessage.MessageAdded(message))
             // Then generate AI response
-            generateResponse(channel, apiKey, Seq(message))
+            generateResponse(channel, apiKey, Seq(message), AIChat.defaultModel)
           case None =>
             sendMessage(channel, ServerMessage.ErrorMessage("Please set your API key first"))
 
@@ -100,7 +101,19 @@ object AIChatHandler:
       case ClientMessage.ClearChat() =>
         sendMessage(channel, ServerMessage.ChatCleared())
 
-  private def generateResponse(channel: cask.WsChannelActor, apiKey: String, messages: Seq[ChatMessage]): Unit =
+      case ClientMessage.ListModels() =>
+        connectionApiKeys.get(channel) match
+          case Some(apiKey) =>
+            Future:
+              fetchModels(channel, apiKey)
+            .recover:
+              case ex: Exception =>
+                logger.error(s"[AIChat] Error fetching models: ${ex.getMessage}", ex)
+                sendMessage(channel, ServerMessage.ErrorMessage(s"Failed to fetch models: ${ex.getMessage}"))
+          case None =>
+            sendMessage(channel, ServerMessage.ErrorMessage("Please set your API key first"))
+
+  private def generateResponse(channel: cask.WsChannelActor, apiKey: String, messages: Seq[ChatMessage], model: String): Unit =
     // Create a new message ID for the response
     val responseId = java.util.UUID.randomUUID().toString
 
@@ -133,7 +146,7 @@ object AIChatHandler:
     // Make the API request with streaming
     val url = "https://api.openai.com/v1/chat/completions"
     val requestBody = ujson.Obj(
-      "model" -> "gpt-4o",
+      "model" -> model,
       "messages" -> ujson.Arr(openAIMessages*),
       "stream" -> true
     )
@@ -155,6 +168,48 @@ object AIChatHandler:
   private val httpClient = java.net.http.HttpClient.newBuilder()
     .connectTimeout(java.time.Duration.ofSeconds(30))
     .build()
+
+  private def fetchModels(channel: cask.WsChannelActor, apiKey: String): Unit =
+    val request = java.net.http.HttpRequest.newBuilder()
+      .uri(java.net.URI.create("https://api.openai.com/v1/models"))
+      .header("Authorization", s"Bearer $apiKey")
+      .timeout(java.time.Duration.ofSeconds(30))
+      .GET()
+      .build()
+
+    try
+      val response = httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofString())
+      if response.statusCode() != 200 then
+        logger.error(s"[AIChat] OpenAI models API error: ${response.body()}")
+        sendMessage(channel, ServerMessage.ErrorMessage(s"Failed to fetch models (status ${response.statusCode()})"))
+      else
+        val json = ujson.read(response.body())
+        val allModels = json("data").arr.map(_("id").str).toSeq
+
+        // Filter to chat-capable models (gpt-*, o1-*, o3-*, o4-*, chatgpt-*)
+        val chatModels = allModels
+          .filter: id =>
+            id.startsWith("gpt-") ||
+            id.startsWith("o1-") ||
+            id.startsWith("o3-") ||
+            id.startsWith("o4-") ||
+            id.startsWith("chatgpt-")
+          .filterNot: id =>
+            id.contains("instruct") ||
+            id.contains("realtime") ||
+            id.contains("audio") ||
+            id.contains("tts") ||
+            id.contains("whisper") ||
+            id.contains("transcribe") ||
+            id.contains("embedding")
+          .sorted
+
+        logger.info(s"[AIChat] Fetched ${chatModels.size} chat models")
+        sendMessage(channel, ServerMessage.ModelsListed(chatModels))
+    catch
+      case ex: Exception =>
+        logger.error(s"[AIChat] Error fetching models: ${ex.getMessage}", ex)
+        sendMessage(channel, ServerMessage.ErrorMessage(s"Failed to fetch models: ${ex.getMessage}"))
 
   private def isStreamActive(channel: cask.WsChannelActor, messageId: String): Boolean =
     activeStreams.get(channel).exists(_.contains(messageId))

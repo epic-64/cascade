@@ -27,6 +27,7 @@ enum ClientMessage derives ReadWriter:
   case RegenerateResponse(afterMessageId: String) // Regenerate response after a specific message
   case StopStreaming(messageId: String) // Abort an in-progress streaming response
   case ClearChat()
+  case ListModels()
 
 // Server -> Client messages  
 enum ServerMessage derives ReadWriter:
@@ -38,9 +39,11 @@ enum ServerMessage derives ReadWriter:
   case StreamingComplete(messageId: String)
   case ChatCleared()
   case ErrorMessage(message: String)
+  case ModelsListed(models: Seq[String])
 
 object AIChat:
   val defaultSystemPrompt = "You are a helpful assistant."
+  val defaultModel = "gpt-4o"
   val maxImagesPerMessage = 4
   val maxImageSizeMB = 20
 

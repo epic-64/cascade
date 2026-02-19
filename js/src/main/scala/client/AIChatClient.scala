@@ -27,11 +27,14 @@ object AIChatClient:
   private var activeStreamingId: Option[String] = None
   private var pendingImages: mutable.ArrayBuffer[String] = mutable.ArrayBuffer.empty
   private var messageIdCounter: Long = 0
+  private var selectedModel: String = AIChat.defaultModel
+  private var availableModels: Seq[String] = Seq.empty
 
   // LocalStorage keys
   private val StorageKeyMessages = "aiChat_messages"
   private val StorageKeySystemPrompt = "aiChat_systemPrompt"
   private val StorageKeyApiKey = "aiChat_apiKey"
+  private val StorageKeyModel = "aiChat_model"
 
   // Generate unique message IDs (ScalaJS-compatible)
   private def generateMessageId(): String =
@@ -71,6 +74,21 @@ object AIChatClient:
                 btn.addEventListener("click", (e: Event) => setApiKey())
             ),
             span(id = "apiKeyStatus", cls = "status-text")
+          ),
+          // Model selector
+          div(cls = "sidebar-section")(
+            el("label", cls = "sidebar-label", content = "Model"),
+            el("select", id = "modelSelect", cls = "input-field").tap: sel =>
+              val defaultOpt = document.createElement("option").asInstanceOf[HTMLOptionElement]
+              defaultOpt.value = AIChat.defaultModel
+              defaultOpt.textContent = AIChat.defaultModel
+              sel.appendChild(defaultOpt)
+              sel.addEventListener("change", (e: Event) =>
+                selectedModel = sel.asInstanceOf[HTMLSelectElement].value
+                dom.window.localStorage.setItem(StorageKeyModel, selectedModel)
+              )
+            ,
+            span(id = "modelStatus", cls = "status-text")
           ),
           // System prompt
           div(cls = "sidebar-section")(
@@ -197,6 +215,9 @@ object AIChatClient:
         getElementById("apiKeyStatus").foreach: elem =>
           elem.textContent = if valid then "✓ API key set" else "✗ Invalid"
           elem.className = s"status-text ${if valid then "status-success" else "status-error"}"
+        // Fetch available models when API key is set
+        if valid then
+          sendClientMessage(ClientMessage.ListModels())
 
       case ServerMessage.MessageAdded(message) =>
         hideEmptyState()
@@ -257,6 +278,10 @@ object AIChatClient:
         println(s"[AIChat] Error: $message")
         showError(message)
 
+      case ServerMessage.ModelsListed(models) =>
+        availableModels = models
+        populateModelSelector(models)
+
   private def setApiKey(): Unit =
     getInputValue("apiKeyInput").foreach: apiKey =>
       if apiKey.nonEmpty then
@@ -316,15 +341,13 @@ object AIChatClient:
       autoResizeTextarea(elem.asInstanceOf[HTMLTextAreaElement])
     clearImagePreview()
 
-  // We need to send full context for AI response
+  // Send full conversation context with selected model for AI response
   private def sendConversationContext(messages: Seq[ChatMessage]): Unit =
-    // The server handler will use SendMessage to generate response
-    // but we need to pass all messages for context
-    // For now, we'll send a special combined message
     chatWebSocket.foreach: ws =>
       val contextMsg = ujson.Obj(
         "$type" -> "GenerateWithContext",
-        "messages" -> upickle.default.writeJs(messages)
+        "messages" -> upickle.default.writeJs(messages),
+        "model" -> selectedModel
       )
       ws.send(ujson.write(contextMsg))
 
@@ -631,6 +654,35 @@ object AIChatClient:
     // Auto-remove after 5 seconds
     dom.window.setTimeout(() => toast.remove(), 5000)
 
+  private def populateModelSelector(models: Seq[String]): Unit =
+    getElementById("modelSelect").foreach: elem =>
+      val select = elem.asInstanceOf[HTMLSelectElement]
+      select.innerHTML = ""
+
+      // Restore saved model from localStorage
+      val savedModel = Option(dom.window.localStorage.getItem(StorageKeyModel))
+        .filter(_.nonEmpty)
+        .filter(models.contains)
+
+      models.foreach: model =>
+        val opt = document.createElement("option").asInstanceOf[HTMLOptionElement]
+        opt.value = model
+        opt.textContent = model
+        select.appendChild(opt)
+
+      // Set selection: saved model > default model > first option
+      val modelToSelect = savedModel
+        .orElse(Some(AIChat.defaultModel).filter(models.contains))
+        .orElse(models.headOption)
+
+      modelToSelect.foreach: model =>
+        select.value = model
+        selectedModel = model
+
+    getElementById("modelStatus").foreach: elem =>
+      elem.textContent = s"${models.size} models available"
+      elem.className = "status-text status-info"
+
   private def updateSystemPromptStatus(isCustom: Boolean, updated: Boolean = false): Unit =
     getElementById("systemPromptStatus").foreach: elem =>
       if updated then
@@ -667,11 +719,18 @@ object AIChatClient:
         val key = elem.asInstanceOf[HTMLInputElement].value
         if key.nonEmpty then
           dom.window.localStorage.setItem(StorageKeyApiKey, key)
+
+      // Save selected model
+      dom.window.localStorage.setItem(StorageKeyModel, selectedModel)
     .recover:
       case ex => println(s"[AIChat] Failed to save to localStorage: ${ex.getMessage}")
 
   private def loadFromLocalStorage(): Unit =
     Try:
+      // Load saved model
+      Option(dom.window.localStorage.getItem(StorageKeyModel)).filter(_.nonEmpty).foreach: model =>
+        selectedModel = model
+
       // Load API key first
       Option(dom.window.localStorage.getItem(StorageKeyApiKey)).filter(_.nonEmpty).foreach: apiKey =>
         getElementById("apiKeyInput").foreach: elem =>
