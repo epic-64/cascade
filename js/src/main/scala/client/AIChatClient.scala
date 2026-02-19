@@ -690,7 +690,7 @@ object AIChatClient:
   private var currentAudio: Option[HTMLAudioElement] = None
   private var selectedVoice: String = "alloy"
   private val StorageKeyVoice = "aiChat_ttsVoice"
-  private val ttsVoices = Seq("alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer")
+  private val ttsVoices = Seq("alloy", "ash", "ballad", "cedar", "coral", "echo", "fable", "marin", "nova", "onyx", "sage", "shimmer")
 
   private def toggleSpeakMessage(messageId: String): Unit =
     speakingMessageId match
