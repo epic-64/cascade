@@ -194,8 +194,7 @@ object AIChatClient:
               div(id = "imagePreview", cls = "image-preview hidden"),
               // Text input
               div(cls = "input-row")(
-                el("textarea", id = "messageInput", cls = "message-input").tap: textarea =>
-                  val ta = textarea.asInstanceOf[HTMLTextAreaElement]
+                textarea(id = "messageInput", cls = "message-input").tap: ta =>
                   ta.placeholder = "Type your message..."
                   ta.rows = 2
                   ta.addEventListener("keydown", (e: KeyboardEvent) =>
