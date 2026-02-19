@@ -437,10 +437,17 @@ object AIChatClient:
       images = pendingImages.toSeq
     )
 
-    // Build full conversation for API (including the new user message)
-    val fullConversation = chatMessages.toSeq :+ userMessage
+    // Add user message to local state and UI immediately (don't wait for server echo)
+    chatMessages += userMessage
+    hideEmptyState()
+    addMessageToUI(userMessage)
+    scrollToBottom()
+    saveToLocalStorage()
 
-    // Send only GenerateWithContext - it will handle both adding the message and generating response
+    // Build full conversation for API (user message already in chatMessages)
+    val fullConversation = chatMessages.toSeq
+
+    // Send only GenerateWithContext - it will handle generating response
     sendConversationContext(fullConversation)
 
     // Clear input
@@ -450,15 +457,14 @@ object AIChatClient:
     clearImagePreview()
 
   // Send full conversation context with selected model for AI response
-  private def sendConversationContext(messages: Seq[ChatMessage], regenerate: Boolean = false): Unit =
+  private def sendConversationContext(messages: Seq[ChatMessage]): Unit =
     chatWebSocket.foreach: ws =>
       getApiKey().foreach: apiKey =>
         val contextMsg = ujson.Obj(
           "$type" -> "GenerateWithContext",
           "messages" -> upickle.default.writeJs(messages),
           "model" -> selectedModel,
-          "apiKey" -> apiKey,
-          "regenerate" -> regenerate
+          "apiKey" -> apiKey
         )
         ws.send(ujson.write(contextMsg))
 
@@ -732,13 +738,16 @@ object AIChatClient:
       toRemove.foreach: msg =>
         chatMessages -= msg
         removeMessageFromUI(msg.id)
+      
+      // Save immediately so removals persist across disconnects
+      saveToLocalStorage()
 
       // Get conversation up to this point
       val conversationSoFar = chatMessages.toSeq
 
       // Send request to regenerate
       if conversationSoFar.nonEmpty then
-        sendConversationContext(conversationSoFar, regenerate = true)
+        sendConversationContext(conversationSoFar)
 
   // === Text-to-Speech (OpenAI TTS) ===
 
