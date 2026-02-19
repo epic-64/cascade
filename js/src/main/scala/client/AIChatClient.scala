@@ -196,7 +196,7 @@ object AIChatClient:
               div(cls = "input-row")(
                 textarea(id = "messageInput", cls = "message-input").tap: ta =>
                   ta.placeholder = "Type your message..."
-                  ta.rows = 2
+                  ta.rows = 1
                   ta.addEventListener("keydown", (e: KeyboardEvent) =>
                     if e.key == "Enter" && !e.shiftKey then
                       e.preventDefault()
@@ -458,8 +458,8 @@ object AIChatClient:
           content = newPrompt
         )
         chatMessages.prepend(systemMsg)
-        val isCustom = getElementById("systemPrompt")
-          .map(_.asInstanceOf[HTMLTextAreaElement].value.trim)
+        val isCustom = getElementByIdAs[HTMLTextAreaElement]("systemPrompt")
+          .map(_.value.trim)
           .exists(_.nonEmpty)
         updateSystemPromptStatus(isCustom, updated = true)
 
