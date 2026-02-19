@@ -8,6 +8,10 @@ ThisBuild / scalaVersion := "3.8.1"
 val caskVersion    = "0.11.3"
 val enableCoverage = sys.env.get("ENABLE_COVERAGE").contains("true")
 
+// Dev workflow: watches all sources, recompiles JS, and restarts the server automatically
+// Usage: sbt dev  (then edit any file and save — server auto-restarts)
+addCommandAlias("dev", "~js/fastLinkJS;jvm/reStart")
+
 // Root project that aggregates JS and JVM subprojects
 lazy val root = project
   .in(file("."))
