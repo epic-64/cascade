@@ -298,13 +298,15 @@ select.input-field {
   border: none;
   padding: 4px 8px;
   font-size: 0.85rem;
+  color: var(--text-muted);
   cursor: pointer;
   border-radius: var(--radius-sm);
-  transition: background 0.2s;
+  transition: background 0.2s, color 0.2s;
 }
 
 .action-btn:hover {
   background: var(--bg-card-hover);
+  color: var(--text-primary);
 }
 
 /* Message Content */

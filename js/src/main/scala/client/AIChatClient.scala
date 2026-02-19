@@ -57,14 +57,17 @@ object AIChatClient:
       div(cls = "container chat-container")(
         // Mobile tab bar
         div(cls = "mobile-tabs")(
-          button(cls = "mobile-tab home-tab", content = "🏠").tap: btn =>
+          button(cls = "mobile-tab home-tab").tap: btn =>
+            btn.innerHTML = """<i class="fa-solid fa-house"></i>"""
             btn.title = "Home"
             btn.addEventListener("click", (e: Event) => dom.window.location.href = "/")
           ,
-          button(cls = "mobile-tab active", id = "tabChat", content = "💬 Chat").tap: btn =>
+          button(cls = "mobile-tab active", id = "tabChat").tap: btn =>
+            btn.innerHTML = """<i class="fa-solid fa-comment"></i> Chat"""
             btn.addEventListener("click", (e: Event) => switchTab("chat"))
           ,
-          button(cls = "mobile-tab", id = "tabSettings", content = "⚙️ Settings").tap: btn =>
+          button(cls = "mobile-tab", id = "tabSettings").tap: btn =>
+            btn.innerHTML = """<i class="fa-solid fa-gear"></i> Settings"""
             btn.addEventListener("click", (e: Event) => switchTab("settings"))
         ),
         // Sidebar for settings (hidden by default on mobile)
@@ -166,17 +169,20 @@ object AIChatClient:
                 // Buttons stacked vertically
                 div(cls = "input-buttons")(
                   // Image upload button
-                  button(cls = "btn btn-icon", content = "📷").tap: btn =>
+                  button(cls = "btn btn-icon").tap: btn =>
+                    btn.innerHTML = """<i class="fa-solid fa-camera"></i>"""
                     btn.title = "Add image"
                     btn.addEventListener("click", (e: Event) => triggerImageUpload())
                   ,
                   // Send button (hidden during streaming)
-                  button(id = "sendBtn", cls = "btn btn-primary btn-icon", content = "✈️").tap: btn =>
+                  button(id = "sendBtn", cls = "btn btn-primary btn-icon").tap: btn =>
+                    btn.innerHTML = """<i class="fa-solid fa-paper-plane"></i>"""
                     btn.title = "Send message"
                     btn.addEventListener("click", (e: Event) => sendChatMessage())
                   ,
                   // Stop button (hidden by default, shown during streaming)
-                  button(id = "stopBtn", cls = "btn btn-danger btn-icon hidden", content = "⏹").tap: btn =>
+                  button(id = "stopBtn", cls = "btn btn-danger btn-icon hidden").tap: btn =>
+                    btn.innerHTML = """<i class="fa-solid fa-stop"></i>"""
                     btn.title = "Stop generating"
                     btn.addEventListener("click", (e: Event) => stopStreaming())
                 )
@@ -500,17 +506,20 @@ object AIChatClient:
             span(cls = "hidden")
         ),
         div(cls = "message-actions")(
-          button(cls = "action-btn", content = "✏️").tap: btn =>
+          button(cls = "action-btn").tap: btn =>
+            btn.innerHTML = """<i class="fa-solid fa-pen"></i>"""
             btn.title = "Edit"
             btn.addEventListener("click", (e: Event) => startEditMessage(message.id))
           ,
-          button(cls = "action-btn", content = "🗑️").tap: btn =>
+          button(cls = "action-btn").tap: btn =>
+            btn.innerHTML = """<i class="fa-solid fa-trash"></i>"""
             btn.title = "Delete"
             btn.addEventListener("click", (e: Event) => deleteMessage(message.id))
           ,
           // Regenerate button only for assistant messages
           if message.role == MessageRole.Assistant then
-            button(cls = "action-btn", content = "🔄").tap: btn =>
+            button(cls = "action-btn").tap: btn =>
+              btn.innerHTML = """<i class="fa-solid fa-rotate"></i>"""
               btn.title = "Regenerate"
               btn.addEventListener("click", (e: Event) => regenerateMessage(message.id))
           else
