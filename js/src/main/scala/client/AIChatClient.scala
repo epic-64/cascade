@@ -130,7 +130,7 @@ object AIChatClient:
               textarea(id = "systemPrompt", cls = "textarea-field").tap: textarea =>
                 textarea.placeholder = AIChat.defaultSystemPrompt
                 textarea.rows = 4
-                textarea.addEventListener("input", (e: Event) => updateSystemPrompt())
+                textarea.addEventListener("blur", (e: Event) => updateSystemPrompt())
             )
           ),
           // === TTS settings panel ===
@@ -175,7 +175,7 @@ object AIChatClient:
                   .foreach: saved =>
                     ta.value = saved
                     ttsPrompt = saved
-                ta.addEventListener("input", (e: Event) =>
+                ta.addEventListener("blur", (e: Event) =>
                   ttsPrompt = ta.value
                   dom.window.localStorage.setItem(StorageKeyTTSPrompt, ttsPrompt)
                   flashSaved("toneSaved")
