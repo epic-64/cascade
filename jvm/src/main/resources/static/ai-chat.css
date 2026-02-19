@@ -225,6 +225,42 @@ select.input-field {
   align-items: center;
 }
 
+.message-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.message-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.meta-badge {
+  font-size: 0.7rem;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.meta-badge-model {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent-purple-light);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.meta-badge-tokens {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.25);
+}
+
 .message-role {
   font-size: 0.8rem;
   font-weight: 600;

@@ -36,7 +36,7 @@ enum ServerMessage derives ReadWriter:
   case MessageUpdated(message: ChatMessage)
   case MessageDeleted(messageId: String)
   case StreamingChunk(messageId: String, chunk: String) // For streaming responses
-  case StreamingComplete(messageId: String)
+  case StreamingComplete(messageId: String, model: String = "", promptTokens: Int = 0, completionTokens: Int = 0)
   case ChatCleared()
   case ErrorMessage(message: String)
   case ModelsListed(models: Seq[String])

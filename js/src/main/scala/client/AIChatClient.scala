@@ -29,12 +29,16 @@ object AIChatClient:
   private var messageIdCounter: Long = 0
   private var selectedModel: String = AIChat.defaultModel
   private var availableModels: Seq[String] = Seq.empty
+  // Metadata per assistant message (model, tokens)
+  case class MessageMeta(model: String, promptTokens: Int, completionTokens: Int) derives upickle.default.ReadWriter
+  private var messageMeta: mutable.Map[String, MessageMeta] = mutable.Map.empty
 
   // LocalStorage keys
   private val StorageKeyMessages = "aiChat_messages"
   private val StorageKeySystemPrompt = "aiChat_systemPrompt"
   private val StorageKeyApiKey = "aiChat_apiKey"
   private val StorageKeyModel = "aiChat_model"
+  private val StorageKeyMeta = "aiChat_messageMeta"
 
   // Generate unique message IDs (ScalaJS-compatible)
   private def generateMessageId(): String =
@@ -255,12 +259,16 @@ object AIChatClient:
             streamingContent(messageId) = chunk
             updateStreamingMessage(messageId, chunk)
 
-      case ServerMessage.StreamingComplete(messageId) =>
+      case ServerMessage.StreamingComplete(messageId, model, promptTokens, completionTokens) =>
         streamingContent.get(messageId).foreach: finalContent =>
           val idx = chatMessages.indexWhere(_.id == messageId)
           if idx >= 0 then
             chatMessages(idx) = chatMessages(idx).copy(content = finalContent)
             finalizeStreamingMessage(messageId, finalContent)
+        // Store metadata and render badges
+        val meta = MessageMeta(model, promptTokens, completionTokens)
+        messageMeta(messageId) = meta
+        updateMessageMetaBadges(messageId, meta)
         streamingContent.remove(messageId)
         activeStreamingId = None
         hideStopButton()
@@ -268,11 +276,13 @@ object AIChatClient:
 
       case ServerMessage.ChatCleared() =>
         chatMessages.clear()
+        messageMeta.clear()
         clearMessagesUI()
         showEmptyState()
         resetSystemPromptStatus()
         // Clear messages from localStorage but keep settings
         dom.window.localStorage.removeItem(StorageKeyMessages)
+        dom.window.localStorage.removeItem(StorageKeyMeta)
 
       case ServerMessage.ErrorMessage(message) =>
         println(s"[AIChat] Error: $message")
@@ -471,7 +481,17 @@ object AIChatClient:
 
     div(id = s"message-${message.id}", cls = s"message $roleClass")(
       div(cls = "message-header")(
-        span(cls = "message-role", content = roleName),
+        div(cls = "message-header-left")(
+          span(cls = "message-role", content = roleName),
+          // Meta badges for assistant messages (model + tokens)
+          if message.role == MessageRole.Assistant then
+            span(id = s"meta-${message.id}", cls = "message-meta").tap: metaEl =>
+              // Render badges from stored metadata if available
+              messageMeta.get(message.id).foreach: meta =>
+                renderMetaBadges(metaEl, meta)
+          else
+            span(cls = "hidden")
+        ),
         div(cls = "message-actions")(
           button(cls = "action-btn", content = "✏️").tap: btn =>
             btn.title = "Edit"
@@ -545,6 +565,22 @@ object AIChatClient:
       elem.classList.remove("streaming")
       elem.innerHTML = renderMarkdown(content)
       Markdown.highlightCodeBlocks(elem)
+
+  private def renderMetaBadges(container: HTMLElement, meta: MessageMeta): Unit =
+    container.innerHTML = ""
+    if meta.model.nonEmpty then
+      container.appendChild(span(cls = "meta-badge meta-badge-model", content = meta.model))
+    val totalTokens = meta.promptTokens + meta.completionTokens
+    if totalTokens > 0 then
+      container.appendChild(span(cls = "meta-badge meta-badge-tokens", content = s"${formatTokenCount(totalTokens)} tokens"))
+
+  private def updateMessageMetaBadges(messageId: String, meta: MessageMeta): Unit =
+    getElementById(s"meta-$messageId").foreach: elem =>
+      renderMetaBadges(elem, meta)
+
+  private def formatTokenCount(n: Int): String =
+    if n >= 1000 then f"${n / 1000.0}%.1fk"
+    else n.toString
 
   private def startEditMessage(messageId: String): Unit =
     currentEditingMessageId = Some(messageId)
@@ -722,6 +758,10 @@ object AIChatClient:
 
       // Save selected model
       dom.window.localStorage.setItem(StorageKeyModel, selectedModel)
+
+      // Save message metadata
+      val metaJson = upickle.default.write(messageMeta.toMap)
+      dom.window.localStorage.setItem(StorageKeyMeta, metaJson)
     .recover:
       case ex => println(s"[AIChat] Failed to save to localStorage: ${ex.getMessage}")
 
@@ -749,6 +789,11 @@ object AIChatClient:
         if messages.nonEmpty then
           chatMessages.clear()
           chatMessages ++= messages
+
+          // Load message metadata
+          Option(dom.window.localStorage.getItem(StorageKeyMeta)).filter(_.nonEmpty).foreach: metaJson =>
+            messageMeta = mutable.Map.from(upickle.default.read[Map[String, MessageMeta]](metaJson))
+
           restoreMessagesUI()
     .recover:
       case ex => println(s"[AIChat] Failed to load from localStorage: ${ex.getMessage}")
