@@ -468,19 +468,10 @@ object AIChatClient:
     // Find and update the system message in our conversation
     chatMessages.indexWhere(_.role == MessageRole.System) match
       case idx if idx >= 0 =>
-        val oldSystemMsg = chatMessages(idx)
-        val updatedSystemMsg = oldSystemMsg.copy(content = newPrompt)
-        chatMessages(idx) = updatedSystemMsg
+        chatMessages(idx) = chatMessages(idx).copy(content = newPrompt)
         flashSaved("systemPromptSaved")
-      case _ =>
-        // No system message yet - add one
-        val systemMsg = ChatMessage(
-          id = generateMessageId(),
-          role = MessageRole.System,
-          content = newPrompt
-        )
-        chatMessages.prepend(systemMsg)
-        flashSaved("systemPromptSaved")
+        saveToLocalStorage()
+      case _ => () // No system message yet — one will be created on first send
 
   private def sendClientMessage(msg: ClientMessage): Unit =
     chatWebSocket.foreach: ws =>
