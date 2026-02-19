@@ -27,6 +27,7 @@ enum ClientMessage derives ReadWriter:
   case StopStreaming(messageId: String) // Abort an in-progress streaming response
   case ClearChat()
   case ListModels(apiKey: String)
+  case SpeakMessage(messageId: String, text: String, apiKey: String, voice: String = "alloy") // TTS via OpenAI
 
 // Server -> Client messages  
 enum ServerMessage derives ReadWriter:
@@ -38,6 +39,8 @@ enum ServerMessage derives ReadWriter:
   case ChatCleared()
   case ErrorMessage(message: String)
   case ModelsListed(models: Seq[String])
+  case TTSAudio(messageId: String, audioBase64: String) // Base64-encoded mp3 audio
+  case TTSError(messageId: String, error: String)
 
 object AIChat:
   val defaultSystemPrompt = "You are a helpful assistant."

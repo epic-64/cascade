@@ -309,6 +309,20 @@ select.input-field {
   color: var(--text-primary);
 }
 
+.action-btn.speaking {
+  color: var(--accent-purple-light);
+}
+
+.action-btn.speaking,
+.message:hover .action-btn.speaking {
+  color: var(--accent-purple-light);
+}
+
+/* Keep actions visible while speaking */
+.message:has(.action-btn.speaking) .message-actions {
+  opacity: 1;
+}
+
 /* Message Content */
 .message-content {
   color: var(--text-primary);

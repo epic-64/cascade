@@ -28,6 +28,8 @@ object AIChatClient:
   private var messageIdCounter: Long = 0
   private var selectedModel: String = AIChat.defaultModel
   private var availableModels: Seq[String] = Seq.empty
+  // TTS state
+  private var speakingMessageId: Option[String] = None
   // Metadata per assistant message (model, tokens)
   case class MessageMeta(model: String, promptTokens: Int, completionTokens: Int) derives upickle.default.ReadWriter
   private var messageMeta: mutable.Map[String, MessageMeta] = mutable.Map.empty
@@ -104,6 +106,27 @@ object AIChatClient:
               )
             ,
             span(id = "modelStatus", cls = "status-text")
+          ),
+          // TTS Voice selector
+          div(cls = "sidebar-section")(
+            el("label", cls = "sidebar-label", content = "TTS Voice"),
+            el("select", id = "voiceSelect", cls = "input-field").tap: sel =>
+              ttsVoices.foreach: voice =>
+                val opt = document.createElement("option").asInstanceOf[HTMLOptionElement]
+                opt.value = voice
+                opt.textContent = voice.capitalize
+                sel.appendChild(opt)
+              // Restore saved voice
+              Option(dom.window.localStorage.getItem(StorageKeyVoice))
+                .filter(_.nonEmpty)
+                .filter(ttsVoices.contains)
+                .foreach: saved =>
+                  sel.asInstanceOf[HTMLSelectElement].value = saved
+                  selectedVoice = saved
+              sel.addEventListener("change", (e: Event) =>
+                selectedVoice = sel.asInstanceOf[HTMLSelectElement].value
+                dom.window.localStorage.setItem(StorageKeyVoice, selectedVoice)
+              )
           ),
           // System prompt
           div(cls = "sidebar-section")(
@@ -297,6 +320,12 @@ object AIChatClient:
       case ServerMessage.ModelsListed(models) =>
         availableModels = models
         populateModelSelector(models)
+
+      case ServerMessage.TTSAudio(messageId, audioBase64) =>
+        handleTTSAudio(messageId, audioBase64)
+
+      case ServerMessage.TTSError(messageId, error) =>
+        handleTTSError(messageId, error)
 
   private def setApiKey(): Unit =
     getApiKey().foreach: apiKey =>
@@ -524,6 +553,15 @@ object AIChatClient:
               btn.addEventListener("click", (e: Event) => regenerateMessage(message.id))
           else
             span() // Empty placeholder
+          ,
+          // Speak button only for assistant messages
+          if message.role == MessageRole.Assistant then
+            button(id = s"speak-${message.id}", cls = "action-btn").tap: btn =>
+              btn.innerHTML = """<i class="fa-solid fa-volume-high"></i>"""
+              btn.title = "Read aloud"
+              btn.addEventListener("click", (e: Event) => toggleSpeakMessage(message.id))
+          else
+            span() // Empty placeholder
         )
       ),
       // Images if any
@@ -646,6 +684,99 @@ object AIChatClient:
       // Send request to regenerate
       if conversationSoFar.nonEmpty then
         sendConversationContext(conversationSoFar, regenerate = true)
+
+  // === Text-to-Speech (OpenAI TTS) ===
+
+  private var currentAudio: Option[HTMLAudioElement] = None
+  private var selectedVoice: String = "alloy"
+  private val StorageKeyVoice = "aiChat_ttsVoice"
+  private val ttsVoices = Seq("alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer")
+
+  private def toggleSpeakMessage(messageId: String): Unit =
+    speakingMessageId match
+      case Some(currentId) if currentId == messageId =>
+        stopSpeaking()
+      case Some(_) =>
+        stopSpeaking()
+        speakMessage(messageId)
+      case None =>
+        speakMessage(messageId)
+
+  private def speakMessage(messageId: String): Unit =
+    chatMessages.find(_.id == messageId).foreach: msg =>
+      val text = stripMarkdownForSpeech(msg.content)
+      if text.nonEmpty then
+        getApiKey() match
+          case Some(apiKey) =>
+            speakingMessageId = Some(messageId)
+            updateSpeakButton(messageId, speaking = true)
+            sendClientMessage(ClientMessage.SpeakMessage(messageId, text, apiKey, selectedVoice))
+          case None =>
+            showError("Please set your API key for text-to-speech")
+
+  private def handleTTSAudio(messageId: String, audioBase64: String): Unit =
+    val audioSrc = s"data:audio/mp3;base64,$audioBase64"
+    val audio = document.createElement("audio").asInstanceOf[HTMLAudioElement]
+    audio.src = audioSrc
+
+    audio.addEventListener("ended", (e: Event) =>
+      speakingMessageId = None
+      currentAudio = None
+      updateSpeakButton(messageId, speaking = false)
+    )
+
+    audio.addEventListener("error", (e: Event) =>
+      speakingMessageId = None
+      currentAudio = None
+      updateSpeakButton(messageId, speaking = false)
+      showError("Failed to play audio")
+    )
+
+    currentAudio = Some(audio)
+    audio.play()
+
+  private def handleTTSError(messageId: String, error: String): Unit =
+    speakingMessageId = None
+    currentAudio = None
+    updateSpeakButton(messageId, speaking = false)
+    showError(error)
+
+  private def stopSpeaking(): Unit =
+    currentAudio.foreach: audio =>
+      audio.pause()
+      audio.src = ""
+    currentAudio = None
+    speakingMessageId.foreach: id =>
+      updateSpeakButton(id, speaking = false)
+    speakingMessageId = None
+
+  private def updateSpeakButton(messageId: String, speaking: Boolean): Unit =
+    getElementById(s"speak-$messageId").foreach: btn =>
+      if speaking then
+        btn.innerHTML = """<i class="fa-solid fa-stop"></i>"""
+        btn.title = "Stop reading"
+        btn.classList.add("speaking")
+      else
+        btn.innerHTML = """<i class="fa-solid fa-volume-high"></i>"""
+        btn.title = "Read aloud"
+        btn.classList.remove("speaking")
+
+  private def stripMarkdownForSpeech(content: String): String =
+    content
+      .replaceAll("```[\\s\\S]*?```", " code block omitted ")  // code blocks
+      .replaceAll("`[^`]+`", "")                                // inline code
+      .replaceAll("!\\[[^\\]]*\\]\\([^)]*\\)", "")              // images
+      .replaceAll("\\[[^\\]]*\\]\\([^)]*\\)", "")               // links (keep text would be nicer but simpler to strip)
+      .replaceAll("#{1,6}\\s+", "")                             // headings
+      .replaceAll("\\*{1,3}([^*]+)\\*{1,3}", "$1")             // bold/italic
+      .replaceAll("_{1,3}([^_]+)_{1,3}", "$1")                 // bold/italic with underscores
+      .replaceAll("~~([^~]+)~~", "$1")                          // strikethrough
+      .replaceAll("^[>\\s]+", "")                               // blockquotes
+      .replaceAll("^[-*+]\\s+", "")                             // unordered list markers
+      .replaceAll("^\\d+\\.\\s+", "")                           // ordered list markers
+      .replaceAll("---+|\\*\\*\\*+|___+", "")                   // horizontal rules
+      .replaceAll("\\s+", " ")                                  // collapse whitespace
+      .trim
 
   private def clearMessagesUI(): Unit =
     getElementById("messagesContainer").foreach: container =>

@@ -100,6 +100,17 @@ object AIChatHandler:
         else
           sendMessage(channel, ServerMessage.ErrorMessage("Please set your API key first"))
 
+      case ClientMessage.SpeakMessage(messageId, text, apiKey, voice) =>
+        if apiKey.nonEmpty then
+          Future:
+            generateTTS(channel, messageId, text, apiKey, voice)
+          .recover:
+            case ex: Exception =>
+              logger.error(s"[AIChat] TTS error: ${ex.getMessage}", ex)
+              sendMessage(channel, ServerMessage.TTSError(messageId, s"TTS failed: ${ex.getMessage}"))
+        else
+          sendMessage(channel, ServerMessage.TTSError(messageId, "Please set your API key first"))
+
   private def generateResponse(channel: cask.WsChannelActor, apiKey: String, messages: Seq[ChatMessage], model: String): Unit =
     // Create a new message ID for the response
     val responseId = java.util.UUID.randomUUID().toString
@@ -271,6 +282,46 @@ object AIChatHandler:
         sendMessage(channel, ServerMessage.ErrorMessage(s"Streaming error: ${ex.getMessage}"))
     finally
       activeStreams.get(channel).foreach(_.remove(messageId))
+
+  private def generateTTS(
+      channel: cask.WsChannelActor,
+      messageId: String,
+      text: String,
+      apiKey: String,
+      voice: String
+  ): Unit =
+    val url = "https://api.openai.com/v1/audio/speech"
+    val requestBody = ujson.Obj(
+      "model" -> "tts-1",
+      "input" -> text,
+      "voice" -> voice,
+      "response_format" -> "mp3"
+    )
+
+    val request = java.net.http.HttpRequest.newBuilder()
+      .uri(java.net.URI.create(url))
+      .header("Content-Type", "application/json")
+      .header("Authorization", s"Bearer $apiKey")
+      .timeout(java.time.Duration.ofSeconds(60))
+      .POST(java.net.http.HttpRequest.BodyPublishers.ofString(requestBody.toString))
+      .build()
+
+    try
+      val response = httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofByteArray())
+
+      if response.statusCode() != 200 then
+        val errorText = new String(response.body(), "UTF-8")
+        logger.error(s"[AIChat] TTS API error (status ${response.statusCode()}): $errorText")
+        sendMessage(channel, ServerMessage.TTSError(messageId, s"TTS API error (status ${response.statusCode()})"))
+      else
+        val audioBytes = response.body()
+        val audioBase64 = java.util.Base64.getEncoder.encodeToString(audioBytes)
+        logger.info(s"[AIChat] TTS generated ${audioBytes.length} bytes for message $messageId")
+        sendMessage(channel, ServerMessage.TTSAudio(messageId, audioBase64))
+    catch
+      case ex: Exception =>
+        logger.error(s"[AIChat] TTS request error: ${ex.getMessage}", ex)
+        sendMessage(channel, ServerMessage.TTSError(messageId, s"TTS request failed: ${ex.getMessage}"))
 
   private def sendMessage(channel: cask.WsChannelActor, msg: ServerMessage): Unit =
     Try:
