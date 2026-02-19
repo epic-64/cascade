@@ -16,6 +16,8 @@ def initializeAIChat(): Unit =
   println("[AIChat] Starting AI Chat client...")
   AIChatClient.buildUI()
   AIChatClient.connectWebSocket()
+  // Force viewport recalculation on mobile - fixes initial layout issues with dynamic viewport
+  AIChatClient.fixMobileViewport()
 
 object AIChatClient:
   // State
@@ -489,6 +491,24 @@ object AIChatClient:
         case "disconnected" => "Reconnecting…"
         case _              => status
 
+  // Force mobile browsers to recalculate viewport height on initial load
+  // Fixes issue where input area is positioned incorrectly until first interaction
+  def fixMobileViewport(): Unit =
+    // Small delay to let initial layout complete, then force recalculation
+    dom.window.setTimeout(
+      () =>
+        getElementById("chatMain").foreach: el =>
+          // Force a reflow by reading and writing a layout property
+          val _ = el.offsetHeight
+          el.style.setProperty("flex", "1 1 0%")
+      ,
+      100
+    )
+    // Also listen for visual viewport resize (handles keyboard, address bar changes)
+    val vv = dom.window.asInstanceOf[js.Dynamic].visualViewport
+    if vv != null && !js.isUndefined(vv) then
+      vv.addEventListener("resize", (e: Event) => scrollToBottom())
+
   private def clearChat(): Unit =
     sendClientMessage(ClientMessage.ClearChat())
 
@@ -738,7 +758,7 @@ object AIChatClient:
       toRemove.foreach: msg =>
         chatMessages -= msg
         removeMessageFromUI(msg.id)
-      
+
       // Save immediately so removals persist across disconnects
       saveToLocalStorage()
 
