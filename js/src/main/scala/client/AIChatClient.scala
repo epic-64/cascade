@@ -476,11 +476,14 @@ object AIChatClient:
       .filter(_.nonEmpty)
       .getOrElse(AIChat.defaultSystemPrompt)
 
-    // Find and update the system message in our conversation
+    // Always persist the system prompt to localStorage so reconnects don't lose edits
+    dom.window.localStorage.setItem(StorageKeySystemPrompt, newPrompt)
+    flashSaved("systemPromptSaved")
+
+    // Find and update the system message in our conversation (if one exists)
     chatMessages.indexWhere(_.role == MessageRole.System) match
       case idx if idx >= 0 =>
         chatMessages(idx) = chatMessages(idx).copy(content = newPrompt)
-        flashSaved("systemPromptSaved")
         saveToLocalStorage()
       case _ => () // No system message yet — one will be created on first send
 
@@ -953,10 +956,11 @@ object AIChatClient:
         // Fetch models to populate the selector
         sendClientMessage(ClientMessage.ListModels(apiKey))
 
-      // Load system prompt
+      // Load system prompt (only if textarea is empty, to avoid clobbering in-progress edits on reconnect)
       Option(dom.window.localStorage.getItem(StorageKeySystemPrompt)).filter(_.nonEmpty).foreach: prompt =>
-        getElementById("systemPrompt").foreach: elem =>
-          elem.asInstanceOf[HTMLTextAreaElement].value = prompt
+        getElementByIdAs[HTMLTextAreaElement]("systemPrompt").foreach: ta =>
+          if ta.value.trim.isEmpty then
+            ta.value = prompt
 
       // Load messages
       Option(dom.window.localStorage.getItem(StorageKeyMessages)).filter(_.nonEmpty).foreach: messagesJson =>
