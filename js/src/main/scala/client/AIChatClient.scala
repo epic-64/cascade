@@ -74,91 +74,105 @@ object AIChatClient:
         ),
         // Sidebar for settings (hidden by default on mobile)
         div(id = "chatSidebar", cls = "chat-sidebar mobile-hidden")(
-          h3(content = "Settings"),
-          // API Key input
-          div(cls = "sidebar-section")(
-            el("label", cls = "sidebar-label", content = "OpenAI API Key"),
-            div(cls = "api-key-input")(
-              input("text", id = "apiKeyInput", cls = "input-field api-key-masked").tap: inp =>
-                inp.placeholder = "sk-..."
-                inp.autocomplete = "off"
-                inp.setAttribute("data-1p-ignore", "")
-                inp.setAttribute("data-bwignore", "")
-                inp.setAttribute("data-lpignore", "true")
-                inp.setAttribute("data-form-type", "other")
-              ,
-              button(cls = "btn btn-sm", content = "Set").tap: btn =>
-                btn.addEventListener("click", (e: Event) => setApiKey())
+          // Sub-tabs for Settings vs TTS
+          div(cls = "sidebar-tabs")(
+            button(id = "sidebarTabGeneral", cls = "sidebar-tab active", content = "General").tap: btn =>
+              btn.addEventListener("click", (e: Event) => switchSidebarTab("general"))
+            ,
+            button(id = "sidebarTabTTS", cls = "sidebar-tab", content = "TTS").tap: btn =>
+              btn.addEventListener("click", (e: Event) => switchSidebarTab("tts"))
+          ),
+          // === General settings panel ===
+          div(id = "sidebarPanelGeneral", cls = "sidebar-panel")(
+            // API Key input
+            div(cls = "sidebar-section")(
+              el("label", cls = "sidebar-label", content = "OpenAI API Key"),
+              div(cls = "api-key-input")(
+                input("text", id = "apiKeyInput", cls = "input-field api-key-masked").tap: inp =>
+                  inp.placeholder = "sk-..."
+                  inp.autocomplete = "off"
+                  inp.setAttribute("data-1p-ignore", "")
+                  inp.setAttribute("data-bwignore", "")
+                  inp.setAttribute("data-lpignore", "true")
+                  inp.setAttribute("data-form-type", "other")
+                ,
+                button(cls = "btn btn-sm", content = "Set").tap: btn =>
+                  btn.addEventListener("click", (e: Event) => setApiKey())
+              ),
+              span(id = "apiKeyStatus", cls = "status-text")
             ),
-            span(id = "apiKeyStatus", cls = "status-text")
-          ),
-          // Model selector
-          div(cls = "sidebar-section")(
-            el("label", cls = "sidebar-label", content = "Model"),
-            el("select", id = "modelSelect", cls = "input-field").tap: sel =>
-              val defaultOpt = document.createElement("option").asInstanceOf[HTMLOptionElement]
-              defaultOpt.value = AIChat.defaultModel
-              defaultOpt.textContent = AIChat.defaultModel
-              sel.appendChild(defaultOpt)
-              sel.addEventListener("change", (e: Event) =>
-                selectedModel = sel.asInstanceOf[HTMLSelectElement].value
-                dom.window.localStorage.setItem(StorageKeyModel, selectedModel)
-              )
-            ,
-            span(id = "modelStatus", cls = "status-text")
-          ),
-          // TTS Voice selector
-          div(cls = "sidebar-section")(
-            el("label", cls = "sidebar-label", content = "TTS Voice"),
-            el("select", id = "voiceSelect", cls = "input-field").tap: sel =>
-              ttsVoices.foreach: voice =>
-                val opt = document.createElement("option").asInstanceOf[HTMLOptionElement]
-                opt.value = voice
-                opt.textContent = voice.capitalize
-                sel.appendChild(opt)
-              // Restore saved voice
-              Option(dom.window.localStorage.getItem(StorageKeyVoice))
-                .filter(_.nonEmpty)
-                .filter(ttsVoices.contains)
-                .foreach: saved =>
-                  sel.asInstanceOf[HTMLSelectElement].value = saved
-                  selectedVoice = saved
-              sel.addEventListener("change", (e: Event) =>
-                selectedVoice = sel.asInstanceOf[HTMLSelectElement].value
-                dom.window.localStorage.setItem(StorageKeyVoice, selectedVoice)
-              )
-          ),
-          // TTS Tone / Prompt
-          div(cls = "sidebar-section")(
-            el("label", cls = "sidebar-label", content = "TTS Tone"),
-            input("text", id = "ttsPromptInput", cls = "input-field").tap: inp =>
-              inp.placeholder = "e.g. Speak cheerfully with warmth"
-              // Restore saved prompt
-              Option(dom.window.localStorage.getItem(StorageKeyTTSPrompt))
-                .filter(_.nonEmpty)
-                .foreach: saved =>
-                  inp.value = saved
-                  ttsPrompt = saved
-              inp.addEventListener("input", (e: Event) =>
-                ttsPrompt = inp.value
-                dom.window.localStorage.setItem(StorageKeyTTSPrompt, ttsPrompt)
-              )
-          ),
-          // System prompt
-          div(cls = "sidebar-section")(
-            label(forId = "systemPrompt", cls = "sidebar-label", content = "System Prompt"),
-            textarea(id = "systemPrompt", cls = "textarea-field").tap: textarea =>
-              textarea.placeholder = AIChat.defaultSystemPrompt
-              textarea.rows = 4
-            ,
-            div(cls = "system-prompt-actions")(
-              button(id = "updateSystemPromptBtn", cls = "btn btn-sm btn-secondary hidden", content = "Update").tap: btn =>
-                btn.addEventListener("click", (e: Event) => updateSystemPrompt())
+            // Model selector
+            div(cls = "sidebar-section")(
+              el("label", cls = "sidebar-label", content = "Model"),
+              el("select", id = "modelSelect", cls = "input-field").tap: sel =>
+                val defaultOpt = document.createElement("option").asInstanceOf[HTMLOptionElement]
+                defaultOpt.value = AIChat.defaultModel
+                defaultOpt.textContent = AIChat.defaultModel
+                sel.appendChild(defaultOpt)
+                sel.addEventListener("change", (e: Event) =>
+                  selectedModel = sel.asInstanceOf[HTMLSelectElement].value
+                  dom.window.localStorage.setItem(StorageKeyModel, selectedModel)
+                )
               ,
-              span(id = "systemPromptStatus", cls = "status-text")
+              span(id = "modelStatus", cls = "status-text")
+            ),
+            // System prompt
+            div(cls = "sidebar-section")(
+              label(forId = "systemPrompt", cls = "sidebar-label", content = "System Prompt"),
+              textarea(id = "systemPrompt", cls = "textarea-field").tap: textarea =>
+                textarea.placeholder = AIChat.defaultSystemPrompt
+                textarea.rows = 4
+              ,
+              div(cls = "system-prompt-actions")(
+                button(id = "updateSystemPromptBtn", cls = "btn btn-sm btn-secondary hidden", content = "Update").tap: btn =>
+                  btn.addEventListener("click", (e: Event) => updateSystemPrompt())
+                ,
+                span(id = "systemPromptStatus", cls = "status-text")
+              )
             )
           ),
-          // Actions
+          // === TTS settings panel ===
+          div(id = "sidebarPanelTTS", cls = "sidebar-panel hidden")(
+            // TTS Voice selector
+            div(cls = "sidebar-section")(
+              el("label", cls = "sidebar-label", content = "Voice"),
+              el("select", id = "voiceSelect", cls = "input-field").tap: sel =>
+                ttsVoices.foreach: voice =>
+                  val opt = document.createElement("option").asInstanceOf[HTMLOptionElement]
+                  opt.value = voice
+                  opt.textContent = voice.capitalize
+                  sel.appendChild(opt)
+                // Restore saved voice
+                Option(dom.window.localStorage.getItem(StorageKeyVoice))
+                  .filter(_.nonEmpty)
+                  .filter(ttsVoices.contains)
+                  .foreach: saved =>
+                    sel.asInstanceOf[HTMLSelectElement].value = saved
+                    selectedVoice = saved
+                sel.addEventListener("change", (e: Event) =>
+                  selectedVoice = sel.asInstanceOf[HTMLSelectElement].value
+                  dom.window.localStorage.setItem(StorageKeyVoice, selectedVoice)
+                )
+            ),
+            // TTS Tone / Prompt
+            div(cls = "sidebar-section")(
+              el("label", cls = "sidebar-label", content = "Tone"),
+              textarea(id = "ttsPromptInput", cls = "textarea-field").tap: ta =>
+                ta.placeholder = "e.g. Speak cheerfully with warmth"
+                ta.rows = 3
+                // Restore saved prompt
+                Option(dom.window.localStorage.getItem(StorageKeyTTSPrompt))
+                  .filter(_.nonEmpty)
+                  .foreach: saved =>
+                    ta.value = saved
+                    ttsPrompt = saved
+                ta.addEventListener("input", (e: Event) =>
+                  ttsPrompt = ta.value
+                  dom.window.localStorage.setItem(StorageKeyTTSPrompt, ttsPrompt)
+                )
+            )
+          ),
+          // Actions (always visible, outside tab panels)
           div(cls = "sidebar-section sidebar-actions")(
             button(cls = "btn btn-secondary btn-full", content = "Clear Chat").tap: btn =>
               btn.addEventListener("click", (e: Event) => clearChat())
@@ -833,6 +847,14 @@ object AIChatClient:
         tabChat.foreach(_.classList.remove("active"))
         tabSettings.foreach(_.classList.add("active"))
       case _ => ()
+
+  private def switchSidebarTab(tab: String): Unit =
+    val tabs = Map("general" -> "General", "tts" -> "TTS")
+    tabs.foreach: (key, suffix) =>
+      getElementById(s"sidebarTab$suffix").foreach: btn =>
+        if key == tab then btn.classList.add("active") else btn.classList.remove("active")
+      getElementById(s"sidebarPanel$suffix").foreach: panel =>
+        if key == tab then panel.classList.remove("hidden") else panel.classList.add("hidden")
 
   private def autoResizeTextarea(ta: HTMLTextAreaElement): Unit =
     ta.style.height = "auto"
