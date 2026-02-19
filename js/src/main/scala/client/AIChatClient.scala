@@ -356,14 +356,15 @@ object AIChatClient:
     clearImagePreview()
 
   // Send full conversation context with selected model for AI response
-  private def sendConversationContext(messages: Seq[ChatMessage]): Unit =
+  private def sendConversationContext(messages: Seq[ChatMessage], regenerate: Boolean = false): Unit =
     chatWebSocket.foreach: ws =>
       getApiKey().foreach: apiKey =>
         val contextMsg = ujson.Obj(
           "$type" -> "GenerateWithContext",
           "messages" -> upickle.default.writeJs(messages),
           "model" -> selectedModel,
-          "apiKey" -> apiKey
+          "apiKey" -> apiKey,
+          "regenerate" -> regenerate
         )
         ws.send(ujson.write(contextMsg))
 
@@ -635,7 +636,7 @@ object AIChatClient:
 
       // Send request to regenerate
       if conversationSoFar.nonEmpty then
-        sendConversationContext(conversationSoFar)
+        sendConversationContext(conversationSoFar, regenerate = true)
 
   private def clearMessagesUI(): Unit =
     getElementById("messagesContainer").foreach: container =>
