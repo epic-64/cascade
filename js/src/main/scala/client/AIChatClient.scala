@@ -98,12 +98,14 @@ object AIChatClient:
                 ,
                 button(cls = "btn btn-sm", content = "Set").tap: btn =>
                   btn.addEventListener("click", (e: Event) => setApiKey())
-              ),
-              span(id = "apiKeyStatus", cls = "status-text")
+              )
             ),
             // Model selector
             div(cls = "sidebar-section")(
-              el("label", cls = "sidebar-label", content = "Model"),
+              div(cls = "sidebar-label-row")(
+                el("label", cls = "sidebar-label", content = "Model"),
+                span(id = "modelStatus", cls = "sidebar-label-hint")
+              ),
               el("select", id = "modelSelect", cls = "input-field").tap: sel =>
                 val defaultOpt = document.createElement("option").asInstanceOf[HTMLOptionElement]
                 defaultOpt.value = AIChat.defaultModel
@@ -113,8 +115,6 @@ object AIChatClient:
                   selectedModel = sel.asInstanceOf[HTMLSelectElement].value
                   dom.window.localStorage.setItem(StorageKeyModel, selectedModel)
                 )
-              ,
-              span(id = "modelStatus", cls = "status-text")
             ),
             // System prompt
             div(cls = "sidebar-section")(
@@ -122,13 +122,9 @@ object AIChatClient:
               textarea(id = "systemPrompt", cls = "textarea-field").tap: textarea =>
                 textarea.placeholder = AIChat.defaultSystemPrompt
                 textarea.rows = 4
+                textarea.addEventListener("input", (e: Event) => updateSystemPrompt())
               ,
-              div(cls = "system-prompt-actions")(
-                button(id = "updateSystemPromptBtn", cls = "btn btn-sm btn-secondary hidden", content = "Update").tap: btn =>
-                  btn.addEventListener("click", (e: Event) => updateSystemPrompt())
-                ,
-                span(id = "systemPromptStatus", cls = "status-text")
-              )
+              span(id = "systemPromptStatus", cls = "status-text")
             )
           ),
           // === TTS settings panel ===
@@ -359,9 +355,6 @@ object AIChatClient:
   private def setApiKey(): Unit =
     getApiKey().foreach: apiKey =>
       dom.window.localStorage.setItem(StorageKeyApiKey, apiKey)
-      getElementById("apiKeyStatus").foreach: elem =>
-        elem.textContent = "✓ API key saved"
-        elem.className = "status-text status-success"
       // Fetch models to validate the key and populate the selector
       sendClientMessage(ClientMessage.ListModels(apiKey))
 
@@ -396,8 +389,6 @@ object AIChatClient:
         .map(_.asInstanceOf[HTMLTextAreaElement].value.trim)
         .exists(_.nonEmpty)
       updateSystemPromptStatus(isCustom)
-      // Show the update button now that conversation has started
-      getElementById("updateSystemPromptBtn").foreach(_.classList.remove("hidden"))
 
     // Create user message
     val userMessage = ChatMessage(
@@ -902,8 +893,7 @@ object AIChatClient:
         selectedModel = model
 
     getElementById("modelStatus").foreach: elem =>
-      elem.textContent = s"${models.size} models available"
-      elem.className = "status-text status-info"
+      elem.textContent = s"(${models.size})"
 
   private def updateSystemPromptStatus(isCustom: Boolean, updated: Boolean = false): Unit =
     getElementById("systemPromptStatus").foreach: elem =>
@@ -921,7 +911,6 @@ object AIChatClient:
     getElementById("systemPromptStatus").foreach: elem =>
       elem.textContent = ""
       elem.className = "status-text"
-    getElementById("updateSystemPromptBtn").foreach(_.classList.add("hidden"))
 
   // === LocalStorage Persistence ===
 
@@ -961,9 +950,6 @@ object AIChatClient:
       Option(dom.window.localStorage.getItem(StorageKeyApiKey)).filter(_.nonEmpty).foreach: apiKey =>
         getElementById("apiKeyInput").foreach: elem =>
           elem.asInstanceOf[HTMLInputElement].value = apiKey
-        getElementById("apiKeyStatus").foreach: elem =>
-          elem.textContent = "✓ API key saved"
-          elem.className = "status-text status-success"
         // Fetch models to populate the selector
         sendClientMessage(ClientMessage.ListModels(apiKey))
 
@@ -998,7 +984,6 @@ object AIChatClient:
       chatMessages.find(_.role == MessageRole.System).foreach: sysMsg =>
         val isCustom = sysMsg.content != AIChat.defaultSystemPrompt
         updateSystemPromptStatus(isCustom)
-        getElementById("updateSystemPromptBtn").foreach(_.classList.remove("hidden"))
       scrollToBottom()
     else
       showEmptyState()
