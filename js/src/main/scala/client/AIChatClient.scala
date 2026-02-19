@@ -74,9 +74,13 @@ object AIChatClient:
           div(cls = "sidebar-section")(
             el("label", cls = "sidebar-label", content = "OpenAI API Key"),
             div(cls = "api-key-input")(
-              input("password", id = "apiKeyInput", cls = "input-field").tap: inp =>
+              input("text", id = "apiKeyInput", cls = "input-field api-key-masked").tap: inp =>
                 inp.placeholder = "sk-..."
                 inp.autocomplete = "off"
+                inp.setAttribute("data-1p-ignore", "")
+                inp.setAttribute("data-bwignore", "")
+                inp.setAttribute("data-lpignore", "true")
+                inp.setAttribute("data-form-type", "other")
               ,
               button(cls = "btn btn-sm", content = "Set").tap: btn =>
                 btn.addEventListener("click", (e: Event) => setApiKey())

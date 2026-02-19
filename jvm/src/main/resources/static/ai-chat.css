@@ -77,6 +77,11 @@ body:has(.chat-container) {
   flex: 1;
 }
 
+.api-key-masked {
+  -webkit-text-security: disc;
+  text-security: disc;
+}
+
 .input-field,
 .textarea-field {
   background: var(--bg-secondary);
