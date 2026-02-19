@@ -103,6 +103,17 @@ body:has(.chat-container) {
   color: var(--text-secondary);
 }
 
+.sidebar-label-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-xs);
+}
+
+.sidebar-label-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
 .api-key-input {
   display: flex;
   gap: var(--spacing-xs);
