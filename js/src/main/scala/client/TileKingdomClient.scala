@@ -93,15 +93,18 @@ object TileKingdomClient:
     div(cls = "tile-kingdom-resources")(
       div(cls = "resource-item")(
         span(cls = "resource-label", content = "🌾"),
-        span(id = "tile-kingdom-wheat", cls = "resource-value", content = "0")
+        span(id = "tile-kingdom-wheat", cls = "resource-value", content = "0"),
+        span(id = "tile-kingdom-wheat-income", cls = "resource-income", content = "")
       ),
       div(cls = "resource-item")(
         span(cls = "resource-label", content = "🪵"),
-        span(id = "tile-kingdom-wood", cls = "resource-value", content = "0")
+        span(id = "tile-kingdom-wood", cls = "resource-value", content = "0"),
+        span(id = "tile-kingdom-wood-income", cls = "resource-income", content = "")
       ),
       div(cls = "resource-item")(
         span(cls = "resource-label", content = "✨"),
-        span(id = "tile-kingdom-faith", cls = "resource-value", content = "0")
+        span(id = "tile-kingdom-faith", cls = "resource-value", content = "0"),
+        span(id = "tile-kingdom-faith-income", cls = "resource-income", content = "")
       ),
       div(cls = "resource-item")(
         span(cls = "resource-label", content = "💰"),
@@ -110,6 +113,10 @@ object TileKingdomClient:
       div(cls = "resource-item")(
         span(cls = "resource-label", content = "👑"),
         span(id = "tile-kingdom-abdications", cls = "resource-value", content = "0")
+      ),
+      div(cls = "resource-item income")(
+        span(cls = "resource-label", content = "📈"),
+        span(id = "tile-kingdom-income", cls = "resource-value", content = "0/s")
       )
     )
 
@@ -540,6 +547,25 @@ object TileKingdomClient:
     setElementText("tile-kingdom-gold", f"${currentGame.gold}%,d")
     setElementText("tile-kingdom-abdications", currentGame.totalAbdications.toString)
 
+    // Individual income rates
+    val wheatIncome = TileKingdomLogic.totalWheatProductionRate(currentGame)
+    val woodIncome = TileKingdomLogic.totalWoodProductionRate(currentGame)
+    val faithIncome = TileKingdomLogic.totalFaithProductionRate(currentGame)
+
+    setElementText("tile-kingdom-wheat-income", formatIncome(wheatIncome))
+    setElementText("tile-kingdom-wood-income", formatIncome(woodIncome))
+    setElementText("tile-kingdom-faith-income", formatIncome(faithIncome))
+
+    // Total income
+    val income = currentGame.totalIncomeRate
+    val incomeText = if income >= 1.0 then f"${income.toInt}%,d/s" else f"$income%.1f/s"
+    setElementText("tile-kingdom-income", incomeText)
+
+  private def formatIncome(rate: Double): String =
+    if rate <= 0 then ""
+    else if rate >= 1.0 then f"+${rate.toInt}%,d/s"
+    else f"+$rate%.1f/s"
+
   private def renderTiles(): Unit =
     getElementById("tile-kingdom-grid").foreach: gridContainer =>
       gridContainer.innerHTML = ""
@@ -629,7 +655,7 @@ object TileKingdomClient:
 
         // Build options container (hidden by default, shown when selecting)
         val buildOptions = div(cls = "tile-build-options")
-        
+
         // Back/cancel button
         buildOptions.appendChild(div(cls = "build-option build-back").tap: opt =>
           opt.appendChild(el("i", cls = "fa-solid fa-arrow-left build-icon"))

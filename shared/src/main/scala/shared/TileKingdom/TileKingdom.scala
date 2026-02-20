@@ -240,6 +240,10 @@ object TileKingdomLogic:
   def totalWoodProductionRate(game: TileKingdomGame): Double =
     game.unlockedTiles.map(tile => woodProductionRate(game, tile)).sum
 
+  // Total faith production rate
+  def totalFaithProductionRate(game: TileKingdomGame): Double =
+    game.unlockedTiles.map(tile => faithProductionPerSecond(tile)).sum
+
   // Cost to build a wheat field on an empty tile
   def wheatFieldBuildCost: Int = 10
 
