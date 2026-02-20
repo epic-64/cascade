@@ -653,7 +653,15 @@ object TerritoryClient:
           val bonusPercent = ((bonusMultiplier - 1) * 100).toInt
           prodDiv.appendChild(span(cls = "bonus", content = s" +$bonusPercent%"))
         content.appendChild(prodDiv)
-        content.appendChild(div(cls = "tile-upgrade", content = s"⬆$upgradeCost"))
+        
+        val upgradeRow = div(cls = "tile-upgrade-row")
+        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost"))
+        upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
+          btn.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            handleBulkLevelUp(coord, 10, TerritoryLogic.levelUpWheatField, TerritoryLogic.wheatFieldLevelUpCost)
+        )
+        content.appendChild(upgradeRow)
 
         tileDiv.appendChild(content)
 
@@ -676,14 +684,22 @@ object TerritoryClient:
         val boostPercent = (level * TerritoryLogic.FarmBoostPerLevel * 100).toInt
         val upgradeCost = TerritoryLogic.farmLevelUpCost(level)
 
-        tileDiv.appendChild(
-          div(cls = "tile-content")(
-            div(cls = "tile-icon", content = "🏠"),
-            div(cls = "tile-label", content = s"Lv$level"),
-            div(cls = "tile-production", content = s"+$boostPercent%"),
-            div(cls = "tile-upgrade", content = s"⬆$upgradeCost")
-          )
+        val content = div(cls = "tile-content")(
+          div(cls = "tile-icon", content = "🏠"),
+          div(cls = "tile-label", content = s"Lv$level"),
+          div(cls = "tile-production", content = s"+$boostPercent%")
         )
+        
+        val upgradeRow = div(cls = "tile-upgrade-row")
+        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost"))
+        upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
+          btn.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            handleBulkLevelUp(coord, 10, TerritoryLogic.levelUpFarm, TerritoryLogic.farmLevelUpCost)
+        )
+        content.appendChild(upgradeRow)
+        
+        tileDiv.appendChild(content)
         tileDiv.onclick = (_: MouseEvent) => handleLevelUpFarm(coord)
         tileDiv.oncontextmenu = (e: MouseEvent) =>
           e.preventDefault()
@@ -706,7 +722,15 @@ object TerritoryClient:
           val bonusPercent = ((forestBonus - 1) * 100).toInt
           prodDiv.appendChild(span(cls = "bonus forest-bonus", content = s" +$bonusPercent%"))
         content.appendChild(prodDiv)
-        content.appendChild(div(cls = "tile-upgrade", content = s"⬆$upgradeCost"))
+        
+        val upgradeRow = div(cls = "tile-upgrade-row")
+        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost"))
+        upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
+          btn.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            handleBulkLevelUp(coord, 10, TerritoryLogic.levelUpWoodcutter, TerritoryLogic.woodcutterLevelUpCost)
+        )
+        content.appendChild(upgradeRow)
 
         tileDiv.appendChild(content)
 
@@ -874,6 +898,36 @@ object TerritoryClient:
         case Left(error) =>
           showNotification(error)
 
+  private def handleBulkLevelUp(
+      coord: Coord,
+      count: Int,
+      levelUpFn: (TerritoryGame, Coord) => Either[String, TerritoryGame],
+      costFn: Int => Int
+  ): Unit =
+    currentGame.tiles.get(coord).foreach: tile =>
+      var game = currentGame
+      var totalCost = 0
+      var successCount = 0
+      var currentLevel = tile.level
+
+      (1 to count).foreach: _ =>
+        levelUpFn(game, coord) match
+          case Right(newGame) =>
+            totalCost += costFn(currentLevel)
+            currentLevel += 1
+            successCount += 1
+            game = newGame
+          case Left(_) => // Stop on first failure
+
+      if successCount > 0 then
+        currentGame = game
+        saveGame()
+        renderGame()
+        showFloatingReward(coord, totalCost, "🌾", isSpend = true)
+        showFloatingLevel(coord, currentLevel)
+      else
+        showNotification("Not enough wheat")
+  
   private def handleDestroyBuilding(coord: Coord): Unit =
     TerritoryLogic.destroyBuilding(currentGame, coord) match
       case Right(newGame) =>
