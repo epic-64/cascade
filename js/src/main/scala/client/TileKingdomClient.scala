@@ -63,8 +63,8 @@ object TileKingdomClient:
 
   def init(): Unit =
     println("[TileKingdom] Initializing Tile Kingdom game")
-    loadGame()
     buildUI()
+    loadGame()
     centerOnKingdom()
     renderGame()
     startGameTicker()
@@ -534,10 +534,20 @@ object TileKingdomClient:
           currentGame = TileKingdomLogic.tick(loadedGame, currentTime)
 
           val offlineSeconds = (currentTime - loadedGame.lastTickTime) / 1000.0
-          if offlineSeconds > 60 then
-            val offlineWheat = currentGame.wheat - loadedGame.wheat
-            println(s"[TileKingdom] Welcome back! You earned ${offlineWheat.toInt} wheat while away")
-            showNotification(s"Welcome back! +${offlineWheat.toInt} wheat")
+          println(s"[TileKingdom] Offline for $offlineSeconds seconds")
+          if offlineSeconds > 5 then
+            val offlineWheat = (currentGame.wheat - loadedGame.wheat).toInt
+            val offlineWood = (currentGame.wood - loadedGame.wood).toInt
+            val offlineFaith = (currentGame.faith - loadedGame.faith).toInt
+            val gains = List(
+              if offlineWheat > 0 then Some(s"+$offlineWheat 🌾") else None,
+              if offlineWood > 0 then Some(s"+$offlineWood 🪵") else None,
+              if offlineFaith > 0 then Some(s"+$offlineFaith ✨") else None
+            ).flatten.mkString(" ")
+            println(s"[TileKingdom] Gains: '$gains'")
+            if gains.nonEmpty then
+              println(s"[TileKingdom] Showing notification...")
+              showNotification(s"Welcome back! $gains")
 
           println(s"[TileKingdom] Game loaded from localStorage")
         case None =>
@@ -1201,9 +1211,13 @@ object TileKingdomClient:
     getElementById(id).foreach(_.textContent = text)
 
   private def showNotification(message: String): Unit =
-    getElementById("tile-kingdom-notification").foreach: notification =>
+    println(s"[TileKingdom] showNotification called with: $message")
+    val elem = getElementById("tile-kingdom-notification")
+    println(s"[TileKingdom] notification element found: ${elem.isDefined}")
+    elem.foreach: notification =>
       notification.textContent = message
       notification.classList.add("show")
+      println(s"[TileKingdom] notification class list: ${notification.classList}")
       window.setTimeout(
         () =>
           notification.classList.remove("show"),
