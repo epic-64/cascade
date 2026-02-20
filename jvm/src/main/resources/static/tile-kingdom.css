@@ -990,4 +990,96 @@
   box-shadow: 0 0 12px rgba(234, 179, 8, 0.5);
 }
 
+/* Welcome Back Modal */
+.welcome-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
 
+.welcome-modal.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.welcome-modal-content {
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  min-width: 300px;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: var(--shadow-xl);
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+}
+
+.welcome-modal.show .welcome-modal-content {
+  transform: scale(1);
+}
+
+.welcome-modal-header h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+  color: var(--text-primary);
+}
+
+.welcome-modal-body {
+  margin-bottom: 1.5rem;
+}
+
+.welcome-time {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.welcome-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.welcome-gains {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.welcome-gain-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.25rem;
+  padding: 0.5rem 1rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  min-width: 150px;
+  justify-content: center;
+}
+
+.welcome-gain-icon {
+  font-size: 1.5rem;
+}
+
+.welcome-gain-value {
+  color: var(--accent-green);
+  font-weight: 600;
+  font-family: monospace;
+}
+
+.welcome-modal-close {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+}

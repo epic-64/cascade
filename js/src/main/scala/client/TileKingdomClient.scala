@@ -94,6 +94,7 @@ object TileKingdomClient:
     container.appendChild(buildResources())
     container.appendChild(buildActions())
     container.appendChild(buildNotification())
+    container.appendChild(buildWelcomeBackModal())
     container.appendChild(buildHelpPopup())
     container.appendChild(buildDevToolsPopup())
 
@@ -154,6 +155,18 @@ object TileKingdomClient:
 
   private def buildNotification(): HTMLElement =
     div(id = "tile-kingdom-notification", cls = "notification")
+
+  private def buildWelcomeBackModal(): HTMLElement =
+    div(id = "tile-kingdom-welcome-modal", cls = "welcome-modal")(
+      div(cls = "welcome-modal-content")(
+        div(cls = "welcome-modal-header")(
+          h3(content = "👑 Welcome Back!")
+        ),
+        div(id = "welcome-modal-body", cls = "welcome-modal-body"),
+        button(id = "welcome-modal-close", cls = "btn-primary welcome-modal-close", content = "Continue").tap: btn =>
+          btn.onclick = (_: MouseEvent) => hideWelcomeBackModal()
+      )
+    )
 
   private def buildHelpPopup(): HTMLElement =
     div(id = "tile-kingdom-help-popup", cls = "help-popup")(
@@ -534,20 +547,12 @@ object TileKingdomClient:
           currentGame = TileKingdomLogic.tick(loadedGame, currentTime)
 
           val offlineSeconds = (currentTime - loadedGame.lastTickTime) / 1000.0
-          println(s"[TileKingdom] Offline for $offlineSeconds seconds")
           if offlineSeconds > 5 then
             val offlineWheat = (currentGame.wheat - loadedGame.wheat).toInt
             val offlineWood = (currentGame.wood - loadedGame.wood).toInt
             val offlineFaith = (currentGame.faith - loadedGame.faith).toInt
-            val gains = List(
-              if offlineWheat > 0 then Some(s"+$offlineWheat 🌾") else None,
-              if offlineWood > 0 then Some(s"+$offlineWood 🪵") else None,
-              if offlineFaith > 0 then Some(s"+$offlineFaith ✨") else None
-            ).flatten.mkString(" ")
-            println(s"[TileKingdom] Gains: '$gains'")
-            if gains.nonEmpty then
-              println(s"[TileKingdom] Showing notification...")
-              showNotification(s"Welcome back! $gains")
+            if offlineWheat > 0 || offlineWood > 0 || offlineFaith > 0 then
+              showWelcomeBackModal(offlineWheat, offlineWood, offlineFaith, offlineSeconds)
 
           println(s"[TileKingdom] Game loaded from localStorage")
         case None =>
@@ -1223,6 +1228,44 @@ object TileKingdomClient:
           notification.classList.remove("show"),
         3000
       )
+
+  private def showWelcomeBackModal(wheatGain: Int, woodGain: Int, faithGain: Int, offlineSeconds: Double): Unit =
+    getElementById("welcome-modal-body").foreach: body =>
+      body.innerHTML = ""
+      val timeAway = if offlineSeconds >= 3600 then
+        f"${offlineSeconds / 3600}%.1f hours"
+      else if offlineSeconds >= 60 then
+        f"${offlineSeconds / 60}%.0f minutes"
+      else
+        f"${offlineSeconds}%.0f seconds"
+      
+      body.appendChild(p(cls = "welcome-time", content = s"You were away for $timeAway"))
+      body.appendChild(div(cls = "welcome-subtitle", content = "Your kingdom produced:"))
+      
+      val gainsContainer = div(cls = "welcome-gains")
+      if wheatGain > 0 then
+        gainsContainer.appendChild(div(cls = "welcome-gain-item")(
+          span(cls = "welcome-gain-icon", content = "🌾"),
+          span(cls = "welcome-gain-value", content = f"+$wheatGain%,d")
+        ))
+      if woodGain > 0 then
+        gainsContainer.appendChild(div(cls = "welcome-gain-item")(
+          span(cls = "welcome-gain-icon", content = "🪵"),
+          span(cls = "welcome-gain-value", content = f"+$woodGain%,d")
+        ))
+      if faithGain > 0 then
+        gainsContainer.appendChild(div(cls = "welcome-gain-item")(
+          span(cls = "welcome-gain-icon", content = "✨"),
+          span(cls = "welcome-gain-value", content = f"+$faithGain%,d")
+        ))
+      body.appendChild(gainsContainer)
+    
+    getElementById("tile-kingdom-welcome-modal").foreach: modal =>
+      modal.classList.add("show")
+
+  private def hideWelcomeBackModal(): Unit =
+    getElementById("tile-kingdom-welcome-modal").foreach: modal =>
+      modal.classList.remove("show")
 
   private def updateProgressBars(): Unit =
     currentGame.unlockedTiles.filter(t => t.isWheatField || t.isWoodcutter || t.isBureau).foreach: tile =>
