@@ -437,7 +437,7 @@ object TerritoryClient:
     )
 
     // Track upgrades to show floating text after render
-    var bureauUpgrades: List[(Coord, Int, Coord, Int)] = List.empty // (upgradedCoord, newLevel, bureauCoord, wheatCost)
+    var bureauUpgrades: List[(Coord, Int, Coord, Int, Boolean)] = List.empty // (upgradedCoord, newLevel, bureauCoord, cost, isWoodCost)
 
     bureaus.foreach: tile =>
       val currentProgress = tileProgress.getOrElse(tile.coord, 0.0)
@@ -452,19 +452,17 @@ object TerritoryClient:
             updatedGame = newGame
             // Collect upgrade info to show after render
             val upgradedTile = updatedGame.tiles.get(upgradedCoord)
-            val upgradeCost = upgradedTile
-              .flatMap(t =>
-                TerritoryLogic.getUpgradeCost(t.copy(tileType = t.tileType match
-                  case TileType.WheatField(lvl) => TileType.WheatField(lvl - 1)
-                  case TileType.Farm(lvl)       => TileType.Farm(lvl - 1)
-                  case TileType.Woodcutter(lvl) => TileType.Woodcutter(lvl - 1)
-                  case TileType.Temple(lvl)     => TileType.Temple(lvl - 1)
-                  case other                    => other
-                ))
-              )
-              .getOrElse(0)
+            val previousTile = upgradedTile.map(t => t.copy(tileType = t.tileType match
+              case TileType.WheatField(lvl) => TileType.WheatField(lvl - 1)
+              case TileType.Farm(lvl)       => TileType.Farm(lvl - 1)
+              case TileType.Woodcutter(lvl) => TileType.Woodcutter(lvl - 1)
+              case TileType.Temple(lvl)     => TileType.Temple(lvl - 1)
+              case other                    => other
+            ))
+            val upgradeCost = previousTile.flatMap(TerritoryLogic.getUpgradeCost).getOrElse(0)
+            val isWoodCost = previousTile.exists(_.isTemple)
             val newLevel = upgradedTile.map(_.level).getOrElse(1)
-            bureauUpgrades = bureauUpgrades :+ (upgradedCoord, newLevel, tile.coord, upgradeCost)
+            bureauUpgrades = bureauUpgrades :+ (upgradedCoord, newLevel, tile.coord, upgradeCost, isWoodCost)
             tileProgress = tileProgress.updated(tile.coord, newProgress - 1.0) // Keep excess progress
           case None =>
             // No upgrade possible, keep progress at 1.0 to retry next tick
@@ -481,8 +479,9 @@ object TerritoryClient:
     if bureaus.nonEmpty then renderTiles()
 
     // Show floating text after render so elements exist
-    bureauUpgrades.foreach: (upgradedCoord, newLevel, bureauCoord, wheatCost) =>
-      showFloatingReward(upgradedCoord, wheatCost, "🌾", isSpend = true)
+    bureauUpgrades.foreach: (upgradedCoord, newLevel, bureauCoord, cost, isWoodCost) =>
+      val costEmoji = if isWoodCost then "🪵" else "🌾"
+      showFloatingReward(upgradedCoord, cost, costEmoji, isSpend = true)
       showFloatingLevel(upgradedCoord, newLevel)
       showFloatingReward(bureauCoord, TerritoryLogic.BureauWoodCostPerUpgrade, "🪵", isSpend = true)
 
