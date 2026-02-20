@@ -174,7 +174,7 @@ object TerritoryLogic:
 
   // Calculate farm bonus multiplier for a wheat field at given coord
   def farmBonusMultiplier(game: TerritoryGame, coord: Coord): Double =
-    val farmBonus = coord.neighbors.flatMap(game.tiles.get).collect:
+    val farmBonus = coord.neighbors.toList.flatMap(game.tiles.get).collect:
       case tile if tile.isFarm => tile.level * FarmBoostPerLevel
     .sum
     1.0 + farmBonus
