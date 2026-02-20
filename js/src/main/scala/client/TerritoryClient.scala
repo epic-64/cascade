@@ -595,28 +595,32 @@ object TerritoryClient:
             div(cls = "tile-content tile-build-options")(
               div(cls = "build-option").tap: opt =>
                 opt.appendChild(div(cls = "build-icon", content = "🌾"))
-                opt.appendChild(div(cls = "build-cost", content = s"$wheatCost"))
+                opt.appendChild(div(cls = "build-name", content = "Field"))
+                opt.appendChild(div(cls = "build-cost", content = s"$wheatCost🌾"))
                 opt.onclick = (e: MouseEvent) =>
                   e.stopPropagation()
                   handleBuildWheatField(coord)
               ,
               div(cls = "build-option").tap: opt =>
                 opt.appendChild(div(cls = "build-icon", content = "🏠"))
-                opt.appendChild(div(cls = "build-cost", content = s"$farmCost"))
+                opt.appendChild(div(cls = "build-name", content = "Farm"))
+                opt.appendChild(div(cls = "build-cost", content = s"$farmCost🌾"))
                 opt.onclick = (e: MouseEvent) =>
                   e.stopPropagation()
                   handleBuildFarm(coord)
               ,
               div(cls = "build-option").tap: opt =>
                 opt.appendChild(div(cls = "build-icon", content = "🪓"))
-                opt.appendChild(div(cls = "build-cost", content = s"$woodcutterCost"))
+                opt.appendChild(div(cls = "build-name", content = "Wood"))
+                opt.appendChild(div(cls = "build-cost", content = s"$woodcutterCost🌾"))
                 opt.onclick = (e: MouseEvent) =>
                   e.stopPropagation()
                   handleBuildWoodcutter(coord)
               ,
               div(cls = "build-option").tap: opt =>
                 opt.appendChild(div(cls = "build-icon", content = "🏛️"))
-                opt.appendChild(div(cls = "build-cost wood-cost", content = s"$bureauCost🪵"))
+                opt.appendChild(div(cls = "build-name", content = "Bureau"))
+                opt.appendChild(div(cls = "build-cost", content = s"$bureauCost🪵"))
                 opt.onclick = (e: MouseEvent) =>
                   e.stopPropagation()
                   handleBuildBureau(coord)
