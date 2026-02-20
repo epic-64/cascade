@@ -10,7 +10,7 @@ def initializeTileKingdom(): Unit =
 
 object TileKingdom:
 
-  private val StorageKey = "territory_game_state"
+  private val StorageKey = "tile_kingdom_game_state"
   private var currentGame: TileKingdomGame = TileKingdomLogic.newGame(System.currentTimeMillis())
   private var gameTickerHandle: Option[Int] = None
 
@@ -44,15 +44,15 @@ object TileKingdom:
   // ============================================================================
 
   def init(): Unit =
-    println("[TileKingdom] Initializing Territory Idle game")
+    println("[TileKingdom] Initializing Tile Kingdom game")
     loadGame()
     buildUI()
-    centerOnTerritory()
+    centerOnKingdom()
     renderGame()
     startGameTicker()
 
   def cleanup(): Unit =
-    println("[TileKingdom] Cleaning up Territory Idle game")
+    println("[TileKingdom] Cleaning up Tile Kingdom game")
     stopGameTicker()
 
   // ============================================================================
@@ -60,15 +60,15 @@ object TileKingdom:
   // ============================================================================
 
   private def buildUI(): Unit =
-    val container = getElementById("territory-container").getOrElse:
-      document.body.appendChild(div(id = "territory-container", cls = "territory-container"))
-      document.getElementById("territory-container").asInstanceOf[HTMLElement]
+    val container = getElementById("tile-kingdom-container").getOrElse:
+      document.body.appendChild(div(id = "tile-kingdom-container", cls = "tile-kingdom-container"))
+      document.getElementById("tile-kingdom-container").asInstanceOf[HTMLElement]
 
     container.innerHTML = ""
 
     // Grid viewport (draggable area)
-    val viewport = div(id = "territory-grid-viewport", cls = "territory-grid-viewport")
-    viewport.appendChild(div(id = "territory-grid", cls = "territory-grid"))
+    val viewport = div(id = "tile-kingdom-grid-viewport", cls = "tile-kingdom-grid-viewport")
+    viewport.appendChild(div(id = "tile-kingdom-grid", cls = "tile-kingdom-grid"))
     container.appendChild(viewport)
 
     // Overlay UI elements
@@ -83,55 +83,55 @@ object TileKingdom:
     setupDragHandlers(viewport)
 
   private def buildHeader(): HTMLElement =
-    div(cls = "territory-header")(
-      h1(content = "🏰 Territory Idle"),
+    div(cls = "tile-kingdom-header")(
+      h1(content = "🏰 Tile Kingdom"),
       button(cls = "help-button", content = "?").tap: btn =>
         btn.onclick = (_: MouseEvent) => toggleHelpPopup()
     )
 
   private def buildResources(): HTMLElement =
-    div(cls = "territory-resources")(
+    div(cls = "tile-kingdom-resources")(
       div(cls = "resource-item")(
         span(cls = "resource-label", content = "🌾"),
-        span(id = "territory-wheat", cls = "resource-value", content = "0")
+        span(id = "tile-kingdom-wheat", cls = "resource-value", content = "0")
       ),
       div(cls = "resource-item")(
         span(cls = "resource-label", content = "🪵"),
-        span(id = "territory-wood", cls = "resource-value", content = "0")
+        span(id = "tile-kingdom-wood", cls = "resource-value", content = "0")
       ),
       div(cls = "resource-item")(
         span(cls = "resource-label", content = "✨"),
-        span(id = "territory-faith", cls = "resource-value", content = "0")
+        span(id = "tile-kingdom-faith", cls = "resource-value", content = "0")
       ),
       div(cls = "resource-item")(
         span(cls = "resource-label", content = "💰"),
-        span(id = "territory-gold", cls = "resource-value", content = "0")
+        span(id = "tile-kingdom-gold", cls = "resource-value", content = "0")
       ),
       div(cls = "resource-item")(
         span(cls = "resource-label", content = "👑"),
-        span(id = "territory-abdications", cls = "resource-value", content = "0")
+        span(id = "tile-kingdom-abdications", cls = "resource-value", content = "0")
       )
     )
 
   private def buildActions(): HTMLElement =
-    div(cls = "territory-actions")(
-      button(id = "territory-abdicate-btn", cls = "btn-primary disabled", content = "Abdicate").tap: btn =>
+    div(cls = "tile-kingdom-actions")(
+      button(id = "tile-kingdom-abdicate-btn", cls = "btn-primary disabled", content = "Abdicate").tap: btn =>
         btn.disabled = true
         btn.onclick = (_: MouseEvent) => handleAbdicate()
       ,
-      button(id = "territory-center-btn", cls = "btn-secondary", content = "⌖ Center").tap: btn =>
-        btn.onclick = (_: MouseEvent) => centerOnTerritory(animated = true),
-      button(id = "territory-reset-btn", cls = "btn-danger", content = "Reset").tap: btn =>
+      button(id = "tile-kingdom-center-btn", cls = "btn-secondary", content = "⌖ Center").tap: btn =>
+        btn.onclick = (_: MouseEvent) => centerOnKingdom(animated = true),
+      button(id = "tile-kingdom-reset-btn", cls = "btn-danger", content = "Reset").tap: btn =>
         btn.onclick = (_: MouseEvent) => handleResetGame(),
-      button(id = "territory-dev-btn", cls = "btn-dev", content = "🛠️ Dev").tap: btn =>
+      button(id = "tile-kingdom-dev-btn", cls = "btn-dev", content = "🛠️ Dev").tap: btn =>
         btn.onclick = (_: MouseEvent) => toggleDevTools()
     )
 
   private def buildNotification(): HTMLElement =
-    div(id = "territory-notification", cls = "notification")
+    div(id = "tile-kingdom-notification", cls = "notification")
 
   private def buildHelpPopup(): HTMLElement =
-    div(id = "territory-help-popup", cls = "help-popup")(
+    div(id = "tile-kingdom-help-popup", cls = "help-popup")(
       div(cls = "help-popup-content")(
         div(cls = "help-popup-header")(
           h3(content = "How to Play"),
@@ -153,7 +153,7 @@ object TileKingdom:
     )
 
   private def buildDevToolsPopup(): HTMLElement =
-    div(id = "territory-dev-popup", cls = "help-popup")(
+    div(id = "tile-kingdom-dev-popup", cls = "help-popup")(
       div(cls = "help-popup-content dev-tools-content")(
         div(cls = "help-popup-header")(
           h3(content = "🛠️ Dev Tools"),
@@ -193,11 +193,11 @@ object TileKingdom:
     )
 
   private def toggleDevTools(): Unit =
-    getElementById("territory-dev-popup").foreach: popup =>
+    getElementById("tile-kingdom-dev-popup").foreach: popup =>
       popup.classList.toggle("show")
 
   private def toggleHelpPopup(): Unit =
-    getElementById("territory-help-popup").foreach: popup =>
+    getElementById("tile-kingdom-help-popup").foreach: popup =>
       popup.classList.toggle("show")
 
   // ============================================================================
@@ -225,7 +225,7 @@ object TileKingdom:
     document.onmouseup = (e: MouseEvent) =>
       if isDragging then
         isDragging = false
-        getElementById("territory-grid-viewport").foreach(_.asInstanceOf[HTMLElement].style.cursor = "grab")
+        getElementById("tile-kingdom-grid-viewport").foreach(_.asInstanceOf[HTMLElement].style.cursor = "grab")
         snapBackIfNeeded()
 
     // Touch support
@@ -288,10 +288,10 @@ object TileKingdom:
     )
 
   private def updateGridPosition(): Unit =
-    getElementById("territory-grid").foreach: grid =>
+    getElementById("tile-kingdom-grid").foreach: grid =>
       grid.asInstanceOf[HTMLElement].style.transform = s"translate(${panOffsetX}px, ${panOffsetY}px)"
 
-  private def centerOnTerritory(animated: Boolean = false): Unit =
+  private def centerOnKingdom(animated: Boolean = false): Unit =
     val target = calculateCenterOffset()
     if animated then
       animateTo(target)
@@ -317,7 +317,7 @@ object TileKingdom:
     if !anyVisible then
       // Animate snap back to center
       animateTo(calculateCenterOffset())
-      showNotification("Snapped back to territory")
+      showNotification("Snapped back to kingdom")
 
   private def calculateCenterOffset(): (Double, Double) =
     val unlockedCoords = currentGame.unlockedTiles.map(_.coord)
@@ -534,14 +534,14 @@ object TileKingdom:
     renderAbdicationButton()
 
   private def renderResources(): Unit =
-    setElementText("territory-wheat", f"${currentGame.wheat.toInt}%,d")
-    setElementText("territory-wood", f"${currentGame.wood.toInt}%,d")
-    setElementText("territory-faith", f"${currentGame.faith.toInt}%,d")
-    setElementText("territory-gold", f"${currentGame.gold}%,d")
-    setElementText("territory-abdications", currentGame.totalAbdications.toString)
+    setElementText("tile-kingdom-wheat", f"${currentGame.wheat.toInt}%,d")
+    setElementText("tile-kingdom-wood", f"${currentGame.wood.toInt}%,d")
+    setElementText("tile-kingdom-faith", f"${currentGame.faith.toInt}%,d")
+    setElementText("tile-kingdom-gold", f"${currentGame.gold}%,d")
+    setElementText("tile-kingdom-abdications", currentGame.totalAbdications.toString)
 
   private def renderTiles(): Unit =
-    getElementById("territory-grid").foreach: gridContainer =>
+    getElementById("tile-kingdom-grid").foreach: gridContainer =>
       gridContainer.innerHTML = ""
       val grid = gridContainer.asInstanceOf[HTMLElement]
 
@@ -594,7 +594,7 @@ object TileKingdom:
 
   private def renderTile(tile: Tile): HTMLElement =
     val coord = tile.coord
-    val tileDiv = div(id = s"tile-${coord.row}-${coord.col}", cls = "territory-tile")
+    val tileDiv = div(id = s"tile-${coord.row}-${coord.col}", cls = "tile-kingdom-tile")
     val tilePixelSize = (70 * zoomLevel).toInt
     // Scale font size with zoom, but clamp to reasonable range
     val fontScale = math.max(0.6, math.min(1.0, zoomLevel))
@@ -852,7 +852,7 @@ object TileKingdom:
     tileDiv
 
   private def renderUnlockableTile(coord: Coord): HTMLElement =
-    val tileDiv = div(id = s"tile-${coord.row}-${coord.col}", cls = "territory-tile locked unlockable")
+    val tileDiv = div(id = s"tile-${coord.row}-${coord.col}", cls = "tile-kingdom-tile locked unlockable")
     val tilePixelSize = (70 * zoomLevel).toInt
     val fontScale = math.max(0.6, math.min(1.0, zoomLevel))
 
@@ -875,7 +875,7 @@ object TileKingdom:
     tileDiv
 
   private def renderAbdicationButton(): Unit =
-    getElementById("territory-abdicate-btn").foreach: elem =>
+    getElementById("tile-kingdom-abdicate-btn").foreach: elem =>
       val btn = elem.asInstanceOf[HTMLButtonElement]
       if currentGame.allTilesFilled then
         btn.disabled = false
@@ -1106,7 +1106,7 @@ object TileKingdom:
       currentGame = TileKingdomLogic.newGame(System.currentTimeMillis())
       tileProgress = Map.empty
       saveGame()
-      centerOnTerritory()
+      centerOnKingdom()
       renderGame()
       showNotification("Game reset!")
 
@@ -1118,7 +1118,7 @@ object TileKingdom:
     getElementById(id).foreach(_.textContent = text)
 
   private def showNotification(message: String): Unit =
-    getElementById("territory-notification").foreach: notification =>
+    getElementById("tile-kingdom-notification").foreach: notification =>
       notification.textContent = message
       notification.classList.add("show")
       window.setTimeout(
