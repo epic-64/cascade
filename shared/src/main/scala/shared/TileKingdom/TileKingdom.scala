@@ -24,11 +24,11 @@ case class Resources(
     case Resource.Gold  => gold.toDouble
 
   def canAfford(cost: Cost): Boolean = get(cost.resource) >= cost.amount
-  
+
   def canAfford(cost: Int, resource: Resource): Boolean = get(resource) >= cost
 
   def deduct(cost: Cost): Resources = deduct(cost.amount, cost.resource)
-  
+
   def deduct(amount: Int, resource: Resource): Resources = resource match
     case Resource.Wheat => copy(wheat = wheat - amount)
     case Resource.Wood  => copy(wood = wood - amount)
@@ -142,11 +142,11 @@ case class TileKingdomGame(
 
   // Resource helpers
   def resources: Resources = Resources(wheat, wood, faith, gold)
-  
+
   def canAfford(cost: Cost): Boolean = resources.canAfford(cost)
-  
+
   def canAfford(amount: Int, resource: Resource): Boolean = resources.canAfford(amount, resource)
-  
+
   def deduct(cost: Cost): TileKingdomGame = cost.resource match
     case Resource.Wheat => copy(wheat = wheat - cost.amount)
     case Resource.Wood  => copy(wood = wood - cost.amount)
@@ -342,16 +342,14 @@ object TileKingdomLogic:
   def templeLevelUpCost(currentLevel: Int): Int =
     currentLevel * 50 * tierMultiplier(currentLevel) // Level 1→2 costs 50 wood, 2→3 costs 100 wood, etc.
 
-
-  // Legacy alias
-  def levelUpCost(currentLevel: Int): Int = wheatFieldLevelUpCost(currentLevel)
-
-  // Cost to unlock next tile (exponential, capped to prevent overflow)
+  // Cost to unlock next tile (linear with tier multiplier every 10 tiles)
   def tileUnlockCost(currentUnlockedCount: Int): Int =
     val tilesAfterInitial = math.max(0, currentUnlockedCount - InitialTileCount)
     if tilesAfterInitial == 0 then 100
-    else if tilesAfterInitial >= 20 then 100_000_000 // Cap at 100 million
-    else 100 * math.pow(2, tilesAfterInitial).toInt
+    else
+      val tier = tilesAfterInitial / 10
+      val multiplier = math.pow(3, tier).toInt
+      100 + tilesAfterInitial * 50 * multiplier
 
   // Gold reward for abdication based on total income rate
   def abdicationReward(totalIncomeRate: Double): Int =
