@@ -26,6 +26,14 @@ object TileKingdomClient:
   private val ProductionIntervalMs: Double = TileKingdomLogic.ProductionIntervalSeconds * 1000.0
   private val BureauIntervalMs: Double = TileKingdomLogic.BureauIntervalSeconds * 1000.0
 
+  // Get or create an initial offset for a tile (0.0 to 1.0)
+  private def getOrInitProgress(coord: Coord): Double =
+    tileProgress.getOrElse(coord, {
+      val offset = scala.util.Random.nextDouble()
+      tileProgress = tileProgress.updated(coord, offset)
+      offset
+    })
+
   // Panning state
   private var panOffsetX: Double = 0.0
   private var panOffsetY: Double = 0.0
@@ -401,7 +409,7 @@ object TileKingdomClient:
 
     // Process wheat fields
     wheatFields.foreach: tile =>
-      val currentProgress = tileProgress.getOrElse(tile.coord, 0.0)
+      val currentProgress = getOrInitProgress(tile.coord)
       val progressIncrement = elapsedMs / ProductionIntervalMs
       val newProgress = currentProgress + progressIncrement
 
@@ -416,7 +424,7 @@ object TileKingdomClient:
 
     // Process woodcutters
     woodcutters.foreach: tile =>
-      val currentProgress = tileProgress.getOrElse(tile.coord, 0.0)
+      val currentProgress = getOrInitProgress(tile.coord)
       val progressIncrement = elapsedMs / ProductionIntervalMs
       val newProgress = currentProgress + progressIncrement
 
@@ -431,7 +439,7 @@ object TileKingdomClient:
 
     // Process temples
     temples.foreach: tile =>
-      val currentProgress = tileProgress.getOrElse(tile.coord, 0.0)
+      val currentProgress = getOrInitProgress(tile.coord)
       val progressIncrement = elapsedMs / ProductionIntervalMs
       val newProgress = currentProgress + progressIncrement
 
@@ -457,7 +465,7 @@ object TileKingdomClient:
     var bureauUpgrades: List[(Coord, Int, Coord, Int, Resource)] = List.empty // (upgradedCoord, newLevel, bureauCoord, cost, costResource)
 
     bureaus.foreach: tile =>
-      val currentProgress = tileProgress.getOrElse(tile.coord, 0.0)
+      val currentProgress = getOrInitProgress(tile.coord)
       val speedMultiplier = TileKingdomLogic.bureauSpeedMultiplier(currentGame, tile.coord)
       val progressIncrement = elapsedMs / BureauIntervalMs * speedMultiplier
       val newProgress = currentProgress + progressIncrement
