@@ -6,9 +6,9 @@ import scala.util.chaining.*
 import shared.TileKingdom.*
 
 def initializeTileKingdom(): Unit =
-  TileKingdom.init()
+  TileKingdomClient.init()
 
-object TileKingdom:
+object TileKingdomClient:
 
   private val StorageKey = "tile_kingdom_game_state"
   private var currentGame: TileKingdomGame = TileKingdomLogic.newGame(System.currentTimeMillis())
