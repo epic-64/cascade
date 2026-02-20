@@ -462,6 +462,33 @@
   font-weight: 600;
 }
 
+.tile-upgrade-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.btn-x10 {
+  font-size: 0.5rem;
+  font-weight: 700;
+  padding: 1px 4px;
+  border: none;
+  border-radius: 3px;
+  background: linear-gradient(135deg, #818cf8 0%, #6366f1 100%);
+  color: white;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.btn-x10:hover {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  transform: scale(1.1);
+}
+
 .tile-production {
   font-size: 0.65rem;
   color: #166534;
