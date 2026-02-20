@@ -31,6 +31,7 @@ enum TileType derives ReadWriter:
   case Farm(level: Int) // boosts nearby wheat fields
   case Woodcutter(level: Int) // produces wood
   case Bureau(level: Int) // auto-upgrades nearby buildings, costs wood
+  case Temple(level: Int) // produces faith, costs wood
 
 // ============================================================================
 // Tile
@@ -61,15 +62,20 @@ case class Tile(
     case TileType.Bureau(_) => true
     case _                  => false
 
-  def isBuilding: Boolean = isWheatField || isFarm || isWoodcutter || isBureau
+  def isTemple: Boolean = tileType match
+    case TileType.Temple(_) => true
+    case _                  => false
 
-  def isUpgradeable: Boolean = isWheatField || isFarm || isWoodcutter
+  def isBuilding: Boolean = isWheatField || isFarm || isWoodcutter || isBureau || isTemple
+
+  def isUpgradeable: Boolean = isWheatField || isFarm || isWoodcutter || isTemple
 
   def level: Int = tileType match
     case TileType.WheatField(lvl) => lvl
     case TileType.Farm(lvl)       => lvl
     case TileType.Woodcutter(lvl) => lvl
     case TileType.Bureau(lvl)     => lvl
+    case TileType.Temple(lvl)     => lvl
     case _                        => 0
 
 // ============================================================================
@@ -80,9 +86,11 @@ case class TerritoryGame(
     tiles: Map[Coord, Tile],
     wheat: Double, // Can be fractional for smooth accumulation
     wood: Double, // Wood resource
+    faith: Double, // Faith resource from temples
     gold: Int,
     lastTickTime: Long, // Timestamp in milliseconds for offline progress
     totalAbdications: Int,
+    bureauBoosts: Map[Coord, Int] = Map.empty, // Number of faith boosts applied to each bureau
     upgradeCooldowns: Map[Coord, Long] = Map.empty // Deprecated, kept for save compatibility
 ) derives ReadWriter:
 
@@ -124,6 +132,11 @@ object TerritoryLogic:
   val BureauRadius: Int = 2 // Bureau affects tiles within 2 tile radius
   val BureauWoodCostPerUpgrade: Int = 100 // Wood cost for each auto-upgrade
   val ForestGroupBonusPerTile: Double = 0.10 // 10% bonus per connected woodcutter
+
+  // Temple constants
+  val TempleBuildCost: Int = 200 // Wood cost to build a temple
+  val FaithBoostCost: Int = 100 // Faith cost to boost a bureau
+  val FaithBoostMultiplier: Double = 10.0 // Each boost increases bureau speed by 1000%
 
   // Initial 2x2 tiles at origin (center of infinite grid)
   val InitialUnlockedCoords: Set[Coord] = Set(
@@ -168,12 +181,18 @@ object TerritoryLogic:
     case TileType.Woodcutter(level) => level * 3.0 // 3 wood at level 1, 6 at level 2, etc. (per 10s)
     case _                          => 0.0
 
+  // Base faith production per harvest (faith per 10-second interval)
+  def baseFaithProductionRate(tile: Tile): Double = tile.tileType match
+    case TileType.Temple(level) => level * 2.0 // 2 faith at level 1, 4 at level 2, etc. (per 10s)
+    case _                      => 0.0
+
   // Legacy alias
   def baseProductionRate(tile: Tile): Double = baseWheatProductionRate(tile)
 
   // Production rate per second (for display and total income calculation)
   def productionPerSecond(tile: Tile): Double = baseWheatProductionRate(tile) / ProductionIntervalSeconds
   def woodProductionPerSecond(tile: Tile): Double = baseWoodProductionRate(tile) / ProductionIntervalSeconds
+  def faithProductionPerSecond(tile: Tile): Double = baseFaithProductionRate(tile) / ProductionIntervalSeconds
 
   // Calculate farm bonus multiplier for a wheat field at given coord
   def farmBonusMultiplier(game: TerritoryGame, coord: Coord): Double =
@@ -209,6 +228,10 @@ object TerritoryLogic:
     if base > 0 then base * forestGroupBonusMultiplier(game, tile.coord)
     else 0.0
 
+  // Faith production per harvest for a specific tile
+  def faithProductionPerHarvest(tile: Tile): Double =
+    baseFaithProductionRate(tile)
+
   // Total production rate for the game (all wheat fields with bonuses)
   def totalProductionRate(game: TerritoryGame): Double =
     game.unlockedTiles.map(tile => productionRate(game, tile)).sum
@@ -229,6 +252,9 @@ object TerritoryLogic:
   // Cost to build a bureau on an empty tile (costs wood, not wheat)
   def bureauBuildCost: Int = 500
 
+  // Cost to build a temple on an empty tile (costs wood)
+  def templeBuildCost: Int = TempleBuildCost
+
   // Legacy alias
   def buildCost: Int = wheatFieldBuildCost
 
@@ -244,11 +270,16 @@ object TerritoryLogic:
   def woodcutterLevelUpCost(currentLevel: Int): Int =
     currentLevel * 25 // Level 1→2 costs 25, 2→3 costs 50, etc.
 
-  // Get upgrade cost for any upgradeable tile (returns wheat cost)
+  // Cost to level up a temple (costs wood)
+  def templeLevelUpCost(currentLevel: Int): Int =
+    currentLevel * 50 // Level 1→2 costs 50 wood, 2→3 costs 100 wood, etc.
+
+  // Get upgrade cost for any upgradeable tile (returns wheat cost, except temple which costs wood)
   def getUpgradeCost(tile: Tile): Option[Int] = tile.tileType match
     case TileType.WheatField(level) => Some(wheatFieldLevelUpCost(level))
     case TileType.Farm(level)       => Some(farmLevelUpCost(level))
     case TileType.Woodcutter(level) => Some(woodcutterLevelUpCost(level))
+    case TileType.Temple(level)     => Some(templeLevelUpCost(level))
     case _                          => None
 
   // Legacy alias
@@ -279,6 +310,7 @@ object TerritoryLogic:
       tiles = initialTiles,
       wheat = 50.0, // Start with some wheat to build first field
       wood = 0.0,
+      faith = 0.0,
       gold = 0,
       lastTickTime = currentTimeMillis,
       totalAbdications = 0
@@ -353,6 +385,21 @@ object TerritoryLogic:
           wood = game.wood - bureauBuildCost
         ))
 
+  // Build a temple on an empty tile (costs wood, requires at least one wheat field)
+  def buildTemple(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+    game.tiles.get(coord) match
+      case None                                       => Left("Tile not found")
+      case Some(tile) if !tile.unlocked               => Left("Tile is locked")
+      case Some(tile) if !tile.isEmpty                => Left("Tile is not empty")
+      case Some(_) if !game.hasWheatField             => Left("Build a wheat field first")
+      case Some(tile) if game.wood < templeBuildCost  => Left(s"Not enough wood (need $templeBuildCost)")
+      case Some(tile) =>
+        val updatedTile = tile.copy(tileType = TileType.Temple(1))
+        Right(game.copy(
+          tiles = game.tiles.updated(coord, updatedTile),
+          wood = game.wood - templeBuildCost
+        ))
+
   // Level up a wheat field
   def levelUpWheatField(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
     game.tiles.get(coord) match
@@ -403,6 +450,41 @@ object TerritoryLogic:
                 wheat = game.wheat - cost
               ))
           case _ => Left("Tile is not a woodcutter")
+
+  // Level up a temple (costs wood)
+  def levelUpTemple(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+    game.tiles.get(coord) match
+      case None => Left("Tile not found")
+      case Some(tile) => tile.tileType match
+          case TileType.Temple(level) =>
+            val cost = templeLevelUpCost(level)
+            if game.wood < cost then
+              Left(s"Not enough wood (need $cost)")
+            else
+              val updatedTile = tile.copy(tileType = TileType.Temple(level + 1))
+              Right(game.copy(
+                tiles = game.tiles.updated(coord, updatedTile),
+                wood = game.wood - cost
+              ))
+          case _ => Left("Tile is not a temple")
+
+  // Boost a bureau's speed with faith
+  def boostBureau(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+    game.tiles.get(coord) match
+      case None => Left("Tile not found")
+      case Some(tile) if !tile.isBureau => Left("Tile is not a bureau")
+      case Some(_) if game.faith < FaithBoostCost => Left(s"Not enough faith (need $FaithBoostCost)")
+      case Some(_) =>
+        val currentBoosts = game.bureauBoosts.getOrElse(coord, 0)
+        Right(game.copy(
+          faith = game.faith - FaithBoostCost,
+          bureauBoosts = game.bureauBoosts.updated(coord, currentBoosts + 1)
+        ))
+
+  // Get bureau speed multiplier (1.0 = normal, 11.0 = 1 boost, 21.0 = 2 boosts, etc.)
+  def bureauSpeedMultiplier(game: TerritoryGame, bureauCoord: Coord): Double =
+    val boosts = game.bureauBoosts.getOrElse(bureauCoord, 0)
+    1.0 + boosts * FaithBoostMultiplier
 
   // Bureau auto-upgrade: upgrade the tile with lowest upgrade cost within radius
   // Returns updated game and the coord that was upgraded (if any)
@@ -468,9 +550,11 @@ object TerritoryLogic:
         tiles = resetTiles,
         wheat = 50.0, // Reset wheat, give starting amount
         wood = 0.0, // Reset wood
+        faith = 0.0, // Reset faith
         gold = game.gold + goldReward,
         lastTickTime = currentTimeMillis,
-        totalAbdications = game.totalAbdications + 1
+        totalAbdications = game.totalAbdications + 1,
+        bureauBoosts = Map.empty // Reset bureau boosts since bureaus are destroyed
       ))
 
   // Get all coords that can be unlocked (coords adjacent to unlocked tiles that aren't already tiles)

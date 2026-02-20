@@ -100,6 +100,10 @@ object TerritoryClient:
         span(id = "territory-wood", cls = "resource-value", content = "0")
       ),
       div(cls = "resource-item")(
+        span(cls = "resource-label", content = "✨"),
+        span(id = "territory-faith", cls = "resource-value", content = "0")
+      ),
+      div(cls = "resource-item")(
         span(cls = "resource-label", content = "💰"),
         span(id = "territory-gold", cls = "resource-value", content = "0")
       ),
@@ -372,9 +376,11 @@ object TerritoryClient:
     // Update progress for each producing tile and collect harvests
     var totalWheatHarvested = 0.0
     var totalWoodHarvested = 0.0
+    var totalFaithHarvested = 0.0
 
     val wheatFields = currentGame.unlockedTiles.filter(_.isWheatField)
     val woodcutters = currentGame.unlockedTiles.filter(_.isWoodcutter)
+    val temples = currentGame.unlockedTiles.filter(_.isTemple)
 
     // Process wheat fields
     wheatFields.foreach: tile =>
@@ -406,11 +412,27 @@ object TerritoryClient:
       else
         tileProgress = tileProgress.updated(tile.coord, newProgress)
 
+    // Process temples
+    temples.foreach: tile =>
+      val currentProgress = tileProgress.getOrElse(tile.coord, 0.0)
+      val progressIncrement = elapsedMs / ProductionIntervalMs
+      val newProgress = currentProgress + progressIncrement
+
+      if newProgress >= 1.0 then
+        val harvests = newProgress.toInt
+        val production = TerritoryLogic.faithProductionPerHarvest(tile)
+        totalFaithHarvested += production * harvests
+        tileProgress = tileProgress.updated(tile.coord, newProgress - harvests)
+        showFloatingReward(tile.coord, (production * harvests).toInt, "✨")
+      else
+        tileProgress = tileProgress.updated(tile.coord, newProgress)
+
     // Process bureaus
     val bureaus = currentGame.unlockedTiles.filter(_.isBureau)
     var updatedGame = currentGame.copy(
       wheat = currentGame.wheat + totalWheatHarvested,
       wood = currentGame.wood + totalWoodHarvested,
+      faith = currentGame.faith + totalFaithHarvested,
       lastTickTime = currentTime
     )
 
@@ -419,7 +441,8 @@ object TerritoryClient:
 
     bureaus.foreach: tile =>
       val currentProgress = tileProgress.getOrElse(tile.coord, 0.0)
-      val progressIncrement = elapsedMs / BureauIntervalMs
+      val speedMultiplier = TerritoryLogic.bureauSpeedMultiplier(currentGame, tile.coord)
+      val progressIncrement = elapsedMs / BureauIntervalMs * speedMultiplier
       val newProgress = currentProgress + progressIncrement
 
       if newProgress >= 1.0 then
@@ -435,13 +458,14 @@ object TerritoryClient:
                   case TileType.WheatField(lvl) => TileType.WheatField(lvl - 1)
                   case TileType.Farm(lvl)       => TileType.Farm(lvl - 1)
                   case TileType.Woodcutter(lvl) => TileType.Woodcutter(lvl - 1)
+                  case TileType.Temple(lvl)     => TileType.Temple(lvl - 1)
                   case other                    => other
                 ))
               )
               .getOrElse(0)
             val newLevel = upgradedTile.map(_.level).getOrElse(1)
             bureauUpgrades = bureauUpgrades :+ (upgradedCoord, newLevel, tile.coord, upgradeCost)
-            tileProgress = tileProgress.updated(tile.coord, 0.0) // Reset progress after successful upgrade
+            tileProgress = tileProgress.updated(tile.coord, newProgress - 1.0) // Keep excess progress
           case None =>
             // No upgrade possible, keep progress at 1.0 to retry next tick
             tileProgress = tileProgress.updated(tile.coord, 1.0)
@@ -513,6 +537,7 @@ object TerritoryClient:
   private def renderResources(): Unit =
     setElementText("territory-wheat", f"${currentGame.wheat.toInt}%,d")
     setElementText("territory-wood", f"${currentGame.wood.toInt}%,d")
+    setElementText("territory-faith", f"${currentGame.faith.toInt}%,d")
     setElementText("territory-gold", f"${currentGame.gold}%,d")
     setElementText("territory-abdications", currentGame.totalAbdications.toString)
 
@@ -588,11 +613,12 @@ object TerritoryClient:
         val farmCost = TerritoryLogic.farmBuildCost
         val woodcutterCost = TerritoryLogic.woodcutterBuildCost
         val bureauCost = TerritoryLogic.bureauBuildCost
+        val templeCost = TerritoryLogic.templeBuildCost
         val canBuildOthers = currentGame.hasWheatField
 
         // Build options container (hidden by default, shown on hover via CSS)
         val buildOptions = div(cls = "tile-build-options")
-        
+
         buildOptions.appendChild(div(cls = "build-option").tap: opt =>
           opt.appendChild(div(cls = "build-icon", content = "🌾"))
           opt.appendChild(div(cls = "build-name", content = "Field"))
@@ -601,7 +627,7 @@ object TerritoryClient:
             e.stopPropagation()
             handleBuildWheatField(coord)
         )
-        
+
         if canBuildOthers then
           buildOptions.appendChild(div(cls = "build-option").tap: opt =>
             opt.appendChild(div(cls = "build-icon", content = "🏠"))
@@ -627,7 +653,15 @@ object TerritoryClient:
               e.stopPropagation()
               handleBuildBureau(coord)
           )
-        
+          buildOptions.appendChild(div(cls = "build-option").tap: opt =>
+            opt.appendChild(div(cls = "build-icon", content = "⛪"))
+            opt.appendChild(div(cls = "build-name", content = "Temple"))
+            opt.appendChild(div(cls = "build-cost", content = s"$templeCost🪵"))
+            opt.onclick = (e: MouseEvent) =>
+              e.stopPropagation()
+              handleBuildTemple(coord)
+          )
+
         tileDiv.appendChild(buildOptions)
 
       case TileType.WheatField(level) =>
@@ -648,7 +682,7 @@ object TerritoryClient:
           val bonusPercent = ((bonusMultiplier - 1) * 100).toInt
           prodDiv.appendChild(span(cls = "bonus", content = s" +$bonusPercent%"))
         content.appendChild(prodDiv)
-        
+
         val upgradeRow = div(cls = "tile-upgrade-row")
         upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost"))
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
@@ -684,7 +718,7 @@ object TerritoryClient:
           div(cls = "tile-label", content = s"Lv$level"),
           div(cls = "tile-production", content = s"+$boostPercent%")
         )
-        
+
         val upgradeRow = div(cls = "tile-upgrade-row")
         upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost"))
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
@@ -693,7 +727,7 @@ object TerritoryClient:
             handleBulkLevelUp(coord, 10, TerritoryLogic.levelUpFarm, TerritoryLogic.farmLevelUpCost)
         )
         content.appendChild(upgradeRow)
-        
+
         tileDiv.appendChild(content)
         tileDiv.onclick = (_: MouseEvent) => handleLevelUpFarm(coord)
         tileDiv.oncontextmenu = (e: MouseEvent) =>
@@ -717,7 +751,7 @@ object TerritoryClient:
           val bonusPercent = ((forestBonus - 1) * 100).toInt
           prodDiv.appendChild(span(cls = "bonus forest-bonus", content = s" +$bonusPercent%"))
         content.appendChild(prodDiv)
-        
+
         val upgradeRow = div(cls = "tile-upgrade-row")
         upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost"))
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
@@ -746,13 +780,24 @@ object TerritoryClient:
       case TileType.Bureau(level) =>
         tileDiv.classList.add("bureau")
         tileDiv.setAttribute("data-level", level.toString)
+        val boosts = currentGame.bureauBoosts.getOrElse(coord, 0)
+        val speedMultiplier = TerritoryLogic.bureauSpeedMultiplier(currentGame, coord)
 
         val content = div(cls = "tile-content")(
           div(cls = "tile-icon", content = "🏛️"),
-          div(cls = "tile-label", content = s"Bureau")
+          div(cls = "tile-label", content = if boosts > 0 then s"x${speedMultiplier.toInt}" else "Bureau")
         )
 
         content.appendChild(div(cls = "tile-production", content = s"Auto⬆"))
+        
+        // Add boost button if player has enough faith
+        val boostRow = div(cls = "tile-upgrade-row")
+        boostRow.appendChild(button(cls = "btn-boost", content = s"⚡${TerritoryLogic.FaithBoostCost}✨").tap: btn =>
+          btn.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            handleBoostBureau(coord)
+        )
+        content.appendChild(boostRow)
 
         tileDiv.appendChild(content)
 
@@ -764,6 +809,43 @@ object TerritoryClient:
         progressContainer.appendChild(progressBar)
         tileDiv.appendChild(progressContainer)
 
+        tileDiv.oncontextmenu = (e: MouseEvent) =>
+          e.preventDefault()
+          handleDestroyBuilding(coord)
+
+      case TileType.Temple(level) =>
+        tileDiv.classList.add("temple")
+        tileDiv.setAttribute("data-level", level.toString)
+        val faithAmount = TerritoryLogic.faithProductionPerHarvest(tile)
+        val upgradeCost = TerritoryLogic.templeLevelUpCost(level)
+
+        val content = div(cls = "tile-content")(
+          div(cls = "tile-icon", content = "⛪"),
+          div(cls = "tile-label", content = s"Lv$level")
+        )
+
+        content.appendChild(div(cls = "tile-production temple-production", content = s"+${faithAmount.toInt}✨"))
+
+        val upgradeRow = div(cls = "tile-upgrade-row")
+        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost🪵"))
+        upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
+          btn.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            handleBulkLevelUpTemple(coord, 10)
+        )
+        content.appendChild(upgradeRow)
+
+        tileDiv.appendChild(content)
+
+        // Add progress bar
+        val progress = tileProgress.getOrElse(coord, 0.0)
+        val progressContainer = div(cls = "tile-progress-container")
+        val progressBar = div(id = s"progress-bar-${coord.row}-${coord.col}", cls = "tile-progress-bar temple-progress")
+        progressBar.style.width = s"${(progress * 100).toInt}%"
+        progressContainer.appendChild(progressBar)
+        tileDiv.appendChild(progressContainer)
+
+        tileDiv.onclick = (_: MouseEvent) => handleLevelUpTemple(coord)
         tileDiv.oncontextmenu = (e: MouseEvent) =>
           e.preventDefault()
           handleDestroyBuilding(coord)
@@ -854,6 +936,17 @@ object TerritoryClient:
       case Left(error) =>
         showNotification(error)
 
+  private def handleBuildTemple(coord: Coord): Unit =
+    val cost = TerritoryLogic.templeBuildCost
+    TerritoryLogic.buildTemple(currentGame, coord) match
+      case Right(newGame) =>
+        currentGame = newGame
+        saveGame()
+        renderGame()
+        showFloatingReward(coord, cost, "🪵", isSpend = true)
+      case Left(error) =>
+        showNotification(error)
+
   private def handleLevelUpWheatField(coord: Coord): Unit =
     currentGame.tiles.get(coord).foreach: tile =>
       val cost = TerritoryLogic.wheatFieldLevelUpCost(tile.level)
@@ -922,7 +1015,56 @@ object TerritoryClient:
         showFloatingLevel(coord, currentLevel)
       else
         showNotification("Not enough wheat")
-  
+
+  private def handleLevelUpTemple(coord: Coord): Unit =
+    currentGame.tiles.get(coord).foreach: tile =>
+      val cost = TerritoryLogic.templeLevelUpCost(tile.level)
+      TerritoryLogic.levelUpTemple(currentGame, coord) match
+        case Right(newGame) =>
+          currentGame = newGame
+          saveGame()
+          renderGame()
+          showFloatingReward(coord, cost, "🪵", isSpend = true)
+          showFloatingLevel(coord, tile.level + 1)
+        case Left(error) =>
+          showNotification(error)
+
+  private def handleBulkLevelUpTemple(coord: Coord, count: Int): Unit =
+    currentGame.tiles.get(coord).foreach: tile =>
+      var game = currentGame
+      var totalCost = 0
+      var successCount = 0
+      var currentLevel = tile.level
+
+      (1 to count).foreach: _ =>
+        TerritoryLogic.levelUpTemple(game, coord) match
+          case Right(newGame) =>
+            totalCost += TerritoryLogic.templeLevelUpCost(currentLevel)
+            currentLevel += 1
+            successCount += 1
+            game = newGame
+          case Left(_) => // Stop on first failure
+
+      if successCount > 0 then
+        currentGame = game
+        saveGame()
+        renderGame()
+        showFloatingReward(coord, totalCost, "🪵", isSpend = true)
+        showFloatingLevel(coord, currentLevel)
+      else
+        showNotification("Not enough wood")
+
+  private def handleBoostBureau(coord: Coord): Unit =
+    TerritoryLogic.boostBureau(currentGame, coord) match
+      case Right(newGame) =>
+        currentGame = newGame
+        saveGame()
+        renderGame()
+        showFloatingReward(coord, TerritoryLogic.FaithBoostCost, "✨", isSpend = true)
+        showNotification("Bureau speed boosted!")
+      case Left(error) =>
+        showNotification(error)
+
   private def handleDestroyBuilding(coord: Coord): Unit =
     TerritoryLogic.destroyBuilding(currentGame, coord) match
       case Right(newGame) =>

@@ -347,6 +347,75 @@
   background: linear-gradient(90deg, #7c3aed 0%, #a78bfa 100%);
 }
 
+/* Bureau boost button */
+.btn-boost {
+  font-size: 0.5rem;
+  font-weight: 700;
+  padding: 1px 4px;
+  border: none;
+  border-radius: 3px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.btn-boost:hover {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  transform: scale(1.1);
+}
+
+/* Temple Tiles */
+.territory-tile.temple {
+  background: #fefce8;
+  border: 2px solid #eab308;
+}
+
+.territory-tile.temple:hover {
+  background: #fef9c3;
+  transform: scale(1.08);
+  box-shadow: var(--shadow-lg);
+  z-index: 10;
+}
+
+.territory-tile.temple[data-level="2"] {
+  background: #fef08a;
+  border-color: #ca8a04;
+}
+
+.territory-tile.temple[data-level="3"],
+.territory-tile.temple[data-level="4"],
+.territory-tile.temple[data-level="5"] {
+  background: #fde047;
+  border-color: #a16207;
+}
+
+.territory-tile.temple[data-level="6"],
+.territory-tile.temple[data-level="7"],
+.territory-tile.temple[data-level="8"],
+.territory-tile.temple[data-level="9"],
+.territory-tile.temple[data-level="10"] {
+  background: #facc15;
+  border-color: #854d0e;
+}
+
+/* Text colors for temple tiles */
+.territory-tile.temple .tile-label,
+.territory-tile.temple .tile-cost,
+.territory-tile.temple .tile-upgrade {
+  color: #854d0e;
+}
+
+.territory-tile.temple .tile-production.temple-production {
+  color: #b45309;
+}
+
+/* Temple progress bar */
+.tile-progress-bar.temple-progress {
+  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
+}
+
 /* Influence Indicators */
 .influence-indicator {
   pointer-events: none;
