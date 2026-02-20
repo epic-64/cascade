@@ -3,21 +3,21 @@ package client
 import org.scalajs.dom.*
 import scala.util.Try
 import scala.util.chaining.*
-import shared.Territory.*
+import shared.TileKingdom.*
 
-def initializeTerritory(): Unit =
-  TerritoryClient.init()
+def initializeTileKingdom(): Unit =
+  TileKingdom.init()
 
-object TerritoryClient:
+object TileKingdom:
 
   private val StorageKey = "territory_game_state"
-  private var currentGame: TerritoryGame = TerritoryLogic.newGame(System.currentTimeMillis())
+  private var currentGame: TileKingdomGame = TileKingdomLogic.newGame(System.currentTimeMillis())
   private var gameTickerHandle: Option[Int] = None
 
   // Track progress (0.0 to 1.0) for each wheat field tile
   private var tileProgress: Map[Coord, Double] = Map.empty
-  private val ProductionIntervalMs: Double = TerritoryLogic.ProductionIntervalSeconds * 1000.0
-  private val BureauIntervalMs: Double = TerritoryLogic.BureauIntervalSeconds * 1000.0
+  private val ProductionIntervalMs: Double = TileKingdomLogic.ProductionIntervalSeconds * 1000.0
+  private val BureauIntervalMs: Double = TileKingdomLogic.BureauIntervalSeconds * 1000.0
 
   // Panning state
   private var panOffsetX: Double = 0.0
@@ -44,7 +44,7 @@ object TerritoryClient:
   // ============================================================================
 
   def init(): Unit =
-    println("[Territory] Initializing Territory Idle game")
+    println("[TileKingdom] Initializing Territory Idle game")
     loadGame()
     buildUI()
     centerOnTerritory()
@@ -52,7 +52,7 @@ object TerritoryClient:
     startGameTicker()
 
   def cleanup(): Unit =
-    println("[Territory] Cleaning up Territory Idle game")
+    println("[TileKingdom] Cleaning up Territory Idle game")
     stopGameTicker()
 
   // ============================================================================
@@ -184,7 +184,7 @@ object TerritoryClient:
           ,
           button(cls = "btn-dev-action", content = "🗺️ +100 Tiles").tap: btn =>
             btn.onclick = (_: MouseEvent) =>
-              currentGame = TerritoryLogic.unlockManyTiles(currentGame, 100)
+              currentGame = TileKingdomLogic.unlockManyTiles(currentGame, 100)
               saveGame()
               renderGame()
               showNotification(s"Added 100 tiles")
@@ -362,7 +362,7 @@ object TerritoryClient:
 
   private def startGameTicker(): Unit =
     stopGameTicker()
-    val intervalId = window.setInterval(() => gameTick(), TerritoryLogic.TickIntervalSeconds * 1000)
+    val intervalId = window.setInterval(() => gameTick(), TileKingdomLogic.TickIntervalSeconds * 1000)
     gameTickerHandle = Some(intervalId)
 
   private def stopGameTicker(): Unit =
@@ -390,7 +390,7 @@ object TerritoryClient:
 
       if newProgress >= 1.0 then
         val harvests = newProgress.toInt
-        val production = TerritoryLogic.productionPerHarvest(currentGame, tile)
+        val production = TileKingdomLogic.productionPerHarvest(currentGame, tile)
         totalWheatHarvested += production * harvests
         tileProgress = tileProgress.updated(tile.coord, newProgress - harvests)
         showFloatingReward(tile.coord, (production * harvests).toInt, "🌾")
@@ -405,7 +405,7 @@ object TerritoryClient:
 
       if newProgress >= 1.0 then
         val harvests = newProgress.toInt
-        val production = TerritoryLogic.woodProductionPerHarvest(currentGame, tile)
+        val production = TileKingdomLogic.woodProductionPerHarvest(currentGame, tile)
         totalWoodHarvested += production * harvests
         tileProgress = tileProgress.updated(tile.coord, newProgress - harvests)
         showFloatingReward(tile.coord, (production * harvests).toInt, "🪵")
@@ -420,7 +420,7 @@ object TerritoryClient:
 
       if newProgress >= 1.0 then
         val harvests = newProgress.toInt
-        val production = TerritoryLogic.faithProductionPerHarvest(tile)
+        val production = TileKingdomLogic.faithProductionPerHarvest(tile)
         totalFaithHarvested += production * harvests
         tileProgress = tileProgress.updated(tile.coord, newProgress - harvests)
         showFloatingReward(tile.coord, (production * harvests).toInt, "✨")
@@ -441,13 +441,13 @@ object TerritoryClient:
 
     bureaus.foreach: tile =>
       val currentProgress = tileProgress.getOrElse(tile.coord, 0.0)
-      val speedMultiplier = TerritoryLogic.bureauSpeedMultiplier(currentGame, tile.coord)
+      val speedMultiplier = TileKingdomLogic.bureauSpeedMultiplier(currentGame, tile.coord)
       val progressIncrement = elapsedMs / BureauIntervalMs * speedMultiplier
       val newProgress = currentProgress + progressIncrement
 
       if newProgress >= 1.0 then
         // Bureau ready to attempt an upgrade
-        TerritoryLogic.bureauAutoUpgrade(updatedGame, tile.coord, currentTime) match
+        TileKingdomLogic.bureauAutoUpgrade(updatedGame, tile.coord, currentTime) match
           case Some((newGame, upgradedCoord)) =>
             updatedGame = newGame
             // Collect upgrade info to show after render
@@ -459,7 +459,7 @@ object TerritoryClient:
               case TileType.Temple(lvl)     => TileType.Temple(lvl - 1)
               case other                    => other
             ))
-            val upgradeCost = previousTile.flatMap(TerritoryLogic.getUpgradeCost).getOrElse(0)
+            val upgradeCost = previousTile.flatMap(TileKingdomLogic.getUpgradeCost).getOrElse(0)
             val isWoodCost = previousTile.exists(_.isTemple)
             val newLevel = upgradedTile.map(_.level).getOrElse(1)
             bureauUpgrades = bureauUpgrades :+ (upgradedCoord, newLevel, tile.coord, upgradeCost, isWoodCost)
@@ -483,7 +483,7 @@ object TerritoryClient:
       val costEmoji = if isWoodCost then "🪵" else "🌾"
       showFloatingReward(upgradedCoord, cost, costEmoji, isSpend = true)
       showFloatingLevel(upgradedCoord, newLevel)
-      showFloatingReward(bureauCoord, TerritoryLogic.BureauWoodCostPerUpgrade, "🪵", isSpend = true)
+      showFloatingReward(bureauCoord, TileKingdomLogic.BureauWoodCostPerUpgrade, "🪵", isSpend = true)
 
   // ============================================================================
   // Persistence
@@ -495,34 +495,34 @@ object TerritoryClient:
       val json = write(currentGame)
       window.localStorage.setItem(StorageKey, json)
     .recover:
-      case ex => println(s"[Territory] Failed to save game: ${ex.getMessage}")
+      case ex => println(s"[TileKingdom] Failed to save game: ${ex.getMessage}")
 
   private def loadGame(): Unit =
     Try:
       Option(window.localStorage.getItem(StorageKey)) match
         case Some(json) =>
           import upickle.default.*
-          val loadedGame = read[TerritoryGame](json)
+          val loadedGame = read[TileKingdomGame](json)
 
           // Calculate offline progress
           val currentTime = System.currentTimeMillis()
-          currentGame = TerritoryLogic.tick(loadedGame, currentTime)
+          currentGame = TileKingdomLogic.tick(loadedGame, currentTime)
 
           val offlineSeconds = (currentTime - loadedGame.lastTickTime) / 1000.0
           if offlineSeconds > 60 then
             val offlineWheat = currentGame.wheat - loadedGame.wheat
-            println(s"[Territory] Welcome back! You earned ${offlineWheat.toInt} wheat while away")
+            println(s"[TileKingdom] Welcome back! You earned ${offlineWheat.toInt} wheat while away")
             showNotification(s"Welcome back! +${offlineWheat.toInt} wheat")
 
-          println(s"[Territory] Game loaded from localStorage")
+          println(s"[TileKingdom] Game loaded from localStorage")
         case None =>
-          println(s"[Territory] No saved game found, starting new game")
-          currentGame = TerritoryLogic.newGame(System.currentTimeMillis())
+          println(s"[TileKingdom] No saved game found, starting new game")
+          currentGame = TileKingdomLogic.newGame(System.currentTimeMillis())
           saveGame()
     .recover:
       case ex =>
-        println(s"[Territory] Failed to load game: ${ex.getMessage}")
-        currentGame = TerritoryLogic.newGame(System.currentTimeMillis())
+        println(s"[TileKingdom] Failed to load game: ${ex.getMessage}")
+        currentGame = TileKingdomLogic.newGame(System.currentTimeMillis())
 
   // ============================================================================
   // UI Rendering
@@ -562,10 +562,10 @@ object TerritoryClient:
             case TileType.Farm(_) =>
               grid.appendChild(renderInfluenceIndicator(coord, 1, "farm-influence"))
             case TileType.Bureau(_) =>
-              grid.appendChild(renderInfluenceIndicator(coord, TerritoryLogic.BureauRadius, "bureau-influence"))
+              grid.appendChild(renderInfluenceIndicator(coord, TileKingdomLogic.BureauRadius, "bureau-influence"))
             case _ => // No indicator
       // Get all coords we need to render (existing tiles + unlockable if affordable)
-      val unlockableCoords = TerritoryLogic.unlockableCoords(currentGame)
+      val unlockableCoords = TileKingdomLogic.unlockableCoords(currentGame)
       val canAffordUnlock = currentGame.gold >= currentGame.nextTileUnlockCost
       val coordsToRender = currentGame.tiles.keySet ++ (if canAffordUnlock then unlockableCoords else Set.empty)
 
@@ -608,11 +608,11 @@ object TerritoryClient:
     tile.tileType match
       case TileType.Empty =>
         tileDiv.classList.add("empty")
-        val wheatCost = TerritoryLogic.wheatFieldBuildCost
-        val farmCost = TerritoryLogic.farmBuildCost
-        val woodcutterCost = TerritoryLogic.woodcutterBuildCost
-        val bureauCost = TerritoryLogic.bureauBuildCost
-        val templeCost = TerritoryLogic.templeBuildCost
+        val wheatCost = TileKingdomLogic.wheatFieldBuildCost
+        val farmCost = TileKingdomLogic.farmBuildCost
+        val woodcutterCost = TileKingdomLogic.woodcutterBuildCost
+        val bureauCost = TileKingdomLogic.bureauBuildCost
+        val templeCost = TileKingdomLogic.templeBuildCost
         val canBuildOthers = currentGame.hasWheatField
 
         // Build options container (hidden by default, shown on hover via CSS)
@@ -666,10 +666,10 @@ object TerritoryClient:
       case TileType.WheatField(level) =>
         tileDiv.classList.add("wheat-field")
         tileDiv.setAttribute("data-level", level.toString)
-        val harvestAmount = TerritoryLogic.productionPerHarvest(currentGame, tile)
-        val bonusMultiplier = TerritoryLogic.farmBonusMultiplier(currentGame, coord)
+        val harvestAmount = TileKingdomLogic.productionPerHarvest(currentGame, tile)
+        val bonusMultiplier = TileKingdomLogic.farmBonusMultiplier(currentGame, coord)
         val hasBonus = bonusMultiplier > 1.0
-        val upgradeCost = TerritoryLogic.wheatFieldLevelUpCost(level)
+        val upgradeCost = TileKingdomLogic.wheatFieldLevelUpCost(level)
 
         val content = div(cls = "tile-content")(
           div(cls = "tile-icon", content = "🌾"),
@@ -687,7 +687,7 @@ object TerritoryClient:
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
-            handleBulkLevelUp(coord, 10, TerritoryLogic.levelUpWheatField, TerritoryLogic.wheatFieldLevelUpCost)
+            handleBulkLevelUp(coord, 10, TileKingdomLogic.levelUpWheatField, TileKingdomLogic.wheatFieldLevelUpCost)
         )
         content.appendChild(upgradeRow)
 
@@ -709,8 +709,8 @@ object TerritoryClient:
       case TileType.Farm(level) =>
         tileDiv.classList.add("farm")
         tileDiv.setAttribute("data-level", level.toString)
-        val boostPercent = (level * TerritoryLogic.FarmBoostPerLevel * 100).toInt
-        val upgradeCost = TerritoryLogic.farmLevelUpCost(level)
+        val boostPercent = (level * TileKingdomLogic.FarmBoostPerLevel * 100).toInt
+        val upgradeCost = TileKingdomLogic.farmLevelUpCost(level)
 
         val content = div(cls = "tile-content")(
           div(cls = "tile-icon", content = "🏠"),
@@ -723,7 +723,7 @@ object TerritoryClient:
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
-            handleBulkLevelUp(coord, 10, TerritoryLogic.levelUpFarm, TerritoryLogic.farmLevelUpCost)
+            handleBulkLevelUp(coord, 10, TileKingdomLogic.levelUpFarm, TileKingdomLogic.farmLevelUpCost)
         )
         content.appendChild(upgradeRow)
 
@@ -736,8 +736,8 @@ object TerritoryClient:
       case TileType.Woodcutter(level) =>
         tileDiv.classList.add("woodcutter")
         tileDiv.setAttribute("data-level", level.toString)
-        val harvestAmount = TerritoryLogic.woodProductionPerHarvest(currentGame, tile)
-        val upgradeCost = TerritoryLogic.woodcutterLevelUpCost(level)
+        val harvestAmount = TileKingdomLogic.woodProductionPerHarvest(currentGame, tile)
+        val upgradeCost = TileKingdomLogic.woodcutterLevelUpCost(level)
 
         val content = div(cls = "tile-content")(
           div(cls = "tile-icon", content = "🪓"),
@@ -745,7 +745,7 @@ object TerritoryClient:
         )
 
         val prodDiv = div(cls = "tile-production", content = s"+${harvestAmount.toInt}🪵")
-        val forestBonus = TerritoryLogic.forestGroupBonusMultiplier(currentGame, coord)
+        val forestBonus = TileKingdomLogic.forestGroupBonusMultiplier(currentGame, coord)
         if forestBonus > 1.0 then
           val bonusPercent = ((forestBonus - 1) * 100).toInt
           prodDiv.appendChild(span(cls = "bonus forest-bonus", content = s" +$bonusPercent%"))
@@ -756,7 +756,7 @@ object TerritoryClient:
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
-            handleBulkLevelUp(coord, 10, TerritoryLogic.levelUpWoodcutter, TerritoryLogic.woodcutterLevelUpCost)
+            handleBulkLevelUp(coord, 10, TileKingdomLogic.levelUpWoodcutter, TileKingdomLogic.woodcutterLevelUpCost)
         )
         content.appendChild(upgradeRow)
 
@@ -780,7 +780,7 @@ object TerritoryClient:
         tileDiv.classList.add("bureau")
         tileDiv.setAttribute("data-level", level.toString)
         val boosts = currentGame.bureauBoosts.getOrElse(coord, 0)
-        val speedMultiplier = TerritoryLogic.bureauSpeedMultiplier(currentGame, coord)
+        val speedMultiplier = TileKingdomLogic.bureauSpeedMultiplier(currentGame, coord)
 
         val content = div(cls = "tile-content")(
           div(cls = "tile-icon", content = "🏛️"),
@@ -791,7 +791,7 @@ object TerritoryClient:
         
         // Add boost button if player has enough faith
         val boostRow = div(cls = "tile-upgrade-row")
-        boostRow.appendChild(button(cls = "btn-boost", content = s"⚡${TerritoryLogic.FaithBoostCost}✨").tap: btn =>
+        boostRow.appendChild(button(cls = "btn-boost", content = s"⚡${TileKingdomLogic.FaithBoostCost}✨").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
             handleBoostBureau(coord)
@@ -815,8 +815,8 @@ object TerritoryClient:
       case TileType.Temple(level) =>
         tileDiv.classList.add("temple")
         tileDiv.setAttribute("data-level", level.toString)
-        val faithAmount = TerritoryLogic.faithProductionPerHarvest(tile)
-        val upgradeCost = TerritoryLogic.templeLevelUpCost(level)
+        val faithAmount = TileKingdomLogic.faithProductionPerHarvest(tile)
+        val upgradeCost = TileKingdomLogic.templeLevelUpCost(level)
 
         val content = div(cls = "tile-content")(
           div(cls = "tile-icon", content = "⛪"),
@@ -892,8 +892,8 @@ object TerritoryClient:
   // ============================================================================
 
   private def handleBuildWheatField(coord: Coord): Unit =
-    val cost = TerritoryLogic.wheatFieldBuildCost
-    TerritoryLogic.buildWheatField(currentGame, coord) match
+    val cost = TileKingdomLogic.wheatFieldBuildCost
+    TileKingdomLogic.buildWheatField(currentGame, coord) match
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
@@ -903,8 +903,8 @@ object TerritoryClient:
         showNotification(error)
 
   private def handleBuildFarm(coord: Coord): Unit =
-    val cost = TerritoryLogic.farmBuildCost
-    TerritoryLogic.buildFarm(currentGame, coord) match
+    val cost = TileKingdomLogic.farmBuildCost
+    TileKingdomLogic.buildFarm(currentGame, coord) match
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
@@ -914,8 +914,8 @@ object TerritoryClient:
         showNotification(error)
 
   private def handleBuildWoodcutter(coord: Coord): Unit =
-    val cost = TerritoryLogic.woodcutterBuildCost
-    TerritoryLogic.buildWoodcutter(currentGame, coord) match
+    val cost = TileKingdomLogic.woodcutterBuildCost
+    TileKingdomLogic.buildWoodcutter(currentGame, coord) match
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
@@ -925,8 +925,8 @@ object TerritoryClient:
         showNotification(error)
 
   private def handleBuildBureau(coord: Coord): Unit =
-    val cost = TerritoryLogic.bureauBuildCost
-    TerritoryLogic.buildBureau(currentGame, coord) match
+    val cost = TileKingdomLogic.bureauBuildCost
+    TileKingdomLogic.buildBureau(currentGame, coord) match
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
@@ -936,8 +936,8 @@ object TerritoryClient:
         showNotification(error)
 
   private def handleBuildTemple(coord: Coord): Unit =
-    val cost = TerritoryLogic.templeBuildCost
-    TerritoryLogic.buildTemple(currentGame, coord) match
+    val cost = TileKingdomLogic.templeBuildCost
+    TileKingdomLogic.buildTemple(currentGame, coord) match
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
@@ -948,8 +948,8 @@ object TerritoryClient:
 
   private def handleLevelUpWheatField(coord: Coord): Unit =
     currentGame.tiles.get(coord).foreach: tile =>
-      val cost = TerritoryLogic.wheatFieldLevelUpCost(tile.level)
-      TerritoryLogic.levelUpWheatField(currentGame, coord) match
+      val cost = TileKingdomLogic.wheatFieldLevelUpCost(tile.level)
+      TileKingdomLogic.levelUpWheatField(currentGame, coord) match
         case Right(newGame) =>
           currentGame = newGame
           saveGame()
@@ -961,8 +961,8 @@ object TerritoryClient:
 
   private def handleLevelUpFarm(coord: Coord): Unit =
     currentGame.tiles.get(coord).foreach: tile =>
-      val cost = TerritoryLogic.farmLevelUpCost(tile.level)
-      TerritoryLogic.levelUpFarm(currentGame, coord) match
+      val cost = TileKingdomLogic.farmLevelUpCost(tile.level)
+      TileKingdomLogic.levelUpFarm(currentGame, coord) match
         case Right(newGame) =>
           currentGame = newGame
           saveGame()
@@ -974,8 +974,8 @@ object TerritoryClient:
 
   private def handleLevelUpWoodcutter(coord: Coord): Unit =
     currentGame.tiles.get(coord).foreach: tile =>
-      val cost = TerritoryLogic.woodcutterLevelUpCost(tile.level)
-      TerritoryLogic.levelUpWoodcutter(currentGame, coord) match
+      val cost = TileKingdomLogic.woodcutterLevelUpCost(tile.level)
+      TileKingdomLogic.levelUpWoodcutter(currentGame, coord) match
         case Right(newGame) =>
           currentGame = newGame
           saveGame()
@@ -986,10 +986,10 @@ object TerritoryClient:
           showNotification(error)
 
   private def handleBulkLevelUp(
-      coord: Coord,
-      count: Int,
-      levelUpFn: (TerritoryGame, Coord) => Either[String, TerritoryGame],
-      costFn: Int => Int
+                                 coord: Coord,
+                                 count: Int,
+                                 levelUpFn: (TileKingdomGame, Coord) => Either[String, TileKingdomGame],
+                                 costFn: Int => Int
   ): Unit =
     currentGame.tiles.get(coord).foreach: tile =>
       var game = currentGame
@@ -1017,8 +1017,8 @@ object TerritoryClient:
 
   private def handleLevelUpTemple(coord: Coord): Unit =
     currentGame.tiles.get(coord).foreach: tile =>
-      val cost = TerritoryLogic.templeLevelUpCost(tile.level)
-      TerritoryLogic.levelUpTemple(currentGame, coord) match
+      val cost = TileKingdomLogic.templeLevelUpCost(tile.level)
+      TileKingdomLogic.levelUpTemple(currentGame, coord) match
         case Right(newGame) =>
           currentGame = newGame
           saveGame()
@@ -1036,9 +1036,9 @@ object TerritoryClient:
       var currentLevel = tile.level
 
       (1 to count).foreach: _ =>
-        TerritoryLogic.levelUpTemple(game, coord) match
+        TileKingdomLogic.levelUpTemple(game, coord) match
           case Right(newGame) =>
-            totalCost += TerritoryLogic.templeLevelUpCost(currentLevel)
+            totalCost += TileKingdomLogic.templeLevelUpCost(currentLevel)
             currentLevel += 1
             successCount += 1
             game = newGame
@@ -1054,18 +1054,18 @@ object TerritoryClient:
         showNotification("Not enough wood")
 
   private def handleBoostBureau(coord: Coord): Unit =
-    TerritoryLogic.boostBureau(currentGame, coord) match
+    TileKingdomLogic.boostBureau(currentGame, coord) match
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
         renderGame()
-        showFloatingReward(coord, TerritoryLogic.FaithBoostCost, "✨", isSpend = true)
+        showFloatingReward(coord, TileKingdomLogic.FaithBoostCost, "✨", isSpend = true)
         showNotification("Bureau speed boosted!")
       case Left(error) =>
         showNotification(error)
 
   private def handleDestroyBuilding(coord: Coord): Unit =
-    TerritoryLogic.destroyBuilding(currentGame, coord) match
+    TileKingdomLogic.destroyBuilding(currentGame, coord) match
       case Right(newGame) =>
         currentGame = newGame
         tileProgress = tileProgress.removed(coord) // Remove progress tracking for this tile
@@ -1079,7 +1079,7 @@ object TerritoryClient:
     if currentGame.allTilesFilled then
       val reward = currentGame.abdicationGoldReward
       if window.confirm(s"Abdicate and earn $reward gold? This will reset all your buildings.") then
-        TerritoryLogic.abdicate(currentGame, System.currentTimeMillis()) match
+        TileKingdomLogic.abdicate(currentGame, System.currentTimeMillis()) match
           case Right(newGame) =>
             currentGame = newGame
             tileProgress = Map.empty // Reset progress tracking
@@ -1091,7 +1091,7 @@ object TerritoryClient:
 
   private def handleUnlockTile(coord: Coord): Unit =
     val cost = currentGame.nextTileUnlockCost
-    TerritoryLogic.unlockTile(currentGame, coord) match
+    TileKingdomLogic.unlockTile(currentGame, coord) match
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
@@ -1103,7 +1103,7 @@ object TerritoryClient:
   private def handleResetGame(): Unit =
     if window.confirm("Reset game? This will delete all progress!") then
       window.localStorage.removeItem(StorageKey)
-      currentGame = TerritoryLogic.newGame(System.currentTimeMillis())
+      currentGame = TileKingdomLogic.newGame(System.currentTimeMillis())
       tileProgress = Map.empty
       saveGame()
       centerOnTerritory()

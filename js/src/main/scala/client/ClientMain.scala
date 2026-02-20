@@ -69,7 +69,7 @@ def clientMain(pathnameOverride: Option[String] = None): Unit =
       safeInitialize(client.initializeTrader())
     case AppRoute.Territory =>
       println("[client] Routing to Territory...")
-      safeInitialize(client.initializeTerritory())
+      safeInitialize(client.initializeTileKingdom())
     case AppRoute.Landing =>
       println("[client] Landing page - no app initialization needed")
 
