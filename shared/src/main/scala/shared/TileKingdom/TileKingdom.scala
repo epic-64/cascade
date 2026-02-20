@@ -378,10 +378,14 @@ object TileKingdomLogic:
   // Tick the game: accumulate wheat based on production rate
   def tick(game: TileKingdomGame, currentTimeMillis: Long): TileKingdomGame =
     val elapsedSeconds = (currentTimeMillis - game.lastTickTime) / 1000.0
-    val wheatProduced = game.totalIncomeRate * elapsedSeconds
+    val wheatProduced = totalWheatProductionRate(game) * elapsedSeconds
+    val woodProduced = totalWoodProductionRate(game) * elapsedSeconds
+    val faithProduced = totalFaithProductionRate(game) * elapsedSeconds
 
     game.copy(
       wheat = game.wheat + wheatProduced,
+      wood = game.wood + woodProduced,
+      faith = game.faith + faithProduced,
       lastTickTime = currentTimeMillis
     )
 
