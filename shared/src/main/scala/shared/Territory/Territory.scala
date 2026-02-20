@@ -83,7 +83,7 @@ case class TerritoryGame(
     gold: Int,
     lastTickTime: Long, // Timestamp in milliseconds for offline progress
     totalAbdications: Int,
-    upgradeCooldowns: Map[Coord, Long] = Map.empty // Timestamp when tile can be auto-upgraded again
+    upgradeCooldowns: Map[Coord, Long] = Map.empty // Deprecated, kept for save compatibility
 ) derives ReadWriter:
 
   def unlockedTiles: List[Tile] =
@@ -122,7 +122,6 @@ object TerritoryLogic:
   // Bureau constants
   val BureauIntervalSeconds: Int = 5 // Bureau attempts upgrade every 5 seconds
   val BureauRadius: Int = 2 // Bureau affects tiles within 2 tile radius
-  val BureauUpgradeCooldownMs: Long = 60000 // 60 seconds cooldown after auto-upgrade
   val BureauWoodCostPerUpgrade: Int = 100 // Wood cost for each auto-upgrade
   val ForestGroupBonusPerTile: Double = 0.10 // 10% bonus per connected woodcutter
 
@@ -402,7 +401,7 @@ object TerritoryLogic:
               ))
           case _ => Left("Tile is not a woodcutter")
 
-  // Bureau auto-upgrade: upgrade a tile, pay wheat cost + wood cost, set cooldown
+  // Bureau auto-upgrade: upgrade the tile with lowest upgrade cost within radius
   // Returns updated game and the coord that was upgraded (if any)
   def bureauAutoUpgrade(
       game: TerritoryGame,
@@ -411,20 +410,16 @@ object TerritoryLogic:
   ): Option[(TerritoryGame, Coord)] =
     game.tiles.get(bureauCoord) match
       case Some(bureauTile) if bureauTile.isBureau =>
-        // Find upgradeable tiles within radius that aren't on cooldown
+        // Find upgradeable tiles within radius
         val nearbyCoords = bureauCoord.neighborsWithinRadius(BureauRadius)
-        val upgradeableCoords = nearbyCoords.filter: coord =>
-          game.tiles.get(coord).exists: tile =>
-            tile.isUpgradeable &&
-              game.upgradeCooldowns.get(coord).forall(_ <= currentTimeMillis)
+        val upgradeableTiles = nearbyCoords
+          .flatMap(coord => game.tiles.get(coord).map(coord -> _))
+          .filter((_, tile) => tile.isUpgradeable)
+          .map((coord, tile) => (coord, tile, getUpgradeCost(tile).getOrElse(Int.MaxValue)))
+          .filter((_, _, cost) => game.wheat >= cost && game.wood >= BureauWoodCostPerUpgrade)
 
-        // Try to upgrade the first one we can afford
-        upgradeableCoords.flatMap(coord => game.tiles.get(coord).map(coord -> _)).find: (coord, tile) =>
-          val wheatCost = getUpgradeCost(tile).getOrElse(0)
-          val totalWoodCost = BureauWoodCostPerUpgrade
-          game.wheat >= wheatCost && game.wood >= totalWoodCost
-        .flatMap: (targetCoord, targetTile) =>
-          val wheatCost = getUpgradeCost(targetTile).getOrElse(0)
+        // Select the tile with the lowest upgrade cost
+        upgradeableTiles.minByOption(_._3).flatMap: (targetCoord, targetTile, wheatCost) =>
           // Perform the upgrade based on tile type
           val upgradedTileType = targetTile.tileType match
             case TileType.WheatField(lvl) => TileType.WheatField(lvl + 1)
@@ -433,13 +428,11 @@ object TerritoryLogic:
             case other                    => other
 
           val upgradedTile = targetTile.copy(tileType = upgradedTileType)
-          val newCooldown = currentTimeMillis + BureauUpgradeCooldownMs
 
           val newGame = game.copy(
             tiles = game.tiles.updated(targetCoord, upgradedTile),
             wheat = game.wheat - wheatCost,
-            wood = game.wood - BureauWoodCostPerUpgrade,
-            upgradeCooldowns = game.upgradeCooldowns.updated(targetCoord, newCooldown)
+            wood = game.wood - BureauWoodCostPerUpgrade
           )
           Some((newGame, targetCoord))
       case _ => None
@@ -474,8 +467,7 @@ object TerritoryLogic:
         wood = 0.0, // Reset wood
         gold = game.gold + goldReward,
         lastTickTime = currentTimeMillis,
-        totalAbdications = game.totalAbdications + 1,
-        upgradeCooldowns = Map.empty // Reset cooldowns
+        totalAbdications = game.totalAbdications + 1
       ))
 
   // Get all coords that can be unlocked (coords adjacent to unlocked tiles that aren't already tiles)
