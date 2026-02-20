@@ -615,8 +615,29 @@ object TileKingdomClient:
         val templeCost = TileKingdomLogic.templeBuildCost
         val canBuildOthers = currentGame.hasWheatField
 
-        // Build options container (hidden by default, shown on hover via CSS)
+        // Build icon container (shown by default)
+        val buildIconContainer = div(cls = "tile-build-icon-container")
+        buildIconContainer.appendChild(el("i", cls = "fa-solid fa-hammer"))
+        buildIconContainer.appendChild(div(cls = "build-label", content = "Build"))
+        buildIconContainer.onclick = (e: MouseEvent) =>
+          e.stopPropagation()
+          // Clear any other selecting tiles first
+          document.querySelectorAll(".tile-kingdom-tile.selecting").foreach: elem =>
+            elem.asInstanceOf[HTMLElement].classList.remove("selecting")
+          tileDiv.classList.add("selecting")
+        tileDiv.appendChild(buildIconContainer)
+
+        // Build options container (hidden by default, shown when selecting)
         val buildOptions = div(cls = "tile-build-options")
+        
+        // Back/cancel button
+        buildOptions.appendChild(div(cls = "build-option build-back").tap: opt =>
+          opt.appendChild(el("i", cls = "fa-solid fa-arrow-left build-icon"))
+          opt.appendChild(div(cls = "build-name", content = "Back"))
+          opt.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            tileDiv.classList.remove("selecting")
+        )
 
         buildOptions.appendChild(div(cls = "build-option").tap: opt =>
           opt.appendChild(div(cls = "build-icon", content = "🌾"))
