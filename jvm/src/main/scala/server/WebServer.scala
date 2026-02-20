@@ -134,9 +134,9 @@ object WebServer extends MainRoutes:
   def trader(): cask.Response[java.io.InputStream] =
     serveGamePage("trader.html")
 
-  @cask.get("/territory")
-  def territory(): cask.Response[java.io.InputStream] =
-    serveGamePage("territory.html")
+  @cask.get("/tile-kingdom")
+  def tileKingdom(): cask.Response[java.io.InputStream] =
+    serveGamePage("tile-kingdom.html")
 
   @cask.get("/ai-chat")
   def aiChat(): cask.Response[java.io.InputStream] =
