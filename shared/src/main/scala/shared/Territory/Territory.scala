@@ -151,9 +151,12 @@ object TerritoryLogic:
     floodFill(Set(startCoord), Set.empty)
 
   // Calculate forest group bonus multiplier for a woodcutter
+  // Bonus escalates: 2 tiles = 10%, 3 tiles = 10+20=30%, 4 tiles = 10+20+30=60%, etc.
   def forestGroupBonusMultiplier(game: TerritoryGame, coord: Coord): Double =
     val groupSize = findConnectedWoodcutters(game, coord).size
-    1.0 + (groupSize - 1) * ForestGroupBonusPerTile // -1 because we don't count self for bonus
+    val n = groupSize - 1 // Number of other woodcutters in group
+    val totalBonus = n * (n + 1) / 2.0 * ForestGroupBonusPerTile // Triangular number * bonus per tile
+    1.0 + totalBonus
 
   // Base production per harvest (wheat per 10-second interval) - without bonuses
   def baseWheatProductionRate(tile: Tile): Double = tile.tileType match
