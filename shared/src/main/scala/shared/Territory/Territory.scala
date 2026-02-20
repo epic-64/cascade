@@ -486,6 +486,14 @@ object TerritoryLogic:
     val boosts = game.bureauBoosts.getOrElse(bureauCoord, 0)
     1.0 + boosts * FaithBoostMultiplier
 
+  // Determine what resource a tile upgrade costs
+  enum UpgradeCurrency:
+    case Wheat, Wood
+
+  def getUpgradeCurrency(tile: Tile): UpgradeCurrency = tile.tileType match
+    case TileType.Temple(_) => UpgradeCurrency.Wood
+    case _                  => UpgradeCurrency.Wheat
+
   // Bureau auto-upgrade: upgrade the tile with lowest upgrade cost within radius
   // Returns updated game and the coord that was upgraded (if any)
   def bureauAutoUpgrade(
@@ -500,24 +508,34 @@ object TerritoryLogic:
         val upgradeableTiles = nearbyCoords
           .flatMap(coord => game.tiles.get(coord).map(coord -> _))
           .filter((_, tile) => tile.isUpgradeable)
-          .map((coord, tile) => (coord, tile, getUpgradeCost(tile).getOrElse(Int.MaxValue)))
-          .filter((_, _, cost) => game.wheat >= cost && game.wood >= BureauWoodCostPerUpgrade)
+          .map((coord, tile) => (coord, tile, getUpgradeCost(tile).getOrElse(Int.MaxValue), getUpgradeCurrency(tile)))
+          .filter: (_, _, cost, currency) =>
+            val hasUpgradeCost = currency match
+              case UpgradeCurrency.Wheat => game.wheat >= cost
+              case UpgradeCurrency.Wood  => game.wood >= cost + BureauWoodCostPerUpgrade // Need extra wood for bureau fee
+            hasUpgradeCost && game.wood >= BureauWoodCostPerUpgrade
 
         // Select the tile with the lowest upgrade cost
-        upgradeableTiles.minByOption(_._3).flatMap: (targetCoord, targetTile, wheatCost) =>
+        upgradeableTiles.minByOption(_._3).flatMap: (targetCoord, targetTile, upgradeCost, currency) =>
           // Perform the upgrade based on tile type
           val upgradedTileType = targetTile.tileType match
             case TileType.WheatField(lvl) => TileType.WheatField(lvl + 1)
             case TileType.Farm(lvl)       => TileType.Farm(lvl + 1)
             case TileType.Woodcutter(lvl) => TileType.Woodcutter(lvl + 1)
+            case TileType.Temple(lvl)     => TileType.Temple(lvl + 1)
             case other                    => other
 
           val upgradedTile = targetTile.copy(tileType = upgradedTileType)
 
+          // Deduct the appropriate resource for the upgrade cost
+          val (newWheat, newWood) = currency match
+            case UpgradeCurrency.Wheat => (game.wheat - upgradeCost, game.wood - BureauWoodCostPerUpgrade)
+            case UpgradeCurrency.Wood  => (game.wheat, game.wood - upgradeCost - BureauWoodCostPerUpgrade)
+
           val newGame = game.copy(
             tiles = game.tiles.updated(targetCoord, upgradedTile),
-            wheat = game.wheat - wheatCost,
-            wood = game.wood - BureauWoodCostPerUpgrade
+            wheat = newWheat,
+            wood = newWood
           )
           Some((newGame, targetCoord))
       case _ => None
