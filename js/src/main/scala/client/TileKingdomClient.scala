@@ -39,6 +39,9 @@ object TileKingdomClient:
   private def TileSize: Double = BaseTileSize * zoomLevel
   private val VisiblePadding: Int = 2 // Extra tiles to render outside viewport
 
+  // Track which tile is currently in build-selection mode
+  private var selectingTileCoord: Option[Coord] = None
+
   // ============================================================================
   // Initialization
   // ============================================================================
@@ -650,8 +653,13 @@ object TileKingdomClient:
           // Clear any other selecting tiles first
           document.querySelectorAll(".tile-kingdom-tile.selecting").foreach: elem =>
             elem.asInstanceOf[HTMLElement].classList.remove("selecting")
+          selectingTileCoord = Some(coord)
           tileDiv.classList.add("selecting")
         tileDiv.appendChild(buildIconContainer)
+        
+        // Restore selecting state if this tile was previously selected
+        if selectingTileCoord.contains(coord) then
+          tileDiv.classList.add("selecting")
 
         // Build options container (hidden by default, shown when selecting)
         val buildOptions = div(cls = "tile-build-options")
@@ -662,6 +670,7 @@ object TileKingdomClient:
           opt.appendChild(div(cls = "build-name", content = "Back"))
           opt.onclick = (e: MouseEvent) =>
             e.stopPropagation()
+            selectingTileCoord = None
             tileDiv.classList.remove("selecting")
         )
 
@@ -942,6 +951,7 @@ object TileKingdomClient:
     val cost = TileKingdomLogic.wheatFieldBuildCost
     TileKingdomLogic.buildWheatField(currentGame, coord) match
       case Right(newGame) =>
+        selectingTileCoord = None
         currentGame = newGame
         saveGame()
         renderGame()
@@ -953,6 +963,7 @@ object TileKingdomClient:
     val cost = TileKingdomLogic.farmBuildCost
     TileKingdomLogic.buildFarm(currentGame, coord) match
       case Right(newGame) =>
+        selectingTileCoord = None
         currentGame = newGame
         saveGame()
         renderGame()
@@ -964,6 +975,7 @@ object TileKingdomClient:
     val cost = TileKingdomLogic.woodcutterBuildCost
     TileKingdomLogic.buildWoodcutter(currentGame, coord) match
       case Right(newGame) =>
+        selectingTileCoord = None
         currentGame = newGame
         saveGame()
         renderGame()
@@ -975,6 +987,7 @@ object TileKingdomClient:
     val cost = TileKingdomLogic.bureauBuildCost
     TileKingdomLogic.buildBureau(currentGame, coord) match
       case Right(newGame) =>
+        selectingTileCoord = None
         currentGame = newGame
         saveGame()
         renderGame()
@@ -986,6 +999,7 @@ object TileKingdomClient:
     val cost = TileKingdomLogic.templeBuildCost
     TileKingdomLogic.buildTemple(currentGame, coord) match
       case Right(newGame) =>
+        selectingTileCoord = None
         currentGame = newGame
         saveGame()
         renderGame()
