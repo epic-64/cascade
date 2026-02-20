@@ -107,7 +107,7 @@ case class TileKingdomGame(
     unlockedTiles.exists(_.isWheatField)
 
   def totalIncomeRate: Double =
-    TileKingdomLogic.totalProductionRate(this)
+    TileKingdomLogic.totalWheatProductionRate(this) + TileKingdomLogic.totalWoodProductionRate(this)
 
   def nextTileUnlockCost: Int =
     TileKingdomLogic.tileUnlockCost(unlockedTiles.size)
@@ -232,8 +232,8 @@ object TileKingdomLogic:
   def faithProductionPerHarvest(tile: Tile): Double =
     baseFaithProductionRate(tile)
 
-  // Total production rate for the game (all wheat fields with bonuses)
-  def totalProductionRate(game: TileKingdomGame): Double =
+  // Total wheat production rate for the game (all wheat fields with bonuses)
+  def totalWheatProductionRate(game: TileKingdomGame): Double =
     game.unlockedTiles.map(tile => productionRate(game, tile)).sum
 
   // Total wood production rate
