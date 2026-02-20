@@ -501,11 +501,10 @@ object TileKingdomClient:
     saveGame()
     updateProgressBars()
     renderResources()
-    // Re-render tiles if bureau performed upgrades
-    if bureaus.nonEmpty then renderTiles()
 
-    // Show floating text after render so elements exist
+    // Show floating text and update only the upgraded tiles
     bureauUpgrades.foreach: (upgradedCoord, newLevel, bureauCoord, cost, costResource) =>
+      updateSingleTile(upgradedCoord)
       val costEmoji = resourceEmoji(costResource)
       showFloatingReward(upgradedCoord, cost, costEmoji, isSpend = true)
       showFloatingLevel(upgradedCoord, newLevel)
@@ -584,6 +583,13 @@ object TileKingdomClient:
     if rate <= 0 then ""
     else if rate >= 1.0 then f"+${rate.toInt}%,d/s"
     else f"+$rate%.1f/s"
+
+  // Update a single tile in place without re-rendering everything
+  private def updateSingleTile(coord: Coord): Unit =
+    currentGame.tiles.get(coord).foreach: tile =>
+      Option(document.getElementById(s"tile-${coord.row}-${coord.col}")).foreach: oldElement =>
+        val newElement = renderTile(tile)
+        oldElement.parentNode.replaceChild(newElement, oldElement)
 
   private def renderTiles(): Unit =
     getElementById("tile-kingdom-grid").foreach: gridContainer =>
