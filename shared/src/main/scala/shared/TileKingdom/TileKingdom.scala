@@ -1,4 +1,4 @@
-package shared.Territory
+package shared.TileKingdom
 
 import upickle.default.ReadWriter
 
@@ -82,7 +82,7 @@ case class Tile(
 // Game State
 // ============================================================================
 
-case class TerritoryGame(
+case class TileKingdomGame(
     tiles: Map[Coord, Tile],
     wheat: Double, // Can be fractional for smooth accumulation
     wood: Double, // Wood resource
@@ -107,19 +107,19 @@ case class TerritoryGame(
     unlockedTiles.exists(_.isWheatField)
 
   def totalIncomeRate: Double =
-    TerritoryLogic.totalProductionRate(this)
+    TileKingdomLogic.totalProductionRate(this)
 
   def nextTileUnlockCost: Int =
-    TerritoryLogic.tileUnlockCost(unlockedTiles.size)
+    TileKingdomLogic.tileUnlockCost(unlockedTiles.size)
 
   def abdicationGoldReward: Int =
-    TerritoryLogic.abdicationReward(totalIncomeRate)
+    TileKingdomLogic.abdicationReward(totalIncomeRate)
 
 // ============================================================================
 // Game Logic
 // ============================================================================
 
-object TerritoryLogic:
+object TileKingdomLogic:
 
   // Constants
   val TickIntervalSeconds: Int = 1
@@ -147,7 +147,7 @@ object TerritoryLogic:
   )
 
   // Find all woodcutters in the same connected group as the given coord
-  def findConnectedWoodcutters(game: TerritoryGame, startCoord: Coord): Set[Coord] =
+  def findConnectedWoodcutters(game: TileKingdomGame, startCoord: Coord): Set[Coord] =
     def floodFill(toVisit: Set[Coord], visited: Set[Coord]): Set[Coord] =
       if toVisit.isEmpty then visited
       else
@@ -165,7 +165,7 @@ object TerritoryLogic:
 
   // Calculate forest group bonus multiplier for a woodcutter
   // Bonus escalates: 2 tiles = 10%, 3 tiles = 10+20=30%, 4 tiles = 10+20+30=60%, etc.
-  def forestGroupBonusMultiplier(game: TerritoryGame, coord: Coord): Double =
+  def forestGroupBonusMultiplier(game: TileKingdomGame, coord: Coord): Double =
     val groupSize = findConnectedWoodcutters(game, coord).size
     val n = groupSize - 1 // Number of other woodcutters in group
     val totalBonus = n * (n + 1) / 2.0 * ForestGroupBonusPerTile // Triangular number * bonus per tile
@@ -195,20 +195,20 @@ object TerritoryLogic:
   def faithProductionPerSecond(tile: Tile): Double = baseFaithProductionRate(tile) / ProductionIntervalSeconds
 
   // Calculate farm bonus multiplier for a wheat field at given coord
-  def farmBonusMultiplier(game: TerritoryGame, coord: Coord): Double =
+  def farmBonusMultiplier(game: TileKingdomGame, coord: Coord): Double =
     val farmBonus = coord.neighbors.toList.flatMap(game.tiles.get).collect:
       case tile if tile.isFarm => tile.level * FarmBoostPerLevel
     .sum
     1.0 + farmBonus
 
   // Production rate for a specific tile per second (with farm bonuses applied)
-  def productionRate(game: TerritoryGame, tile: Tile): Double =
+  def productionRate(game: TileKingdomGame, tile: Tile): Double =
     val base = productionPerSecond(tile)
     if base > 0 then base * farmBonusMultiplier(game, tile.coord)
     else 0.0
 
   // Wood production rate for a specific tile per second (with forest group bonus)
-  def woodProductionRate(game: TerritoryGame, tile: Tile): Double =
+  def woodProductionRate(game: TileKingdomGame, tile: Tile): Double =
     val base = woodProductionPerSecond(tile)
     if base > 0 then base * forestGroupBonusMultiplier(game, tile.coord)
     else 0.0
@@ -217,13 +217,13 @@ object TerritoryLogic:
   def productionRate(tile: Tile): Double = productionPerSecond(tile)
 
   // Production per harvest for a specific tile (with farm bonuses applied)
-  def productionPerHarvest(game: TerritoryGame, tile: Tile): Double =
+  def productionPerHarvest(game: TileKingdomGame, tile: Tile): Double =
     val base = baseWheatProductionRate(tile)
     if base > 0 then base * farmBonusMultiplier(game, tile.coord)
     else 0.0
 
   // Wood production per harvest for a specific tile (with forest group bonus)
-  def woodProductionPerHarvest(game: TerritoryGame, tile: Tile): Double =
+  def woodProductionPerHarvest(game: TileKingdomGame, tile: Tile): Double =
     val base = baseWoodProductionRate(tile)
     if base > 0 then base * forestGroupBonusMultiplier(game, tile.coord)
     else 0.0
@@ -233,11 +233,11 @@ object TerritoryLogic:
     baseFaithProductionRate(tile)
 
   // Total production rate for the game (all wheat fields with bonuses)
-  def totalProductionRate(game: TerritoryGame): Double =
+  def totalProductionRate(game: TileKingdomGame): Double =
     game.unlockedTiles.map(tile => productionRate(game, tile)).sum
 
   // Total wood production rate
-  def totalWoodProductionRate(game: TerritoryGame): Double =
+  def totalWoodProductionRate(game: TileKingdomGame): Double =
     game.unlockedTiles.map(tile => woodProductionRate(game, tile)).sum
 
   // Cost to build a wheat field on an empty tile
@@ -297,7 +297,7 @@ object TerritoryLogic:
     math.max(10, (totalIncomeRate * 20).toInt) // 20 gold per wheat/second
 
   // Create initial game state
-  def newGame(currentTimeMillis: Long): TerritoryGame =
+  def newGame(currentTimeMillis: Long): TileKingdomGame =
     val initialTiles = InitialUnlockedCoords.map: coord =>
       coord -> Tile(
         coord = coord,
@@ -306,7 +306,7 @@ object TerritoryLogic:
       )
     .toMap
 
-    TerritoryGame(
+    TileKingdomGame(
       tiles = initialTiles,
       wheat = 50.0, // Start with some wheat to build first field
       wood = 0.0,
@@ -317,7 +317,7 @@ object TerritoryLogic:
     )
 
   // Tick the game: accumulate wheat based on production rate
-  def tick(game: TerritoryGame, currentTimeMillis: Long): TerritoryGame =
+  def tick(game: TileKingdomGame, currentTimeMillis: Long): TileKingdomGame =
     val elapsedSeconds = (currentTimeMillis - game.lastTickTime) / 1000.0
     val wheatProduced = game.totalIncomeRate * elapsedSeconds
 
@@ -327,7 +327,7 @@ object TerritoryLogic:
     )
 
   // Build a wheat field on an empty tile
-  def buildWheatField(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+  def buildWheatField(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
       case None                                           => Left("Tile not found")
       case Some(tile) if !tile.unlocked                   => Left("Tile is locked")
@@ -341,7 +341,7 @@ object TerritoryLogic:
         ))
 
   // Build a farm on an empty tile (requires at least one wheat field)
-  def buildFarm(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+  def buildFarm(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
       case None                                     => Left("Tile not found")
       case Some(tile) if !tile.unlocked             => Left("Tile is locked")
@@ -356,7 +356,7 @@ object TerritoryLogic:
         ))
 
   // Build a woodcutter on an empty tile (requires at least one wheat field)
-  def buildWoodcutter(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+  def buildWoodcutter(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
       case None                                           => Left("Tile not found")
       case Some(tile) if !tile.unlocked                   => Left("Tile is locked")
@@ -371,7 +371,7 @@ object TerritoryLogic:
         ))
 
   // Build a bureau on an empty tile (costs wood, requires at least one wheat field)
-  def buildBureau(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+  def buildBureau(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
       case None                                      => Left("Tile not found")
       case Some(tile) if !tile.unlocked              => Left("Tile is locked")
@@ -386,7 +386,7 @@ object TerritoryLogic:
         ))
 
   // Build a temple on an empty tile (costs wood, requires at least one wheat field)
-  def buildTemple(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+  def buildTemple(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
       case None                                       => Left("Tile not found")
       case Some(tile) if !tile.unlocked               => Left("Tile is locked")
@@ -401,7 +401,7 @@ object TerritoryLogic:
         ))
 
   // Level up a wheat field
-  def levelUpWheatField(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+  def levelUpWheatField(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
       case None => Left("Tile not found")
       case Some(tile) => tile.tileType match
@@ -418,7 +418,7 @@ object TerritoryLogic:
           case _ => Left("Tile is not a wheat field")
 
   // Level up a farm
-  def levelUpFarm(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+  def levelUpFarm(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
       case None => Left("Tile not found")
       case Some(tile) => tile.tileType match
@@ -435,7 +435,7 @@ object TerritoryLogic:
           case _ => Left("Tile is not a farm")
 
   // Level up a woodcutter
-  def levelUpWoodcutter(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+  def levelUpWoodcutter(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
       case None => Left("Tile not found")
       case Some(tile) => tile.tileType match
@@ -452,7 +452,7 @@ object TerritoryLogic:
           case _ => Left("Tile is not a woodcutter")
 
   // Level up a temple (costs wood)
-  def levelUpTemple(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+  def levelUpTemple(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
       case None => Left("Tile not found")
       case Some(tile) => tile.tileType match
@@ -469,7 +469,7 @@ object TerritoryLogic:
           case _ => Left("Tile is not a temple")
 
   // Boost a bureau's speed with faith
-  def boostBureau(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+  def boostBureau(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
       case None => Left("Tile not found")
       case Some(tile) if !tile.isBureau => Left("Tile is not a bureau")
@@ -482,7 +482,7 @@ object TerritoryLogic:
         ))
 
   // Get bureau speed multiplier (1.0 = normal, 11.0 = 1 boost, 21.0 = 2 boosts, etc.)
-  def bureauSpeedMultiplier(game: TerritoryGame, bureauCoord: Coord): Double =
+  def bureauSpeedMultiplier(game: TileKingdomGame, bureauCoord: Coord): Double =
     val boosts = game.bureauBoosts.getOrElse(bureauCoord, 0)
     1.0 + boosts * FaithBoostMultiplier
 
@@ -497,10 +497,10 @@ object TerritoryLogic:
   // Bureau auto-upgrade: upgrade the tile with lowest upgrade cost within radius
   // Returns updated game and the coord that was upgraded (if any)
   def bureauAutoUpgrade(
-      game: TerritoryGame,
-      bureauCoord: Coord,
-      currentTimeMillis: Long
-  ): Option[(TerritoryGame, Coord)] =
+                         game: TileKingdomGame,
+                         bureauCoord: Coord,
+                         currentTimeMillis: Long
+  ): Option[(TileKingdomGame, Coord)] =
     game.tiles.get(bureauCoord) match
       case Some(bureauTile) if bureauTile.isBureau =>
         // Find upgradeable tiles within radius
@@ -541,7 +541,7 @@ object TerritoryLogic:
       case _ => None
 
   // Destroy a building on a tile (returns it to empty state, no refund)
-  def destroyBuilding(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+  def destroyBuilding(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
       case None                         => Left("Tile not found")
       case Some(tile) if !tile.unlocked => Left("Tile is locked")
@@ -553,7 +553,7 @@ object TerritoryLogic:
         ))
 
   // Abdicate: reset tiles, gain gold based on income rate
-  def abdicate(game: TerritoryGame, currentTimeMillis: Long): Either[String, TerritoryGame] =
+  def abdicate(game: TileKingdomGame, currentTimeMillis: Long): Either[String, TileKingdomGame] =
     if !game.allTilesFilled then
       Left("Must fill all unlocked tiles with buildings before abdicating")
     else
@@ -576,13 +576,13 @@ object TerritoryLogic:
       ))
 
   // Get all coords that can be unlocked (coords adjacent to unlocked tiles that aren't already tiles)
-  def unlockableCoords(game: TerritoryGame): Set[Coord] =
+  def unlockableCoords(game: TileKingdomGame): Set[Coord] =
     val unlockedCoords = game.unlockedTiles.map(_.coord).toSet
     val allAdjacentToUnlocked = unlockedCoords.flatMap(_.neighbors)
     allAdjacentToUnlocked.filterNot(game.tiles.contains)
 
   // Unlock a specific tile with gold (must be adjacent to an unlocked tile)
-  def unlockTile(game: TerritoryGame, coord: Coord): Either[String, TerritoryGame] =
+  def unlockTile(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     if game.tiles.contains(coord) then
       Left("Tile already exists")
     else if !unlockableCoords(game).contains(coord) then
@@ -638,7 +638,7 @@ object TerritoryLogic:
     total / maxValue
 
   // Dev tool: Unlock many tiles for free (creates continent-like shapes)
-  def unlockManyTiles(game: TerritoryGame, count: Int): TerritoryGame =
+  def unlockManyTiles(game: TileKingdomGame, count: Int): TileKingdomGame =
     val random = new scala.util.Random(System.currentTimeMillis())
 
     // Pick 3-5 random growth directions (angles in radians)
