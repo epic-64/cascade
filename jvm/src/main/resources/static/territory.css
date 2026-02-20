@@ -365,22 +365,34 @@
 }
 
 /* Build Options (when farm is available) */
+/* Build Options (hidden by default, shown on hover) */
 .tile-build-options {
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: 2px;
   padding: 2px;
   width: 100%;
   height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: var(--radius-sm);
+  z-index: 5;
+}
+
+.territory-tile.empty:hover .tile-build-options {
+  display: flex;
 }
 
 .build-option {
+  flex: 1;
   display: flex;
   flex-direction: row;
   align-items: center;
   width: 100%;
   padding: 0 4px;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(241, 245, 249, 0.9);
   border-radius: 3px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -390,8 +402,12 @@
   box-sizing: border-box;
 }
 
+.build-option.single-option {
+  justify-content: center;
+}
+
 .build-option:hover {
-  background: rgba(255, 255, 255, 1);
+  background: rgba(219, 234, 254, 1);
   transform: scale(1.02);
   z-index: 1;
 }

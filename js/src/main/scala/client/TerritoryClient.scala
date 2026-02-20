@@ -590,50 +590,45 @@ object TerritoryClient:
         val bureauCost = TerritoryLogic.bureauBuildCost
         val canBuildOthers = currentGame.hasWheatField
 
+        // Build options container (hidden by default, shown on hover via CSS)
+        val buildOptions = div(cls = "tile-build-options")
+        
+        buildOptions.appendChild(div(cls = "build-option").tap: opt =>
+          opt.appendChild(div(cls = "build-icon", content = "🌾"))
+          opt.appendChild(div(cls = "build-name", content = "Field"))
+          opt.appendChild(div(cls = "build-cost", content = s"$wheatCost🌾"))
+          opt.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            handleBuildWheatField(coord)
+        )
+        
         if canBuildOthers then
-          tileDiv.appendChild(
-            div(cls = "tile-content tile-build-options")(
-              div(cls = "build-option").tap: opt =>
-                opt.appendChild(div(cls = "build-icon", content = "🌾"))
-                opt.appendChild(div(cls = "build-name", content = "Field"))
-                opt.appendChild(div(cls = "build-cost", content = s"$wheatCost🌾"))
-                opt.onclick = (e: MouseEvent) =>
-                  e.stopPropagation()
-                  handleBuildWheatField(coord)
-              ,
-              div(cls = "build-option").tap: opt =>
-                opt.appendChild(div(cls = "build-icon", content = "🏠"))
-                opt.appendChild(div(cls = "build-name", content = "Farm"))
-                opt.appendChild(div(cls = "build-cost", content = s"$farmCost🌾"))
-                opt.onclick = (e: MouseEvent) =>
-                  e.stopPropagation()
-                  handleBuildFarm(coord)
-              ,
-              div(cls = "build-option").tap: opt =>
-                opt.appendChild(div(cls = "build-icon", content = "🪓"))
-                opt.appendChild(div(cls = "build-name", content = "Wood"))
-                opt.appendChild(div(cls = "build-cost", content = s"$woodcutterCost🌾"))
-                opt.onclick = (e: MouseEvent) =>
-                  e.stopPropagation()
-                  handleBuildWoodcutter(coord)
-              ,
-              div(cls = "build-option").tap: opt =>
-                opt.appendChild(div(cls = "build-icon", content = "🏛️"))
-                opt.appendChild(div(cls = "build-name", content = "Bureau"))
-                opt.appendChild(div(cls = "build-cost", content = s"$bureauCost🪵"))
-                opt.onclick = (e: MouseEvent) =>
-                  e.stopPropagation()
-                  handleBuildBureau(coord)
-            )
+          buildOptions.appendChild(div(cls = "build-option").tap: opt =>
+            opt.appendChild(div(cls = "build-icon", content = "🏠"))
+            opt.appendChild(div(cls = "build-name", content = "Farm"))
+            opt.appendChild(div(cls = "build-cost", content = s"$farmCost🌾"))
+            opt.onclick = (e: MouseEvent) =>
+              e.stopPropagation()
+              handleBuildFarm(coord)
           )
-        else
-          tileDiv.appendChild(
-            div(cls = "tile-content")(
-              div(cls = "tile-icon", content = "➕"),
-              div(cls = "tile-cost", content = s"$wheatCost 🌾")
-            )
+          buildOptions.appendChild(div(cls = "build-option").tap: opt =>
+            opt.appendChild(div(cls = "build-icon", content = "🪓"))
+            opt.appendChild(div(cls = "build-name", content = "Wood"))
+            opt.appendChild(div(cls = "build-cost", content = s"$woodcutterCost🌾"))
+            opt.onclick = (e: MouseEvent) =>
+              e.stopPropagation()
+              handleBuildWoodcutter(coord)
           )
-          tileDiv.onclick = (_: MouseEvent) => handleBuildWheatField(coord)
+          buildOptions.appendChild(div(cls = "build-option").tap: opt =>
+            opt.appendChild(div(cls = "build-icon", content = "🏛️"))
+            opt.appendChild(div(cls = "build-name", content = "Bureau"))
+            opt.appendChild(div(cls = "build-cost", content = s"$bureauCost🪵"))
+            opt.onclick = (e: MouseEvent) =>
+              e.stopPropagation()
+              handleBuildBureau(coord)
+          )
+        
+        tileDiv.appendChild(buildOptions)
 
       case TileType.WheatField(level) =>
         tileDiv.classList.add("wheat-field")
