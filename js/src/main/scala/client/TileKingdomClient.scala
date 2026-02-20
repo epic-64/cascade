@@ -14,6 +14,13 @@ object TileKingdomClient:
   private var currentGame: TileKingdomGame = TileKingdomLogic.newGame(System.currentTimeMillis())
   private var gameTickerHandle: Option[Int] = None
 
+  // Resource emoji mapping
+  private def resourceEmoji(resource: Resource): String = resource match
+    case Resource.Wheat => "🌾"
+    case Resource.Wood  => "🪵"
+    case Resource.Faith => "✨"
+    case Resource.Gold  => "💰"
+
   // Track progress (0.0 to 1.0) for each wheat field tile
   private var tileProgress: Map[Coord, Double] = Map.empty
   private val ProductionIntervalMs: Double = TileKingdomLogic.ProductionIntervalSeconds * 1000.0
@@ -447,7 +454,7 @@ object TileKingdomClient:
     )
 
     // Track upgrades to show floating text after render
-    var bureauUpgrades: List[(Coord, Int, Coord, Int, Boolean)] = List.empty // (upgradedCoord, newLevel, bureauCoord, cost, isWoodCost)
+    var bureauUpgrades: List[(Coord, Int, Coord, Int, Resource)] = List.empty // (upgradedCoord, newLevel, bureauCoord, cost, costResource)
 
     bureaus.foreach: tile =>
       val currentProgress = tileProgress.getOrElse(tile.coord, 0.0)
@@ -469,10 +476,11 @@ object TileKingdomClient:
               case TileType.Temple(lvl)     => TileType.Temple(lvl - 1)
               case other                    => other
             ))
-            val upgradeCost = previousTile.flatMap(TileKingdomLogic.getUpgradeCost).getOrElse(0)
-            val isWoodCost = previousTile.exists(_.isTemple)
+            val upgradeCostOpt = previousTile.flatMap(_.upgradeCost)
+            val upgradeCost = upgradeCostOpt.map(_.amount).getOrElse(0)
+            val costResource = upgradeCostOpt.map(_.resource).getOrElse(Resource.Wheat)
             val newLevel = upgradedTile.map(_.level).getOrElse(1)
-            bureauUpgrades = bureauUpgrades :+ (upgradedCoord, newLevel, tile.coord, upgradeCost, isWoodCost)
+            bureauUpgrades = bureauUpgrades :+ (upgradedCoord, newLevel, tile.coord, upgradeCost, costResource)
             tileProgress = tileProgress.updated(tile.coord, newProgress - 1.0) // Keep excess progress
           case None =>
             // No upgrade possible, keep progress at 1.0 to retry next tick
@@ -489,8 +497,8 @@ object TileKingdomClient:
     if bureaus.nonEmpty then renderTiles()
 
     // Show floating text after render so elements exist
-    bureauUpgrades.foreach: (upgradedCoord, newLevel, bureauCoord, cost, isWoodCost) =>
-      val costEmoji = if isWoodCost then "🪵" else "🌾"
+    bureauUpgrades.foreach: (upgradedCoord, newLevel, bureauCoord, cost, costResource) =>
+      val costEmoji = resourceEmoji(costResource)
       showFloatingReward(upgradedCoord, cost, costEmoji, isSpend = true)
       showFloatingLevel(upgradedCoord, newLevel)
       showFloatingReward(bureauCoord, TileKingdomLogic.BureauWoodCostPerUpgrade, "🪵", isSpend = true)
@@ -656,7 +664,7 @@ object TileKingdomClient:
           selectingTileCoord = Some(coord)
           tileDiv.classList.add("selecting")
         tileDiv.appendChild(buildIconContainer)
-        
+
         // Restore selecting state if this tile was previously selected
         if selectingTileCoord.contains(coord) then
           tileDiv.classList.add("selecting")
@@ -739,7 +747,7 @@ object TileKingdomClient:
         content.appendChild(prodDiv)
 
         val upgradeRow = div(cls = "tile-upgrade-row")
-        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost"))
+        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost🌾"))
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
@@ -775,7 +783,7 @@ object TileKingdomClient:
         )
 
         val upgradeRow = div(cls = "tile-upgrade-row")
-        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost"))
+        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost🌾"))
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
@@ -808,7 +816,7 @@ object TileKingdomClient:
         content.appendChild(prodDiv)
 
         val upgradeRow = div(cls = "tile-upgrade-row")
-        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost"))
+        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost🌾"))
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
