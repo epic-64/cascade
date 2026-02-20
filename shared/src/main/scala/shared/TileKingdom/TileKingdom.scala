@@ -3,6 +3,45 @@ package shared.TileKingdom
 import upickle.default.ReadWriter
 
 // ============================================================================
+// Resource System
+// ============================================================================
+
+enum Resource derives ReadWriter:
+  case Wheat, Wood, Faith, Gold
+
+case class Cost(amount: Int, resource: Resource) derives ReadWriter
+
+case class Resources(
+    wheat: Double = 0.0,
+    wood: Double = 0.0,
+    faith: Double = 0.0,
+    gold: Int = 0
+) derives ReadWriter:
+  def get(resource: Resource): Double = resource match
+    case Resource.Wheat => wheat
+    case Resource.Wood  => wood
+    case Resource.Faith => faith
+    case Resource.Gold  => gold.toDouble
+
+  def canAfford(cost: Cost): Boolean = get(cost.resource) >= cost.amount
+  
+  def canAfford(cost: Int, resource: Resource): Boolean = get(resource) >= cost
+
+  def deduct(cost: Cost): Resources = deduct(cost.amount, cost.resource)
+  
+  def deduct(amount: Int, resource: Resource): Resources = resource match
+    case Resource.Wheat => copy(wheat = wheat - amount)
+    case Resource.Wood  => copy(wood = wood - amount)
+    case Resource.Faith => copy(faith = faith - amount)
+    case Resource.Gold  => copy(gold = gold - amount)
+
+  def add(amount: Double, resource: Resource): Resources = resource match
+    case Resource.Wheat => copy(wheat = wheat + amount)
+    case Resource.Wood  => copy(wood = wood + amount)
+    case Resource.Faith => copy(faith = faith + amount)
+    case Resource.Gold  => copy(gold = gold + amount.toInt)
+
+// ============================================================================
 // Coordinate type for infinite grid
 // ============================================================================
 
@@ -78,6 +117,13 @@ case class Tile(
     case TileType.Temple(lvl)     => lvl
     case _                        => 0
 
+  def upgradeCost: Option[Cost] = tileType match
+    case TileType.WheatField(lvl) => Some(Cost(TileKingdomLogic.wheatFieldLevelUpCost(lvl), Resource.Wheat))
+    case TileType.Farm(lvl)       => Some(Cost(TileKingdomLogic.farmLevelUpCost(lvl), Resource.Wheat))
+    case TileType.Woodcutter(lvl) => Some(Cost(TileKingdomLogic.woodcutterLevelUpCost(lvl), Resource.Wheat))
+    case TileType.Temple(lvl)     => Some(Cost(TileKingdomLogic.templeLevelUpCost(lvl), Resource.Wood))
+    case _                        => None
+
 // ============================================================================
 // Game State
 // ============================================================================
@@ -93,6 +139,19 @@ case class TileKingdomGame(
     bureauBoosts: Map[Coord, Int] = Map.empty, // Number of faith boosts applied to each bureau
     upgradeCooldowns: Map[Coord, Long] = Map.empty // Deprecated, kept for save compatibility
 ) derives ReadWriter:
+
+  // Resource helpers
+  def resources: Resources = Resources(wheat, wood, faith, gold)
+  
+  def canAfford(cost: Cost): Boolean = resources.canAfford(cost)
+  
+  def canAfford(amount: Int, resource: Resource): Boolean = resources.canAfford(amount, resource)
+  
+  def deduct(cost: Cost): TileKingdomGame = cost.resource match
+    case Resource.Wheat => copy(wheat = wheat - cost.amount)
+    case Resource.Wood  => copy(wood = wood - cost.amount)
+    case Resource.Faith => copy(faith = faith - cost.amount)
+    case Resource.Gold  => copy(gold = gold - cost.amount)
 
   def unlockedTiles: List[Tile] =
     tiles.values.filter(_.unlocked).toList.sortBy(t => (t.coord.row, t.coord.col))
@@ -283,13 +342,6 @@ object TileKingdomLogic:
   def templeLevelUpCost(currentLevel: Int): Int =
     currentLevel * 50 * tierMultiplier(currentLevel) // Level 1→2 costs 50 wood, 2→3 costs 100 wood, etc.
 
-  // Get upgrade cost for any upgradeable tile (returns wheat cost, except temple which costs wood)
-  def getUpgradeCost(tile: Tile): Option[Int] = tile.tileType match
-    case TileType.WheatField(level) => Some(wheatFieldLevelUpCost(level))
-    case TileType.Farm(level)       => Some(farmLevelUpCost(level))
-    case TileType.Woodcutter(level) => Some(woodcutterLevelUpCost(level))
-    case TileType.Temple(level)     => Some(templeLevelUpCost(level))
-    case _                          => None
 
   // Legacy alias
   def levelUpCost(currentLevel: Int): Int = wheatFieldLevelUpCost(currentLevel)
@@ -495,16 +547,9 @@ object TileKingdomLogic:
     val boosts = game.bureauBoosts.getOrElse(bureauCoord, 0)
     1.0 + boosts * FaithBoostMultiplier
 
-  // Determine what resource a tile upgrade costs
-  enum UpgradeCurrency:
-    case Wheat, Wood
-
-  def getUpgradeCurrency(tile: Tile): UpgradeCurrency = tile.tileType match
-    case TileType.Temple(_) => UpgradeCurrency.Wood
-    case _                  => UpgradeCurrency.Wheat
-
   // Bureau auto-upgrade: upgrade the tile with lowest upgrade cost within radius
   // Returns updated game and the coord that was upgraded (if any)
+  // Compares costs numerically - all resources are treated as equivalent
   def bureauAutoUpgrade(
                          game: TileKingdomGame,
                          bureauCoord: Coord,
@@ -512,20 +557,23 @@ object TileKingdomLogic:
   ): Option[(TileKingdomGame, Coord)] =
     game.tiles.get(bureauCoord) match
       case Some(bureauTile) if bureauTile.isBureau =>
-        // Find upgradeable tiles within radius
+        // Find upgradeable tiles within radius with their costs
         val nearbyCoords = bureauCoord.neighborsWithinRadius(BureauRadius)
         val upgradeableTiles = nearbyCoords
           .flatMap(coord => game.tiles.get(coord).map(coord -> _))
           .filter((_, tile) => tile.isUpgradeable)
-          .map((coord, tile) => (coord, tile, getUpgradeCost(tile).getOrElse(Int.MaxValue), getUpgradeCurrency(tile)))
-          .filter: (_, _, cost, currency) =>
-            val hasUpgradeCost = currency match
-              case UpgradeCurrency.Wheat => game.wheat >= cost
-              case UpgradeCurrency.Wood  => game.wood >= cost + BureauWoodCostPerUpgrade // Need extra wood for bureau fee
-            hasUpgradeCost && game.wood >= BureauWoodCostPerUpgrade
+          .flatMap((coord, tile) => tile.upgradeCost.map(cost => (coord, tile, cost)))
 
-        // Select the tile with the lowest upgrade cost
-        upgradeableTiles.minByOption(_._3).flatMap: (targetCoord, targetTile, upgradeCost, currency) =>
+        // Must have wood for the bureau fee regardless of what we upgrade
+        if game.wood < BureauWoodCostPerUpgrade then return None
+
+        // Filter to only tiles we can afford (including bureau wood fee for wood-cost upgrades)
+        val affordableTiles = upgradeableTiles.filter: (_, _, cost) =>
+          val extraWoodNeeded = if cost.resource == Resource.Wood then BureauWoodCostPerUpgrade else 0
+          game.canAfford(cost.amount + extraWoodNeeded, cost.resource)
+
+        // Select the tile with the lowest upgrade cost (comparing numerically)
+        affordableTiles.minByOption(_._3.amount).flatMap: (targetCoord, targetTile, cost) =>
           // Perform the upgrade based on tile type
           val upgradedTileType = targetTile.tileType match
             case TileType.WheatField(lvl) => TileType.WheatField(lvl + 1)
@@ -536,15 +584,12 @@ object TileKingdomLogic:
 
           val upgradedTile = targetTile.copy(tileType = upgradedTileType)
 
-          // Deduct the appropriate resource for the upgrade cost
-          val (newWheat, newWood) = currency match
-            case UpgradeCurrency.Wheat => (game.wheat - upgradeCost, game.wood - BureauWoodCostPerUpgrade)
-            case UpgradeCurrency.Wood  => (game.wheat, game.wood - upgradeCost - BureauWoodCostPerUpgrade)
+          // Deduct upgrade cost and bureau fee
+          val afterUpgradeCost = game.deduct(cost)
+          val afterBureauFee = afterUpgradeCost.copy(wood = afterUpgradeCost.wood - BureauWoodCostPerUpgrade)
 
-          val newGame = game.copy(
-            tiles = game.tiles.updated(targetCoord, upgradedTile),
-            wheat = newWheat,
-            wood = newWood
+          val newGame = afterBureauFee.copy(
+            tiles = game.tiles.updated(targetCoord, upgradedTile)
           )
           Some((newGame, targetCoord))
       case _ => None
