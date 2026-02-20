@@ -262,21 +262,26 @@ object TileKingdomLogic:
   // Legacy alias
   def buildCost: Int = wheatFieldBuildCost
 
+  // Tier multiplier: 3x for every 10 levels (level 0-9: 1x, 10-19: 3x, 20-29: 9x, etc.)
+  private def tierMultiplier(level: Int): Int =
+    val tier = level / 10
+    math.pow(3, tier).toInt
+
   // Cost to level up a wheat field
   def wheatFieldLevelUpCost(currentLevel: Int): Int =
-    currentLevel * 20 // Level 1→2 costs 20, 2→3 costs 40, etc.
+    currentLevel * 20 * tierMultiplier(currentLevel) // Level 1→2 costs 20, 2→3 costs 40, etc.
 
   // Cost to level up a farm
   def farmLevelUpCost(currentLevel: Int): Int =
-    currentLevel * 30 // Level 1→2 costs 30, 2→3 costs 60, etc.
+    currentLevel * 30 * tierMultiplier(currentLevel) // Level 1→2 costs 30, 2→3 costs 60, etc.
 
   // Cost to level up a woodcutter
   def woodcutterLevelUpCost(currentLevel: Int): Int =
-    currentLevel * 25 // Level 1→2 costs 25, 2→3 costs 50, etc.
+    currentLevel * 25 * tierMultiplier(currentLevel) // Level 1→2 costs 25, 2→3 costs 50, etc.
 
   // Cost to level up a temple (costs wood)
   def templeLevelUpCost(currentLevel: Int): Int =
-    currentLevel * 50 // Level 1→2 costs 50 wood, 2→3 costs 100 wood, etc.
+    currentLevel * 50 * tierMultiplier(currentLevel) // Level 1→2 costs 50 wood, 2→3 costs 100 wood, etc.
 
   // Get upgrade cost for any upgradeable tile (returns wheat cost, except temple which costs wood)
   def getUpgradeCost(tile: Tile): Option[Int] = tile.tileType match
