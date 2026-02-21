@@ -1,6 +1,6 @@
-/* Territory Idle Game Styles */
+/* Tile Kingdom Game Styles */
 
-.territory-container {
+.tile-kingdom-container {
   position: fixed;
   top: 0;
   left: 0;
@@ -11,7 +11,7 @@
 }
 
 /* Header with help button - overlay */
-.territory-header {
+.tile-kingdom-header {
   position: fixed;
   top: 1rem;
   left: 50%;
@@ -26,7 +26,7 @@
   box-shadow: var(--shadow-lg);
 }
 
-.territory-header h1 {
+.tile-kingdom-header h1 {
   margin: 0;
   color: var(--text-primary);
   font-size: 1.5rem;
@@ -55,7 +55,7 @@
 }
 
 /* Resources Panel - overlay */
-.territory-resources {
+.tile-kingdom-resources {
   position: fixed;
   top: 1rem;
   left: 1rem;
@@ -90,8 +90,24 @@
   color: var(--text-primary);
 }
 
+.resource-income {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #16a34a;
+  margin-left: 0.25rem;
+}
+
+.resource-item.income {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(22, 163, 74, 0.15) 100%);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.resource-item.income .resource-value {
+  color: #16a34a;
+}
+
 /* Infinite Grid Container */
-.territory-grid-viewport {
+.tile-kingdom-grid-viewport {
   position: absolute;
   top: 0;
   left: 0;
@@ -101,11 +117,11 @@
   cursor: grab;
 }
 
-.territory-grid-viewport:active {
+.tile-kingdom-grid-viewport:active {
   cursor: grabbing;
 }
 
-.territory-grid {
+.tile-kingdom-grid {
   position: absolute;
   display: grid;
   gap: 4px;
@@ -115,7 +131,7 @@
 }
 
 /* Individual Tiles */
-.territory-tile {
+.tile-kingdom-tile {
   width: 70px;
   height: 70px;
   border-radius: var(--radius-sm);
@@ -129,187 +145,187 @@
   overflow: hidden;
 }
 
-.territory-tile.locked {
+.tile-kingdom-tile.locked {
   background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
   cursor: not-allowed;
   opacity: 0.4;
 }
 
-.territory-tile.locked .tile-content {
+.tile-kingdom-tile.locked .tile-content {
   font-size: 1rem;
 }
 
-.territory-tile.locked:hover {
+.tile-kingdom-tile.locked:hover {
   transform: none;
 }
 
-.territory-tile.empty {
+.tile-kingdom-tile.empty {
   background: #f1f5f9;
   border: 1px dashed #94a3b8;
 }
 
-.territory-tile.empty:hover {
+.tile-kingdom-tile.empty:hover {
   background: #e2e8f0;
   transform: scale(1.08);
   box-shadow: var(--shadow-lg);
   z-index: 10;
 }
 
-.territory-tile.wheat-field {
+.tile-kingdom-tile.wheat-field {
   background: #fefce8;
   border: 2px solid #ca8a04;
 }
 
-.territory-tile.wheat-field:hover {
+.tile-kingdom-tile.wheat-field:hover {
   background: #fef9c3;
   transform: scale(1.08);
   box-shadow: var(--shadow-lg);
   z-index: 10;
 }
 
-.territory-tile.wheat-field[data-level="2"] {
+.tile-kingdom-tile.wheat-field[data-level="2"] {
   background: #fef08a;
   border-color: #a16207;
 }
 
-.territory-tile.wheat-field[data-level="3"] {
+.tile-kingdom-tile.wheat-field[data-level="3"] {
   background: #fde047;
   border-color: #854d0e;
 }
 
-.territory-tile.wheat-field[data-level="4"] {
+.tile-kingdom-tile.wheat-field[data-level="4"] {
   background: #facc15;
   border-color: #713f12;
 }
 
-.territory-tile.wheat-field[data-level="5"],
-.territory-tile.wheat-field[data-level="6"],
-.territory-tile.wheat-field[data-level="7"],
-.territory-tile.wheat-field[data-level="8"],
-.territory-tile.wheat-field[data-level="9"],
-.territory-tile.wheat-field[data-level="10"] {
+.tile-kingdom-tile.wheat-field[data-level="5"],
+.tile-kingdom-tile.wheat-field[data-level="6"],
+.tile-kingdom-tile.wheat-field[data-level="7"],
+.tile-kingdom-tile.wheat-field[data-level="8"],
+.tile-kingdom-tile.wheat-field[data-level="9"],
+.tile-kingdom-tile.wheat-field[data-level="10"] {
   background: #eab308;
   border-color: #422006;
 }
 
 /* Text colors for wheat fields - ensure contrast */
-.territory-tile.wheat-field .tile-label,
-.territory-tile.wheat-field .tile-cost,
-.territory-tile.wheat-field .tile-upgrade {
+.tile-kingdom-tile.wheat-field .tile-label,
+.tile-kingdom-tile.wheat-field .tile-cost,
+.tile-kingdom-tile.wheat-field .tile-upgrade {
   color: #422006;
 }
 
-.territory-tile.wheat-field .tile-production {
+.tile-kingdom-tile.wheat-field .tile-production {
   color: #166534;
 }
 
-.territory-tile.wheat-field .bonus {
+.tile-kingdom-tile.wheat-field .bonus {
   color: #15803d;
 }
 
 /* Farm Tiles */
-.territory-tile.farm {
+.tile-kingdom-tile.farm {
   background: #eff6ff;
   border: 2px solid #3b82f6;
 }
 
-.territory-tile.farm:hover {
+.tile-kingdom-tile.farm:hover {
   background: #dbeafe;
   transform: scale(1.08);
   box-shadow: var(--shadow-lg);
   z-index: 10;
 }
 
-.territory-tile.farm[data-level="2"] {
+.tile-kingdom-tile.farm[data-level="2"] {
   background: #bfdbfe;
   border-color: #2563eb;
 }
 
-.territory-tile.farm[data-level="3"] {
+.tile-kingdom-tile.farm[data-level="3"] {
   background: #93c5fd;
   border-color: #1d4ed8;
 }
 
-.territory-tile.farm[data-level="4"],
-.territory-tile.farm[data-level="5"],
-.territory-tile.farm[data-level="6"] {
+.tile-kingdom-tile.farm[data-level="4"],
+.tile-kingdom-tile.farm[data-level="5"],
+.tile-kingdom-tile.farm[data-level="6"] {
   background: #60a5fa;
   border-color: #1e40af;
 }
 
 /* Text colors for farm tiles */
-.territory-tile.farm .tile-label,
-.territory-tile.farm .tile-cost,
-.territory-tile.farm .tile-upgrade {
+.tile-kingdom-tile.farm .tile-label,
+.tile-kingdom-tile.farm .tile-cost,
+.tile-kingdom-tile.farm .tile-upgrade {
   color: #1e3a5f;
 }
 
-.territory-tile.farm .tile-production {
+.tile-kingdom-tile.farm .tile-production {
   color: #1d4ed8;
 }
 
 /* Higher level farms need lighter text */
-.territory-tile.farm[data-level="4"] .tile-label,
-.territory-tile.farm[data-level="4"] .tile-cost,
-.territory-tile.farm[data-level="4"] .tile-upgrade,
-.territory-tile.farm[data-level="5"] .tile-label,
-.territory-tile.farm[data-level="5"] .tile-cost,
-.territory-tile.farm[data-level="5"] .tile-upgrade,
-.territory-tile.farm[data-level="6"] .tile-label,
-.territory-tile.farm[data-level="6"] .tile-cost,
-.territory-tile.farm[data-level="6"] .tile-upgrade {
+.tile-kingdom-tile.farm[data-level="4"] .tile-label,
+.tile-kingdom-tile.farm[data-level="4"] .tile-cost,
+.tile-kingdom-tile.farm[data-level="4"] .tile-upgrade,
+.tile-kingdom-tile.farm[data-level="5"] .tile-label,
+.tile-kingdom-tile.farm[data-level="5"] .tile-cost,
+.tile-kingdom-tile.farm[data-level="5"] .tile-upgrade,
+.tile-kingdom-tile.farm[data-level="6"] .tile-label,
+.tile-kingdom-tile.farm[data-level="6"] .tile-cost,
+.tile-kingdom-tile.farm[data-level="6"] .tile-upgrade {
   color: #1e3a8a;
 }
 
-.territory-tile.farm[data-level="4"] .tile-production,
-.territory-tile.farm[data-level="5"] .tile-production,
-.territory-tile.farm[data-level="6"] .tile-production {
+.tile-kingdom-tile.farm[data-level="4"] .tile-production,
+.tile-kingdom-tile.farm[data-level="5"] .tile-production,
+.tile-kingdom-tile.farm[data-level="6"] .tile-production {
   color: #1e40af;
 }
 
 /* Woodcutter Tiles */
-.territory-tile.woodcutter {
+.tile-kingdom-tile.woodcutter {
   background: #f0fdf4;
   border: 2px solid #16a34a;
 }
 
-.territory-tile.woodcutter:hover {
+.tile-kingdom-tile.woodcutter:hover {
   background: #dcfce7;
   transform: scale(1.08);
   box-shadow: var(--shadow-lg);
   z-index: 10;
 }
 
-.territory-tile.woodcutter[data-level="2"] {
+.tile-kingdom-tile.woodcutter[data-level="2"] {
   background: #bbf7d0;
   border-color: #15803d;
 }
 
-.territory-tile.woodcutter[data-level="3"] {
+.tile-kingdom-tile.woodcutter[data-level="3"] {
   background: #86efac;
   border-color: #166534;
 }
 
-.territory-tile.woodcutter[data-level="4"],
-.territory-tile.woodcutter[data-level="5"],
-.territory-tile.woodcutter[data-level="6"] {
+.tile-kingdom-tile.woodcutter[data-level="4"],
+.tile-kingdom-tile.woodcutter[data-level="5"],
+.tile-kingdom-tile.woodcutter[data-level="6"] {
   background: #4ade80;
   border-color: #14532d;
 }
 
 /* Text colors for woodcutter tiles */
-.territory-tile.woodcutter .tile-label,
-.territory-tile.woodcutter .tile-cost,
-.territory-tile.woodcutter .tile-upgrade {
+.tile-kingdom-tile.woodcutter .tile-label,
+.tile-kingdom-tile.woodcutter .tile-cost,
+.tile-kingdom-tile.woodcutter .tile-upgrade {
   color: #14532d;
 }
 
-.territory-tile.woodcutter .tile-production {
+.tile-kingdom-tile.woodcutter .tile-production {
   color: #166534;
 }
 
 /* Forest group bonus indicator */
-.territory-tile.woodcutter .bonus.forest-bonus {
+.tile-kingdom-tile.woodcutter .bonus.forest-bonus {
   color: #166534;
 }
 
@@ -319,12 +335,12 @@
 }
 
 /* Bureau Tiles */
-.territory-tile.bureau {
+.tile-kingdom-tile.bureau {
   background: #f5f3ff;
   border: 2px solid #7c3aed;
 }
 
-.territory-tile.bureau:hover {
+.tile-kingdom-tile.bureau:hover {
   background: #ede9fe;
   transform: scale(1.08);
   box-shadow: var(--shadow-lg);
@@ -332,19 +348,88 @@
 }
 
 /* Text colors for bureau tiles */
-.territory-tile.bureau .tile-label,
-.territory-tile.bureau .tile-cost,
-.territory-tile.bureau .tile-upgrade {
+.tile-kingdom-tile.bureau .tile-label,
+.tile-kingdom-tile.bureau .tile-cost,
+.tile-kingdom-tile.bureau .tile-upgrade {
   color: #5b21b6;
 }
 
-.territory-tile.bureau .tile-production {
+.tile-kingdom-tile.bureau .tile-production {
   color: #7c3aed;
 }
 
 /* Bureau progress bar */
 .tile-progress-bar.bureau-progress {
   background: linear-gradient(90deg, #7c3aed 0%, #a78bfa 100%);
+}
+
+/* Bureau boost button */
+.btn-boost {
+  font-size: 0.5rem;
+  font-weight: 700;
+  padding: 1px 4px;
+  border: none;
+  border-radius: 3px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.btn-boost:hover {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  transform: scale(1.1);
+}
+
+/* Temple Tiles */
+.tile-kingdom-tile.temple {
+  background: #fefce8;
+  border: 2px solid #eab308;
+}
+
+.tile-kingdom-tile.temple:hover {
+  background: #fef9c3;
+  transform: scale(1.08);
+  box-shadow: var(--shadow-lg);
+  z-index: 10;
+}
+
+.tile-kingdom-tile.temple[data-level="2"] {
+  background: #fef08a;
+  border-color: #ca8a04;
+}
+
+.tile-kingdom-tile.temple[data-level="3"],
+.tile-kingdom-tile.temple[data-level="4"],
+.tile-kingdom-tile.temple[data-level="5"] {
+  background: #fde047;
+  border-color: #a16207;
+}
+
+.tile-kingdom-tile.temple[data-level="6"],
+.tile-kingdom-tile.temple[data-level="7"],
+.tile-kingdom-tile.temple[data-level="8"],
+.tile-kingdom-tile.temple[data-level="9"],
+.tile-kingdom-tile.temple[data-level="10"] {
+  background: #facc15;
+  border-color: #854d0e;
+}
+
+/* Text colors for temple tiles */
+.tile-kingdom-tile.temple .tile-label,
+.tile-kingdom-tile.temple .tile-cost,
+.tile-kingdom-tile.temple .tile-upgrade {
+  color: #854d0e;
+}
+
+.tile-kingdom-tile.temple .tile-production.temple-production {
+  color: #b45309;
+}
+
+/* Temple progress bar */
+.tile-progress-bar.temple-progress {
+  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
 }
 
 /* Influence Indicators */
@@ -365,46 +450,133 @@
 }
 
 /* Build Options (when farm is available) */
+/* Build Options (hidden by default, shown on hover) */
 .tile-build-options {
-  display: flex;
-  flex-direction: row;
+  display: none;
+  flex-direction: column;
   gap: 2px;
   padding: 2px;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: var(--radius-sm);
+  z-index: 5;
+}
+
+/* Show build options when tile has .selecting class */
+.tile-kingdom-tile.empty.selecting .tile-build-options {
+  display: flex;
+}
+
+/* Hide build icon when selecting */
+.tile-kingdom-tile.empty.selecting .tile-build-icon-container {
+  display: none;
+}
+
+/* Build icon container (shown by default on empty tiles) */
+.tile-build-icon-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tile-build-icon-container:hover {
+  transform: scale(1.1);
+}
+
+.tile-build-icon-container i {
+  font-size: 1.5rem;
+  color: #64748b;
+  transition: color 0.2s ease;
+}
+
+.tile-build-icon-container:hover i {
+  color: #3b82f6;
+}
+
+.tile-build-icon-container .build-label {
+  font-size: 0.6rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+/* Back button styling */
+.build-option.build-back {
+  background: rgba(226, 232, 240, 0.9);
+  flex: 0.6;
+}
+
+.build-option.build-back:hover {
+  background: rgba(203, 213, 225, 1);
+}
+
+.build-option.build-back .build-icon {
+  font-size: 0.7rem;
+  color: #64748b;
 }
 
 .build-option {
   flex: 1;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
-  padding: 2px;
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 2px;
+  width: 100%;
+  padding: 0 4px;
+  background: rgba(241, 245, 249, 0.9);
+  border-radius: 3px;
   cursor: pointer;
   transition: all 0.15s ease;
+  min-height: 0;
+  overflow: hidden;
+  gap: 4px;
+  box-sizing: border-box;
+}
+
+.build-option.single-option {
+  justify-content: center;
 }
 
 .build-option:hover {
-  background: rgba(255, 255, 255, 1);
-  transform: scale(1.1);
+  background: rgba(219, 234, 254, 1);
+  transform: scale(1.02);
+  z-index: 1;
 }
 
 .build-icon {
-  font-size: 1rem;
+  font-size: 0.8rem;
   line-height: 1;
+  flex-shrink: 0;
+}
+
+.build-name {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #1e293b;
+  flex: 1;
+  text-align: left;
 }
 
 .build-label {
-  font-size: 0.6rem;
+  font-size: 0.65rem;
   font-weight: 700;
   color: #1e293b;
 }
 
 .build-cost {
-  font-size: 0.55rem;
+  font-size: 0.65rem;
   color: #475569;
   font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-align: right;
 }
 
 /* Bonus indicator on wheat fields */
@@ -444,6 +616,33 @@
   font-weight: 600;
 }
 
+.tile-upgrade-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.btn-x10 {
+  font-size: 0.5rem;
+  font-weight: 700;
+  padding: 1px 4px;
+  border: none;
+  border-radius: 3px;
+  background: linear-gradient(135deg, #818cf8 0%, #6366f1 100%);
+  color: white;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.btn-x10:hover {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  transform: scale(1.1);
+}
+
 .tile-production {
   font-size: 0.65rem;
   color: #166534;
@@ -451,7 +650,7 @@
 }
 
 /* Actions - overlay at bottom */
-.territory-actions {
+.tile-kingdom-actions {
   position: fixed;
   bottom: 1rem;
   left: 50%;
@@ -465,7 +664,7 @@
   box-shadow: var(--shadow-lg);
 }
 
-.territory-actions button {
+.tile-kingdom-actions button {
   padding: 0.75rem 1.5rem;
   font-size: 0.9rem;
   font-weight: 700;
@@ -670,22 +869,22 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-  .territory-header {
+  .tile-kingdom-header {
     top: 0.5rem;
     padding: 0.4rem 0.75rem;
   }
 
-  .territory-header h1 {
+  .tile-kingdom-header h1 {
     font-size: 1.2rem;
   }
 
-  .territory-resources {
+  .tile-kingdom-resources {
     top: 0.5rem;
     left: 0.5rem;
     padding: 0.5rem;
   }
 
-  .territory-tile {
+  .tile-kingdom-tile {
     width: 60px;
     height: 60px;
   }
@@ -694,12 +893,12 @@
     font-size: 1rem;
   }
 
-  .territory-actions {
+  .tile-kingdom-actions {
     bottom: 0.5rem;
     padding: 0.5rem;
   }
 
-  .territory-actions button {
+  .tile-kingdom-actions button {
     padding: 0.5rem 1rem;
     font-size: 0.8rem;
   }
@@ -781,14 +980,106 @@
 }
 
 /* Unlockable tiles styling - only shown when player can afford */
-.territory-tile.unlockable {
+.tile-kingdom-tile.unlockable {
   opacity: 1;
   cursor: pointer;
 }
 
-.territory-tile.unlockable:hover {
+.tile-kingdom-tile.unlockable:hover {
   transform: scale(1.05);
   box-shadow: 0 0 12px rgba(234, 179, 8, 0.5);
 }
 
+/* Welcome Back Modal */
+.welcome-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
 
+.welcome-modal.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.welcome-modal-content {
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  min-width: 300px;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: var(--shadow-xl);
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+}
+
+.welcome-modal.show .welcome-modal-content {
+  transform: scale(1);
+}
+
+.welcome-modal-header h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+  color: var(--text-primary);
+}
+
+.welcome-modal-body {
+  margin-bottom: 1.5rem;
+}
+
+.welcome-time {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.welcome-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.welcome-gains {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.welcome-gain-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.25rem;
+  padding: 0.5rem 1rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  min-width: 150px;
+  justify-content: center;
+}
+
+.welcome-gain-icon {
+  font-size: 1.5rem;
+}
+
+.welcome-gain-value {
+  color: var(--accent-green);
+  font-weight: 600;
+  font-family: monospace;
+}
+
+.welcome-modal-close {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+}

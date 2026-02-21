@@ -16,26 +16,42 @@ def initializeAIChat(): Unit =
   println("[AIChat] Starting AI Chat client...")
   AIChatClient.buildUI()
   AIChatClient.connectWebSocket()
+  // Force viewport recalculation on mobile - fixes initial layout issues with dynamic viewport
+  AIChatClient.fixMobileViewport()
 
 object AIChatClient:
   // State
   private var chatWebSocket: Option[WebSocket] = None
-  private var apiKeySet: Boolean = false
   private var chatMessages: mutable.ArrayBuffer[ChatMessage] = mutable.ArrayBuffer.empty
   private var currentEditingMessageId: Option[String] = None
   private var streamingContent: mutable.Map[String, String] = mutable.Map.empty
+  private var activeStreamingId: Option[String] = None
   private var pendingImages: mutable.ArrayBuffer[String] = mutable.ArrayBuffer.empty
   private var messageIdCounter: Long = 0
+  private var selectedModel: String = AIChat.defaultModel
+  private var availableModels: Seq[String] = Seq.empty
+  // TTS state
+  private var speakingMessageId: Option[String] = None
+  // Metadata per assistant message (model, tokens)
+  case class MessageMeta(model: String, promptTokens: Int, completionTokens: Int) derives upickle.default.ReadWriter
+  private var messageMeta: mutable.Map[String, MessageMeta] = mutable.Map.empty
 
   // LocalStorage keys
   private val StorageKeyMessages = "aiChat_messages"
   private val StorageKeySystemPrompt = "aiChat_systemPrompt"
   private val StorageKeyApiKey = "aiChat_apiKey"
+  private val StorageKeyModel = "aiChat_model"
+  private val StorageKeyMeta = "aiChat_messageMeta"
 
   // Generate unique message IDs (ScalaJS-compatible)
   private def generateMessageId(): String =
     messageIdCounter += 1
     s"msg-${System.currentTimeMillis()}-$messageIdCounter"
+
+  private def getApiKey(): Option[String] =
+    getElementByIdAs[HTMLInputElement]("apiKeyInput")
+      .map(_.value.trim)
+      .filter(_.nonEmpty)
 
   def buildUI(): Unit =
     document.body.innerHTML = ""
@@ -45,47 +61,130 @@ object AIChatClient:
       div(cls = "container chat-container")(
         // Mobile tab bar
         div(cls = "mobile-tabs")(
-          button(cls = "mobile-tab home-tab", content = "🏠").tap: btn =>
+          button(cls = "mobile-tab home-tab").tap: btn =>
+            btn.innerHTML = """<i class="fa-solid fa-house"></i>"""
             btn.title = "Home"
             btn.addEventListener("click", (e: Event) => dom.window.location.href = "/")
           ,
-          button(cls = "mobile-tab active", id = "tabChat", content = "💬 Chat").tap: btn =>
+          button(cls = "mobile-tab active", id = "tabChat").tap: btn =>
+            btn.innerHTML = """<i class="fa-solid fa-comment"></i> Chat"""
             btn.addEventListener("click", (e: Event) => switchTab("chat"))
           ,
-          button(cls = "mobile-tab", id = "tabSettings", content = "⚙️ Settings").tap: btn =>
+          button(cls = "mobile-tab", id = "tabSettings").tap: btn =>
+            btn.innerHTML = """<i class="fa-solid fa-gear"></i> Settings"""
             btn.addEventListener("click", (e: Event) => switchTab("settings"))
         ),
         // Sidebar for settings (hidden by default on mobile)
         div(id = "chatSidebar", cls = "chat-sidebar mobile-hidden")(
-          h3(content = "Settings"),
-          // API Key input
-          div(cls = "sidebar-section")(
-            el("label", cls = "sidebar-label", content = "OpenAI API Key"),
-            div(cls = "api-key-input")(
-              input("password", id = "apiKeyInput", cls = "input-field").tap: inp =>
-                inp.placeholder = "sk-..."
-                inp.autocomplete = "off"
-              ,
-              button(cls = "btn btn-sm", content = "Set").tap: btn =>
-                btn.addEventListener("click", (e: Event) => setApiKey())
-            ),
-            span(id = "apiKeyStatus", cls = "status-text")
-          ),
-          // System prompt
-          div(cls = "sidebar-section")(
-            el("label", cls = "sidebar-label", content = "System Prompt"),
-            el("textarea", id = "systemPrompt", cls = "textarea-field").tap: textarea =>
-              textarea.asInstanceOf[HTMLTextAreaElement].placeholder = AIChat.defaultSystemPrompt
-              textarea.asInstanceOf[HTMLTextAreaElement].rows = 4
+          // Sub-tabs for Settings vs TTS
+          div(cls = "sidebar-tabs")(
+            button(id = "sidebarTabGeneral", cls = "sidebar-tab active", content = "General").tap: btn =>
+              btn.addEventListener("click", (e: Event) => switchSidebarTab("general"))
             ,
-            div(cls = "system-prompt-actions")(
-              button(id = "updateSystemPromptBtn", cls = "btn btn-sm btn-secondary hidden", content = "Update").tap: btn =>
-                btn.addEventListener("click", (e: Event) => updateSystemPrompt())
-              ,
-              span(id = "systemPromptStatus", cls = "status-text")
+            button(id = "sidebarTabTTS", cls = "sidebar-tab", content = "TTS").tap: btn =>
+              btn.addEventListener("click", (e: Event) => switchSidebarTab("tts"))
+          ),
+          // === General settings panel ===
+          div(id = "sidebarPanelGeneral", cls = "sidebar-panel")(
+            // API Key input
+            div(cls = "sidebar-section")(
+              div(cls = "sidebar-label-row")(
+                el("label", cls = "sidebar-label", content = "OpenAI API Key"),
+                savedIndicator("apiKeySaved")
+              ),
+              div(cls = "api-key-input")(
+                input("text", id = "apiKeyInput", cls = "input-field api-key-masked").tap: inp =>
+                  inp.placeholder = "sk-..."
+                  inp.autocomplete = "off"
+                  inp.setAttribute("data-1p-ignore", "")
+                  inp.setAttribute("data-bwignore", "")
+                  inp.setAttribute("data-lpignore", "true")
+                  inp.setAttribute("data-form-type", "other")
+                ,
+                button(cls = "btn btn-sm", content = "Set").tap: btn =>
+                  btn.addEventListener("click", (e: Event) => setApiKey())
+              )
+            ),
+            // Model selector
+            div(cls = "sidebar-section")(
+              div(cls = "sidebar-label-row")(
+                el("label", cls = "sidebar-label", content = "Model"),
+                span(id = "modelStatus", cls = "sidebar-label-hint"),
+                savedIndicator("modelSaved")
+              ),
+              el("select", id = "modelSelect", cls = "input-field").tap: sel =>
+                val defaultOpt = document.createElement("option").asInstanceOf[HTMLOptionElement]
+                defaultOpt.value = AIChat.defaultModel
+                defaultOpt.textContent = AIChat.defaultModel
+                sel.appendChild(defaultOpt)
+                sel.addEventListener("change", (e: Event) =>
+                  selectedModel = sel.asInstanceOf[HTMLSelectElement].value
+                  dom.window.localStorage.setItem(StorageKeyModel, selectedModel)
+                  flashSaved("modelSaved")
+                )
+            ),
+            // System prompt
+            div(cls = "sidebar-section")(
+              div(cls = "sidebar-label-row")(
+                label(forId = "systemPrompt", cls = "sidebar-label", content = "System Prompt"),
+                savedIndicator("systemPromptSaved")
+              ),
+              textarea(id = "systemPrompt", cls = "textarea-field").tap: textarea =>
+                textarea.placeholder = AIChat.defaultSystemPrompt
+                textarea.rows = 4
+                textarea.addEventListener("blur", (e: Event) => updateSystemPrompt())
             )
           ),
-          // Actions
+          // === TTS settings panel ===
+          div(id = "sidebarPanelTTS", cls = "sidebar-panel hidden")(
+            // TTS Voice selector
+            div(cls = "sidebar-section")(
+              div(cls = "sidebar-label-row")(
+                el("label", cls = "sidebar-label", content = "Voice"),
+                savedIndicator("voiceSaved")
+              ),
+              el("select", id = "voiceSelect", cls = "input-field").tap: sel =>
+                ttsVoices.foreach: voice =>
+                  val opt = document.createElement("option").asInstanceOf[HTMLOptionElement]
+                  opt.value = voice
+                  opt.textContent = voice.capitalize
+                  sel.appendChild(opt)
+                // Restore saved voice
+                Option(dom.window.localStorage.getItem(StorageKeyVoice))
+                  .filter(_.nonEmpty)
+                  .filter(ttsVoices.contains)
+                  .foreach: saved =>
+                    sel.asInstanceOf[HTMLSelectElement].value = saved
+                    selectedVoice = saved
+                sel.addEventListener("change", (e: Event) =>
+                  selectedVoice = sel.asInstanceOf[HTMLSelectElement].value
+                  dom.window.localStorage.setItem(StorageKeyVoice, selectedVoice)
+                  flashSaved("voiceSaved")
+                )
+            ),
+            // TTS Tone / Prompt
+            div(cls = "sidebar-section")(
+              div(cls = "sidebar-label-row")(
+                el("label", cls = "sidebar-label", content = "Tone"),
+                savedIndicator("toneSaved")
+              ),
+              textarea(id = "ttsPromptInput", cls = "textarea-field").tap: ta =>
+                ta.placeholder = "e.g. Speak cheerfully with warmth"
+                ta.rows = 3
+                // Restore saved prompt
+                Option(dom.window.localStorage.getItem(StorageKeyTTSPrompt))
+                  .filter(_.nonEmpty)
+                  .foreach: saved =>
+                    ta.value = saved
+                    ttsPrompt = saved
+                ta.addEventListener("blur", (e: Event) =>
+                  ttsPrompt = ta.value
+                  dom.window.localStorage.setItem(StorageKeyTTSPrompt, ttsPrompt)
+                  flashSaved("toneSaved")
+                )
+            )
+          ),
+          // Actions (always visible, outside tab panels)
           div(cls = "sidebar-section sidebar-actions")(
             button(cls = "btn btn-secondary btn-full", content = "Clear Chat").tap: btn =>
               btn.addEventListener("click", (e: Event) => clearChat())
@@ -107,6 +206,11 @@ object AIChatClient:
         ),
         // Main chat area
         div(id = "chatMain", cls = "chat-main")(
+          // Connection status banner
+          div(id = "connectionStatus", cls = "connection-status disconnected")(
+            span(cls = "connection-dot"),
+            span(id = "connectionLabel", content = "Connecting…")
+          ),
           // Messages container
           div(id = "messagesContainer", cls = "messages-container")(
             div(id = "emptyState", cls = "empty-state")(
@@ -121,10 +225,9 @@ object AIChatClient:
               div(id = "imagePreview", cls = "image-preview hidden"),
               // Text input
               div(cls = "input-row")(
-                el("textarea", id = "messageInput", cls = "message-input").tap: textarea =>
-                  val ta = textarea.asInstanceOf[HTMLTextAreaElement]
+                textarea(id = "messageInput", cls = "message-input").tap: ta =>
                   ta.placeholder = "Type your message..."
-                  ta.rows = 2
+                  ta.rows = 1
                   ta.addEventListener("keydown", (e: KeyboardEvent) =>
                     if e.key == "Enter" && !e.shiftKey then
                       e.preventDefault()
@@ -135,14 +238,22 @@ object AIChatClient:
                 // Buttons stacked vertically
                 div(cls = "input-buttons")(
                   // Image upload button
-                  button(cls = "btn btn-icon", content = "📷").tap: btn =>
+                  button(cls = "btn btn-icon").tap: btn =>
+                    btn.innerHTML = """<i class="fa-solid fa-camera"></i>"""
                     btn.title = "Add image"
                     btn.addEventListener("click", (e: Event) => triggerImageUpload())
                   ,
-                  // Send button
-                  button(id = "sendBtn", cls = "btn btn-primary btn-icon", content = "✈️").tap: btn =>
+                  // Send button (hidden during streaming)
+                  button(id = "sendBtn", cls = "btn btn-primary btn-icon").tap: btn =>
+                    btn.innerHTML = """<i class="fa-solid fa-paper-plane"></i>"""
                     btn.title = "Send message"
                     btn.addEventListener("click", (e: Event) => sendChatMessage())
+                  ,
+                  // Stop button (hidden by default, shown during streaming)
+                  button(id = "stopBtn", cls = "btn btn-danger btn-icon hidden").tap: btn =>
+                    btn.innerHTML = """<i class="fa-solid fa-stop"></i>"""
+                    btn.title = "Stop generating"
+                    btn.addEventListener("click", (e: Event) => stopStreaming())
                 )
               ),
               // Hidden file input for images
@@ -165,6 +276,7 @@ object AIChatClient:
 
     ws.onopen = (e: Event) =>
       println("[AIChat] WebSocket connected")
+      setConnectionStatus("connected")
       loadFromLocalStorage()
 
     ws.onmessage = (event: MessageEvent) =>
@@ -175,6 +287,7 @@ object AIChatClient:
 
     ws.onclose = (event: CloseEvent) =>
       println("[AIChat] WebSocket disconnected")
+      setConnectionStatus("disconnected")
       // Attempt reconnect after delay
       dom.window.setTimeout(() => connectWebSocket(), 3000)
 
@@ -186,11 +299,6 @@ object AIChatClient:
 
   private def processServerMessage(msg: ServerMessage): Unit =
     msg match
-      case ServerMessage.ApiKeySet(valid) =>
-        apiKeySet = valid
-        getElementById("apiKeyStatus").foreach: elem =>
-          elem.textContent = if valid then "✓ API key set" else "✗ Invalid"
-          elem.className = s"status-text ${if valid then "status-success" else "status-error"}"
 
       case ServerMessage.MessageAdded(message) =>
         hideEmptyState()
@@ -198,6 +306,8 @@ object AIChatClient:
         if message.role == MessageRole.Assistant && message.content.isEmpty then
           // Start streaming - add placeholder
           streamingContent(message.id) = ""
+          activeStreamingId = Some(message.id)
+          showStopButton()
           addMessageToUI(message, isStreaming = true)
         else
           addMessageToUI(message)
@@ -226,34 +336,75 @@ object AIChatClient:
             streamingContent(messageId) = chunk
             updateStreamingMessage(messageId, chunk)
 
-      case ServerMessage.StreamingComplete(messageId) =>
+      case ServerMessage.StreamingComplete(messageId, model, promptTokens, completionTokens) =>
         streamingContent.get(messageId).foreach: finalContent =>
           val idx = chatMessages.indexWhere(_.id == messageId)
           if idx >= 0 then
             chatMessages(idx) = chatMessages(idx).copy(content = finalContent)
             finalizeStreamingMessage(messageId, finalContent)
+        // Store metadata and render badges
+        val meta = MessageMeta(model, promptTokens, completionTokens)
+        messageMeta(messageId) = meta
+        updateMessageMetaBadges(messageId, meta)
         streamingContent.remove(messageId)
+        activeStreamingId = None
+        hideStopButton()
         saveToLocalStorage()
 
       case ServerMessage.ChatCleared() =>
         chatMessages.clear()
+        messageMeta.clear()
         clearMessagesUI()
         showEmptyState()
-        resetSystemPromptStatus()
         // Clear messages from localStorage but keep settings
         dom.window.localStorage.removeItem(StorageKeyMessages)
+        dom.window.localStorage.removeItem(StorageKeyMeta)
 
       case ServerMessage.ErrorMessage(message) =>
         println(s"[AIChat] Error: $message")
         showError(message)
 
+      case ServerMessage.ModelsListed(models) =>
+        availableModels = models
+        populateModelSelector(models)
+
+      case ServerMessage.TTSAudio(messageId, audioBase64) =>
+        handleTTSAudio(messageId, audioBase64)
+
+      case ServerMessage.TTSError(messageId, error) =>
+        handleTTSError(messageId, error)
+
+  private var flashTimers: mutable.Map[String, Int] = mutable.Map.empty
+
+  private val swirlCheckSvg =
+    """<svg viewBox="0 0 16 16"><circle class="swirl-circle" cx="8" cy="8" r="7.5"/><path class="check-path" d="M4.5 8.5 L7 11 L11.5 5.5"/></svg>"""
+
+  private def savedIndicator(id: String): HTMLElement =
+    span(id = id, cls = "saved-indicator").tap: el =>
+      el.innerHTML = swirlCheckSvg
+
+  private def flashSaved(indicatorId: String): Unit =
+    getElementById(indicatorId).foreach: elem =>
+      // Reset animation: remove class, force reflow, re-add
+      elem.classList.remove("visible")
+      elem.innerHTML = swirlCheckSvg
+      val _ = elem.offsetWidth // force reflow
+      elem.classList.add("visible")
+      flashTimers.get(indicatorId).foreach(dom.window.clearTimeout)
+      flashTimers(indicatorId) = dom.window.setTimeout(() =>
+        elem.classList.remove("visible")
+        flashTimers.remove(indicatorId)
+      , 2000)
+
   private def setApiKey(): Unit =
-    getInputValue("apiKeyInput").foreach: apiKey =>
-      if apiKey.nonEmpty then
-        sendClientMessage(ClientMessage.SetApiKey(apiKey))
+    getApiKey().foreach: apiKey =>
+      dom.window.localStorage.setItem(StorageKeyApiKey, apiKey)
+      flashSaved("apiKeySaved")
+      // Fetch models to validate the key and populate the selector
+      sendClientMessage(ClientMessage.ListModels(apiKey))
 
   private def sendChatMessage(): Unit =
-    if !apiKeySet then
+    if getApiKey().isEmpty then
       showError("Please set your API key first")
       return
 
@@ -278,13 +429,7 @@ object AIChatClient:
         content = systemPrompt
       )
       chatMessages += systemMsg
-      // Show feedback that system prompt was applied
-      val isCustom = getElementById("systemPrompt")
-        .map(_.asInstanceOf[HTMLTextAreaElement].value.trim)
-        .exists(_.nonEmpty)
-      updateSystemPromptStatus(isCustom)
-      // Show the update button now that conversation has started
-      getElementById("updateSystemPromptBtn").foreach(_.classList.remove("hidden"))
+      flashSaved("systemPromptSaved")
 
     // Create user message
     val userMessage = ChatMessage(
@@ -294,10 +439,17 @@ object AIChatClient:
       images = pendingImages.toSeq
     )
 
-    // Build full conversation for API (including the new user message)
-    val fullConversation = chatMessages.toSeq :+ userMessage
+    // Add user message to local state and UI immediately (don't wait for server echo)
+    chatMessages += userMessage
+    hideEmptyState()
+    addMessageToUI(userMessage)
+    scrollToBottom()
+    saveToLocalStorage()
 
-    // Send only GenerateWithContext - it will handle both adding the message and generating response
+    // Build full conversation for API (user message already in chatMessages)
+    val fullConversation = chatMessages.toSeq
+
+    // Send only GenerateWithContext - it will handle generating response
     sendConversationContext(fullConversation)
 
     // Clear input
@@ -306,17 +458,56 @@ object AIChatClient:
       autoResizeTextarea(elem.asInstanceOf[HTMLTextAreaElement])
     clearImagePreview()
 
-  // We need to send full context for AI response
+  // Send full conversation context with selected model for AI response
   private def sendConversationContext(messages: Seq[ChatMessage]): Unit =
-    // The server handler will use SendMessage to generate response
-    // but we need to pass all messages for context
-    // For now, we'll send a special combined message
     chatWebSocket.foreach: ws =>
-      val contextMsg = ujson.Obj(
-        "$type" -> "GenerateWithContext",
-        "messages" -> upickle.default.writeJs(messages)
-      )
-      ws.send(ujson.write(contextMsg))
+      getApiKey().foreach: apiKey =>
+        val contextMsg = ujson.Obj(
+          "$type" -> "GenerateWithContext",
+          "messages" -> upickle.default.writeJs(messages),
+          "model" -> selectedModel,
+          "apiKey" -> apiKey
+        )
+        ws.send(ujson.write(contextMsg))
+
+  private def stopStreaming(): Unit =
+    activeStreamingId.foreach: messageId =>
+      sendClientMessage(ClientMessage.StopStreaming(messageId))
+
+  private def showStopButton(): Unit =
+    getElementById("sendBtn").foreach(_.classList.add("hidden"))
+    getElementById("stopBtn").foreach(_.classList.remove("hidden"))
+
+  private def hideStopButton(): Unit =
+    getElementById("stopBtn").foreach(_.classList.add("hidden"))
+    getElementById("sendBtn").foreach(_.classList.remove("hidden"))
+
+  private def setConnectionStatus(status: String): Unit =
+    getElementById("connectionStatus").foreach: el =>
+      el.className = s"connection-status $status"
+    getElementById("connectionLabel").foreach: el =>
+      el.textContent = status match
+        case "connected"    => "Connected"
+        case "disconnected" => "Reconnecting…"
+        case _              => status
+
+  // Force mobile browsers to recalculate viewport height on initial load
+  // Fixes issue where input area is positioned incorrectly until first interaction
+  def fixMobileViewport(): Unit =
+    // Small delay to let initial layout complete, then force recalculation
+    dom.window.setTimeout(
+      () =>
+        getElementById("chatMain").foreach: el =>
+          // Force a reflow by reading and writing a layout property
+          val _ = el.offsetHeight
+          el.style.setProperty("flex", "1 1 0%")
+      ,
+      100
+    )
+    // Also listen for visual viewport resize (handles keyboard, address bar changes)
+    val vv = dom.window.asInstanceOf[js.Dynamic].visualViewport
+    if vv != null && !js.isUndefined(vv) then
+      vv.addEventListener("resize", (e: Event) => scrollToBottom())
 
   private def clearChat(): Unit =
     sendClientMessage(ClientMessage.ClearChat())
@@ -327,29 +518,16 @@ object AIChatClient:
       .filter(_.nonEmpty)
       .getOrElse(AIChat.defaultSystemPrompt)
 
-    // Find and update the system message in our conversation
+    // Always persist the system prompt to localStorage so reconnects don't lose edits
+    dom.window.localStorage.setItem(StorageKeySystemPrompt, newPrompt)
+    flashSaved("systemPromptSaved")
+
+    // Find and update the system message in our conversation (if one exists)
     chatMessages.indexWhere(_.role == MessageRole.System) match
       case idx if idx >= 0 =>
-        val oldSystemMsg = chatMessages(idx)
-        val updatedSystemMsg = oldSystemMsg.copy(content = newPrompt)
-        chatMessages(idx) = updatedSystemMsg
-        // Update status to show the change was applied
-        val isCustom = getElementById("systemPrompt")
-          .map(_.asInstanceOf[HTMLTextAreaElement].value.trim)
-          .exists(_.nonEmpty)
-        updateSystemPromptStatus(isCustom, updated = true)
-      case _ =>
-        // No system message yet - add one
-        val systemMsg = ChatMessage(
-          id = generateMessageId(),
-          role = MessageRole.System,
-          content = newPrompt
-        )
-        chatMessages.prepend(systemMsg)
-        val isCustom = getElementById("systemPrompt")
-          .map(_.asInstanceOf[HTMLTextAreaElement].value.trim)
-          .exists(_.nonEmpty)
-        updateSystemPromptStatus(isCustom, updated = true)
+        chatMessages(idx) = chatMessages(idx).copy(content = newPrompt)
+        saveToLocalStorage()
+      case _ => () // No system message yet — one will be created on first send
 
   private def sendClientMessage(msg: ClientMessage): Unit =
     chatWebSocket.foreach: ws =>
@@ -426,21 +604,43 @@ object AIChatClient:
 
     div(id = s"message-${message.id}", cls = s"message $roleClass")(
       div(cls = "message-header")(
-        span(cls = "message-role", content = roleName),
+        div(cls = "message-header-left")(
+          span(cls = "message-role", content = roleName),
+          // Meta badges for assistant messages (model + tokens)
+          if message.role == MessageRole.Assistant then
+            span(id = s"meta-${message.id}", cls = "message-meta").tap: metaEl =>
+              // Render badges from stored metadata if available
+              messageMeta.get(message.id).foreach: meta =>
+                renderMetaBadges(metaEl, meta)
+          else
+            span(cls = "hidden")
+        ),
         div(cls = "message-actions")(
-          button(cls = "action-btn", content = "✏️").tap: btn =>
+          button(cls = "action-btn").tap: btn =>
+            btn.innerHTML = """<i class="fa-solid fa-pen"></i>"""
             btn.title = "Edit"
             btn.addEventListener("click", (e: Event) => startEditMessage(message.id))
           ,
-          button(cls = "action-btn", content = "🗑️").tap: btn =>
+          button(cls = "action-btn").tap: btn =>
+            btn.innerHTML = """<i class="fa-solid fa-trash"></i>"""
             btn.title = "Delete"
             btn.addEventListener("click", (e: Event) => deleteMessage(message.id))
           ,
           // Regenerate button only for assistant messages
           if message.role == MessageRole.Assistant then
-            button(cls = "action-btn", content = "🔄").tap: btn =>
+            button(cls = "action-btn").tap: btn =>
+              btn.innerHTML = """<i class="fa-solid fa-rotate"></i>"""
               btn.title = "Regenerate"
               btn.addEventListener("click", (e: Event) => regenerateMessage(message.id))
+          else
+            span() // Empty placeholder
+          ,
+          // Speak button only for assistant messages
+          if message.role == MessageRole.Assistant then
+            button(id = s"speak-${message.id}", cls = "action-btn").tap: btn =>
+              btn.innerHTML = """<i class="fa-solid fa-volume-high"></i>"""
+              btn.title = "Read aloud"
+              btn.addEventListener("click", (e: Event) => toggleSpeakMessage(message.id))
           else
             span() // Empty placeholder
         )
@@ -456,12 +656,13 @@ object AIChatClient:
       ,
       // Content
       {
-        val contentElements: Seq[HTMLElement] =
-          if isStreaming then Seq(span(cls = "cursor", content = "▌"))
-          else formatMessageContent(message.content)
-        div(id = s"content-${message.id}", cls = s"message-content${if isStreaming then " streaming" else ""}")(
-          contentElements*
-        )
+        val contentDiv = div(id = s"content-${message.id}", cls = s"message-content${if isStreaming then " streaming" else ""}")()
+        if isStreaming then
+          contentDiv.innerHTML = """<span class="cursor">▌</span>"""
+        else
+          contentDiv.innerHTML = renderMarkdown(message.content)
+          Markdown.highlightCodeBlocks(contentDiv)
+        contentDiv
       },
       // Edit form (hidden by default)
       div(id = s"edit-${message.id}", cls = "message-edit hidden")(
@@ -478,48 +679,43 @@ object AIChatClient:
       )
     )
 
-  private def formatMessageContent(content: String): Seq[HTMLElement] =
-    // Simple formatting - split by double newlines for paragraphs
-    // Handle code blocks
-    val parts = content.split("```")
-    val elements = mutable.ArrayBuffer[HTMLElement]()
-
-    parts.zipWithIndex.foreach: (part, idx) =>
-      if idx % 2 == 1 then
-        // Code block
-        val lines = part.split("\n", 2)
-        val lang = if lines.length > 1 && lines(0).nonEmpty then lines(0) else ""
-        val code = if lines.length > 1 then lines(1) else part
-        elements += el("pre", cls = "code-block")(
-          el("code", content = code)
-        )
-      else
-        // Regular text - split into paragraphs
-        part.split("\n\n").filter(_.nonEmpty).foreach: para =>
-          elements += p(content = para.trim)
-
-    if elements.isEmpty then Seq(p(content = content))
-    else elements.toSeq
+  private def renderMarkdown(content: String): String =
+    Markdown.render(content)
 
   private def updateMessageInUI(message: ChatMessage): Unit =
     getElementById(s"content-${message.id}").foreach: elem =>
-      elem.innerHTML = ""
-      formatMessageContent(message.content).foreach(elem.appendChild(_))
+      elem.innerHTML = renderMarkdown(message.content)
+      Markdown.highlightCodeBlocks(elem)
 
   private def removeMessageFromUI(messageId: String): Unit =
     getElementById(s"message-$messageId").foreach(_.remove())
 
   private def updateStreamingMessage(messageId: String, content: String): Unit =
     getElementById(s"content-$messageId").foreach: elem =>
-      elem.innerHTML = ""
-      formatMessageContent(content).foreach(elem.appendChild(_))
-      elem.appendChild(span(cls = "cursor", content = "▌"))
+      elem.innerHTML = renderMarkdown(content) + """<span class="cursor">▌</span>"""
+    scrollToBottom()
 
   private def finalizeStreamingMessage(messageId: String, content: String): Unit =
     getElementById(s"content-$messageId").foreach: elem =>
       elem.classList.remove("streaming")
-      elem.innerHTML = ""
-      formatMessageContent(content).foreach(elem.appendChild(_))
+      elem.innerHTML = renderMarkdown(content)
+      Markdown.highlightCodeBlocks(elem)
+
+  private def renderMetaBadges(container: HTMLElement, meta: MessageMeta): Unit =
+    container.innerHTML = ""
+    if meta.model.nonEmpty then
+      container.appendChild(span(cls = "meta-badge meta-badge-model", content = meta.model))
+    val totalTokens = meta.promptTokens + meta.completionTokens
+    if totalTokens > 0 then
+      container.appendChild(span(cls = "meta-badge meta-badge-tokens", content = s"${formatTokenCount(totalTokens)} tokens"))
+
+  private def updateMessageMetaBadges(messageId: String, meta: MessageMeta): Unit =
+    getElementById(s"meta-$messageId").foreach: elem =>
+      renderMetaBadges(elem, meta)
+
+  private def formatTokenCount(n: Int): String =
+    if n >= 1000 then f"${n / 1000.0}%.1fk"
+    else n.toString
 
   private def startEditMessage(messageId: String): Unit =
     currentEditingMessageId = Some(messageId)
@@ -563,12 +759,110 @@ object AIChatClient:
         chatMessages -= msg
         removeMessageFromUI(msg.id)
 
+      // Save immediately so removals persist across disconnects
+      saveToLocalStorage()
+
       // Get conversation up to this point
       val conversationSoFar = chatMessages.toSeq
 
       // Send request to regenerate
       if conversationSoFar.nonEmpty then
         sendConversationContext(conversationSoFar)
+
+  // === Text-to-Speech (OpenAI TTS) ===
+
+  private var currentAudio: Option[HTMLAudioElement] = None
+  private var selectedVoice: String = "alloy"
+  private var ttsPrompt: String = ""
+  private val StorageKeyVoice = "aiChat_ttsVoice"
+  private val StorageKeyTTSPrompt = "aiChat_ttsPrompt"
+  private val ttsVoices = Seq("alloy", "ash", "ballad", "cedar", "coral", "echo", "fable", "marin", "nova", "onyx", "sage", "shimmer")
+
+  private def toggleSpeakMessage(messageId: String): Unit =
+    speakingMessageId match
+      case Some(currentId) if currentId == messageId =>
+        stopSpeaking()
+      case Some(_) =>
+        stopSpeaking()
+        speakMessage(messageId)
+      case None =>
+        speakMessage(messageId)
+
+  private def speakMessage(messageId: String): Unit =
+    chatMessages.find(_.id == messageId).foreach: msg =>
+      val text = stripMarkdownForSpeech(msg.content)
+      if text.nonEmpty then
+        getApiKey() match
+          case Some(apiKey) =>
+            speakingMessageId = Some(messageId)
+            updateSpeakButton(messageId, speaking = true)
+            sendClientMessage(ClientMessage.SpeakMessage(messageId, text, apiKey, selectedVoice, ttsPrompt))
+          case None =>
+            showError("Please set your API key for text-to-speech")
+
+  private def handleTTSAudio(messageId: String, audioBase64: String): Unit =
+    val audioSrc = s"data:audio/mp3;base64,$audioBase64"
+    val audio = document.createElement("audio").asInstanceOf[HTMLAudioElement]
+    audio.src = audioSrc
+
+    audio.addEventListener("ended", (e: Event) =>
+      speakingMessageId = None
+      currentAudio = None
+      updateSpeakButton(messageId, speaking = false)
+    )
+
+    audio.addEventListener("error", (e: Event) =>
+      speakingMessageId = None
+      currentAudio = None
+      updateSpeakButton(messageId, speaking = false)
+      showError("Failed to play audio")
+    )
+
+    currentAudio = Some(audio)
+    audio.play()
+
+  private def handleTTSError(messageId: String, error: String): Unit =
+    speakingMessageId = None
+    currentAudio = None
+    updateSpeakButton(messageId, speaking = false)
+    showError(error)
+
+  private def stopSpeaking(): Unit =
+    currentAudio.foreach: audio =>
+      audio.pause()
+      audio.src = ""
+    currentAudio = None
+    speakingMessageId.foreach: id =>
+      updateSpeakButton(id, speaking = false)
+    speakingMessageId = None
+
+  private def updateSpeakButton(messageId: String, speaking: Boolean): Unit =
+    getElementById(s"speak-$messageId").foreach: btn =>
+      if speaking then
+        btn.innerHTML = """<i class="fa-solid fa-stop"></i>"""
+        btn.title = "Stop reading"
+        btn.classList.add("speaking")
+      else
+        btn.innerHTML = """<i class="fa-solid fa-volume-high"></i>"""
+        btn.title = "Read aloud"
+        btn.classList.remove("speaking")
+
+  private def stripMarkdownForSpeech(content: String): String =
+    content
+      .replaceAll("```[\\s\\S]*?```", " code block omitted ")  // code blocks
+      .replaceAll("`[^`]+`", "")                                // inline code
+      .replaceAll("!\\[[^\\]]*\\]\\([^)]*\\)", "")              // images
+      .replaceAll("\\[[^\\]]*\\]\\([^)]*\\)", "")               // links (keep text would be nicer but simpler to strip)
+      .replaceAll("#{1,6}\\s+", "")                             // headings
+      .replaceAll("\\*{1,3}([^*]+)\\*{1,3}", "$1")             // bold/italic
+      .replaceAll("_{1,3}([^_]+)_{1,3}", "$1")                 // bold/italic with underscores
+      .replaceAll("~~([^~]+)~~", "$1")                          // strikethrough
+      .replaceAll("^[>\\s]+", "")                               // blockquotes
+      .replaceAll("^[-*+]\\s+", "")                             // unordered list markers
+      .replaceAll("^\\d+\\.\\s+", "")                           // ordered list markers
+      .replaceAll("---+|\\*\\*\\*+|___+", "")                   // horizontal rules
+      .replaceAll("\\s+", " ")                                  // collapse whitespace
+      .trim
 
   private def clearMessagesUI(): Unit =
     getElementById("messagesContainer").foreach: container =>
@@ -609,6 +903,14 @@ object AIChatClient:
         tabSettings.foreach(_.classList.add("active"))
       case _ => ()
 
+  private def switchSidebarTab(tab: String): Unit =
+    val tabs = Map("general" -> "General", "tts" -> "TTS")
+    tabs.foreach: (key, suffix) =>
+      getElementById(s"sidebarTab$suffix").foreach: btn =>
+        if key == tab then btn.classList.add("active") else btn.classList.remove("active")
+      getElementById(s"sidebarPanel$suffix").foreach: panel =>
+        if key == tab then panel.classList.remove("hidden") else panel.classList.add("hidden")
+
   private def autoResizeTextarea(ta: HTMLTextAreaElement): Unit =
     ta.style.height = "auto"
     ta.style.height = s"${Math.min(ta.scrollHeight, 200)}px"
@@ -629,23 +931,34 @@ object AIChatClient:
     // Auto-remove after 5 seconds
     dom.window.setTimeout(() => toast.remove(), 5000)
 
-  private def updateSystemPromptStatus(isCustom: Boolean, updated: Boolean = false): Unit =
-    getElementById("systemPromptStatus").foreach: elem =>
-      if updated then
-        elem.textContent = "✓ System prompt updated"
-        elem.className = "status-text status-success"
-      else if isCustom then
-        elem.textContent = "✓ Custom prompt active"
-        elem.className = "status-text status-success"
-      else
-        elem.textContent = "✓ Default prompt active"
-        elem.className = "status-text status-info"
+  private def populateModelSelector(models: Seq[String]): Unit =
+    getElementById("modelSelect").foreach: elem =>
+      val select = elem.asInstanceOf[HTMLSelectElement]
+      select.innerHTML = ""
 
-  private def resetSystemPromptStatus(): Unit =
-    getElementById("systemPromptStatus").foreach: elem =>
-      elem.textContent = ""
-      elem.className = "status-text"
-    getElementById("updateSystemPromptBtn").foreach(_.classList.add("hidden"))
+      // Restore saved model from localStorage
+      val savedModel = Option(dom.window.localStorage.getItem(StorageKeyModel))
+        .filter(_.nonEmpty)
+        .filter(models.contains)
+
+      models.foreach: model =>
+        val opt = document.createElement("option").asInstanceOf[HTMLOptionElement]
+        opt.value = model
+        opt.textContent = model
+        select.appendChild(opt)
+
+      // Set selection: saved model > default model > first option
+      val modelToSelect = savedModel
+        .orElse(Some(AIChat.defaultModel).filter(models.contains))
+        .orElse(models.headOption)
+
+      modelToSelect.foreach: model =>
+        select.value = model
+        selectedModel = model
+
+    getElementById("modelStatus").foreach: elem =>
+      elem.textContent = s"(${models.size})"
+
 
   // === LocalStorage Persistence ===
 
@@ -665,22 +978,34 @@ object AIChatClient:
         val key = elem.asInstanceOf[HTMLInputElement].value
         if key.nonEmpty then
           dom.window.localStorage.setItem(StorageKeyApiKey, key)
+
+      // Save selected model
+      dom.window.localStorage.setItem(StorageKeyModel, selectedModel)
+
+      // Save message metadata
+      val metaJson = upickle.default.write(messageMeta.toMap)
+      dom.window.localStorage.setItem(StorageKeyMeta, metaJson)
     .recover:
       case ex => println(s"[AIChat] Failed to save to localStorage: ${ex.getMessage}")
 
   private def loadFromLocalStorage(): Unit =
     Try:
+      // Load saved model
+      Option(dom.window.localStorage.getItem(StorageKeyModel)).filter(_.nonEmpty).foreach: model =>
+        selectedModel = model
+
       // Load API key first
       Option(dom.window.localStorage.getItem(StorageKeyApiKey)).filter(_.nonEmpty).foreach: apiKey =>
         getElementById("apiKeyInput").foreach: elem =>
           elem.asInstanceOf[HTMLInputElement].value = apiKey
-        // Auto-set the API key
-        sendClientMessage(ClientMessage.SetApiKey(apiKey))
+        // Fetch models to populate the selector
+        sendClientMessage(ClientMessage.ListModels(apiKey))
 
-      // Load system prompt
+      // Load system prompt (only if textarea is empty, to avoid clobbering in-progress edits on reconnect)
       Option(dom.window.localStorage.getItem(StorageKeySystemPrompt)).filter(_.nonEmpty).foreach: prompt =>
-        getElementById("systemPrompt").foreach: elem =>
-          elem.asInstanceOf[HTMLTextAreaElement].value = prompt
+        getElementByIdAs[HTMLTextAreaElement]("systemPrompt").foreach: ta =>
+          if ta.value.trim.isEmpty then
+            ta.value = prompt
 
       // Load messages
       Option(dom.window.localStorage.getItem(StorageKeyMessages)).filter(_.nonEmpty).foreach: messagesJson =>
@@ -688,6 +1013,11 @@ object AIChatClient:
         if messages.nonEmpty then
           chatMessages.clear()
           chatMessages ++= messages
+
+          // Load message metadata
+          Option(dom.window.localStorage.getItem(StorageKeyMeta)).filter(_.nonEmpty).foreach: metaJson =>
+            messageMeta = mutable.Map.from(upickle.default.read[Map[String, MessageMeta]](metaJson))
+
           restoreMessagesUI()
     .recover:
       case ex => println(s"[AIChat] Failed to load from localStorage: ${ex.getMessage}")
@@ -699,11 +1029,6 @@ object AIChatClient:
       // Only show non-system messages in UI
       chatMessages.filter(_.role != MessageRole.System).foreach: msg =>
         addMessageToUI(msg)
-      // Update system prompt status if we have a system message
-      chatMessages.find(_.role == MessageRole.System).foreach: sysMsg =>
-        val isCustom = sysMsg.content != AIChat.defaultSystemPrompt
-        updateSystemPromptStatus(isCustom)
-        getElementById("updateSystemPromptBtn").foreach(_.classList.remove("hidden"))
       scrollToBottom()
     else
       showEmptyState()
@@ -736,10 +1061,10 @@ object AIChatClient:
     )
 
     val url = dom.URL.createObjectURL(blob)
-    val link = document.createElement("a").asInstanceOf[HTMLAnchorElement]
-    link.href = url
-    link.setAttribute("download", s"ai-chat-export-${new scala.scalajs.js.Date().toISOString().take(10)}.json")
-    link.click()
+    val link = a().tap: link =>
+      link.href = url
+      link.setAttribute("download", s"ai-chat-export-${new scala.scalajs.js.Date().toISOString().take(10)}.json")
+      link.click()
     dom.URL.revokeObjectURL(url)
 
   private def triggerImport(): Unit =

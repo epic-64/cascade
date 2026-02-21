@@ -25,3 +25,8 @@ sbt configuration:
 
 ui library:
 - we are using a fully custom css lib, defined in `jvm/src/main/resources/static/base.css`
+
+terminal integration (use terminal.txt):
+- Please pipe all outputs that you want to read, into a txt file terminal.txt 
+  The copilot integration is a dumpster fire and the terminal readout no longer works. 
+  So you have to use this file from now on.
