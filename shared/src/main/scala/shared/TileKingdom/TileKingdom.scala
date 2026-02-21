@@ -81,6 +81,7 @@ enum PoliticianEffect derives ReadWriter:
   case WheatProductionMultiplier(multiplier: Double) // e.g., 2.0 = 2x wheat production
   case WoodProductionMultiplier(multiplier: Double)
   case FaithProductionMultiplier(multiplier: Double)
+  case StoneProductionMultiplier(multiplier: Double)
   case AllProductionMultiplier(multiplier: Double)
 
 case class Politician(
@@ -94,6 +95,7 @@ case class Politician(
     case PoliticianEffect.WheatProductionMultiplier(m) => s"${(m * 100).toInt}% wheat production"
     case PoliticianEffect.WoodProductionMultiplier(m)  => s"${(m * 100).toInt}% wood production"
     case PoliticianEffect.FaithProductionMultiplier(m) => s"${(m * 100).toInt}% faith production"
+    case PoliticianEffect.StoneProductionMultiplier(m) => s"${(m * 100).toInt}% stone production"
     case PoliticianEffect.AllProductionMultiplier(m)   => s"${(m * 100).toInt}% all production"
 
 // ============================================================================
@@ -249,10 +251,12 @@ object TileKingdomLogic:
     ("Farmer General", "Agricultural Expert", PoliticianEffect.WheatProductionMultiplier(2.0), "👨‍🌾"),
     ("Lumber Baron", "Forestry Minister", PoliticianEffect.WoodProductionMultiplier(2.0), "🪓"),
     ("High Priest", "Spiritual Leader", PoliticianEffect.FaithProductionMultiplier(2.0), "🙏"),
+    ("Master Mason", "Stone Guild Leader", PoliticianEffect.StoneProductionMultiplier(2.0), "🪨"),
     ("Chancellor", "Economic Advisor", PoliticianEffect.AllProductionMultiplier(1.5), "📊"),
     ("Harvest Queen", "Fertility Goddess", PoliticianEffect.WheatProductionMultiplier(3.0), "👑"),
     ("Forest Warden", "Nature Guardian", PoliticianEffect.WoodProductionMultiplier(2.5), "🌲"),
     ("Oracle", "Divine Seer", PoliticianEffect.FaithProductionMultiplier(2.5), "🔮"),
+    ("Quarry Overseer", "Mining Expert", PoliticianEffect.StoneProductionMultiplier(2.5), "⛏️"),
     ("Grand Vizier", "Master Strategist", PoliticianEffect.AllProductionMultiplier(1.25), "🎭")
   )
 
@@ -322,6 +326,15 @@ object TileKingdomLogic:
       val (_, politician) = entry
       politician.effect match
         case PoliticianEffect.FaithProductionMultiplier(m) => acc * m
+        case PoliticianEffect.AllProductionMultiplier(m)   => acc * m
+        case _ => acc
+
+  // Calculate Town Hall bonus multiplier for stone production at a given coord
+  def townHallStoneMultiplier(game: TileKingdomGame, coord: Coord): Double =
+    townHallsAffecting(game, coord).foldLeft(1.0): (acc, entry) =>
+      val (_, politician) = entry
+      politician.effect match
+        case PoliticianEffect.StoneProductionMultiplier(m) => acc * m
         case PoliticianEffect.AllProductionMultiplier(m)   => acc * m
         case _ => acc
 
@@ -419,9 +432,11 @@ object TileKingdomLogic:
     if base > 0 then base * townHallFaithMultiplier(game, tile.coord)
     else 0.0
 
-  // Stone production rate for a specific tile per second (no bonuses for now)
+  // Stone production rate for a specific tile per second (with town hall bonuses)
   def stoneProductionRate(game: TileKingdomGame, tile: Tile): Double =
-    stoneProductionPerSecond(tile)
+    val base = stoneProductionPerSecond(tile)
+    if base > 0 then base * townHallStoneMultiplier(game, tile.coord)
+    else 0.0
 
   // Legacy method for backwards compatibility
   def productionRate(tile: Tile): Double = productionPerSecond(tile)
@@ -444,9 +459,11 @@ object TileKingdomLogic:
     if base > 0 then base * townHallFaithMultiplier(game, tile.coord)
     else 0.0
 
-  // Stone production per harvest for a specific tile (no bonuses for now)
+  // Stone production per harvest for a specific tile (with town hall bonuses)
   def stoneProductionPerHarvest(game: TileKingdomGame, tile: Tile): Double =
-    baseStoneProductionRate(tile)
+    val base = baseStoneProductionRate(tile)
+    if base > 0 then base * townHallStoneMultiplier(game, tile.coord)
+    else 0.0
 
   // Total wheat production rate for the game (all wheat fields with bonuses)
   def totalWheatProductionRate(game: TileKingdomGame): Double =
