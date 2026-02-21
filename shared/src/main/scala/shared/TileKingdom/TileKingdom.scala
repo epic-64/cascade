@@ -52,7 +52,8 @@ case class Coord(row: Int, col: Int) derives ReadWriter:
     (for
       rowOffset <- -radius to radius
       colOffset <- -radius to radius
-    yield Coord(row + rowOffset, col + colOffset)).view.filterNot(_ == this).toSet
+      if !(rowOffset == 0 && colOffset == 0)
+    yield Coord(row + rowOffset, col + colOffset)).toSet
 
 // ============================================================================
 // Tile Types
