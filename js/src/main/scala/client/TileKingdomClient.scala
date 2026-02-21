@@ -142,13 +142,35 @@ object TileKingdomClient:
     )
 
   private def buildPoliticianRoster(): HTMLElement =
-    div(id = "tile-kingdom-politician-roster", cls = "politician-roster")(
+    val rosterDiv = div(id = "tile-kingdom-politician-roster", cls = "politician-roster")(
       div(cls = "roster-header")(
         span(cls = "roster-title", content = "🏛️ Politicians"),
         span(id = "politician-timer", cls = "roster-timer", content = "")
       ),
-      div(id = "politician-roster-list", cls = "roster-list")
+      div(id = "politician-roster-list", cls = "roster-list"),
+      div(id = "politician-trash", cls = "politician-trash")(
+        el("i", cls = "fa-solid fa-trash"),
+        span(content = "Discard")
+      )
     )
+
+    // Setup trash drop zone
+    val trashZone = rosterDiv.querySelector("#politician-trash").asInstanceOf[HTMLElement]
+    trashZone.ondragover = (e: DragEvent) =>
+      e.preventDefault()
+      trashZone.classList.add("drag-over")
+
+    trashZone.ondragleave = (_: DragEvent) =>
+      trashZone.classList.remove("drag-over")
+
+    trashZone.ondrop = (e: DragEvent) =>
+      e.preventDefault()
+      trashZone.classList.remove("drag-over")
+      val politicianId = e.dataTransfer.getData("text/plain")
+      if politicianId.nonEmpty then
+        handleDiscardPolitician(politicianId)
+
+    rosterDiv
 
   private def buildActions(): HTMLElement =
     div(cls = "tile-kingdom-actions")(
@@ -1333,6 +1355,13 @@ object TileKingdomClient:
         showNotification("Building destroyed")
       case Left(error) =>
         showNotification(error)
+
+  private def handleDiscardPolitician(politicianId: String): Unit =
+    val politician = currentGame.politicianRoster.find(_.id == politicianId)
+    currentGame = TileKingdomLogic.discardPolitician(currentGame, politicianId)
+    saveGame()
+    renderPoliticianRoster()
+    politician.foreach(p => showNotification(s"${p.emoji} ${p.name} dismissed"))
 
   private def handleAbdicate(): Unit =
     if currentGame.allTilesFilled then

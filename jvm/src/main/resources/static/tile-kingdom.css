@@ -1070,6 +1070,32 @@
   font-weight: 600;
 }
 
+/* Politician Trash/Discard Zone */
+.politician-trash {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  margin-top: 0.5rem;
+  background: var(--bg-tertiary);
+  border: 2px dashed var(--border-medium);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.politician-trash i {
+  font-size: 0.9rem;
+}
+
+.politician-trash.drag-over {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: var(--accent-red);
+  color: var(--accent-red);
+}
+
 /* Mobile responsiveness for roster */
 @media (max-width: 768px) {
   .politician-roster {

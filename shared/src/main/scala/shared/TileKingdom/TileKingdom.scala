@@ -226,6 +226,7 @@ object TileKingdomLogic:
   val TownHallBuildCost: Int = 300 // Wood cost to build a town hall
   val TownHallInfluenceRadius: Int = 2 // Town Hall affects tiles within 2 tile radius
   val PoliticianGenerationIntervalSeconds: Int = 300 // 5 minutes = 300 seconds
+  val MaxPoliticianRosterSize: Int = 3 // Maximum politicians in roster
 
   // Politician definitions
   val PoliticianPool: List[(String, String, PoliticianEffect, String)] = List(
@@ -322,13 +323,20 @@ object TileKingdomLogic:
 
   // Check and generate new politicians based on elapsed time
   def generateNewPoliticians(game: TileKingdomGame, currentTimeMillis: Long): TileKingdomGame =
+    // Don't generate if roster is full
+    if game.politicianRoster.size >= MaxPoliticianRosterSize then
+      return game
+
     val intervalMs = PoliticianGenerationIntervalSeconds * 1000L
     val lastGen = if game.lastPoliticianGeneration == 0L then currentTimeMillis else game.lastPoliticianGeneration
     val elapsedSinceLastGen = currentTimeMillis - lastGen
     val newPoliticiansCount = (elapsedSinceLastGen / intervalMs).toInt
 
     if newPoliticiansCount > 0 then
-      val newPoliticians = (0 until newPoliticiansCount).map: i =>
+      // Only generate up to the remaining space in roster
+      val availableSlots = MaxPoliticianRosterSize - game.politicianRoster.size
+      val actualNewCount = math.min(newPoliticiansCount, availableSlots)
+      val newPoliticians = (0 until actualNewCount).map: i =>
         generatePolitician(currentTimeMillis + i)
       .toList
       game.copy(
@@ -336,6 +344,10 @@ object TileKingdomLogic:
         lastPoliticianGeneration = lastGen + newPoliticiansCount * intervalMs
       )
     else game
+
+  // Discard a politician from the roster
+  def discardPolitician(game: TileKingdomGame, politicianId: String): TileKingdomGame =
+    game.copy(politicianRoster = game.politicianRoster.filterNot(_.id == politicianId))
 
   // Base production per harvest (wheat per 10-second interval) - without bonuses
   def baseWheatProductionRate(tile: Tile): Double = tile.tileType match
