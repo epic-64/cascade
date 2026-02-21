@@ -1163,12 +1163,18 @@ object TileKingdomClient:
         showNotification(error)
 
   private def handleAssignPolitician(politicianId: String, townHallCoord: Coord): Unit =
+    // Check if there's already a politician (for swap message)
+    val hadPolitician = currentGame.tiles.get(townHallCoord).exists: tile =>
+      tile.tileType match
+        case TileType.TownHall(Some(_)) => true
+        case _ => false
+    
     TileKingdomLogic.assignPolitician(currentGame, politicianId, townHallCoord) match
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
         renderGame()
-        showNotification("Politician assigned!")
+        showNotification(if hadPolitician then "Politician swapped!" else "Politician assigned!")
       case Left(error) =>
         showNotification(error)
 
