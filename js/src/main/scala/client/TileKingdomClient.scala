@@ -274,6 +274,22 @@ object TileKingdomClient:
               saveGame()
               renderGame()
               showNotification(s"Added 100 tiles")
+          ,
+          button(cls = "btn-dev-action", content = "👤 +Politician").tap: btn =>
+            btn.onclick = (_: MouseEvent) =>
+              val newPolitician = TileKingdomLogic.generatePolitician(System.currentTimeMillis(), 0.0)
+              currentGame = currentGame.copy(politicianRoster = currentGame.politicianRoster :+ newPolitician)
+              saveGame()
+              renderGame()
+              showNotification(s"Added ${newPolitician.name}")
+          ,
+          button(cls = "btn-dev-action", content = "⭐ +Rare Politician").tap: btn =>
+            btn.onclick = (_: MouseEvent) =>
+              val newPolitician = TileKingdomLogic.generatePolitician(System.currentTimeMillis(), 1.0)
+              currentGame = currentGame.copy(politicianRoster = currentGame.politicianRoster :+ newPolitician)
+              saveGame()
+              renderGame()
+              showNotification(s"Added rare: ${newPolitician.name}")
         )
       )
     )
