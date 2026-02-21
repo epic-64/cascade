@@ -826,8 +826,11 @@ object TileKingdomClient:
         // Build options container (hidden by default, shown when selecting)
         val buildOptions = div(cls = "tile-build-options")
 
-        // Back/cancel button
-        buildOptions.appendChild(div(cls = "build-option build-back").tap: opt =>
+        // Main menu container
+        val mainMenu = div(cls = "build-main-menu")
+        
+        // Back/cancel button for main menu
+        mainMenu.appendChild(div(cls = "build-option build-back").tap: opt =>
           opt.appendChild(el("i", cls = "fa-solid fa-arrow-left build-icon"))
           opt.appendChild(div(cls = "build-name", content = "Back"))
           opt.onclick = (e: MouseEvent) =>
@@ -836,7 +839,39 @@ object TileKingdomClient:
             tileDiv.classList.remove("selecting")
         )
 
-        buildOptions.appendChild(div(cls = "build-option").tap: opt =>
+        // Resources category button
+        mainMenu.appendChild(div(cls = "build-option build-category resources").tap: opt =>
+          opt.appendChild(div(cls = "build-icon", content = "🌾"))
+          opt.appendChild(div(cls = "build-name", content = "Resources"))
+          opt.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            buildOptions.classList.add("submenu-resources")
+        )
+
+        // Management category button (only show if canBuildOthers)
+        if canBuildOthers then
+          mainMenu.appendChild(div(cls = "build-option build-category management").tap: opt =>
+            opt.appendChild(div(cls = "build-icon", content = "🏛️"))
+            opt.appendChild(div(cls = "build-name", content = "Management"))
+            opt.onclick = (e: MouseEvent) =>
+              e.stopPropagation()
+              buildOptions.classList.add("submenu-management")
+          )
+        
+        buildOptions.appendChild(mainMenu)
+
+        // Resources submenu
+        val resourcesSubmenu = div(cls = "build-submenu resources")
+        
+        resourcesSubmenu.appendChild(div(cls = "build-option build-back").tap: opt =>
+          opt.appendChild(el("i", cls = "fa-solid fa-arrow-left build-icon"))
+          opt.appendChild(div(cls = "build-name", content = "Back"))
+          opt.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            buildOptions.classList.remove("submenu-resources")
+        )
+        
+        resourcesSubmenu.appendChild(div(cls = "build-option").tap: opt =>
           opt.appendChild(div(cls = "build-icon", content = "🌾"))
           opt.appendChild(div(cls = "build-name", content = "Field"))
           opt.appendChild(div(cls = "build-cost", content = s"$wheatCost🌾"))
@@ -846,15 +881,7 @@ object TileKingdomClient:
         )
 
         if canBuildOthers then
-          buildOptions.appendChild(div(cls = "build-option").tap: opt =>
-            opt.appendChild(div(cls = "build-icon", content = "🏠"))
-            opt.appendChild(div(cls = "build-name", content = "Farm"))
-            opt.appendChild(div(cls = "build-cost", content = s"$farmCost🌾"))
-            opt.onclick = (e: MouseEvent) =>
-              e.stopPropagation()
-              handleBuildFarm(coord)
-          )
-          buildOptions.appendChild(div(cls = "build-option").tap: opt =>
+          resourcesSubmenu.appendChild(div(cls = "build-option").tap: opt =>
             opt.appendChild(div(cls = "build-icon", content = "🪓"))
             opt.appendChild(div(cls = "build-name", content = "Wood"))
             opt.appendChild(div(cls = "build-cost", content = s"$woodcutterCost🌾"))
@@ -862,23 +889,7 @@ object TileKingdomClient:
               e.stopPropagation()
               handleBuildWoodcutter(coord)
           )
-          buildOptions.appendChild(div(cls = "build-option").tap: opt =>
-            opt.appendChild(div(cls = "build-icon", content = "🏛️"))
-            opt.appendChild(div(cls = "build-name", content = "Bureau"))
-            opt.appendChild(div(cls = "build-cost", content = s"$bureauCost🪵"))
-            opt.onclick = (e: MouseEvent) =>
-              e.stopPropagation()
-              handleBuildBureau(coord)
-          )
-          buildOptions.appendChild(div(cls = "build-option").tap: opt =>
-            opt.appendChild(div(cls = "build-icon", content = "⛪"))
-            opt.appendChild(div(cls = "build-name", content = "Temple"))
-            opt.appendChild(div(cls = "build-cost", content = s"$templeCost🪵"))
-            opt.onclick = (e: MouseEvent) =>
-              e.stopPropagation()
-              handleBuildTemple(coord)
-          )
-          buildOptions.appendChild(div(cls = "build-option").tap: opt =>
+          resourcesSubmenu.appendChild(div(cls = "build-option").tap: opt =>
             opt.appendChild(div(cls = "build-icon", content = "⛏️"))
             opt.appendChild(div(cls = "build-name", content = "Quarry"))
             opt.appendChild(div(cls = "build-cost", content = s"$quarryCost🌾"))
@@ -886,7 +897,46 @@ object TileKingdomClient:
               e.stopPropagation()
               handleBuildQuarry(coord)
           )
-          buildOptions.appendChild(div(cls = "build-option").tap: opt =>
+          resourcesSubmenu.appendChild(div(cls = "build-option").tap: opt =>
+            opt.appendChild(div(cls = "build-icon", content = "⛪"))
+            opt.appendChild(div(cls = "build-name", content = "Temple"))
+            opt.appendChild(div(cls = "build-cost", content = s"$templeCost🪵"))
+            opt.onclick = (e: MouseEvent) =>
+              e.stopPropagation()
+              handleBuildTemple(coord)
+          )
+        
+        buildOptions.appendChild(resourcesSubmenu)
+
+        // Management submenu (only if canBuildOthers)
+        if canBuildOthers then
+          val managementSubmenu = div(cls = "build-submenu management")
+          
+          managementSubmenu.appendChild(div(cls = "build-option build-back").tap: opt =>
+            opt.appendChild(el("i", cls = "fa-solid fa-arrow-left build-icon"))
+            opt.appendChild(div(cls = "build-name", content = "Back"))
+            opt.onclick = (e: MouseEvent) =>
+              e.stopPropagation()
+              buildOptions.classList.remove("submenu-management")
+          )
+          
+          managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
+            opt.appendChild(div(cls = "build-icon", content = "🏠"))
+            opt.appendChild(div(cls = "build-name", content = "Farm"))
+            opt.appendChild(div(cls = "build-cost", content = s"$farmCost🌾"))
+            opt.onclick = (e: MouseEvent) =>
+              e.stopPropagation()
+              handleBuildFarm(coord)
+          )
+          managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
+            opt.appendChild(div(cls = "build-icon", content = "🏛️"))
+            opt.appendChild(div(cls = "build-name", content = "Bureau"))
+            opt.appendChild(div(cls = "build-cost", content = s"$bureauCost🪵"))
+            opt.onclick = (e: MouseEvent) =>
+              e.stopPropagation()
+              handleBuildBureau(coord)
+          )
+          managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
             opt.appendChild(div(cls = "build-icon", content = "🏛️"))
             opt.appendChild(div(cls = "build-name", content = "Town Hall"))
             opt.appendChild(div(cls = "build-cost", content = s"$townHallCost🪨"))
@@ -894,6 +944,8 @@ object TileKingdomClient:
               e.stopPropagation()
               handleBuildTownHall(coord)
           )
+          
+          buildOptions.appendChild(managementSubmenu)
 
         tileDiv.appendChild(buildOptions)
 

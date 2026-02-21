@@ -602,6 +602,64 @@
   color: #64748b;
 }
 
+/* Category buttons */
+.build-option.build-category {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(124, 58, 237, 0.15) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.build-option.build-category:hover {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(124, 58, 237, 0.3) 100%);
+}
+
+.build-option.build-category.resources {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(22, 163, 74, 0.15) 100%);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.build-option.build-category.resources:hover {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.3) 0%, rgba(22, 163, 74, 0.3) 100%);
+}
+
+.build-option.build-category.management {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.15) 0%, rgba(99, 102, 241, 0.15) 100%);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+}
+
+.build-option.build-category.management:hover {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.3) 0%, rgba(99, 102, 241, 0.3) 100%);
+}
+
+/* Submenu container (initially hidden) */
+.build-submenu {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+}
+
+/* Show submenu when active */
+.tile-build-options.submenu-resources .build-submenu.resources,
+.tile-build-options.submenu-management .build-submenu.management {
+  display: flex;
+}
+
+/* Hide main menu when in submenu */
+.tile-build-options.submenu-resources .build-main-menu,
+.tile-build-options.submenu-management .build-main-menu {
+  display: none;
+}
+
+/* Main menu container */
+.build-main-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+}
+
 .build-option {
   flex: 1;
   display: flex;
