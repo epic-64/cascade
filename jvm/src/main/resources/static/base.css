@@ -17,6 +17,7 @@ html {
   /* Color palette */
   --bg-primary: #0a0a0f;
   --bg-secondary: #1a1a1f;
+  --bg-tertiary: #252530;
   --bg-card: rgba(24, 24, 27, 0.6);
   --bg-card-hover: rgba(39, 39, 42, 0.75);
 
@@ -33,6 +34,7 @@ html {
   --accent-green: #10b981;
   --accent-green-dark: #059669;
   --accent-yellow: #fbbf24;
+  --accent-red: #ef4444;
 
   /* Borders */
   --border-subtle: rgba(63, 63, 70, 0.4);
