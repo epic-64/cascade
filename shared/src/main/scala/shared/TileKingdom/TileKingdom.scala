@@ -47,18 +47,13 @@ case class Resources(
 
 case class Coord(row: Int, col: Int) derives ReadWriter:
   def neighbors: Set[Coord] =
-    (for
-      dr <- -1 to 1
-      dc <- -1 to 1
-      if !(dr == 0 && dc == 0)
-    yield Coord(row + dr, col + dc)).toSet
+    neighborsWithinRadius(1)
 
   def neighborsWithinRadius(radius: Int): Set[Coord] =
     (for
-      dr <- -radius to radius
-      dc <- -radius to radius
-      if !(dr == 0 && dc == 0)
-    yield Coord(row + dr, col + dc)).toSet
+      rowOffset <- -radius to radius
+      colOffset <- -radius to radius
+    yield Coord(row + rowOffset, col + colOffset)).view.filterNot(_ == this).toSet
 
 // ============================================================================
 // Tile Types
