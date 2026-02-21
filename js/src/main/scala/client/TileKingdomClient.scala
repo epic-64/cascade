@@ -160,7 +160,10 @@ object TileKingdomClient:
     val rosterDiv = div(id = "tile-kingdom-politician-roster", cls = "politician-roster")(
       div(cls = "roster-header")(
         span(cls = "roster-title", content = "🏛️ Politicians"),
-        span(id = "politician-timer", cls = "roster-timer", content = "")
+        div(cls = "roster-stats")(
+          span(id = "politician-timer", cls = "roster-timer", content = ""),
+          span(id = "politician-rare-chance", cls = "roster-rare-chance", content = "")
+        )
       ),
       div(id = "politician-roster-list", cls = "roster-list"),
       div(id = "politician-trash", cls = "politician-trash")(
@@ -1738,6 +1741,12 @@ object TileKingdomClient:
       window.setTimeout(() => floater.remove(), 1000)
 
   private def updatePoliticianTimer(): Unit =
+    // Update rare chance display
+    val rareChance = TileKingdomLogic.rarePoliticianChance(currentGame)
+    val rareChancePercent = (rareChance * 100).toInt
+    val rareText = s"⭐ $rareChancePercent%"
+    setElementText("politician-rare-chance", rareText)
+    
     // If roster is full, show "Full"
     if currentGame.politicianRoster.size >= TileKingdomLogic.MaxPoliticianRosterSize then
       setElementText("politician-timer", "Full")
