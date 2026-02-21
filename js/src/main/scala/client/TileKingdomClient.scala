@@ -1183,6 +1183,8 @@ object TileKingdomClient:
         tileDiv.setAttribute("data-level", level.toString)
         val stoneAmount = TileKingdomLogic.stoneProductionPerHarvest(currentGame, tile)
         val upgradeCost = TileKingdomLogic.quarryLevelUpCost(level)
+        val townHallMultiplier = TileKingdomLogic.townHallStoneMultiplier(currentGame, coord)
+        val hasTownHallBonus = townHallMultiplier > 1.0
 
         val content = div(cls = "tile-content")(
           div(cls = "tile-icon", content = "⛏️"),
@@ -1190,6 +1192,9 @@ object TileKingdomClient:
         )
 
         val prodDiv = div(cls = "tile-production quarry-production", content = s"+${stoneAmount.toInt}🪨")
+        if hasTownHallBonus then
+          val multiplierText = if townHallMultiplier % 1.0 == 0 then s" x${townHallMultiplier.toInt}" else f" x$townHallMultiplier%.1f"
+          prodDiv.appendChild(span(cls = "bonus town-hall-bonus", content = multiplierText))
         content.appendChild(prodDiv)
 
         val upgradeRow = div(cls = "tile-upgrade-row")
@@ -1734,13 +1739,14 @@ object TileKingdomClient:
 
   private def updatePoliticianTimer(): Unit =
     val currentTime = System.currentTimeMillis()
-    val intervalMs = TileKingdomLogic.PoliticianGenerationIntervalSeconds * 1000L
+    val speedMultiplier = TileKingdomLogic.politicianGenerationSpeedMultiplier(currentGame)
+    val effectiveIntervalMs = (TileKingdomLogic.PoliticianGenerationIntervalSeconds * 1000L / speedMultiplier).toLong
     val lastGen = if currentGame.lastPoliticianGeneration == 0L then currentTime else currentGame.lastPoliticianGeneration
-    val nextGenTime = lastGen + intervalMs
+    val nextGenTime = lastGen + effectiveIntervalMs
     val remainingMs = math.max(0, nextGenTime - currentTime)
     val remainingSeconds = (remainingMs / 1000).toInt
     val minutes = remainingSeconds / 60
     val seconds = remainingSeconds % 60
-    val timerText = f"Next: $minutes%d:$seconds%02d"
+    val timerText = if speedMultiplier > 1.0 then f"Next: $minutes%d:$seconds%02d ⚡" else f"Next: $minutes%d:$seconds%02d"
     setElementText("politician-timer", timerText)
 
