@@ -825,7 +825,19 @@ object TileKingdomClient:
         val townHallCost = TileKingdomLogic.townHallBuildCost(currentGame)
         val quarryCost = TileKingdomLogic.quarryBuildCost
         val academyCost = TileKingdomLogic.academyBuildCost(currentGame)
-        val canBuildOthers = currentGame.hasWheatField
+        
+        // Unlock progression checks
+        val canBuildFarm = currentGame.canBuildFarm
+        val canBuildWoodcutter = currentGame.canBuildWoodcutter
+        val canBuildQuarry = currentGame.canBuildQuarry
+        val canBuildBureau = currentGame.canBuildBureau
+        val canBuildTemple = currentGame.canBuildTemple
+        val canBuildTownHall = currentGame.canBuildTownHall
+        val canBuildAcademy = currentGame.canBuildAcademy
+        
+        // Check if any resource or management buildings are available
+        val hasResourceBuildings = canBuildFarm || canBuildWoodcutter || canBuildQuarry
+        val hasManagementBuildings = canBuildBureau || canBuildTemple || canBuildTownHall || canBuildAcademy
 
         // Build icon container (shown by default)
         val buildIconContainer = div(cls = "tile-build-icon-container")
@@ -860,7 +872,7 @@ object TileKingdomClient:
             tileDiv.classList.remove("selecting")
         )
 
-        // Resources category button
+        // Resources category button (always show - at minimum wheat field is available)
         mainMenu.appendChild(div(cls = "build-option build-category resources").tap: opt =>
           opt.appendChild(div(cls = "build-icon", content = "🌾"))
           opt.appendChild(div(cls = "build-name", content = "Resources"))
@@ -869,8 +881,8 @@ object TileKingdomClient:
             buildOptions.classList.add("submenu-resources")
         )
 
-        // Management category button (only show if canBuildOthers)
-        if canBuildOthers then
+        // Management category button (only show if any management buildings are unlocked)
+        if hasManagementBuildings then
           mainMenu.appendChild(div(cls = "build-option build-category management").tap: opt =>
             opt.appendChild(div(cls = "build-icon", content = "🏛️"))
             opt.appendChild(div(cls = "build-name", content = "Management"))
@@ -901,7 +913,8 @@ object TileKingdomClient:
             handleBuildWheatField(coord)
         )
 
-        if canBuildOthers then
+        // Farm unlocked by Wheat Field
+        if canBuildFarm then
           resourcesSubmenu.appendChild(div(cls = "build-option").tap: opt =>
             opt.appendChild(div(cls = "build-icon", content = "🏠"))
             opt.appendChild(div(cls = "build-name", content = "Farm"))
@@ -911,6 +924,8 @@ object TileKingdomClient:
               handleBuildFarm(coord)
           )
 
+        // Woodcutter unlocked by Farm
+        if canBuildWoodcutter then
           resourcesSubmenu.appendChild(div(cls = "build-option").tap: opt =>
             opt.appendChild(div(cls = "build-icon", content = "🪓"))
             opt.appendChild(div(cls = "build-name", content = "Wood"))
@@ -919,6 +934,9 @@ object TileKingdomClient:
               e.stopPropagation()
               handleBuildWoodcutter(coord)
           )
+          
+        // Quarry unlocked by Farm
+        if canBuildQuarry then
           resourcesSubmenu.appendChild(div(cls = "build-option").tap: opt =>
             opt.appendChild(div(cls = "build-icon", content = "⛏️"))
             opt.appendChild(div(cls = "build-name", content = "Quarry"))
@@ -927,19 +945,11 @@ object TileKingdomClient:
               e.stopPropagation()
               handleBuildQuarry(coord)
           )
-          resourcesSubmenu.appendChild(div(cls = "build-option").tap: opt =>
-            opt.appendChild(div(cls = "build-icon", content = "⛪"))
-            opt.appendChild(div(cls = "build-name", content = "Temple"))
-            opt.appendChild(div(cls = "build-cost", content = s"$templeCost🪵"))
-            opt.onclick = (e: MouseEvent) =>
-              e.stopPropagation()
-              handleBuildTemple(coord)
-          )
 
         buildOptions.appendChild(resourcesSubmenu)
 
-        // Management submenu (only if canBuildOthers)
-        if canBuildOthers then
+        // Management submenu (only if any management buildings are unlocked)
+        if hasManagementBuildings then
           val managementSubmenu = div(cls = "build-submenu management")
 
           managementSubmenu.appendChild(div(cls = "build-option build-back").tap: opt =>
@@ -950,30 +960,49 @@ object TileKingdomClient:
               buildOptions.classList.remove("submenu-management")
           )
 
-          managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
-            opt.appendChild(div(cls = "build-icon", content = "🏛️"))
-            opt.appendChild(div(cls = "build-name", content = "Bureau"))
-            opt.appendChild(div(cls = "build-cost", content = s"$bureauCost🪵"))
-            opt.onclick = (e: MouseEvent) =>
-              e.stopPropagation()
-              handleBuildBureau(coord)
-          )
-          managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
-            opt.appendChild(div(cls = "build-icon", content = "🏛️"))
-            opt.appendChild(div(cls = "build-name", content = "Town Hall"))
-            opt.appendChild(div(cls = "build-cost", content = s"$townHallCost🪨"))
-            opt.onclick = (e: MouseEvent) =>
-              e.stopPropagation()
-              handleBuildTownHall(coord)
-          )
-          managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
-            opt.appendChild(div(cls = "build-icon", content = "🎓"))
-            opt.appendChild(div(cls = "build-name", content = "Academy"))
-            opt.appendChild(div(cls = "build-cost", content = s"$academyCost🪨"))
-            opt.onclick = (e: MouseEvent) =>
-              e.stopPropagation()
-              handleBuildAcademy(coord)
-          )
+          // Bureau unlocked by Woodcutter
+          if canBuildBureau then
+            managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
+              opt.appendChild(div(cls = "build-icon", content = "🏛️"))
+              opt.appendChild(div(cls = "build-name", content = "Bureau"))
+              opt.appendChild(div(cls = "build-cost", content = s"$bureauCost🪵"))
+              opt.onclick = (e: MouseEvent) =>
+                e.stopPropagation()
+                handleBuildBureau(coord)
+            )
+          
+          // Temple unlocked by Woodcutter
+          if canBuildTemple then
+            managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
+              opt.appendChild(div(cls = "build-icon", content = "⛪"))
+              opt.appendChild(div(cls = "build-name", content = "Temple"))
+              opt.appendChild(div(cls = "build-cost", content = s"$templeCost🪵"))
+              opt.onclick = (e: MouseEvent) =>
+                e.stopPropagation()
+                handleBuildTemple(coord)
+            )
+            
+          // Town Hall unlocked by Quarry
+          if canBuildTownHall then
+            managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
+              opt.appendChild(div(cls = "build-icon", content = "🏛️"))
+              opt.appendChild(div(cls = "build-name", content = "Town Hall"))
+              opt.appendChild(div(cls = "build-cost", content = s"$townHallCost🪨"))
+              opt.onclick = (e: MouseEvent) =>
+                e.stopPropagation()
+                handleBuildTownHall(coord)
+            )
+            
+          // Academy unlocked by Quarry
+          if canBuildAcademy then
+            managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
+              opt.appendChild(div(cls = "build-icon", content = "🎓"))
+              opt.appendChild(div(cls = "build-name", content = "Academy"))
+              opt.appendChild(div(cls = "build-cost", content = s"$academyCost🪨"))
+              opt.onclick = (e: MouseEvent) =>
+                e.stopPropagation()
+                handleBuildAcademy(coord)
+            )
 
           buildOptions.appendChild(managementSubmenu)
 
