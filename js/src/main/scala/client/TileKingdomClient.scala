@@ -92,8 +92,7 @@ object TileKingdomClient:
 
     // Overlay UI elements
     container.appendChild(buildHeader())
-    container.appendChild(buildResources())
-    container.appendChild(buildPoliticianRoster())
+    container.appendChild(buildLeftSidebar())
     container.appendChild(buildActions())
     container.appendChild(buildNotification())
     container.appendChild(buildWelcomeBackModal())
@@ -108,6 +107,12 @@ object TileKingdomClient:
       h1(content = "🏰 Tile Kingdom"),
       button(cls = "help-button", content = "?").tap: btn =>
         btn.onclick = (_: MouseEvent) => toggleHelpPopup()
+    )
+
+  private def buildLeftSidebar(): HTMLElement =
+    div(cls = "tile-kingdom-left-sidebar")(
+      buildResources(),
+      buildPoliticianRoster()
     )
 
   private def buildResources(): HTMLElement =
