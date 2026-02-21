@@ -95,7 +95,8 @@ case class Politician(
     title: String,
     effect: PoliticianEffect,
     emoji: String,
-    secondaryEffect: Option[PoliticianEffect] = None // Rare politicians have two effects
+    secondaryEffect: Option[PoliticianEffect] = None, // Rare politicians have two effects
+    remainingLifespanMs: Long = 600000L // 10 minutes = 600,000 ms
 ) derives ReadWriter:
   def isRare: Boolean = secondaryEffect.isDefined
   
@@ -288,6 +289,7 @@ object TileKingdomLogic:
   val TownHallInfluenceRadius: Int = 2 // Town Hall affects tiles within 2 tile radius
   val PoliticianGenerationIntervalSeconds: Int = 300 // 5 minutes = 300 seconds
   val MaxPoliticianRosterSize: Int = 3 // Maximum politicians in roster
+  val PoliticianLifespanMs: Long = 600000L // 10 minutes = 600,000 ms
 
   // Quarry constants
   val QuarryBuildCost: Int = 50 // Wheat cost to build a quarry
@@ -496,6 +498,37 @@ object TileKingdomLogic:
   // Discard a politician from the roster
   def discardPolitician(game: TileKingdomGame, politicianId: String): TileKingdomGame =
     game.copy(politicianRoster = game.politicianRoster.filterNot(_.id == politicianId))
+
+  // Tick politician lifespans - only active politicians (in Town Halls) age
+  // Returns the updated game and a list of destroyed politician names
+  def tickPoliticianLifespans(game: TileKingdomGame, elapsedMs: Long): (TileKingdomGame, List[String]) =
+    val townHallCoords = game.tiles.toList.collect:
+      case (coord, tile) if tile.tileType match
+        case TileType.TownHall(Some(_)) => true
+        case _ => false
+      => coord
+
+    var updatedTiles = game.tiles
+    var destroyedPoliticians: List[String] = List.empty
+
+    townHallCoords.foreach: coord =>
+      updatedTiles.get(coord).foreach: tile =>
+        tile.tileType match
+          case TileType.TownHall(Some(politician)) =>
+            val newLifespan = politician.remainingLifespanMs - elapsedMs
+            if newLifespan <= 0 then
+              // Politician dies - remove from Town Hall
+              val updatedTile = tile.copy(tileType = TileType.TownHall(None))
+              updatedTiles = updatedTiles.updated(coord, updatedTile)
+              destroyedPoliticians = destroyedPoliticians :+ politician.name
+            else
+              // Update politician's remaining lifespan
+              val updatedPolitician = politician.copy(remainingLifespanMs = newLifespan)
+              val updatedTile = tile.copy(tileType = TileType.TownHall(Some(updatedPolitician)))
+              updatedTiles = updatedTiles.updated(coord, updatedTile)
+          case _ => ()
+
+    (game.copy(tiles = updatedTiles), destroyedPoliticians)
 
   // Base production per harvest (wheat per 10-second interval) - without bonuses
   def baseWheatProductionRate(tile: Tile): Double = tile.tileType match
