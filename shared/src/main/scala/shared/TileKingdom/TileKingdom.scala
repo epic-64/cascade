@@ -63,6 +63,10 @@ case class Coord(row: Int, col: Int) derives ReadWriter:
 // Tile Types
 // ============================================================================
 
+enum AcademyMode derives ReadWriter:
+  case FasterPoliticians // 2x politician generation speed
+  case RareChance // +10% rare politician chance
+
 enum TileType derives ReadWriter:
   case Empty
   case WheatField(level: Int) // level determines production rate
@@ -72,6 +76,7 @@ enum TileType derives ReadWriter:
   case Temple(level: Int) // produces faith, costs wood
   case TownHall(politician: Option[Politician]) // has a slot for a politician
   case Quarry(level: Int) // produces stone
+  case Academy(mode: AcademyMode) // boosts politician generation or rare chance
 
 // ============================================================================
 // Politician System
@@ -89,14 +94,26 @@ case class Politician(
     name: String,
     title: String,
     effect: PoliticianEffect,
-    emoji: String
+    emoji: String,
+    secondaryEffect: Option[PoliticianEffect] = None // Rare politicians have two effects
 ) derives ReadWriter:
-  def effectDescription: String = effect match
-    case PoliticianEffect.WheatProductionMultiplier(m) => s"${(m * 100).toInt}% wheat production"
-    case PoliticianEffect.WoodProductionMultiplier(m)  => s"${(m * 100).toInt}% wood production"
-    case PoliticianEffect.FaithProductionMultiplier(m) => s"${(m * 100).toInt}% faith production"
-    case PoliticianEffect.StoneProductionMultiplier(m) => s"${(m * 100).toInt}% stone production"
-    case PoliticianEffect.AllProductionMultiplier(m)   => s"${(m * 100).toInt}% all production"
+  def isRare: Boolean = secondaryEffect.isDefined
+  
+  private def describeEffect(eff: PoliticianEffect): String = eff match
+    case PoliticianEffect.WheatProductionMultiplier(m) => s"${(m * 100).toInt}% wheat"
+    case PoliticianEffect.WoodProductionMultiplier(m)  => s"${(m * 100).toInt}% wood"
+    case PoliticianEffect.FaithProductionMultiplier(m) => s"${(m * 100).toInt}% faith"
+    case PoliticianEffect.StoneProductionMultiplier(m) => s"${(m * 100).toInt}% stone"
+    case PoliticianEffect.AllProductionMultiplier(m)   => s"${(m * 100).toInt}% all"
+  
+  def effectDescription: String = secondaryEffect match
+    case Some(secondary) => s"${describeEffect(effect)} + ${describeEffect(secondary)}"
+    case None => effect match
+      case PoliticianEffect.WheatProductionMultiplier(m) => s"${(m * 100).toInt}% wheat production"
+      case PoliticianEffect.WoodProductionMultiplier(m)  => s"${(m * 100).toInt}% wood production"
+      case PoliticianEffect.FaithProductionMultiplier(m) => s"${(m * 100).toInt}% faith production"
+      case PoliticianEffect.StoneProductionMultiplier(m) => s"${(m * 100).toInt}% stone production"
+      case PoliticianEffect.AllProductionMultiplier(m)   => s"${(m * 100).toInt}% all production"
 
 // ============================================================================
 // Tile
@@ -139,7 +156,11 @@ case class Tile(
     case TileType.Quarry(_) => true
     case _                  => false
 
-  def isBuilding: Boolean = isWheatField || isFarm || isWoodcutter || isBureau || isTemple || isTownHall || isQuarry
+  def isAcademy: Boolean = tileType match
+    case TileType.Academy(_) => true
+    case _                   => false
+
+  def isBuilding: Boolean = isWheatField || isFarm || isWoodcutter || isBureau || isTemple || isTownHall || isQuarry || isAcademy
 
   def isUpgradeable: Boolean = isWheatField || isFarm || isWoodcutter || isTemple || isQuarry
 
@@ -246,6 +267,13 @@ object TileKingdomLogic:
   // Quarry constants
   val QuarryBuildCost: Int = 50 // Wheat cost to build a quarry
 
+  // Academy constants
+  val AcademyBaseCost: Int = 10000 // Stone cost for first academy
+  val AcademyCostMultiplier: Int = 10 // Each academy costs 10x more
+  val AcademySpeedMultiplier: Double = 2.0 // 2x faster politician generation
+  val AcademyRareChanceBonus: Double = 0.10 // +10% rare chance per academy in RareChance mode
+  val BaseRarePoliticianChance: Double = 0.05 // 5% base chance for rare politician
+
   // Politician definitions
   val PoliticianPool: List[(String, String, PoliticianEffect, String)] = List(
     ("Farmer General", "Agricultural Expert", PoliticianEffect.WheatProductionMultiplier(2.0), "👨‍🌾"),
@@ -302,53 +330,100 @@ object TileKingdomLogic:
           Some((townHallCoord, politician))
         case _ => None
 
+  // Helper to apply a single effect to a multiplier for a specific resource type
+  private def applyEffect(acc: Double, effect: PoliticianEffect, isWheat: Boolean = false, isWood: Boolean = false, isFaith: Boolean = false, isStone: Boolean = false): Double =
+    effect match
+      case PoliticianEffect.WheatProductionMultiplier(m) if isWheat => acc * m
+      case PoliticianEffect.WoodProductionMultiplier(m) if isWood   => acc * m
+      case PoliticianEffect.FaithProductionMultiplier(m) if isFaith => acc * m
+      case PoliticianEffect.StoneProductionMultiplier(m) if isStone => acc * m
+      case PoliticianEffect.AllProductionMultiplier(m)              => acc * m
+      case _ => acc
+
   // Calculate Town Hall bonus multiplier for wheat production at a given coord
   def townHallWheatMultiplier(game: TileKingdomGame, coord: Coord): Double =
     townHallsAffecting(game, coord).foldLeft(1.0): (acc, entry) =>
       val (_, politician) = entry
-      politician.effect match
-        case PoliticianEffect.WheatProductionMultiplier(m) => acc * m
-        case PoliticianEffect.AllProductionMultiplier(m)   => acc * m
-        case _ => acc
+      val afterPrimary = applyEffect(acc, politician.effect, isWheat = true)
+      politician.secondaryEffect.map(eff => applyEffect(afterPrimary, eff, isWheat = true)).getOrElse(afterPrimary)
 
   // Calculate Town Hall bonus multiplier for wood production at a given coord
   def townHallWoodMultiplier(game: TileKingdomGame, coord: Coord): Double =
     townHallsAffecting(game, coord).foldLeft(1.0): (acc, entry) =>
       val (_, politician) = entry
-      politician.effect match
-        case PoliticianEffect.WoodProductionMultiplier(m) => acc * m
-        case PoliticianEffect.AllProductionMultiplier(m)  => acc * m
-        case _ => acc
+      val afterPrimary = applyEffect(acc, politician.effect, isWood = true)
+      politician.secondaryEffect.map(eff => applyEffect(afterPrimary, eff, isWood = true)).getOrElse(afterPrimary)
 
   // Calculate Town Hall bonus multiplier for faith production at a given coord
   def townHallFaithMultiplier(game: TileKingdomGame, coord: Coord): Double =
     townHallsAffecting(game, coord).foldLeft(1.0): (acc, entry) =>
       val (_, politician) = entry
-      politician.effect match
-        case PoliticianEffect.FaithProductionMultiplier(m) => acc * m
-        case PoliticianEffect.AllProductionMultiplier(m)   => acc * m
-        case _ => acc
+      val afterPrimary = applyEffect(acc, politician.effect, isFaith = true)
+      politician.secondaryEffect.map(eff => applyEffect(afterPrimary, eff, isFaith = true)).getOrElse(afterPrimary)
 
   // Calculate Town Hall bonus multiplier for stone production at a given coord
   def townHallStoneMultiplier(game: TileKingdomGame, coord: Coord): Double =
     townHallsAffecting(game, coord).foldLeft(1.0): (acc, entry) =>
       val (_, politician) = entry
-      politician.effect match
-        case PoliticianEffect.StoneProductionMultiplier(m) => acc * m
-        case PoliticianEffect.AllProductionMultiplier(m)   => acc * m
-        case _ => acc
+      val afterPrimary = applyEffect(acc, politician.effect, isStone = true)
+      politician.secondaryEffect.map(eff => applyEffect(afterPrimary, eff, isStone = true)).getOrElse(afterPrimary)
 
-  // Generate a random politician
-  def generatePolitician(seed: Long): Politician =
+  // Count academies by mode
+  def countAcademies(game: TileKingdomGame, mode: AcademyMode): Int =
+    game.unlockedTiles.count: tile =>
+      tile.tileType match
+        case TileType.Academy(m) if m == mode => true
+        case _ => false
+
+  // Count total academies
+  def totalAcademies(game: TileKingdomGame): Int =
+    game.unlockedTiles.count(_.isAcademy)
+
+  // Calculate academy build cost
+  def academyBuildCost(game: TileKingdomGame): Int =
+    val existingCount = totalAcademies(game)
+    AcademyBaseCost * math.pow(AcademyCostMultiplier, existingCount).toInt
+
+  // Calculate rare politician chance with academy bonuses
+  def rarePoliticianChance(game: TileKingdomGame): Double =
+    val academyBonus = countAcademies(game, AcademyMode.RareChance) * AcademyRareChanceBonus
+    BaseRarePoliticianChance + academyBonus
+
+  // Calculate politician generation speed multiplier from academies
+  def politicianGenerationSpeedMultiplier(game: TileKingdomGame): Double =
+    val speedAcademies = countAcademies(game, AcademyMode.FasterPoliticians)
+    math.pow(AcademySpeedMultiplier, speedAcademies)
+
+  // Generate a random politician (possibly rare)
+  def generatePolitician(seed: Long, rareChance: Double): Politician =
     val random = new scala.util.Random(seed)
+    val isRare = random.nextDouble() < rareChance
     val (name, title, effect, emoji) = PoliticianPool(random.nextInt(PoliticianPool.size))
-    Politician(
-      id = s"politician_${seed}_${random.nextInt(10000)}",
-      name = name,
-      title = title,
-      effect = effect,
-      emoji = emoji
-    )
+    
+    if isRare then
+      // Pick a different second effect
+      val secondaryOptions = PoliticianPool.filterNot(_._3 == effect)
+      val (_, _, secondEffect, _) = secondaryOptions(random.nextInt(secondaryOptions.size))
+      Politician(
+        id = s"politician_${seed}_${random.nextInt(10000)}",
+        name = s"$name the Great",
+        title = s"Legendary $title",
+        effect = effect,
+        emoji = "⭐",
+        secondaryEffect = Some(secondEffect)
+      )
+    else
+      Politician(
+        id = s"politician_${seed}_${random.nextInt(10000)}",
+        name = name,
+        title = title,
+        effect = effect,
+        emoji = emoji
+      )
+
+  // Legacy method without rare chance (for backwards compatibility)
+  def generatePolitician(seed: Long): Politician =
+    generatePolitician(seed, BaseRarePoliticianChance)
 
   // Check and generate new politicians based on elapsed time
   def generateNewPoliticians(game: TileKingdomGame, currentTimeMillis: Long): TileKingdomGame =
@@ -356,21 +431,23 @@ object TileKingdomLogic:
     if game.politicianRoster.size >= MaxPoliticianRosterSize then
       return game
 
-    val intervalMs = PoliticianGenerationIntervalSeconds * 1000L
+    val speedMultiplier = politicianGenerationSpeedMultiplier(game)
+    val effectiveIntervalMs = (PoliticianGenerationIntervalSeconds * 1000L / speedMultiplier).toLong
     val lastGen = if game.lastPoliticianGeneration == 0L then currentTimeMillis else game.lastPoliticianGeneration
     val elapsedSinceLastGen = currentTimeMillis - lastGen
-    val newPoliticiansCount = (elapsedSinceLastGen / intervalMs).toInt
+    val newPoliticiansCount = (elapsedSinceLastGen / effectiveIntervalMs).toInt
 
     if newPoliticiansCount > 0 then
       // Only generate up to the remaining space in roster
       val availableSlots = MaxPoliticianRosterSize - game.politicianRoster.size
       val actualNewCount = math.min(newPoliticiansCount, availableSlots)
+      val rareChance = rarePoliticianChance(game)
       val newPoliticians = (0 until actualNewCount).map: i =>
-        generatePolitician(currentTimeMillis + i)
+        generatePolitician(currentTimeMillis + i, rareChance)
       .toList
       game.copy(
         politicianRoster = game.politicianRoster ++ newPoliticians,
-        lastPoliticianGeneration = lastGen + newPoliticiansCount * intervalMs
+        lastPoliticianGeneration = lastGen + newPoliticiansCount * effectiveIntervalMs
       )
     else game
 
@@ -690,6 +767,35 @@ object TileKingdomLogic:
           tiles = game.tiles.updated(coord, updatedTile),
           wheat = game.wheat - quarryBuildCost
         ))
+
+  // Build an academy on an empty tile (costs stone, requires at least one wheat field)
+  def buildAcademy(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
+    val cost = academyBuildCost(game)
+    game.tiles.get(coord) match
+      case None                                => Left("Tile not found")
+      case Some(tile) if !tile.unlocked        => Left("Tile is locked")
+      case Some(tile) if !tile.isEmpty         => Left("Tile is not empty")
+      case Some(_) if !game.hasWheatField      => Left("Build a wheat field first")
+      case Some(tile) if game.stone < cost     => Left(s"Not enough stone (need $cost)")
+      case Some(tile) =>
+        val updatedTile = tile.copy(tileType = TileType.Academy(AcademyMode.FasterPoliticians))
+        Right(game.copy(
+          tiles = game.tiles.updated(coord, updatedTile),
+          stone = game.stone - cost
+        ))
+
+  // Toggle academy mode between FasterPoliticians and RareChance
+  def toggleAcademyMode(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
+    game.tiles.get(coord) match
+      case None => Left("Tile not found")
+      case Some(tile) => tile.tileType match
+        case TileType.Academy(currentMode) =>
+          val newMode = currentMode match
+            case AcademyMode.FasterPoliticians => AcademyMode.RareChance
+            case AcademyMode.RareChance => AcademyMode.FasterPoliticians
+          val updatedTile = tile.copy(tileType = TileType.Academy(newMode))
+          Right(game.copy(tiles = game.tiles.updated(coord, updatedTile)))
+        case _ => Left("Tile is not an academy")
 
   // Assign a politician from the roster to a town hall (allows swapping)
   def assignPolitician(game: TileKingdomGame, politicianId: String, townHallCoord: Coord): Either[String, TileKingdomGame] =
