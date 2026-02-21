@@ -228,7 +228,10 @@ case class TileKingdomGame(
     unlockedTiles.exists(_.isWheatField)
 
   def totalIncomeRate: Double =
-    TileKingdomLogic.totalWheatProductionRate(this) + TileKingdomLogic.totalWoodProductionRate(this)
+    TileKingdomLogic.totalWheatProductionRate(this) + 
+    TileKingdomLogic.totalWoodProductionRate(this) +
+    TileKingdomLogic.totalStoneProductionRate(this) +
+    TileKingdomLogic.totalFaithProductionRate(this)
 
   def nextTileUnlockCost: Int =
     TileKingdomLogic.tileUnlockCost(unlockedTiles.size)
