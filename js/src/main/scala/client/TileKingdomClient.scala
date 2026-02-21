@@ -1738,13 +1738,17 @@ object TileKingdomClient:
       window.setTimeout(() => floater.remove(), 1000)
 
   private def updatePoliticianTimer(): Unit =
-    val currentTime = System.currentTimeMillis()
+    // If roster is full, show "Full"
+    if currentGame.politicianRoster.size >= TileKingdomLogic.MaxPoliticianRosterSize then
+      setElementText("politician-timer", "Full")
+      return
+    
     val speedMultiplier = TileKingdomLogic.politicianGenerationSpeedMultiplier(currentGame)
-    val effectiveIntervalMs = (TileKingdomLogic.PoliticianGenerationIntervalSeconds * 1000L / speedMultiplier).toLong
-    val lastGen = if currentGame.lastPoliticianGeneration == 0L then currentTime else currentGame.lastPoliticianGeneration
-    val nextGenTime = lastGen + effectiveIntervalMs
-    val remainingMs = math.max(0, nextGenTime - currentTime)
-    val remainingSeconds = (remainingMs / 1000).toInt
+    val baseIntervalSeconds = TileKingdomLogic.PoliticianGenerationIntervalSeconds
+    
+    // Calculate remaining time based on progress
+    val remainingProgress = 1.0 - currentGame.politicianGenerationProgress
+    val remainingSeconds = ((remainingProgress * baseIntervalSeconds) / speedMultiplier).toInt
     val minutes = remainingSeconds / 60
     val seconds = remainingSeconds % 60
     val timerText = if speedMultiplier > 1.0 then f"Next: $minutes%d:$seconds%02d ⚡" else f"Next: $minutes%d:$seconds%02d"
