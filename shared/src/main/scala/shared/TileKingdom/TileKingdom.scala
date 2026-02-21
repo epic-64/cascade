@@ -46,8 +46,7 @@ case class Resources(
 // ============================================================================
 
 case class Coord(row: Int, col: Int) derives ReadWriter:
-  def neighbors: Set[Coord] =
-    neighborsWithinRadius(1)
+  def neighbors: Set[Coord] = neighborsWithinRadius(1)
 
   def neighborsWithinRadius(radius: Int): Set[Coord] =
     (for
