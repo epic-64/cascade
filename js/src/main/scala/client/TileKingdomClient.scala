@@ -560,10 +560,13 @@ object TileKingdomClient:
     )
 
     // Track upgrades to show floating text after render
-    var bureauUpgrades: List[(Coord, Int, Coord, Int, Resource)] = List.empty // (upgradedCoord, newLevel, bureauCoord, cost, costResource)
+    var bureauUpgrades: List[(Coord, Int, Coord, Int, Resource, Boolean)] = List.empty // (upgradedCoord, newLevel, bureauCoord, cost, costResource, wasTurbo)
 
     bureaus.foreach: tile =>
       val currentProgress = getOrInitProgress(tile.coord)
+      val isTurbo = TileKingdomLogic.isBureauTurbo(currentGame, tile.coord)
+      val canAffordTurbo = currentGame.faith >= TileKingdomLogic.BureauTurboFaithCost
+      val effectivelyTurbo = isTurbo && canAffordTurbo
       val speedMultiplier = TileKingdomLogic.bureauSpeedMultiplier(currentGame, tile.coord)
       val progressIncrement = elapsedMs / BureauIntervalMs * speedMultiplier
       val newProgress = currentProgress + progressIncrement
@@ -587,7 +590,7 @@ object TileKingdomClient:
             val upgradeCost = upgradeCostOpt.map(_.amount).getOrElse(0)
             val costResource = upgradeCostOpt.map(_.resource).getOrElse(Resource.Wheat)
             val newLevel = upgradedTile.map(_.level).getOrElse(1)
-            bureauUpgrades = bureauUpgrades :+ (upgradedCoord, newLevel, tile.coord, upgradeCost, costResource)
+            bureauUpgrades = bureauUpgrades :+ (upgradedCoord, newLevel, tile.coord, upgradeCost, costResource, effectivelyTurbo)
             tileProgress = tileProgress.updated(tile.coord, newProgress - 1.0) // Keep excess progress
           case None =>
             // No upgrade possible, keep progress at 1.0 to retry next tick
@@ -611,13 +614,21 @@ object TileKingdomClient:
       renderPoliticianRoster()
       showNotification("A new politician has arrived!")
 
+    // Update all bureau tiles when faith changes to refresh turbo button states
+    if totalFaithHarvested > 0 then
+      bureaus.foreach: tile =>
+        updateSingleTile(tile.coord)
+
     // Show floating text and update only the upgraded tiles
-    bureauUpgrades.foreach: (upgradedCoord, newLevel, bureauCoord, cost, costResource) =>
+    bureauUpgrades.foreach: (upgradedCoord, newLevel, bureauCoord, cost, costResource, wasTurbo) =>
       updateSingleTile(upgradedCoord)
+      updateSingleTile(bureauCoord) // Also update bureau tile to refresh button states
       val costEmoji = resourceEmoji(costResource)
       showFloatingReward(upgradedCoord, cost, costEmoji, isSpend = true)
       showFloatingLevel(upgradedCoord, newLevel)
       showFloatingReward(bureauCoord, TileKingdomLogic.BureauWoodCostPerUpgrade, "🪵", isSpend = true)
+      if wasTurbo then
+        showFloatingReward(bureauCoord, TileKingdomLogic.BureauTurboFaithCost, "✨", isSpend = true)
 
   // ============================================================================
   // Persistence
@@ -1136,6 +1147,7 @@ object TileKingdomClient:
         tileDiv.setAttribute("data-level", level.toString)
         val isTurbo = TileKingdomLogic.isBureauTurbo(currentGame, coord)
         val speedMultiplier = TileKingdomLogic.bureauSpeedMultiplier(currentGame, coord)
+        val canAffordTurbo = currentGame.faith >= TileKingdomLogic.BureauTurboFaithCost
 
         if isTurbo then tileDiv.classList.add("turbo")
 
@@ -1146,15 +1158,25 @@ object TileKingdomClient:
 
         content.appendChild(div(cls = "tile-production", content = s"Auto⬆"))
         
-        // Add turbo mode toggle button
-        val turboRow = div(cls = "tile-upgrade-row")
-        val turboLabel = if isTurbo then "🐢 Slow" else "⚡ Turbo"
-        turboRow.appendChild(button(cls = s"btn-turbo${if isTurbo then " active" else ""}", content = turboLabel).tap: btn =>
+        // Add mode toggle buttons side by side
+        val modeRow = div(cls = "bureau-mode-row")
+        
+        // Slow mode button
+        modeRow.appendChild(button(cls = s"btn-bureau-mode slow${if !isTurbo then " active" else ""}", content = "🐢").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
-            handleToggleBureauTurbo(coord)
+            if isTurbo then handleToggleBureauTurbo(coord)
         )
-        content.appendChild(turboRow)
+        
+        // Turbo mode button (disabled if can't afford)
+        val turboBtn = button(cls = s"btn-bureau-mode turbo${if isTurbo then " active" else ""}${if !canAffordTurbo && !isTurbo then " disabled" else ""}", content = "⚡")
+        turboBtn.onclick = (e: MouseEvent) =>
+          e.stopPropagation()
+          if !isTurbo && canAffordTurbo then handleToggleBureauTurbo(coord)
+          else if !canAffordTurbo && !isTurbo then showNotification(s"Need ${TileKingdomLogic.BureauTurboFaithCost}✨ for turbo mode")
+        modeRow.appendChild(turboBtn)
+        
+        content.appendChild(modeRow)
 
         tileDiv.appendChild(content)
 

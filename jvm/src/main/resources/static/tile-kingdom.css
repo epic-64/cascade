@@ -429,6 +429,52 @@
   background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
 }
 
+/* Bureau mode row with side-by-side buttons */
+.bureau-mode-row {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.btn-bureau-mode {
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+  opacity: 0.5;
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.btn-bureau-mode:hover:not(.disabled) {
+  transform: scale(1.1);
+  opacity: 0.8;
+}
+
+.btn-bureau-mode.active {
+  opacity: 1;
+}
+
+.btn-bureau-mode.slow.active {
+  background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+  color: white;
+}
+
+.btn-bureau-mode.turbo.active {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+}
+
+.btn-bureau-mode.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
 /* Temple Tiles */
 .tile-kingdom-tile.temple {
   background: #fefce8;
