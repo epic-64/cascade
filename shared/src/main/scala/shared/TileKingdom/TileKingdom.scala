@@ -601,18 +601,18 @@ object TileKingdomLogic:
           wood = game.wood - townHallBuildCost
         ))
 
-  // Assign a politician from the roster to a town hall
+  // Assign a politician from the roster to a town hall (allows swapping)
   def assignPolitician(game: TileKingdomGame, politicianId: String, townHallCoord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(townHallCoord) match
       case None => Left("Tile not found")
       case Some(tile) => tile.tileType match
-        case TileType.TownHall(Some(_)) => Left("Town Hall already has a politician") // todo: allow swapping.
-        case TileType.TownHall(None) =>
+        case TileType.TownHall(existingPolitician) =>
           game.politicianRoster.find(_.id == politicianId) match
             case None => Left("Politician not found in roster")
-            case Some(politician) =>
-              val updatedTile = tile.copy(tileType = TileType.TownHall(Some(politician)))
-              val updatedRoster = game.politicianRoster.filterNot(_.id == politicianId)
+            case Some(newPolitician) =>
+              val updatedTile = tile.copy(tileType = TileType.TownHall(Some(newPolitician)))
+              // Remove new politician from roster, add existing one back if present
+              val updatedRoster = game.politicianRoster.filterNot(_.id == politicianId) ++ existingPolitician.toList
               Right(game.copy(
                 tiles = game.tiles.updated(townHallCoord, updatedTile),
                 politicianRoster = updatedRoster
