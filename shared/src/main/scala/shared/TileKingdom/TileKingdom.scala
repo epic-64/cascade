@@ -197,7 +197,8 @@ case class TileKingdomGame(
     bureauBoosts: Map[Coord, Int] = Map.empty, // Number of faith boosts applied to each bureau
     upgradeCooldowns: Map[Coord, Long] = Map.empty, // Deprecated, kept for save compatibility
     politicianRoster: List[Politician] = List.empty, // Available politicians to assign
-    lastPoliticianGeneration: Long = 0L // Timestamp of last politician generation
+    lastPoliticianGeneration: Long = 0L, // Timestamp of last politician generation tick
+    politicianGenerationProgress: Double = 0.0 // Progress towards next politician (0.0 to 1.0)
 ) derives ReadWriter:
 
   // Resource helpers
@@ -427,29 +428,46 @@ object TileKingdomLogic:
 
   // Check and generate new politicians based on elapsed time
   def generateNewPoliticians(game: TileKingdomGame, currentTimeMillis: Long): TileKingdomGame =
-    // Don't generate if roster is full
+    // Don't generate or accumulate progress if roster is full
     if game.politicianRoster.size >= MaxPoliticianRosterSize then
-      return game
+      return game.copy(lastPoliticianGeneration = currentTimeMillis)
 
     val speedMultiplier = politicianGenerationSpeedMultiplier(game)
-    val effectiveIntervalMs = (PoliticianGenerationIntervalSeconds * 1000L / speedMultiplier).toLong
-    val lastGen = if game.lastPoliticianGeneration == 0L then currentTimeMillis else game.lastPoliticianGeneration
-    val elapsedSinceLastGen = currentTimeMillis - lastGen
-    val newPoliticiansCount = (elapsedSinceLastGen / effectiveIntervalMs).toInt
-
-    if newPoliticiansCount > 0 then
+    val baseIntervalMs = PoliticianGenerationIntervalSeconds * 1000L
+    val lastTick = if game.lastPoliticianGeneration == 0L then currentTimeMillis else game.lastPoliticianGeneration
+    val elapsedMs = currentTimeMillis - lastTick
+    
+    // Calculate progress increment based on elapsed time and speed multiplier
+    // Progress of 1.0 = one full base interval has passed (at 1x speed)
+    val progressIncrement = (elapsedMs.toDouble / baseIntervalMs) * speedMultiplier
+    val newProgress = game.politicianGenerationProgress + progressIncrement
+    
+    if newProgress >= 1.0 then
+      // Generate politicians for each full progress unit
+      val politiciansToGenerate = newProgress.toInt
+      val remainingProgress = newProgress - politiciansToGenerate
+      
       // Only generate up to the remaining space in roster
       val availableSlots = MaxPoliticianRosterSize - game.politicianRoster.size
-      val actualNewCount = math.min(newPoliticiansCount, availableSlots)
+      val actualNewCount = math.min(politiciansToGenerate, availableSlots)
       val rareChance = rarePoliticianChance(game)
       val newPoliticians = (0 until actualNewCount).map: i =>
         generatePolitician(currentTimeMillis + i, rareChance)
       .toList
+      
+      // If we filled the roster, reset progress; otherwise keep remainder
+      val finalProgress = if game.politicianRoster.size + actualNewCount >= MaxPoliticianRosterSize then 0.0 else remainingProgress
+      
       game.copy(
         politicianRoster = game.politicianRoster ++ newPoliticians,
-        lastPoliticianGeneration = lastGen + newPoliticiansCount * effectiveIntervalMs
+        lastPoliticianGeneration = currentTimeMillis,
+        politicianGenerationProgress = finalProgress
       )
-    else game
+    else 
+      game.copy(
+        lastPoliticianGeneration = currentTimeMillis,
+        politicianGenerationProgress = newProgress
+      )
 
   // Discard a politician from the roster
   def discardPolitician(game: TileKingdomGame, politicianId: String): TileKingdomGame =
