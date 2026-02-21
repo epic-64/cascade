@@ -750,11 +750,20 @@ object TileKingdomClient:
         card.setAttribute("draggable", "true")
         card.setAttribute("data-politician-id", politician.id)
 
+        // Calculate lifespan display
+        val lifespanSeconds = (politician.remainingLifespanMs / 1000).toInt
+        val minutes = lifespanSeconds / 60
+        val seconds = lifespanSeconds % 60
+        val lifespanText = f"$minutes:$seconds%02d"
+        val lifespanPercent = (politician.remainingLifespanMs.toDouble / TileKingdomLogic.PoliticianLifespanMs * 100).toInt
+        val lifespanClass = if lifespanPercent <= 20 then "lifespan-critical" else if lifespanPercent <= 50 then "lifespan-warning" else "lifespan-normal"
+
         card.appendChild(div(cls = "politician-emoji", content = politician.emoji))
         card.appendChild(div(cls = "politician-info")(
           div(cls = "politician-name", content = politician.name),
           div(cls = "politician-title", content = politician.title),
-          div(cls = "politician-effect", content = politician.effectDescription)
+          div(cls = "politician-effect", content = politician.effectDescription),
+          div(cls = s"politician-roster-lifespan $lifespanClass", content = s"⏱️ $lifespanText remaining")
         ))
 
         // Setup drag events
@@ -859,7 +868,7 @@ object TileKingdomClient:
         val townHallCost = TileKingdomLogic.townHallBuildCost(currentGame)
         val quarryCost = TileKingdomLogic.quarryBuildCost
         val academyCost = TileKingdomLogic.academyBuildCost(currentGame)
-        
+
         // Unlock progression checks
         val canBuildFarm = currentGame.canBuildFarm
         val canBuildWoodcutter = currentGame.canBuildWoodcutter
@@ -868,7 +877,7 @@ object TileKingdomClient:
         val canBuildTemple = currentGame.canBuildTemple
         val canBuildTownHall = currentGame.canBuildTownHall
         val canBuildAcademy = currentGame.canBuildAcademy
-        
+
         // Check if any resource or management buildings are available
         val hasResourceBuildings = canBuildFarm || canBuildWoodcutter || canBuildQuarry
         val hasManagementBuildings = canBuildBureau || canBuildTemple || canBuildTownHall || canBuildAcademy
@@ -968,7 +977,7 @@ object TileKingdomClient:
               e.stopPropagation()
               handleBuildWoodcutter(coord)
           )
-          
+
         // Quarry unlocked by Farm
         if canBuildQuarry then
           resourcesSubmenu.appendChild(div(cls = "build-option").tap: opt =>
@@ -1004,7 +1013,7 @@ object TileKingdomClient:
                 e.stopPropagation()
                 handleBuildBureau(coord)
             )
-          
+
           // Temple unlocked by Woodcutter
           if canBuildTemple then
             managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
@@ -1015,7 +1024,7 @@ object TileKingdomClient:
                 e.stopPropagation()
                 handleBuildTemple(coord)
             )
-            
+
           // Town Hall unlocked by Quarry
           if canBuildTownHall then
             managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
@@ -1026,7 +1035,7 @@ object TileKingdomClient:
                 e.stopPropagation()
                 handleBuildTownHall(coord)
             )
-            
+
           // Academy unlocked by Quarry
           if canBuildAcademy then
             managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
@@ -1183,14 +1192,14 @@ object TileKingdomClient:
         
         // Add mode toggle buttons side by side
         val modeRow = div(cls = "bureau-mode-row")
-        
+
         // Slow mode button
         modeRow.appendChild(button(cls = s"btn-bureau-mode slow${if !isTurbo then " active" else ""}", content = "🐢").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
             if isTurbo then handleToggleBureauTurbo(coord)
         )
-        
+
         // Turbo mode button (disabled if can't afford)
         val turboBtn = button(cls = s"btn-bureau-mode turbo${if isTurbo then " active" else ""}${if !canAffordTurbo && !isTurbo then " disabled" else ""}", content = "⚡")
         turboBtn.onclick = (e: MouseEvent) =>
@@ -1198,7 +1207,7 @@ object TileKingdomClient:
           if !isTurbo && canAffordTurbo then handleToggleBureauTurbo(coord)
           else if !canAffordTurbo && !isTurbo then showNotification(s"Need ${TileKingdomLogic.BureauTurboFaithCost}✨ for turbo mode")
         modeRow.appendChild(turboBtn)
-        
+
         content.appendChild(modeRow)
 
         tileDiv.appendChild(content)
@@ -1318,7 +1327,7 @@ object TileKingdomClient:
             val lifespanText = f"$minutes:$seconds%02d"
             val lifespanPercent = (pol.remainingLifespanMs.toDouble / TileKingdomLogic.PoliticianLifespanMs * 100).toInt
             val lifespanClass = if lifespanPercent <= 20 then "lifespan-critical" else if lifespanPercent <= 50 then "lifespan-warning" else "lifespan-normal"
-            
+
             content.appendChild(div(cls = "politician-slot filled")(
               div(cls = "politician-emoji-small", content = pol.emoji),
               div(cls = "politician-effect-small", content = pol.effectDescription),
@@ -1353,25 +1362,25 @@ object TileKingdomClient:
 
       case TileType.Academy(mode) =>
         tileDiv.classList.add("academy")
-        
+
         val modeText = mode match
           case AcademyMode.FasterPoliticians => "⚡ 2x Speed"
           case AcademyMode.RareChance => "⭐ +10% Rare"
-        
+
         val content = div(cls = "tile-content academy-content")(
           div(cls = "tile-icon", content = "🎓"),
           div(cls = "tile-label", content = "Academy"),
           div(cls = "academy-mode", content = modeText)
         )
-        
+
         content.appendChild(button(cls = "btn-toggle-mode", content = "⇄ Mode").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
             handleToggleAcademyMode(coord)
         )
-        
+
         tileDiv.appendChild(content)
-        
+
         tileDiv.oncontextmenu = (e: MouseEvent) =>
           e.preventDefault()
           handleDestroyBuilding(coord)
@@ -1833,15 +1842,15 @@ object TileKingdomClient:
     val rareChancePercent = (rareChance * 100).toInt
     val rareText = s"⭐ $rareChancePercent%"
     setElementText("politician-rare-chance", rareText)
-    
+
     // If roster is full, show "Full"
     if currentGame.politicianRoster.size >= TileKingdomLogic.MaxPoliticianRosterSize then
       setElementText("politician-timer", "Full")
       return
-    
+
     val speedMultiplier = TileKingdomLogic.politicianGenerationSpeedMultiplier(currentGame)
     val baseIntervalSeconds = TileKingdomLogic.PoliticianGenerationIntervalSeconds
-    
+
     // Calculate remaining time based on progress
     val remainingProgress = 1.0 - currentGame.politicianGenerationProgress
     val remainingSeconds = ((remainingProgress * baseIntervalSeconds) / speedMultiplier).toInt
