@@ -530,9 +530,10 @@ object TileKingdomClient:
     saveGame()
     updateProgressBars()
     renderResources()
-    renderPoliticianRoster()
+    updatePoliticianTimer()
 
     if newPoliticianGenerated then
+      renderPoliticianRoster()
       showNotification("A new politician has arrived!")
 
     // Show floating text and update only the upgraded tiles
