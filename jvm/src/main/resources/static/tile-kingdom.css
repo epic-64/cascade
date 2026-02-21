@@ -1236,6 +1236,48 @@
 }
 
 /* ============================================================================
+   Tavern Tile
+   ============================================================================ */
+
+.tile-kingdom-tile.tavern {
+  background: linear-gradient(135deg, #fcd34d 0%, #f59e0b 100%);
+  border-color: #b45309;
+}
+
+.tile-kingdom-tile.tavern:hover {
+  background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
+  transform: scale(1.05);
+}
+
+.tile-kingdom-tile.tavern .tile-content.tavern-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px;
+}
+
+.tile-kingdom-tile.tavern .tile-icon {
+  font-size: 1.2rem;
+}
+
+.tile-kingdom-tile.tavern .tile-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: #78350f;
+}
+
+.tile-kingdom-tile.tavern .tavern-effect {
+  font-size: 0.5rem;
+  font-weight: 600;
+  color: #92400e;
+  background: rgba(255, 255, 255, 0.5);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* ============================================================================
    Politician Roster Panel
    ============================================================================ */
 

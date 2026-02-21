@@ -77,6 +77,7 @@ enum TileType derives ReadWriter:
   case TownHall(politician: Option[Politician]) // has a slot for a politician
   case Quarry(level: Int) // produces stone
   case Academy(mode: AcademyMode) // boosts politician generation or rare chance
+  case Tavern // extends politician lifespan in nearby Town Halls by 2x
 
 // ============================================================================
 // Politician System
@@ -161,7 +162,11 @@ case class Tile(
     case TileType.Academy(_) => true
     case _                   => false
 
-  def isBuilding: Boolean = isWheatField || isFarm || isWoodcutter || isBureau || isTemple || isTownHall || isQuarry || isAcademy
+  def isTavern: Boolean = tileType match
+    case TileType.Tavern => true
+    case _               => false
+
+  def isBuilding: Boolean = isWheatField || isFarm || isWoodcutter || isBureau || isTemple || isTownHall || isQuarry || isAcademy || isTavern
 
   def isUpgradeable: Boolean = isWheatField || isFarm || isWoodcutter || isTemple || isQuarry
 
@@ -246,6 +251,7 @@ case class TileKingdomGame(
   def canBuildTemple: Boolean = hasWoodcutter
   def canBuildTownHall: Boolean = hasQuarry
   def canBuildAcademy: Boolean = hasQuarry
+  def canBuildTavern: Boolean = unlockedTiles.exists(_.isTownHall)
 
   def totalIncomeRate: Double =
     TileKingdomLogic.totalWheatProductionRate(this) + 
@@ -293,6 +299,10 @@ object TileKingdomLogic:
 
   // Quarry constants
   val QuarryBuildCost: Int = 50 // Wheat cost to build a quarry
+
+  // Tavern constants
+  val TavernBuildCost: Int = 500 // Wood cost to build a tavern
+  val TavernLifespanMultiplier: Double = 2.0 // 2x lifespan for politicians in nearby Town Halls
 
   // Academy constants
   val AcademyBaseCost: Int = 10000 // Stone cost for first academy
@@ -394,6 +404,16 @@ object TileKingdomLogic:
       val (_, politician) = entry
       val afterPrimary = applyEffect(acc, politician.effect, isStone = true)
       politician.secondaryEffect.map(eff => applyEffect(afterPrimary, eff, isStone = true)).getOrElse(afterPrimary)
+
+  // Count taverns within influence radius of a Town Hall
+  def tavernsAffectingTownHall(game: TileKingdomGame, townHallCoord: Coord): Int =
+    townHallCoord.neighborsWithinRadius(TownHallInfluenceRadius).count: coord =>
+      game.tiles.get(coord).exists(_.isTavern)
+
+  // Calculate lifespan multiplier for a politician in a Town Hall based on nearby taverns
+  def politicianLifespanMultiplier(game: TileKingdomGame, townHallCoord: Coord): Double =
+    val tavernCount = tavernsAffectingTownHall(game, townHallCoord)
+    math.pow(TavernLifespanMultiplier, tavernCount) // 2x per tavern, multiplicative
 
   // Count academies by mode
   def countAcademies(game: TileKingdomGame, mode: AcademyMode): Int =
@@ -501,6 +521,7 @@ object TileKingdomLogic:
 
   // Tick politician lifespans - only active politicians (in Town Halls) age
   // Returns the updated game and a list of destroyed politician names
+  // Taverns in range slow down the decay by their multiplier
   def tickPoliticianLifespans(game: TileKingdomGame, elapsedMs: Long): (TileKingdomGame, List[String]) =
     val townHallCoords = game.tiles.toList.collect:
       case (coord, tile) if tile.tileType match
@@ -515,7 +536,10 @@ object TileKingdomLogic:
       updatedTiles.get(coord).foreach: tile =>
         tile.tileType match
           case TileType.TownHall(Some(politician)) =>
-            val newLifespan = politician.remainingLifespanMs - elapsedMs
+            // Calculate effective elapsed time based on tavern multiplier
+            val lifespanMultiplier = politicianLifespanMultiplier(game, coord)
+            val effectiveElapsedMs = (elapsedMs / lifespanMultiplier).toLong
+            val newLifespan = politician.remainingLifespanMs - effectiveElapsedMs
             if newLifespan <= 0 then
               // Politician dies - remove from Town Hall
               val updatedTile = tile.copy(tileType = TileType.TownHall(None))
@@ -857,6 +881,21 @@ object TileKingdomLogic:
         Right(game.copy(
           tiles = game.tiles.updated(coord, updatedTile),
           stone = game.stone - cost
+        ))
+
+  // Build a tavern on an empty tile (costs wood, requires at least one town hall)
+  def buildTavern(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
+    game.tiles.get(coord) match
+      case None                                      => Left("Tile not found")
+      case Some(tile) if !tile.unlocked              => Left("Tile is locked")
+      case Some(tile) if !tile.isEmpty               => Left("Tile is not empty")
+      case Some(_) if !game.canBuildTavern           => Left("Build a town hall first")
+      case Some(tile) if game.wood < TavernBuildCost => Left(s"Not enough wood (need $TavernBuildCost)")
+      case Some(tile) =>
+        val updatedTile = tile.copy(tileType = TileType.Tavern)
+        Right(game.copy(
+          tiles = game.tiles.updated(coord, updatedTile),
+          wood = game.wood - TavernBuildCost
         ))
 
   // Toggle academy mode between FasterPoliticians and RareChance

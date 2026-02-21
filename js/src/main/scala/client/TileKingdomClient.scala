@@ -877,10 +877,11 @@ object TileKingdomClient:
         val canBuildTemple = currentGame.canBuildTemple
         val canBuildTownHall = currentGame.canBuildTownHall
         val canBuildAcademy = currentGame.canBuildAcademy
+        val canBuildTavern = currentGame.canBuildTavern
 
         // Check if any resource or management buildings are available
         val hasResourceBuildings = canBuildFarm || canBuildWoodcutter || canBuildQuarry
-        val hasManagementBuildings = canBuildBureau || canBuildTemple || canBuildTownHall || canBuildAcademy
+        val hasManagementBuildings = canBuildBureau || canBuildTemple || canBuildTownHall || canBuildAcademy || canBuildTavern
 
         // Build icon container (shown by default)
         val buildIconContainer = div(cls = "tile-build-icon-container")
@@ -1045,6 +1046,17 @@ object TileKingdomClient:
               opt.onclick = (e: MouseEvent) =>
                 e.stopPropagation()
                 handleBuildAcademy(coord)
+            )
+
+          // Tavern unlocked by Town Hall
+          if canBuildTavern then
+            managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
+              opt.appendChild(div(cls = "build-icon", content = "🍺"))
+              opt.appendChild(div(cls = "build-name", content = "Tavern"))
+              opt.appendChild(div(cls = "build-cost", content = s"${TileKingdomLogic.TavernBuildCost}🪵"))
+              opt.onclick = (e: MouseEvent) =>
+                e.stopPropagation()
+                handleBuildTavern(coord)
             )
 
           buildOptions.appendChild(managementSubmenu)
@@ -1320,18 +1332,22 @@ object TileKingdomClient:
         politician match
           case Some(pol) =>
             tileDiv.classList.add("has-politician")
-            // Calculate lifespan display
-            val lifespanSeconds = (pol.remainingLifespanMs / 1000).toInt
+            // Calculate lifespan display with tavern multiplier
+            val lifespanMultiplier = TileKingdomLogic.politicianLifespanMultiplier(currentGame, coord)
+            val effectiveLifespanMs = (pol.remainingLifespanMs * lifespanMultiplier).toLong
+            val lifespanSeconds = (effectiveLifespanMs / 1000).toInt
             val minutes = lifespanSeconds / 60
             val seconds = lifespanSeconds % 60
             val lifespanText = f"$minutes:$seconds%02d"
-            val lifespanPercent = (pol.remainingLifespanMs.toDouble / TileKingdomLogic.PoliticianLifespanMs * 100).toInt
+            val effectiveMaxLifespanMs = (TileKingdomLogic.PoliticianLifespanMs * lifespanMultiplier).toLong
+            val lifespanPercent = (effectiveLifespanMs.toDouble / effectiveMaxLifespanMs * 100).toInt
             val lifespanClass = if lifespanPercent <= 20 then "lifespan-critical" else if lifespanPercent <= 50 then "lifespan-warning" else "lifespan-normal"
+            val multiplierText = if lifespanMultiplier > 1.0 then s" (${lifespanMultiplier.toInt}x)" else ""
 
             content.appendChild(div(cls = "politician-slot filled")(
               div(cls = "politician-emoji-small", content = pol.emoji),
               div(cls = "politician-effect-small", content = pol.effectDescription),
-              div(cls = s"politician-lifespan $lifespanClass", content = s"⏱️ $lifespanText")
+              div(cls = s"politician-lifespan $lifespanClass", content = s"⏱️ $lifespanText$multiplierText")
             ))
             // Click to remove politician
             tileDiv.onclick = (_: MouseEvent) => handleRemovePolitician(coord)
@@ -1377,6 +1393,21 @@ object TileKingdomClient:
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
             handleToggleAcademyMode(coord)
+        )
+
+        tileDiv.appendChild(content)
+
+        tileDiv.oncontextmenu = (e: MouseEvent) =>
+          e.preventDefault()
+          handleDestroyBuilding(coord)
+
+      case TileType.Tavern =>
+        tileDiv.classList.add("tavern")
+
+        val content = div(cls = "tile-content tavern-content")(
+          div(cls = "tile-icon", content = "🍺"),
+          div(cls = "tile-label", content = "Tavern"),
+          div(cls = "tavern-effect", content = s"${TileKingdomLogic.TavernLifespanMultiplier.toInt}x Lifespan")
         )
 
         tileDiv.appendChild(content)
@@ -1520,6 +1551,17 @@ object TileKingdomClient:
         saveGame()
         renderGame()
         showFloatingReward(coord, cost, "🪨", isSpend = true)
+      case Left(error) =>
+        showNotification(error)
+
+  private def handleBuildTavern(coord: Coord): Unit =
+    TileKingdomLogic.buildTavern(currentGame, coord) match
+      case Right(newGame) =>
+        selectingTileCoord = None
+        currentGame = newGame
+        saveGame()
+        renderGame()
+        showFloatingReward(coord, TileKingdomLogic.TavernBuildCost, "🪵", isSpend = true)
       case Left(error) =>
         showNotification(error)
 
