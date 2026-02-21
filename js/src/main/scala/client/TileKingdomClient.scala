@@ -574,7 +574,8 @@ object TileKingdomClient:
       if newProgress >= 1.0 then
         // Bureau ready to attempt an upgrade
         TileKingdomLogic.bureauAutoUpgrade(updatedGame, tile.coord, currentTime) match
-          case Some((newGame, upgradedCoord)) =>
+          case Some((newGame, upgradedCoord)) if upgradedCoord != tile.coord =>
+            // Actual upgrade happened
             updatedGame = newGame
             // Collect upgrade info to show after render
             val upgradedTile = updatedGame.tiles.get(upgradedCoord)
@@ -592,6 +593,11 @@ object TileKingdomClient:
             val newLevel = upgradedTile.map(_.level).getOrElse(1)
             bureauUpgrades = bureauUpgrades :+ (upgradedCoord, newLevel, tile.coord, upgradeCost, costResource, effectivelyTurbo)
             tileProgress = tileProgress.updated(tile.coord, newProgress - 1.0) // Keep excess progress
+          case Some((newGame, _)) =>
+            // Only turbo mode was disabled, no actual upgrade
+            updatedGame = newGame
+            updateSingleTile(tile.coord) // Update bureau tile to show slow mode
+            tileProgress = tileProgress.updated(tile.coord, 1.0) // Retry next tick
           case None =>
             // No upgrade possible, keep progress at 1.0 to retry next tick
             tileProgress = tileProgress.updated(tile.coord, 1.0)

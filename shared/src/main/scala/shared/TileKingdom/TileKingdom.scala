@@ -978,7 +978,7 @@ object TileKingdomLogic:
   // Bureau auto-upgrade: upgrade the tile with lowest upgrade cost within radius
   // Returns updated game and the coord that was upgraded (if any)
   // Compares costs numerically - all resources are treated as equivalent
-  // In turbo mode: costs 100 faith + 100 wood per upgrade, auto-disables if not enough
+  // In turbo mode: costs 100 faith + 100 wood per upgrade, auto-disables if not enough resources
   def bureauAutoUpgrade(
                          game: TileKingdomGame,
                          bureauCoord: Coord,
@@ -995,45 +995,60 @@ object TileKingdomLogic:
           .filter((_, tile) => tile.isUpgradeable)
           .flatMap((coord, tile) => tile.upgradeCost.map(cost => (coord, tile, cost)))
 
-        // Must have wood for the bureau fee regardless of what we upgrade
-        if game.wood < BureauWoodCostPerUpgrade then return None
+        // Check if we have enough resources for turbo mode
+        val canAffordWood = game.wood >= BureauWoodCostPerUpgrade
+        val canAffordFaith = game.faith >= BureauTurboFaithCost
         
-        // In turbo mode, check if we have enough faith for the upgrade
-        // If not, we'll proceed in slow mode for this upgrade (but don't auto-disable turbo)
-        val canAffordTurbo = game.faith >= BureauTurboFaithCost
-        val effectiveIsTurbo = isTurbo && canAffordTurbo
+        // Auto-disable turbo mode if we can't afford wood or faith
+        val gameWithTurboCheck = 
+          if isTurbo && (!canAffordWood || !canAffordFaith) then
+            game.copy(bureauTurboMode = game.bureauTurboMode.updated(bureauCoord, false))
+          else game
+        
+        val effectiveIsTurbo = isBureauTurbo(gameWithTurboCheck, bureauCoord)
+
+        // Must have wood for the bureau fee regardless of what we upgrade
+        if gameWithTurboCheck.wood < BureauWoodCostPerUpgrade then 
+          // Return game with turbo disabled if it was disabled
+          if gameWithTurboCheck ne game then return Some((gameWithTurboCheck, bureauCoord))
+          else return None
 
         // Filter to only tiles we can afford (including bureau wood fee for wood-cost upgrades)
         val affordableTiles = upgradeableTiles.filter: (_, _, cost) =>
           val extraWoodNeeded = if cost.resource == Resource.Wood then BureauWoodCostPerUpgrade else 0
-          game.canAfford(cost.amount + extraWoodNeeded, cost.resource)
+          gameWithTurboCheck.canAfford(cost.amount + extraWoodNeeded, cost.resource)
 
         // Select the tile with the lowest upgrade cost (comparing numerically)
-        affordableTiles.minByOption(_._3.amount).flatMap: (targetCoord, targetTile, cost) =>
-          // Perform the upgrade based on tile type
-          val upgradedTileType = targetTile.tileType match
-            case TileType.WheatField(lvl) => TileType.WheatField(lvl + 1)
-            case TileType.Farm(lvl)       => TileType.Farm(lvl + 1)
-            case TileType.Woodcutter(lvl) => TileType.Woodcutter(lvl + 1)
-            case TileType.Temple(lvl)     => TileType.Temple(lvl + 1)
-            case TileType.Quarry(lvl)     => TileType.Quarry(lvl + 1)
-            case other                    => other
+        affordableTiles.minByOption(_._3.amount) match
+          case Some((targetCoord, targetTile, cost)) =>
+            // Perform the upgrade based on tile type
+            val upgradedTileType = targetTile.tileType match
+              case TileType.WheatField(lvl) => TileType.WheatField(lvl + 1)
+              case TileType.Farm(lvl)       => TileType.Farm(lvl + 1)
+              case TileType.Woodcutter(lvl) => TileType.Woodcutter(lvl + 1)
+              case TileType.Temple(lvl)     => TileType.Temple(lvl + 1)
+              case TileType.Quarry(lvl)     => TileType.Quarry(lvl + 1)
+              case other                    => other
 
-          val upgradedTile = targetTile.copy(tileType = upgradedTileType)
+            val upgradedTile = targetTile.copy(tileType = upgradedTileType)
 
-          // Deduct upgrade cost and bureau fee
-          val afterUpgradeCost = game.deduct(cost)
-          val afterBureauFee = afterUpgradeCost.copy(wood = afterUpgradeCost.wood - BureauWoodCostPerUpgrade)
-          
-          // Deduct faith cost if effectively in turbo mode
-          val afterTurboCost = 
-            if effectiveIsTurbo then afterBureauFee.copy(faith = afterBureauFee.faith - BureauTurboFaithCost)
-            else afterBureauFee
+            // Deduct upgrade cost and bureau fee from the turbo-checked game
+            val afterUpgradeCost = gameWithTurboCheck.deduct(cost)
+            val afterBureauFee = afterUpgradeCost.copy(wood = afterUpgradeCost.wood - BureauWoodCostPerUpgrade)
+            
+            // Deduct faith cost if effectively in turbo mode
+            val afterTurboCost = 
+              if effectiveIsTurbo then afterBureauFee.copy(faith = afterBureauFee.faith - BureauTurboFaithCost)
+              else afterBureauFee
 
-          val newGame = afterTurboCost.copy(
-            tiles = game.tiles.updated(targetCoord, upgradedTile)
-          )
-          Some((newGame, targetCoord))
+            val newGame = afterTurboCost.copy(
+              tiles = gameWithTurboCheck.tiles.updated(targetCoord, upgradedTile)
+            )
+            Some((newGame, targetCoord))
+          case None =>
+            // No affordable upgrade, but return game with turbo disabled if it was disabled
+            if gameWithTurboCheck ne game then Some((gameWithTurboCheck, bureauCoord))
+            else None
       case _ => None
 
   // Destroy a building on a tile (returns it to empty state, no refund)
