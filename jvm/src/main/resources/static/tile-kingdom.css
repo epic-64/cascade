@@ -1084,6 +1084,65 @@
 }
 
 /* ============================================================================
+   Academy Tile
+   ============================================================================ */
+
+.tile-kingdom-tile.academy {
+  background: linear-gradient(135deg, #c4b5fd 0%, #a78bfa 100%);
+  border-color: #7c3aed;
+}
+
+.tile-kingdom-tile.academy:hover {
+  background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%);
+  transform: scale(1.05);
+}
+
+.tile-kingdom-tile.academy .tile-content.academy-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px;
+}
+
+.tile-kingdom-tile.academy .tile-icon {
+  font-size: 1.2rem;
+}
+
+.tile-kingdom-tile.academy .tile-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: #4c1d95;
+}
+
+.tile-kingdom-tile.academy .academy-mode {
+  font-size: 0.55rem;
+  font-weight: 500;
+  color: #5b21b6;
+  background: rgba(255, 255, 255, 0.5);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.tile-kingdom-tile.academy .btn-toggle-mode {
+  font-size: 0.5rem;
+  padding: 2px 6px;
+  background: rgba(124, 58, 237, 0.2);
+  border: 1px solid rgba(124, 58, 237, 0.4);
+  border-radius: 4px;
+  cursor: pointer;
+  color: #4c1d95;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.tile-kingdom-tile.academy .btn-toggle-mode:hover {
+  background: rgba(124, 58, 237, 0.4);
+  transform: scale(1.05);
+}
+
+/* ============================================================================
    Politician Roster Panel
    ============================================================================ */
 
@@ -1149,6 +1208,18 @@
   border: 1px solid transparent;
   flex-shrink: 0;
   box-sizing: border-box;
+}
+
+/* Rare politician cards have special styling */
+.politician-card.rare {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+}
+
+.politician-card.rare:hover {
+  background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.5);
 }
 
 .politician-card:hover {

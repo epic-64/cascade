@@ -692,7 +692,8 @@ object TileKingdomClient:
       listElem.innerHTML = ""
 
       currentGame.politicianRoster.foreach: politician =>
-        val card = div(cls = "politician-card")
+        val cardCls = if politician.isRare then "politician-card rare" else "politician-card"
+        val card = div(cls = cardCls)
         card.setAttribute("draggable", "true")
         card.setAttribute("data-politician-id", politician.id)
 
@@ -804,6 +805,7 @@ object TileKingdomClient:
         val templeCost = TileKingdomLogic.templeBuildCost
         val townHallCost = TileKingdomLogic.townHallBuildCost(currentGame)
         val quarryCost = TileKingdomLogic.quarryBuildCost
+        val academyCost = TileKingdomLogic.academyBuildCost(currentGame)
         val canBuildOthers = currentGame.hasWheatField
 
         // Build icon container (shown by default)
@@ -944,6 +946,14 @@ object TileKingdomClient:
             opt.onclick = (e: MouseEvent) =>
               e.stopPropagation()
               handleBuildTownHall(coord)
+          )
+          managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
+            opt.appendChild(div(cls = "build-icon", content = "🎓"))
+            opt.appendChild(div(cls = "build-name", content = "Academy"))
+            opt.appendChild(div(cls = "build-cost", content = s"$academyCost🪨"))
+            opt.onclick = (e: MouseEvent) =>
+              e.stopPropagation()
+              handleBuildAcademy(coord)
           )
 
           buildOptions.appendChild(managementSubmenu)
@@ -1231,6 +1241,31 @@ object TileKingdomClient:
           e.preventDefault()
           handleDestroyBuilding(coord)
 
+      case TileType.Academy(mode) =>
+        tileDiv.classList.add("academy")
+        
+        val modeText = mode match
+          case AcademyMode.FasterPoliticians => "⚡ 2x Speed"
+          case AcademyMode.RareChance => "⭐ +10% Rare"
+        
+        val content = div(cls = "tile-content academy-content")(
+          div(cls = "tile-icon", content = "🎓"),
+          div(cls = "tile-label", content = "Academy"),
+          div(cls = "academy-mode", content = modeText)
+        )
+        
+        content.appendChild(button(cls = "btn-toggle-mode", content = "⇄ Mode").tap: btn =>
+          btn.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            handleToggleAcademyMode(coord)
+        )
+        
+        tileDiv.appendChild(content)
+        
+        tileDiv.oncontextmenu = (e: MouseEvent) =>
+          e.preventDefault()
+          handleDestroyBuilding(coord)
+
     tileDiv
 
   private def renderUnlockableTile(coord: Coord): HTMLElement =
@@ -1354,6 +1389,32 @@ object TileKingdomClient:
         saveGame()
         renderGame()
         showFloatingReward(coord, cost, "🌾", isSpend = true)
+      case Left(error) =>
+        showNotification(error)
+
+  private def handleBuildAcademy(coord: Coord): Unit =
+    val cost = TileKingdomLogic.academyBuildCost(currentGame)
+    TileKingdomLogic.buildAcademy(currentGame, coord) match
+      case Right(newGame) =>
+        selectingTileCoord = None
+        currentGame = newGame
+        saveGame()
+        renderGame()
+        showFloatingReward(coord, cost, "🪨", isSpend = true)
+      case Left(error) =>
+        showNotification(error)
+
+  private def handleToggleAcademyMode(coord: Coord): Unit =
+    TileKingdomLogic.toggleAcademyMode(currentGame, coord) match
+      case Right(newGame) =>
+        currentGame = newGame
+        saveGame()
+        renderGame()
+        val modeText = newGame.tiles.get(coord).map(_.tileType) match
+          case Some(TileType.Academy(AcademyMode.FasterPoliticians)) => "Faster Politicians (2x speed)"
+          case Some(TileType.Academy(AcademyMode.RareChance)) => "Rare Chance (+10%)"
+          case _ => "Unknown"
+        showNotification(s"Academy mode: $modeText")
       case Left(error) =>
         showNotification(error)
 
