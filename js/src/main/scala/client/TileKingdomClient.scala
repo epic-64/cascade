@@ -25,6 +25,7 @@ object TileKingdomClient:
   private var tileProgress: Map[Coord, Double] = Map.empty
   private val ProductionIntervalMs: Double = TileKingdomLogic.ProductionIntervalSeconds * 1000.0
   private val BureauIntervalMs: Double = TileKingdomLogic.BureauIntervalSeconds * 1000.0
+  private val PoliticianGenerationIntervalMs: Double = TileKingdomLogic.PoliticianGenerationIntervalSeconds * 1000.0
 
   // Get or create an initial offset for a tile (0.0 to 1.0)
   private def getOrInitProgress(coord: Coord): Double =
@@ -92,6 +93,7 @@ object TileKingdomClient:
     // Overlay UI elements
     container.appendChild(buildHeader())
     container.appendChild(buildResources())
+    container.appendChild(buildPoliticianRoster())
     container.appendChild(buildActions())
     container.appendChild(buildNotification())
     container.appendChild(buildWelcomeBackModal())
@@ -137,6 +139,15 @@ object TileKingdomClient:
         span(cls = "resource-label", content = "📈"),
         span(id = "tile-kingdom-income", cls = "resource-value", content = "0/s")
       )
+    )
+
+  private def buildPoliticianRoster(): HTMLElement =
+    div(id = "tile-kingdom-politician-roster", cls = "politician-roster")(
+      div(cls = "roster-header")(
+        span(cls = "roster-title", content = "🏛️ Politicians"),
+        span(id = "politician-timer", cls = "roster-timer", content = "")
+      ),
+      div(id = "politician-roster-list", cls = "roster-list")
     )
 
   private def buildActions(): HTMLElement =
@@ -458,7 +469,7 @@ object TileKingdomClient:
 
       if newProgress >= 1.0 then
         val harvests = newProgress.toInt
-        val production = TileKingdomLogic.faithProductionPerHarvest(tile)
+        val production = TileKingdomLogic.faithProductionPerHarvest(currentGame, tile)
         totalFaithHarvested += production * harvests
         tileProgress = tileProgress.updated(tile.coord, newProgress - harvests)
         showFloatingReward(tile.coord, (production * harvests).toInt, "✨")
@@ -511,9 +522,18 @@ object TileKingdomClient:
 
     currentGame = updatedGame
 
+    // Generate new politicians if it's time
+    val previousRosterSize = currentGame.politicianRoster.size
+    currentGame = TileKingdomLogic.generateNewPoliticians(currentGame, currentTime)
+    val newPoliticianGenerated = currentGame.politicianRoster.size > previousRosterSize
+
     saveGame()
     updateProgressBars()
     renderResources()
+    renderPoliticianRoster()
+
+    if newPoliticianGenerated then
+      showNotification("A new politician has arrived!")
 
     // Show floating text and update only the upgraded tiles
     bureauUpgrades.foreach: (upgradedCoord, newLevel, bureauCoord, cost, costResource) =>
@@ -570,6 +590,7 @@ object TileKingdomClient:
 
   private def renderGame(): Unit =
     renderResources()
+    renderPoliticianRoster()
     renderTiles()
     renderAbdicationButton()
 
@@ -598,6 +619,39 @@ object TileKingdomClient:
     if rate <= 0 then ""
     else if rate >= 1.0 then f"+${rate.toInt}%,d/s"
     else f"+$rate%.1f/s"
+
+  private def renderPoliticianRoster(): Unit =
+    getElementById("politician-roster-list").foreach: listElem =>
+      listElem.innerHTML = ""
+
+      currentGame.politicianRoster.foreach: politician =>
+        val card = div(cls = "politician-card")
+        card.setAttribute("draggable", "true")
+        card.setAttribute("data-politician-id", politician.id)
+
+        card.appendChild(div(cls = "politician-emoji", content = politician.emoji))
+        card.appendChild(div(cls = "politician-info")(
+          div(cls = "politician-name", content = politician.name),
+          div(cls = "politician-title", content = politician.title),
+          div(cls = "politician-effect", content = politician.effectDescription)
+        ))
+
+        // Setup drag events
+        card.ondragstart = (e: DragEvent) =>
+          e.dataTransfer.setData("text/plain", politician.id)
+          card.classList.add("dragging")
+
+        card.ondragend = (_: DragEvent) =>
+          card.classList.remove("dragging")
+
+        listElem.appendChild(card)
+
+      // If roster is empty, show placeholder
+      if currentGame.politicianRoster.isEmpty then
+        listElem.appendChild(div(cls = "roster-empty", content = "No politicians available"))
+
+    // Update timer for next politician
+    updatePoliticianTimer()
 
   // Update a single tile in place without re-rendering everything
   private def updateSingleTile(coord: Coord): Unit =
@@ -629,6 +683,8 @@ object TileKingdomClient:
               grid.appendChild(renderInfluenceIndicator(coord, 1, "farm-influence"))
             case TileType.Bureau(_) =>
               grid.appendChild(renderInfluenceIndicator(coord, TileKingdomLogic.BureauRadius, "bureau-influence"))
+            case TileType.TownHall(Some(_)) =>
+              grid.appendChild(renderInfluenceIndicator(coord, TileKingdomLogic.TownHallInfluenceRadius, "town-hall-influence"))
             case _ => // No indicator
       // Get all coords we need to render (existing tiles + unlockable if affordable)
       val unlockableCoords = TileKingdomLogic.unlockableCoords(currentGame)
@@ -679,6 +735,7 @@ object TileKingdomClient:
         val woodcutterCost = TileKingdomLogic.woodcutterBuildCost
         val bureauCost = TileKingdomLogic.bureauBuildCost
         val templeCost = TileKingdomLogic.templeBuildCost
+        val townHallCost = TileKingdomLogic.townHallBuildCost
         val canBuildOthers = currentGame.hasWheatField
 
         // Build icon container (shown by default)
@@ -752,6 +809,14 @@ object TileKingdomClient:
             opt.onclick = (e: MouseEvent) =>
               e.stopPropagation()
               handleBuildTemple(coord)
+          )
+          buildOptions.appendChild(div(cls = "build-option").tap: opt =>
+            opt.appendChild(div(cls = "build-icon", content = "🏛️"))
+            opt.appendChild(div(cls = "build-name", content = "Town Hall"))
+            opt.appendChild(div(cls = "build-cost", content = s"$townHallCost🪵"))
+            opt.onclick = (e: MouseEvent) =>
+              e.stopPropagation()
+              handleBuildTownHall(coord)
           )
 
         tileDiv.appendChild(buildOptions)
@@ -908,7 +973,7 @@ object TileKingdomClient:
       case TileType.Temple(level) =>
         tileDiv.classList.add("temple")
         tileDiv.setAttribute("data-level", level.toString)
-        val faithAmount = TileKingdomLogic.faithProductionPerHarvest(tile)
+        val faithAmount = TileKingdomLogic.faithProductionPerHarvest(currentGame, tile)
         val upgradeCost = TileKingdomLogic.templeLevelUpCost(level)
 
         val content = div(cls = "tile-content")(
@@ -938,6 +1003,47 @@ object TileKingdomClient:
         tileDiv.appendChild(progressContainer)
 
         tileDiv.onclick = (_: MouseEvent) => handleLevelUpTemple(coord)
+        tileDiv.oncontextmenu = (e: MouseEvent) =>
+          e.preventDefault()
+          handleDestroyBuilding(coord)
+
+      case TileType.TownHall(politician) =>
+        tileDiv.classList.add("town-hall")
+
+        val content = div(cls = "tile-content town-hall-content")(
+          div(cls = "tile-icon", content = "🏛️")
+        )
+
+        politician match
+          case Some(pol) =>
+            tileDiv.classList.add("has-politician")
+            content.appendChild(div(cls = "politician-slot filled")(
+              div(cls = "politician-emoji-small", content = pol.emoji),
+              div(cls = "politician-effect-small", content = pol.effectDescription)
+            ))
+            // Click to remove politician
+            tileDiv.onclick = (_: MouseEvent) => handleRemovePolitician(coord)
+          case None =>
+            content.appendChild(div(cls = "politician-slot empty")(
+              div(cls = "slot-label", content = "Drop politician")
+            ))
+
+        tileDiv.appendChild(content)
+
+        // Setup drag-drop for receiving politicians
+        tileDiv.ondragover = (e: DragEvent) =>
+          e.preventDefault()
+          tileDiv.classList.add("drag-over")
+
+        tileDiv.ondragleave = (_: DragEvent) =>
+          tileDiv.classList.remove("drag-over")
+
+        tileDiv.ondrop = (e: DragEvent) =>
+          e.preventDefault()
+          tileDiv.classList.remove("drag-over")
+          val politicianId = e.dataTransfer.getData("text/plain")
+          handleAssignPolitician(politicianId, coord)
+
         tileDiv.oncontextmenu = (e: MouseEvent) =>
           e.preventDefault()
           handleDestroyBuilding(coord)
@@ -1041,6 +1147,38 @@ object TileKingdomClient:
         saveGame()
         renderGame()
         showFloatingReward(coord, cost, "🪵", isSpend = true)
+      case Left(error) =>
+        showNotification(error)
+
+  private def handleBuildTownHall(coord: Coord): Unit =
+    val cost = TileKingdomLogic.townHallBuildCost
+    TileKingdomLogic.buildTownHall(currentGame, coord) match
+      case Right(newGame) =>
+        selectingTileCoord = None
+        currentGame = newGame
+        saveGame()
+        renderGame()
+        showFloatingReward(coord, cost, "🪵", isSpend = true)
+      case Left(error) =>
+        showNotification(error)
+
+  private def handleAssignPolitician(politicianId: String, townHallCoord: Coord): Unit =
+    TileKingdomLogic.assignPolitician(currentGame, politicianId, townHallCoord) match
+      case Right(newGame) =>
+        currentGame = newGame
+        saveGame()
+        renderGame()
+        showNotification("Politician assigned!")
+      case Left(error) =>
+        showNotification(error)
+
+  private def handleRemovePolitician(townHallCoord: Coord): Unit =
+    TileKingdomLogic.removePolitician(currentGame, townHallCoord) match
+      case Right(newGame) =>
+        currentGame = newGame
+        saveGame()
+        renderGame()
+        showNotification("Politician returned to roster")
       case Left(error) =>
         showNotification(error)
 
@@ -1294,3 +1432,16 @@ object TileKingdomClient:
 
       // Remove after animation completes
       window.setTimeout(() => floater.remove(), 1000)
+
+  private def updatePoliticianTimer(): Unit =
+    val currentTime = System.currentTimeMillis()
+    val intervalMs = TileKingdomLogic.PoliticianGenerationIntervalSeconds * 1000L
+    val lastGen = if currentGame.lastPoliticianGeneration == 0L then currentTime else currentGame.lastPoliticianGeneration
+    val nextGenTime = lastGen + intervalMs
+    val remainingMs = math.max(0, nextGenTime - currentTime)
+    val remainingSeconds = (remainingMs / 1000).toInt
+    val minutes = remainingSeconds / 60
+    val seconds = remainingSeconds % 60
+    val timerText = f"Next: $minutes%d:$seconds%02d"
+    setElementText("politician-timer", timerText)
+

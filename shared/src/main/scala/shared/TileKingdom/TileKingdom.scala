@@ -66,6 +66,30 @@ enum TileType derives ReadWriter:
   case Woodcutter(level: Int) // produces wood
   case Bureau(level: Int) // auto-upgrades nearby buildings, costs wood
   case Temple(level: Int) // produces faith, costs wood
+  case TownHall(politician: Option[Politician]) // has a slot for a politician
+
+// ============================================================================
+// Politician System
+// ============================================================================
+
+enum PoliticianEffect derives ReadWriter:
+  case WheatProductionMultiplier(multiplier: Double) // e.g., 2.0 = 2x wheat production
+  case WoodProductionMultiplier(multiplier: Double)
+  case FaithProductionMultiplier(multiplier: Double)
+  case AllProductionMultiplier(multiplier: Double)
+
+case class Politician(
+    id: String,
+    name: String,
+    title: String,
+    effect: PoliticianEffect,
+    emoji: String
+) derives ReadWriter:
+  def effectDescription: String = effect match
+    case PoliticianEffect.WheatProductionMultiplier(m) => s"${(m * 100).toInt}% wheat production"
+    case PoliticianEffect.WoodProductionMultiplier(m)  => s"${(m * 100).toInt}% wood production"
+    case PoliticianEffect.FaithProductionMultiplier(m) => s"${(m * 100).toInt}% faith production"
+    case PoliticianEffect.AllProductionMultiplier(m)   => s"${(m * 100).toInt}% all production"
 
 // ============================================================================
 // Tile
@@ -100,7 +124,11 @@ case class Tile(
     case TileType.Temple(_) => true
     case _                  => false
 
-  def isBuilding: Boolean = isWheatField || isFarm || isWoodcutter || isBureau || isTemple
+  def isTownHall: Boolean = tileType match
+    case TileType.TownHall(_) => true
+    case _                    => false
+
+  def isBuilding: Boolean = isWheatField || isFarm || isWoodcutter || isBureau || isTemple || isTownHall
 
   def isUpgradeable: Boolean = isWheatField || isFarm || isWoodcutter || isTemple
 
@@ -132,7 +160,9 @@ case class TileKingdomGame(
     lastTickTime: Long, // Timestamp in milliseconds for offline progress
     totalAbdications: Int,
     bureauBoosts: Map[Coord, Int] = Map.empty, // Number of faith boosts applied to each bureau
-    upgradeCooldowns: Map[Coord, Long] = Map.empty // Deprecated, kept for save compatibility
+    upgradeCooldowns: Map[Coord, Long] = Map.empty, // Deprecated, kept for save compatibility
+    politicianRoster: List[Politician] = List.empty, // Available politicians to assign
+    lastPoliticianGeneration: Long = 0L // Timestamp of last politician generation
 ) derives ReadWriter:
 
   // Resource helpers
@@ -192,6 +222,23 @@ object TileKingdomLogic:
   val FaithBoostCost: Int = 100 // Faith cost to boost a bureau
   val FaithBoostMultiplier: Double = 10.0 // Each boost increases bureau speed by 1000%
 
+  // Town Hall constants
+  val TownHallBuildCost: Int = 300 // Wood cost to build a town hall
+  val TownHallInfluenceRadius: Int = 2 // Town Hall affects tiles within 2 tile radius
+  val PoliticianGenerationIntervalSeconds: Int = 300 // 5 minutes = 300 seconds
+
+  // Politician definitions
+  val PoliticianPool: List[(String, String, PoliticianEffect, String)] = List(
+    ("Farmer General", "Agricultural Expert", PoliticianEffect.WheatProductionMultiplier(2.0), "👨‍🌾"),
+    ("Lumber Baron", "Forestry Minister", PoliticianEffect.WoodProductionMultiplier(2.0), "🪓"),
+    ("High Priest", "Spiritual Leader", PoliticianEffect.FaithProductionMultiplier(2.0), "🙏"),
+    ("Chancellor", "Economic Advisor", PoliticianEffect.AllProductionMultiplier(1.5), "📊"),
+    ("Harvest Queen", "Fertility Goddess", PoliticianEffect.WheatProductionMultiplier(3.0), "👑"),
+    ("Forest Warden", "Nature Guardian", PoliticianEffect.WoodProductionMultiplier(2.5), "🌲"),
+    ("Oracle", "Divine Seer", PoliticianEffect.FaithProductionMultiplier(2.5), "🔮"),
+    ("Grand Vizier", "Master Strategist", PoliticianEffect.AllProductionMultiplier(1.25), "🎭")
+  )
+
   // Initial 2x2 tiles at origin (center of infinite grid)
   val InitialUnlockedCoords: Set[Coord] = Set(
     Coord(0, 0),
@@ -225,6 +272,71 @@ object TileKingdomLogic:
     val totalBonus = n * (n + 1) / 2.0 * ForestGroupBonusPerTile // Triangular number * bonus per tile
     1.0 + totalBonus
 
+  // Find all Town Halls that affect a given coord (within their influence radius)
+  def townHallsAffecting(game: TileKingdomGame, coord: Coord): List[(Coord, Politician)] =
+    game.tiles.toList.flatMap:
+      case (townHallCoord, tile) => tile.tileType match
+        case TileType.TownHall(Some(politician))
+          if townHallCoord.neighborsWithinRadius(TownHallInfluenceRadius).contains(coord) =>
+          Some((townHallCoord, politician))
+        case _ => None
+
+  // Calculate Town Hall bonus multiplier for wheat production at a given coord
+  def townHallWheatMultiplier(game: TileKingdomGame, coord: Coord): Double =
+    townHallsAffecting(game, coord).foldLeft(1.0): (acc, entry) =>
+      val (_, politician) = entry
+      politician.effect match
+        case PoliticianEffect.WheatProductionMultiplier(m) => acc * m
+        case PoliticianEffect.AllProductionMultiplier(m)   => acc * m
+        case _ => acc
+
+  // Calculate Town Hall bonus multiplier for wood production at a given coord
+  def townHallWoodMultiplier(game: TileKingdomGame, coord: Coord): Double =
+    townHallsAffecting(game, coord).foldLeft(1.0): (acc, entry) =>
+      val (_, politician) = entry
+      politician.effect match
+        case PoliticianEffect.WoodProductionMultiplier(m) => acc * m
+        case PoliticianEffect.AllProductionMultiplier(m)  => acc * m
+        case _ => acc
+
+  // Calculate Town Hall bonus multiplier for faith production at a given coord
+  def townHallFaithMultiplier(game: TileKingdomGame, coord: Coord): Double =
+    townHallsAffecting(game, coord).foldLeft(1.0): (acc, entry) =>
+      val (_, politician) = entry
+      politician.effect match
+        case PoliticianEffect.FaithProductionMultiplier(m) => acc * m
+        case PoliticianEffect.AllProductionMultiplier(m)   => acc * m
+        case _ => acc
+
+  // Generate a random politician
+  def generatePolitician(seed: Long): Politician =
+    val random = new scala.util.Random(seed)
+    val (name, title, effect, emoji) = PoliticianPool(random.nextInt(PoliticianPool.size))
+    Politician(
+      id = s"politician_${seed}_${random.nextInt(10000)}",
+      name = name,
+      title = title,
+      effect = effect,
+      emoji = emoji
+    )
+
+  // Check and generate new politicians based on elapsed time
+  def generateNewPoliticians(game: TileKingdomGame, currentTimeMillis: Long): TileKingdomGame =
+    val intervalMs = PoliticianGenerationIntervalSeconds * 1000L
+    val lastGen = if game.lastPoliticianGeneration == 0L then currentTimeMillis else game.lastPoliticianGeneration
+    val elapsedSinceLastGen = currentTimeMillis - lastGen
+    val newPoliticiansCount = (elapsedSinceLastGen / intervalMs).toInt
+
+    if newPoliticiansCount > 0 then
+      val newPoliticians = (0 until newPoliticiansCount).map: i =>
+        generatePolitician(currentTimeMillis + i)
+      .toList
+      game.copy(
+        politicianRoster = game.politicianRoster ++ newPoliticians,
+        lastPoliticianGeneration = lastGen + newPoliticiansCount * intervalMs
+      )
+    else game
+
   // Base production per harvest (wheat per 10-second interval) - without bonuses
   def baseWheatProductionRate(tile: Tile): Double = tile.tileType match
     case TileType.WheatField(level) => level * 5.0 // 5 wheat at level 1, 10 at level 2, etc. (per 10s)
@@ -255,36 +367,44 @@ object TileKingdomLogic:
     .sum
     1.0 + farmBonus
 
-  // Production rate for a specific tile per second (with farm bonuses applied)
+  // Production rate for a specific tile per second (with farm bonuses and town hall bonuses applied)
   def productionRate(game: TileKingdomGame, tile: Tile): Double =
     val base = productionPerSecond(tile)
-    if base > 0 then base * farmBonusMultiplier(game, tile.coord)
+    if base > 0 then base * farmBonusMultiplier(game, tile.coord) * townHallWheatMultiplier(game, tile.coord)
     else 0.0
 
-  // Wood production rate for a specific tile per second (with forest group bonus)
+  // Wood production rate for a specific tile per second (with forest group bonus and town hall bonuses)
   def woodProductionRate(game: TileKingdomGame, tile: Tile): Double =
     val base = woodProductionPerSecond(tile)
-    if base > 0 then base * forestGroupBonusMultiplier(game, tile.coord)
+    if base > 0 then base * forestGroupBonusMultiplier(game, tile.coord) * townHallWoodMultiplier(game, tile.coord)
+    else 0.0
+
+  // Faith production rate for a specific tile per second (with town hall bonuses)
+  def faithProductionRate(game: TileKingdomGame, tile: Tile): Double =
+    val base = faithProductionPerSecond(tile)
+    if base > 0 then base * townHallFaithMultiplier(game, tile.coord)
     else 0.0
 
   // Legacy method for backwards compatibility
   def productionRate(tile: Tile): Double = productionPerSecond(tile)
 
-  // Production per harvest for a specific tile (with farm bonuses applied)
+  // Production per harvest for a specific tile (with farm bonuses and town hall bonuses applied)
   def productionPerHarvest(game: TileKingdomGame, tile: Tile): Double =
     val base = baseWheatProductionRate(tile)
-    if base > 0 then base * farmBonusMultiplier(game, tile.coord)
+    if base > 0 then base * farmBonusMultiplier(game, tile.coord) * townHallWheatMultiplier(game, tile.coord)
     else 0.0
 
-  // Wood production per harvest for a specific tile (with forest group bonus)
+  // Wood production per harvest for a specific tile (with forest group bonus and town hall bonuses)
   def woodProductionPerHarvest(game: TileKingdomGame, tile: Tile): Double =
     val base = baseWoodProductionRate(tile)
-    if base > 0 then base * forestGroupBonusMultiplier(game, tile.coord)
+    if base > 0 then base * forestGroupBonusMultiplier(game, tile.coord) * townHallWoodMultiplier(game, tile.coord)
     else 0.0
 
-  // Faith production per harvest for a specific tile
-  def faithProductionPerHarvest(tile: Tile): Double =
-    baseFaithProductionRate(tile)
+  // Faith production per harvest for a specific tile (with town hall bonuses)
+  def faithProductionPerHarvest(game: TileKingdomGame, tile: Tile): Double =
+    val base = baseFaithProductionRate(tile)
+    if base > 0 then base * townHallFaithMultiplier(game, tile.coord)
+    else 0.0
 
   // Total wheat production rate for the game (all wheat fields with bonuses)
   def totalWheatProductionRate(game: TileKingdomGame): Double =
@@ -296,7 +416,7 @@ object TileKingdomLogic:
 
   // Total faith production rate
   def totalFaithProductionRate(game: TileKingdomGame): Double =
-    game.unlockedTiles.map(tile => faithProductionPerSecond(tile)).sum
+    game.unlockedTiles.map(tile => faithProductionRate(game, tile)).sum
 
   // Cost to build a wheat field on an empty tile
   def wheatFieldBuildCost: Int = 10
@@ -312,6 +432,9 @@ object TileKingdomLogic:
 
   // Cost to build a temple on an empty tile (costs wood)
   def templeBuildCost: Int = TempleBuildCost
+
+  // Cost to build a town hall on an empty tile (costs wood)
+  def townHallBuildCost: Int = TownHallBuildCost
 
   // Legacy alias
   def buildCost: Int = wheatFieldBuildCost
@@ -360,6 +483,9 @@ object TileKingdomLogic:
       )
     .toMap
 
+    // Start with one politician in the roster
+    val initialPolitician = generatePolitician(currentTimeMillis)
+
     TileKingdomGame(
       tiles = initialTiles,
       wheat = 50.0, // Start with some wheat to build first field
@@ -367,7 +493,9 @@ object TileKingdomLogic:
       faith = 0.0,
       gold = 0,
       lastTickTime = currentTimeMillis,
-      totalAbdications = 0
+      totalAbdications = 0,
+      politicianRoster = List(initialPolitician),
+      lastPoliticianGeneration = currentTimeMillis
     )
 
   // Tick the game: accumulate wheat based on production rate
@@ -457,6 +585,53 @@ object TileKingdomLogic:
           tiles = game.tiles.updated(coord, updatedTile),
           wood = game.wood - templeBuildCost
         ))
+
+  // Build a town hall on an empty tile (costs wood, requires at least one wheat field)
+  def buildTownHall(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
+    game.tiles.get(coord) match
+      case None                                         => Left("Tile not found")
+      case Some(tile) if !tile.unlocked                 => Left("Tile is locked")
+      case Some(tile) if !tile.isEmpty                  => Left("Tile is not empty")
+      case Some(_) if !game.hasWheatField               => Left("Build a wheat field first")
+      case Some(tile) if game.wood < townHallBuildCost  => Left(s"Not enough wood (need $townHallBuildCost)")
+      case Some(tile) =>
+        val updatedTile = tile.copy(tileType = TileType.TownHall(None))
+        Right(game.copy(
+          tiles = game.tiles.updated(coord, updatedTile),
+          wood = game.wood - townHallBuildCost
+        ))
+
+  // Assign a politician from the roster to a town hall
+  def assignPolitician(game: TileKingdomGame, politicianId: String, townHallCoord: Coord): Either[String, TileKingdomGame] =
+    game.tiles.get(townHallCoord) match
+      case None => Left("Tile not found")
+      case Some(tile) => tile.tileType match
+        case TileType.TownHall(Some(_)) => Left("Town Hall already has a politician") // todo: allow swapping.
+        case TileType.TownHall(None) =>
+          game.politicianRoster.find(_.id == politicianId) match
+            case None => Left("Politician not found in roster")
+            case Some(politician) =>
+              val updatedTile = tile.copy(tileType = TileType.TownHall(Some(politician)))
+              val updatedRoster = game.politicianRoster.filterNot(_.id == politicianId)
+              Right(game.copy(
+                tiles = game.tiles.updated(townHallCoord, updatedTile),
+                politicianRoster = updatedRoster
+              ))
+        case _ => Left("Tile is not a town hall")
+
+  // Remove a politician from a town hall back to the roster
+  def removePolitician(game: TileKingdomGame, townHallCoord: Coord): Either[String, TileKingdomGame] =
+    game.tiles.get(townHallCoord) match
+      case None => Left("Tile not found")
+      case Some(tile) => tile.tileType match
+        case TileType.TownHall(Some(politician)) =>
+          val updatedTile = tile.copy(tileType = TileType.TownHall(None))
+          Right(game.copy(
+            tiles = game.tiles.updated(townHallCoord, updatedTile),
+            politicianRoster = game.politicianRoster :+ politician
+          ))
+        case TileType.TownHall(None) => Left("Town Hall has no politician")
+        case _ => Left("Tile is not a town hall")
 
   // Level up a wheat field
   def levelUpWheatField(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
@@ -609,6 +784,14 @@ object TileKingdomLogic:
       Left("Must fill all unlocked tiles with buildings before abdicating")
     else
       val goldReward = abdicationReward(game.totalIncomeRate)
+
+      // Collect politicians from town halls before resetting
+      val politiciansFromTownHalls = game.tiles.values.flatMap: tile =>
+        tile.tileType match
+          case TileType.TownHall(Some(politician)) => Some(politician)
+          case _ => None
+      .toList
+
       val resetTiles = game.tiles.map:
         case (coord, tile) if tile.unlocked =>
           coord -> tile.copy(tileType = TileType.Empty)
@@ -623,7 +806,8 @@ object TileKingdomLogic:
         gold = game.gold + goldReward,
         lastTickTime = currentTimeMillis,
         totalAbdications = game.totalAbdications + 1,
-        bureauBoosts = Map.empty // Reset bureau boosts since bureaus are destroyed
+        bureauBoosts = Map.empty, // Reset bureau boosts since bureaus are destroyed
+        politicianRoster = game.politicianRoster ++ politiciansFromTownHalls // Return politicians to roster
       ))
 
   // Get all coords that can be unlocked (coords adjacent to unlocked tiles that aren't already tiles)
