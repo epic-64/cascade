@@ -227,6 +227,25 @@ case class TileKingdomGame(
   def hasWheatField: Boolean =
     unlockedTiles.exists(_.isWheatField)
 
+  def hasFarm: Boolean =
+    unlockedTiles.exists(_.isFarm)
+
+  def hasWoodcutter: Boolean =
+    unlockedTiles.exists(_.isWoodcutter)
+
+  def hasQuarry: Boolean =
+    unlockedTiles.exists(_.isQuarry)
+
+  // Building unlock progression:
+  // Wheat Field -> Farm -> Forest/Quarry -> Bureau/Temple (from Forest), Town Hall/Academy (from Quarry)
+  def canBuildFarm: Boolean = hasWheatField
+  def canBuildWoodcutter: Boolean = hasFarm
+  def canBuildQuarry: Boolean = hasFarm
+  def canBuildBureau: Boolean = hasWoodcutter
+  def canBuildTemple: Boolean = hasWoodcutter
+  def canBuildTownHall: Boolean = hasQuarry
+  def canBuildAcademy: Boolean = hasQuarry
+
   def totalIncomeRate: Double =
     TileKingdomLogic.totalWheatProductionRate(this) + 
     TileKingdomLogic.totalWoodProductionRate(this) +
