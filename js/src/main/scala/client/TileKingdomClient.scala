@@ -826,7 +826,9 @@ object TileKingdomClient:
         tileDiv.setAttribute("data-level", level.toString)
         val harvestAmount = TileKingdomLogic.productionPerHarvest(currentGame, tile)
         val bonusMultiplier = TileKingdomLogic.farmBonusMultiplier(currentGame, coord)
+        val townHallMultiplier = TileKingdomLogic.townHallWheatMultiplier(currentGame, coord)
         val hasBonus = bonusMultiplier > 1.0
+        val hasTownHallBonus = townHallMultiplier > 1.0
         val upgradeCost = TileKingdomLogic.wheatFieldLevelUpCost(level)
 
         val content = div(cls = "tile-content")(
@@ -838,6 +840,9 @@ object TileKingdomClient:
         if hasBonus then
           val bonusPercent = ((bonusMultiplier - 1) * 100).toInt
           prodDiv.appendChild(span(cls = "bonus", content = s" +$bonusPercent%"))
+        if hasTownHallBonus then
+          val multiplierText = if townHallMultiplier % 1.0 == 0 then s" x${townHallMultiplier.toInt}" else f" x$townHallMultiplier%.1f"
+          prodDiv.appendChild(span(cls = "bonus town-hall-bonus", content = multiplierText))
         content.appendChild(prodDiv)
 
         val upgradeRow = div(cls = "tile-upgrade-row")
@@ -896,6 +901,8 @@ object TileKingdomClient:
         tileDiv.setAttribute("data-level", level.toString)
         val harvestAmount = TileKingdomLogic.woodProductionPerHarvest(currentGame, tile)
         val upgradeCost = TileKingdomLogic.woodcutterLevelUpCost(level)
+        val townHallMultiplier = TileKingdomLogic.townHallWoodMultiplier(currentGame, coord)
+        val hasTownHallBonus = townHallMultiplier > 1.0
 
         val content = div(cls = "tile-content")(
           div(cls = "tile-icon", content = "🪓"),
@@ -907,6 +914,9 @@ object TileKingdomClient:
         if forestBonus > 1.0 then
           val bonusPercent = ((forestBonus - 1) * 100).toInt
           prodDiv.appendChild(span(cls = "bonus forest-bonus", content = s" +$bonusPercent%"))
+        if hasTownHallBonus then
+          val multiplierText = if townHallMultiplier % 1.0 == 0 then s" x${townHallMultiplier.toInt}" else f" x$townHallMultiplier%.1f"
+          prodDiv.appendChild(span(cls = "bonus town-hall-bonus", content = multiplierText))
         content.appendChild(prodDiv)
 
         val upgradeRow = div(cls = "tile-upgrade-row")
@@ -975,13 +985,19 @@ object TileKingdomClient:
         tileDiv.setAttribute("data-level", level.toString)
         val faithAmount = TileKingdomLogic.faithProductionPerHarvest(currentGame, tile)
         val upgradeCost = TileKingdomLogic.templeLevelUpCost(level)
+        val townHallMultiplier = TileKingdomLogic.townHallFaithMultiplier(currentGame, coord)
+        val hasTownHallBonus = townHallMultiplier > 1.0
 
         val content = div(cls = "tile-content")(
           div(cls = "tile-icon", content = "⛪"),
           div(cls = "tile-label", content = s"Lv$level")
         )
 
-        content.appendChild(div(cls = "tile-production temple-production", content = s"+${faithAmount.toInt}✨"))
+        val prodDiv = div(cls = "tile-production temple-production", content = s"+${faithAmount.toInt}✨")
+        if hasTownHallBonus then
+          val multiplierText = if townHallMultiplier % 1.0 == 0 then s" x${townHallMultiplier.toInt}" else f" x$townHallMultiplier%.1f"
+          prodDiv.appendChild(span(cls = "bonus town-hall-bonus", content = multiplierText))
+        content.appendChild(prodDiv)
 
         val upgradeRow = div(cls = "tile-upgrade-row")
         upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost🪵"))
