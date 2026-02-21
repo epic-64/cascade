@@ -461,6 +461,56 @@
   background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
 }
 
+/* Quarry Tiles */
+.tile-kingdom-tile.quarry {
+  background: #e7e5e4;
+  border: 2px solid #a8a29e;
+}
+
+.tile-kingdom-tile.quarry:hover {
+  background: #d6d3d1;
+  transform: scale(1.08);
+  box-shadow: var(--shadow-lg);
+  z-index: 10;
+}
+
+.tile-kingdom-tile.quarry[data-level="2"] {
+  background: #d6d3d1;
+  border-color: #78716c;
+}
+
+.tile-kingdom-tile.quarry[data-level="3"],
+.tile-kingdom-tile.quarry[data-level="4"],
+.tile-kingdom-tile.quarry[data-level="5"] {
+  background: #a8a29e;
+  border-color: #57534e;
+}
+
+.tile-kingdom-tile.quarry[data-level="6"],
+.tile-kingdom-tile.quarry[data-level="7"],
+.tile-kingdom-tile.quarry[data-level="8"],
+.tile-kingdom-tile.quarry[data-level="9"],
+.tile-kingdom-tile.quarry[data-level="10"] {
+  background: #78716c;
+  border-color: #44403c;
+}
+
+/* Text colors for quarry tiles */
+.tile-kingdom-tile.quarry .tile-label,
+.tile-kingdom-tile.quarry .tile-cost,
+.tile-kingdom-tile.quarry .tile-upgrade {
+  color: #44403c;
+}
+
+.tile-kingdom-tile.quarry .tile-production.quarry-production {
+  color: #57534e;
+}
+
+/* Quarry progress bar */
+.tile-progress-bar.quarry-progress {
+  background: linear-gradient(90deg, #78716c 0%, #a8a29e 100%);
+}
+
 /* Influence Indicators */
 .influence-indicator {
   pointer-events: none;

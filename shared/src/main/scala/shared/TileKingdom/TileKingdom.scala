@@ -155,7 +155,7 @@ case class Tile(
     case TileType.Farm(lvl)       => Some(Cost(TileKingdomLogic.farmLevelUpCost(lvl), Resource.Wheat))
     case TileType.Woodcutter(lvl) => Some(Cost(TileKingdomLogic.woodcutterLevelUpCost(lvl), Resource.Wheat))
     case TileType.Temple(lvl)     => Some(Cost(TileKingdomLogic.templeLevelUpCost(lvl), Resource.Wood))
-    case TileType.Quarry(lvl)     => Some(Cost(TileKingdomLogic.quarryLevelUpCost(lvl), Resource.Stone))
+    case TileType.Quarry(lvl)     => Some(Cost(TileKingdomLogic.quarryLevelUpCost(lvl), Resource.Wheat))
     case _                        => None
 
 // ============================================================================
@@ -511,9 +511,9 @@ object TileKingdomLogic:
   def templeLevelUpCost(currentLevel: Int): Int =
     currentLevel * 50 * tierMultiplier(currentLevel) // Level 1→2 costs 50 wood, 2→3 costs 100 wood, etc.
 
-  // Cost to level up a quarry (costs stone)
+  // Cost to level up a quarry (costs wheat)
   def quarryLevelUpCost(currentLevel: Int): Int =
-    currentLevel * 20 * tierMultiplier(currentLevel) // Level 1→2 costs 20 stone, 2→3 costs 40 stone, etc.
+    currentLevel * 20 * tierMultiplier(currentLevel) // Level 1→2 costs 20 wheat, 2→3 costs 40 wheat, etc.
 
   // Cost to unlock next tile (linear with tier multiplier every 10 tiles)
   def tileUnlockCost(currentUnlockedCount: Int): Int =
@@ -774,20 +774,20 @@ object TileKingdomLogic:
               ))
           case _ => Left("Tile is not a temple")
 
-  // Level up a quarry (costs stone)
+  // Level up a quarry (costs wheat)
   def levelUpQuarry(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
       case None => Left("Tile not found")
       case Some(tile) => tile.tileType match
           case TileType.Quarry(level) =>
             val cost = quarryLevelUpCost(level)
-            if game.stone < cost then
-              Left(s"Not enough stone (need $cost)")
+            if game.wheat < cost then
+              Left(s"Not enough wheat (need $cost)")
             else
               val updatedTile = tile.copy(tileType = TileType.Quarry(level + 1))
               Right(game.copy(
                 tiles = game.tiles.updated(coord, updatedTile),
-                stone = game.stone - cost
+                wheat = game.wheat - cost
               ))
           case _ => Left("Tile is not a quarry")
 
