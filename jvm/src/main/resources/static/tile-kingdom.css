@@ -867,40 +867,220 @@
   opacity: 1;
 }
 
-/* Responsive */
+/* ============================================================================
+   Town Hall Tiles
+   ============================================================================ */
+
+.tile-kingdom-tile.town-hall {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 2px solid #d97706;
+}
+
+.tile-kingdom-tile.town-hall:hover {
+  background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
+  transform: scale(1.08);
+  box-shadow: var(--shadow-lg);
+  z-index: 10;
+}
+
+.tile-kingdom-tile.town-hall.has-politician {
+  background: linear-gradient(135deg, #fde68a 0%, #f59e0b 100%);
+  border-color: #b45309;
+}
+
+.tile-kingdom-tile.town-hall .tile-content.town-hall-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.tile-kingdom-tile.town-hall .politician-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 4px;
+  border-radius: 4px;
+  width: 90%;
+}
+
+.tile-kingdom-tile.town-hall .politician-slot.empty {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px dashed #92400e;
+}
+
+.tile-kingdom-tile.town-hall .politician-slot.filled {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.tile-kingdom-tile.town-hall .slot-label {
+  font-size: 0.5rem;
+  color: #92400e;
+  font-weight: 500;
+}
+
+.tile-kingdom-tile.town-hall .politician-emoji-small {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.tile-kingdom-tile.town-hall .politician-effect-small {
+  font-size: 0.45rem;
+  color: #78350f;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.1;
+}
+
+.tile-kingdom-tile.town-hall.drag-over {
+  background: linear-gradient(135deg, #bbf7d0 0%, #86efac 100%);
+  border-color: #16a34a;
+  transform: scale(1.1);
+}
+
+/* Town Hall Influence Indicator */
+.influence-indicator.town-hall-influence {
+  border: 2px dashed rgba(217, 119, 6, 0.5);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+/* ============================================================================
+   Politician Roster Panel
+   ============================================================================ */
+
+.politician-roster {
+  position: fixed;
+  top: 240px;
+  left: 1rem;
+  width: 180px;
+  max-height: calc(100vh - 280px);
+  z-index: 100;
+  background: var(--bg-primary);
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.roster-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-medium);
+}
+
+.roster-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.roster-timer {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+
+.roster-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+  max-height: 300px;
+}
+
+.roster-empty {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 1rem 0;
+}
+
+/* Politician Cards */
+.politician-card {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  cursor: grab;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.politician-card:hover {
+  background: #3a3a4e;
+  border-color: var(--accent-purple-light);
+  transform: scale(1.02);
+}
+
+.politician-card.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.politician-card .politician-emoji {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.politician-card .politician-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.politician-card .politician-name {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.politician-card .politician-title {
+  font-size: 0.55rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.politician-card .politician-effect {
+  font-size: 0.55rem;
+  color: var(--accent-green);
+  font-weight: 600;
+}
+
+/* Mobile responsiveness for roster */
 @media (max-width: 768px) {
-  .tile-kingdom-header {
-    top: 0.5rem;
-    padding: 0.4rem 0.75rem;
+  .politician-roster {
+    top: auto;
+    bottom: 1rem;
+    left: 1rem;
+    right: 1rem;
+    width: auto;
+    max-height: 150px;
   }
-
-  .tile-kingdom-header h1 {
-    font-size: 1.2rem;
+  
+  .roster-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+    max-height: none;
   }
-
-  .tile-kingdom-resources {
-    top: 0.5rem;
-    left: 0.5rem;
-    padding: 0.5rem;
-  }
-
-  .tile-kingdom-tile {
-    width: 60px;
-    height: 60px;
-  }
-
-  .tile-icon {
-    font-size: 1rem;
-  }
-
-  .tile-kingdom-actions {
-    bottom: 0.5rem;
-    padding: 0.5rem;
-  }
-
-  .tile-kingdom-actions button {
-    padding: 0.5rem 1rem;
-    font-size: 0.8rem;
+  
+  .politician-card {
+    flex: 0 0 auto;
+    width: calc(50% - 0.25rem);
   }
 }
 
