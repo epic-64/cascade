@@ -606,6 +606,10 @@ object TileKingdomClient:
 
     currentGame = updatedGame
 
+    // Tick politician lifespans (only active politicians in Town Halls age)
+    val (gameAfterLifespan, destroyedPoliticians) = TileKingdomLogic.tickPoliticianLifespans(currentGame, elapsedMs.toLong)
+    currentGame = gameAfterLifespan
+
     // Generate new politicians if it's time
     val previousRosterSize = currentGame.politicianRoster.size
     currentGame = TileKingdomLogic.generateNewPoliticians(currentGame, currentTime)
@@ -619,6 +623,19 @@ object TileKingdomClient:
     if newPoliticianGenerated then
       renderPoliticianRoster()
       showNotification("A new politician has arrived!")
+
+    // Notify about destroyed politicians
+    destroyedPoliticians.foreach: name =>
+      showNotification(s"$name has reached the end of their term!")
+      renderTiles() // Re-render to show empty town halls
+
+    // Update Town Hall tiles to show lifespan countdown (if no politicians died)
+    if destroyedPoliticians.isEmpty then
+      val townHalls = currentGame.unlockedTiles.filter(_.isTownHall)
+      townHalls.foreach: tile =>
+        tile.tileType match
+          case TileType.TownHall(Some(_)) => updateSingleTile(tile.coord)
+          case _ => ()
 
     // Update all bureau tiles when faith changes to refresh turbo button states
     if totalFaithHarvested > 0 then
@@ -1294,9 +1311,18 @@ object TileKingdomClient:
         politician match
           case Some(pol) =>
             tileDiv.classList.add("has-politician")
+            // Calculate lifespan display
+            val lifespanSeconds = (pol.remainingLifespanMs / 1000).toInt
+            val minutes = lifespanSeconds / 60
+            val seconds = lifespanSeconds % 60
+            val lifespanText = f"$minutes:$seconds%02d"
+            val lifespanPercent = (pol.remainingLifespanMs.toDouble / TileKingdomLogic.PoliticianLifespanMs * 100).toInt
+            val lifespanClass = if lifespanPercent <= 20 then "lifespan-critical" else if lifespanPercent <= 50 then "lifespan-warning" else "lifespan-normal"
+            
             content.appendChild(div(cls = "politician-slot filled")(
               div(cls = "politician-emoji-small", content = pol.emoji),
-              div(cls = "politician-effect-small", content = pol.effectDescription)
+              div(cls = "politician-effect-small", content = pol.effectDescription),
+              div(cls = s"politician-lifespan $lifespanClass", content = s"⏱️ $lifespanText")
             ))
             // Click to remove politician
             tileDiv.onclick = (_: MouseEvent) => handleRemovePolitician(coord)

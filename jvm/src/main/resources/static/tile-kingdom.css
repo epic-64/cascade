@@ -1135,6 +1135,35 @@
   line-height: 1.1;
 }
 
+.tile-kingdom-tile.town-hall .politician-lifespan {
+  font-size: 0.5rem;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-top: 2px;
+}
+
+.tile-kingdom-tile.town-hall .politician-lifespan.lifespan-normal {
+  color: #166534;
+  background: rgba(34, 197, 94, 0.2);
+}
+
+.tile-kingdom-tile.town-hall .politician-lifespan.lifespan-warning {
+  color: #92400e;
+  background: rgba(251, 191, 36, 0.3);
+}
+
+.tile-kingdom-tile.town-hall .politician-lifespan.lifespan-critical {
+  color: #dc2626;
+  background: rgba(239, 68, 68, 0.2);
+  animation: pulse-critical 1s ease-in-out infinite;
+}
+
+@keyframes pulse-critical {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
 .tile-kingdom-tile.town-hall.drag-over {
   background: linear-gradient(135deg, #bbf7d0 0%, #86efac 100%);
   border-color: #16a34a;
