@@ -1114,11 +1114,11 @@ object TileKingdomClient:
         content.appendChild(prodDiv)
 
         val upgradeRow = div(cls = "tile-upgrade-row")
-        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost🪨"))
+        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost🌾"))
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
-            handleBulkLevelUp(coord, 10, TileKingdomLogic.levelUpQuarry, TileKingdomLogic.quarryLevelUpCost, "🪨")
+            handleBulkLevelUp(coord, 10, TileKingdomLogic.levelUpQuarry, TileKingdomLogic.quarryLevelUpCost, "🌾")
         )
         content.appendChild(upgradeRow)
 
@@ -1421,7 +1421,7 @@ object TileKingdomClient:
           currentGame = newGame
           saveGame()
           renderGame()
-          showFloatingReward(coord, cost, "🪨", isSpend = true)
+          showFloatingReward(coord, cost, "🌾", isSpend = true)
           showFloatingLevel(coord, tile.level + 1)
         case Left(error) =>
           showNotification(error)
