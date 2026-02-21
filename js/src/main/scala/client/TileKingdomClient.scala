@@ -3,21 +3,36 @@ package client
 import org.scalajs.dom.*
 import scala.util.Try
 import scala.util.chaining.*
-import shared.Territory.*
+import shared.TileKingdom.*
 
-def initializeTerritory(): Unit =
-  TerritoryClient.init()
+def initializeTileKingdom(): Unit =
+  TileKingdomClient.init()
 
-object TerritoryClient:
+object TileKingdomClient:
 
-  private val StorageKey = "territory_game_state"
-  private var currentGame: TerritoryGame = TerritoryLogic.newGame(System.currentTimeMillis())
+  private val StorageKey = "tile_kingdom_game_state"
+  private var currentGame: TileKingdomGame = TileKingdomLogic.newGame(System.currentTimeMillis())
   private var gameTickerHandle: Option[Int] = None
+
+  // Resource emoji mapping
+  private def resourceEmoji(resource: Resource): String = resource match
+    case Resource.Wheat => "🌾"
+    case Resource.Wood  => "🪵"
+    case Resource.Faith => "✨"
+    case Resource.Gold  => "💰"
 
   // Track progress (0.0 to 1.0) for each wheat field tile
   private var tileProgress: Map[Coord, Double] = Map.empty
-  private val ProductionIntervalMs: Double = TerritoryLogic.ProductionIntervalSeconds * 1000.0
-  private val BureauIntervalMs: Double = TerritoryLogic.BureauIntervalSeconds * 1000.0
+  private val ProductionIntervalMs: Double = TileKingdomLogic.ProductionIntervalSeconds * 1000.0
+  private val BureauIntervalMs: Double = TileKingdomLogic.BureauIntervalSeconds * 1000.0
+
+  // Get or create an initial offset for a tile (0.0 to 1.0)
+  private def getOrInitProgress(coord: Coord): Double =
+    tileProgress.getOrElse(coord, {
+      val offset = scala.util.Random.nextDouble()
+      tileProgress = tileProgress.updated(coord, offset)
+      offset
+    })
 
   // Panning state
   private var panOffsetX: Double = 0.0
@@ -39,20 +54,23 @@ object TerritoryClient:
   private def TileSize: Double = BaseTileSize * zoomLevel
   private val VisiblePadding: Int = 2 // Extra tiles to render outside viewport
 
+  // Track which tile is currently in build-selection mode
+  private var selectingTileCoord: Option[Coord] = None
+
   // ============================================================================
   // Initialization
   // ============================================================================
 
   def init(): Unit =
-    println("[Territory] Initializing Territory Idle game")
-    loadGame()
+    println("[TileKingdom] Initializing Tile Kingdom game")
     buildUI()
-    centerOnTerritory()
+    loadGame()
+    centerOnKingdom()
     renderGame()
     startGameTicker()
 
   def cleanup(): Unit =
-    println("[Territory] Cleaning up Territory Idle game")
+    println("[TileKingdom] Cleaning up Tile Kingdom game")
     stopGameTicker()
 
   // ============================================================================
@@ -60,15 +78,15 @@ object TerritoryClient:
   // ============================================================================
 
   private def buildUI(): Unit =
-    val container = getElementById("territory-container").getOrElse:
-      document.body.appendChild(div(id = "territory-container", cls = "territory-container"))
-      document.getElementById("territory-container").asInstanceOf[HTMLElement]
+    val container = getElementById("tile-kingdom-container").getOrElse:
+      document.body.appendChild(div(id = "tile-kingdom-container", cls = "tile-kingdom-container"))
+      document.getElementById("tile-kingdom-container").asInstanceOf[HTMLElement]
 
     container.innerHTML = ""
 
     // Grid viewport (draggable area)
-    val viewport = div(id = "territory-grid-viewport", cls = "territory-grid-viewport")
-    viewport.appendChild(div(id = "territory-grid", cls = "territory-grid"))
+    val viewport = div(id = "tile-kingdom-grid-viewport", cls = "tile-kingdom-grid-viewport")
+    viewport.appendChild(div(id = "tile-kingdom-grid", cls = "tile-kingdom-grid"))
     container.appendChild(viewport)
 
     // Overlay UI elements
@@ -76,6 +94,7 @@ object TerritoryClient:
     container.appendChild(buildResources())
     container.appendChild(buildActions())
     container.appendChild(buildNotification())
+    container.appendChild(buildWelcomeBackModal())
     container.appendChild(buildHelpPopup())
     container.appendChild(buildDevToolsPopup())
 
@@ -83,51 +102,74 @@ object TerritoryClient:
     setupDragHandlers(viewport)
 
   private def buildHeader(): HTMLElement =
-    div(cls = "territory-header")(
-      h1(content = "🏰 Territory Idle"),
+    div(cls = "tile-kingdom-header")(
+      h1(content = "🏰 Tile Kingdom"),
       button(cls = "help-button", content = "?").tap: btn =>
         btn.onclick = (_: MouseEvent) => toggleHelpPopup()
     )
 
   private def buildResources(): HTMLElement =
-    div(cls = "territory-resources")(
+    div(cls = "tile-kingdom-resources")(
       div(cls = "resource-item")(
         span(cls = "resource-label", content = "🌾"),
-        span(id = "territory-wheat", cls = "resource-value", content = "0")
+        span(id = "tile-kingdom-wheat", cls = "resource-value", content = "0"),
+        span(id = "tile-kingdom-wheat-income", cls = "resource-income", content = "")
       ),
       div(cls = "resource-item")(
         span(cls = "resource-label", content = "🪵"),
-        span(id = "territory-wood", cls = "resource-value", content = "0")
+        span(id = "tile-kingdom-wood", cls = "resource-value", content = "0"),
+        span(id = "tile-kingdom-wood-income", cls = "resource-income", content = "")
+      ),
+      div(cls = "resource-item")(
+        span(cls = "resource-label", content = "✨"),
+        span(id = "tile-kingdom-faith", cls = "resource-value", content = "0"),
+        span(id = "tile-kingdom-faith-income", cls = "resource-income", content = "")
       ),
       div(cls = "resource-item")(
         span(cls = "resource-label", content = "💰"),
-        span(id = "territory-gold", cls = "resource-value", content = "0")
+        span(id = "tile-kingdom-gold", cls = "resource-value", content = "0")
       ),
       div(cls = "resource-item")(
         span(cls = "resource-label", content = "👑"),
-        span(id = "territory-abdications", cls = "resource-value", content = "0")
+        span(id = "tile-kingdom-abdications", cls = "resource-value", content = "0")
+      ),
+      div(cls = "resource-item income")(
+        span(cls = "resource-label", content = "📈"),
+        span(id = "tile-kingdom-income", cls = "resource-value", content = "0/s")
       )
     )
 
   private def buildActions(): HTMLElement =
-    div(cls = "territory-actions")(
-      button(id = "territory-abdicate-btn", cls = "btn-primary disabled", content = "Abdicate").tap: btn =>
+    div(cls = "tile-kingdom-actions")(
+      button(id = "tile-kingdom-abdicate-btn", cls = "btn-primary disabled", content = "Abdicate").tap: btn =>
         btn.disabled = true
         btn.onclick = (_: MouseEvent) => handleAbdicate()
       ,
-      button(id = "territory-center-btn", cls = "btn-secondary", content = "⌖ Center").tap: btn =>
-        btn.onclick = (_: MouseEvent) => centerOnTerritory(animated = true),
-      button(id = "territory-reset-btn", cls = "btn-danger", content = "Reset").tap: btn =>
+      button(id = "tile-kingdom-center-btn", cls = "btn-secondary", content = "⌖ Center").tap: btn =>
+        btn.onclick = (_: MouseEvent) => centerOnKingdom(animated = true),
+      button(id = "tile-kingdom-reset-btn", cls = "btn-danger", content = "Reset").tap: btn =>
         btn.onclick = (_: MouseEvent) => handleResetGame(),
-      button(id = "territory-dev-btn", cls = "btn-dev", content = "🛠️ Dev").tap: btn =>
+      button(id = "tile-kingdom-dev-btn", cls = "btn-dev", content = "🛠️ Dev").tap: btn =>
         btn.onclick = (_: MouseEvent) => toggleDevTools()
     )
 
   private def buildNotification(): HTMLElement =
-    div(id = "territory-notification", cls = "notification")
+    div(id = "tile-kingdom-notification", cls = "notification")
+
+  private def buildWelcomeBackModal(): HTMLElement =
+    div(id = "tile-kingdom-welcome-modal", cls = "welcome-modal")(
+      div(cls = "welcome-modal-content")(
+        div(cls = "welcome-modal-header")(
+          h3(content = "👑 Welcome Back!")
+        ),
+        div(id = "welcome-modal-body", cls = "welcome-modal-body"),
+        button(id = "welcome-modal-close", cls = "btn-primary welcome-modal-close", content = "Continue").tap: btn =>
+          btn.onclick = (_: MouseEvent) => hideWelcomeBackModal()
+      )
+    )
 
   private def buildHelpPopup(): HTMLElement =
-    div(id = "territory-help-popup", cls = "help-popup")(
+    div(id = "tile-kingdom-help-popup", cls = "help-popup")(
       div(cls = "help-popup-content")(
         div(cls = "help-popup-header")(
           h3(content = "How to Play"),
@@ -149,7 +191,7 @@ object TerritoryClient:
     )
 
   private def buildDevToolsPopup(): HTMLElement =
-    div(id = "territory-dev-popup", cls = "help-popup")(
+    div(id = "tile-kingdom-dev-popup", cls = "help-popup")(
       div(cls = "help-popup-content dev-tools-content")(
         div(cls = "help-popup-header")(
           h3(content = "🛠️ Dev Tools"),
@@ -180,7 +222,7 @@ object TerritoryClient:
           ,
           button(cls = "btn-dev-action", content = "🗺️ +100 Tiles").tap: btn =>
             btn.onclick = (_: MouseEvent) =>
-              currentGame = TerritoryLogic.unlockManyTiles(currentGame, 100)
+              currentGame = TileKingdomLogic.unlockManyTiles(currentGame, 100)
               saveGame()
               renderGame()
               showNotification(s"Added 100 tiles")
@@ -189,11 +231,11 @@ object TerritoryClient:
     )
 
   private def toggleDevTools(): Unit =
-    getElementById("territory-dev-popup").foreach: popup =>
+    getElementById("tile-kingdom-dev-popup").foreach: popup =>
       popup.classList.toggle("show")
 
   private def toggleHelpPopup(): Unit =
-    getElementById("territory-help-popup").foreach: popup =>
+    getElementById("tile-kingdom-help-popup").foreach: popup =>
       popup.classList.toggle("show")
 
   // ============================================================================
@@ -221,7 +263,7 @@ object TerritoryClient:
     document.onmouseup = (e: MouseEvent) =>
       if isDragging then
         isDragging = false
-        getElementById("territory-grid-viewport").foreach(_.asInstanceOf[HTMLElement].style.cursor = "grab")
+        getElementById("tile-kingdom-grid-viewport").foreach(_.asInstanceOf[HTMLElement].style.cursor = "grab")
         snapBackIfNeeded()
 
     // Touch support
@@ -284,10 +326,10 @@ object TerritoryClient:
     )
 
   private def updateGridPosition(): Unit =
-    getElementById("territory-grid").foreach: grid =>
+    getElementById("tile-kingdom-grid").foreach: grid =>
       grid.asInstanceOf[HTMLElement].style.transform = s"translate(${panOffsetX}px, ${panOffsetY}px)"
 
-  private def centerOnTerritory(animated: Boolean = false): Unit =
+  private def centerOnKingdom(animated: Boolean = false): Unit =
     val target = calculateCenterOffset()
     if animated then
       animateTo(target)
@@ -313,7 +355,7 @@ object TerritoryClient:
     if !anyVisible then
       // Animate snap back to center
       animateTo(calculateCenterOffset())
-      showNotification("Snapped back to territory")
+      showNotification("Snapped back to kingdom")
 
   private def calculateCenterOffset(): (Double, Double) =
     val unlockedCoords = currentGame.unlockedTiles.map(_.coord)
@@ -358,7 +400,7 @@ object TerritoryClient:
 
   private def startGameTicker(): Unit =
     stopGameTicker()
-    val intervalId = window.setInterval(() => gameTick(), TerritoryLogic.TickIntervalSeconds * 1000)
+    val intervalId = window.setInterval(() => gameTick(), TileKingdomLogic.TickIntervalSeconds * 1000)
     gameTickerHandle = Some(intervalId)
 
   private def stopGameTicker(): Unit =
@@ -372,19 +414,21 @@ object TerritoryClient:
     // Update progress for each producing tile and collect harvests
     var totalWheatHarvested = 0.0
     var totalWoodHarvested = 0.0
+    var totalFaithHarvested = 0.0
 
     val wheatFields = currentGame.unlockedTiles.filter(_.isWheatField)
     val woodcutters = currentGame.unlockedTiles.filter(_.isWoodcutter)
+    val temples = currentGame.unlockedTiles.filter(_.isTemple)
 
     // Process wheat fields
     wheatFields.foreach: tile =>
-      val currentProgress = tileProgress.getOrElse(tile.coord, 0.0)
+      val currentProgress = getOrInitProgress(tile.coord)
       val progressIncrement = elapsedMs / ProductionIntervalMs
       val newProgress = currentProgress + progressIncrement
 
       if newProgress >= 1.0 then
         val harvests = newProgress.toInt
-        val production = TerritoryLogic.productionPerHarvest(currentGame, tile)
+        val production = TileKingdomLogic.productionPerHarvest(currentGame, tile)
         totalWheatHarvested += production * harvests
         tileProgress = tileProgress.updated(tile.coord, newProgress - harvests)
         showFloatingReward(tile.coord, (production * harvests).toInt, "🌾")
@@ -393,16 +437,31 @@ object TerritoryClient:
 
     // Process woodcutters
     woodcutters.foreach: tile =>
-      val currentProgress = tileProgress.getOrElse(tile.coord, 0.0)
+      val currentProgress = getOrInitProgress(tile.coord)
       val progressIncrement = elapsedMs / ProductionIntervalMs
       val newProgress = currentProgress + progressIncrement
 
       if newProgress >= 1.0 then
         val harvests = newProgress.toInt
-        val production = TerritoryLogic.woodProductionPerHarvest(currentGame, tile)
+        val production = TileKingdomLogic.woodProductionPerHarvest(currentGame, tile)
         totalWoodHarvested += production * harvests
         tileProgress = tileProgress.updated(tile.coord, newProgress - harvests)
         showFloatingReward(tile.coord, (production * harvests).toInt, "🪵")
+      else
+        tileProgress = tileProgress.updated(tile.coord, newProgress)
+
+    // Process temples
+    temples.foreach: tile =>
+      val currentProgress = getOrInitProgress(tile.coord)
+      val progressIncrement = elapsedMs / ProductionIntervalMs
+      val newProgress = currentProgress + progressIncrement
+
+      if newProgress >= 1.0 then
+        val harvests = newProgress.toInt
+        val production = TileKingdomLogic.faithProductionPerHarvest(tile)
+        totalFaithHarvested += production * harvests
+        tileProgress = tileProgress.updated(tile.coord, newProgress - harvests)
+        showFloatingReward(tile.coord, (production * harvests).toInt, "✨")
       else
         tileProgress = tileProgress.updated(tile.coord, newProgress)
 
@@ -411,37 +470,39 @@ object TerritoryClient:
     var updatedGame = currentGame.copy(
       wheat = currentGame.wheat + totalWheatHarvested,
       wood = currentGame.wood + totalWoodHarvested,
+      faith = currentGame.faith + totalFaithHarvested,
       lastTickTime = currentTime
     )
 
     // Track upgrades to show floating text after render
-    var bureauUpgrades: List[(Coord, Int, Coord, Int)] = List.empty // (upgradedCoord, newLevel, bureauCoord, wheatCost)
+    var bureauUpgrades: List[(Coord, Int, Coord, Int, Resource)] = List.empty // (upgradedCoord, newLevel, bureauCoord, cost, costResource)
 
     bureaus.foreach: tile =>
-      val currentProgress = tileProgress.getOrElse(tile.coord, 0.0)
-      val progressIncrement = elapsedMs / BureauIntervalMs
+      val currentProgress = getOrInitProgress(tile.coord)
+      val speedMultiplier = TileKingdomLogic.bureauSpeedMultiplier(currentGame, tile.coord)
+      val progressIncrement = elapsedMs / BureauIntervalMs * speedMultiplier
       val newProgress = currentProgress + progressIncrement
 
       if newProgress >= 1.0 then
         // Bureau ready to attempt an upgrade
-        TerritoryLogic.bureauAutoUpgrade(updatedGame, tile.coord, currentTime) match
+        TileKingdomLogic.bureauAutoUpgrade(updatedGame, tile.coord, currentTime) match
           case Some((newGame, upgradedCoord)) =>
             updatedGame = newGame
             // Collect upgrade info to show after render
             val upgradedTile = updatedGame.tiles.get(upgradedCoord)
-            val upgradeCost = upgradedTile
-              .flatMap(t =>
-                TerritoryLogic.getUpgradeCost(t.copy(tileType = t.tileType match
-                  case TileType.WheatField(lvl) => TileType.WheatField(lvl - 1)
-                  case TileType.Farm(lvl)       => TileType.Farm(lvl - 1)
-                  case TileType.Woodcutter(lvl) => TileType.Woodcutter(lvl - 1)
-                  case other                    => other
-                ))
-              )
-              .getOrElse(0)
+            val previousTile = upgradedTile.map(t => t.copy(tileType = t.tileType match
+              case TileType.WheatField(lvl) => TileType.WheatField(lvl - 1)
+              case TileType.Farm(lvl)       => TileType.Farm(lvl - 1)
+              case TileType.Woodcutter(lvl) => TileType.Woodcutter(lvl - 1)
+              case TileType.Temple(lvl)     => TileType.Temple(lvl - 1)
+              case other                    => other
+            ))
+            val upgradeCostOpt = previousTile.flatMap(_.upgradeCost)
+            val upgradeCost = upgradeCostOpt.map(_.amount).getOrElse(0)
+            val costResource = upgradeCostOpt.map(_.resource).getOrElse(Resource.Wheat)
             val newLevel = upgradedTile.map(_.level).getOrElse(1)
-            bureauUpgrades = bureauUpgrades :+ (upgradedCoord, newLevel, tile.coord, upgradeCost)
-            tileProgress = tileProgress.updated(tile.coord, 0.0) // Reset progress after successful upgrade
+            bureauUpgrades = bureauUpgrades :+ (upgradedCoord, newLevel, tile.coord, upgradeCost, costResource)
+            tileProgress = tileProgress.updated(tile.coord, newProgress - 1.0) // Keep excess progress
           case None =>
             // No upgrade possible, keep progress at 1.0 to retry next tick
             tileProgress = tileProgress.updated(tile.coord, 1.0)
@@ -453,14 +514,14 @@ object TerritoryClient:
     saveGame()
     updateProgressBars()
     renderResources()
-    // Re-render tiles if bureau performed upgrades
-    if bureaus.nonEmpty then renderTiles()
 
-    // Show floating text after render so elements exist
-    bureauUpgrades.foreach: (upgradedCoord, newLevel, bureauCoord, wheatCost) =>
-      showFloatingReward(upgradedCoord, wheatCost, "🌾", isSpend = true)
+    // Show floating text and update only the upgraded tiles
+    bureauUpgrades.foreach: (upgradedCoord, newLevel, bureauCoord, cost, costResource) =>
+      updateSingleTile(upgradedCoord)
+      val costEmoji = resourceEmoji(costResource)
+      showFloatingReward(upgradedCoord, cost, costEmoji, isSpend = true)
       showFloatingLevel(upgradedCoord, newLevel)
-      showFloatingReward(bureauCoord, TerritoryLogic.BureauWoodCostPerUpgrade, "🪵", isSpend = true)
+      showFloatingReward(bureauCoord, TileKingdomLogic.BureauWoodCostPerUpgrade, "🪵", isSpend = true)
 
   // ============================================================================
   // Persistence
@@ -472,34 +533,36 @@ object TerritoryClient:
       val json = write(currentGame)
       window.localStorage.setItem(StorageKey, json)
     .recover:
-      case ex => println(s"[Territory] Failed to save game: ${ex.getMessage}")
+      case ex => println(s"[TileKingdom] Failed to save game: ${ex.getMessage}")
 
   private def loadGame(): Unit =
     Try:
       Option(window.localStorage.getItem(StorageKey)) match
         case Some(json) =>
           import upickle.default.*
-          val loadedGame = read[TerritoryGame](json)
+          val loadedGame = read[TileKingdomGame](json)
 
           // Calculate offline progress
           val currentTime = System.currentTimeMillis()
-          currentGame = TerritoryLogic.tick(loadedGame, currentTime)
+          currentGame = TileKingdomLogic.tick(loadedGame, currentTime)
 
           val offlineSeconds = (currentTime - loadedGame.lastTickTime) / 1000.0
-          if offlineSeconds > 60 then
-            val offlineWheat = currentGame.wheat - loadedGame.wheat
-            println(s"[Territory] Welcome back! You earned ${offlineWheat.toInt} wheat while away")
-            showNotification(s"Welcome back! +${offlineWheat.toInt} wheat")
+          if offlineSeconds > 5 then
+            val offlineWheat = (currentGame.wheat - loadedGame.wheat).toInt
+            val offlineWood = (currentGame.wood - loadedGame.wood).toInt
+            val offlineFaith = (currentGame.faith - loadedGame.faith).toInt
+            if offlineWheat > 0 || offlineWood > 0 || offlineFaith > 0 then
+              showWelcomeBackModal(offlineWheat, offlineWood, offlineFaith, offlineSeconds)
 
-          println(s"[Territory] Game loaded from localStorage")
+          println(s"[TileKingdom] Game loaded from localStorage")
         case None =>
-          println(s"[Territory] No saved game found, starting new game")
-          currentGame = TerritoryLogic.newGame(System.currentTimeMillis())
+          println(s"[TileKingdom] No saved game found, starting new game")
+          currentGame = TileKingdomLogic.newGame(System.currentTimeMillis())
           saveGame()
     .recover:
       case ex =>
-        println(s"[Territory] Failed to load game: ${ex.getMessage}")
-        currentGame = TerritoryLogic.newGame(System.currentTimeMillis())
+        println(s"[TileKingdom] Failed to load game: ${ex.getMessage}")
+        currentGame = TileKingdomLogic.newGame(System.currentTimeMillis())
 
   // ============================================================================
   // UI Rendering
@@ -511,13 +574,40 @@ object TerritoryClient:
     renderAbdicationButton()
 
   private def renderResources(): Unit =
-    setElementText("territory-wheat", f"${currentGame.wheat.toInt}%,d")
-    setElementText("territory-wood", f"${currentGame.wood.toInt}%,d")
-    setElementText("territory-gold", f"${currentGame.gold}%,d")
-    setElementText("territory-abdications", currentGame.totalAbdications.toString)
+    setElementText("tile-kingdom-wheat", f"${currentGame.wheat.toInt}%,d")
+    setElementText("tile-kingdom-wood", f"${currentGame.wood.toInt}%,d")
+    setElementText("tile-kingdom-faith", f"${currentGame.faith.toInt}%,d")
+    setElementText("tile-kingdom-gold", f"${currentGame.gold}%,d")
+    setElementText("tile-kingdom-abdications", currentGame.totalAbdications.toString)
+
+    // Individual income rates
+    val wheatIncome = TileKingdomLogic.totalWheatProductionRate(currentGame)
+    val woodIncome = TileKingdomLogic.totalWoodProductionRate(currentGame)
+    val faithIncome = TileKingdomLogic.totalFaithProductionRate(currentGame)
+
+    setElementText("tile-kingdom-wheat-income", formatIncome(wheatIncome))
+    setElementText("tile-kingdom-wood-income", formatIncome(woodIncome))
+    setElementText("tile-kingdom-faith-income", formatIncome(faithIncome))
+
+    // Total income
+    val income = currentGame.totalIncomeRate
+    val incomeText = if income >= 1.0 then f"${income.toInt}%,d/s" else f"$income%.1f/s"
+    setElementText("tile-kingdom-income", incomeText)
+
+  private def formatIncome(rate: Double): String =
+    if rate <= 0 then ""
+    else if rate >= 1.0 then f"+${rate.toInt}%,d/s"
+    else f"+$rate%.1f/s"
+
+  // Update a single tile in place without re-rendering everything
+  private def updateSingleTile(coord: Coord): Unit =
+    currentGame.tiles.get(coord).foreach: tile =>
+      Option(document.getElementById(s"tile-${coord.row}-${coord.col}")).foreach: oldElement =>
+        val newElement = renderTile(tile)
+        oldElement.parentNode.replaceChild(newElement, oldElement)
 
   private def renderTiles(): Unit =
-    getElementById("territory-grid").foreach: gridContainer =>
+    getElementById("tile-kingdom-grid").foreach: gridContainer =>
       gridContainer.innerHTML = ""
       val grid = gridContainer.asInstanceOf[HTMLElement]
 
@@ -538,10 +628,10 @@ object TerritoryClient:
             case TileType.Farm(_) =>
               grid.appendChild(renderInfluenceIndicator(coord, 1, "farm-influence"))
             case TileType.Bureau(_) =>
-              grid.appendChild(renderInfluenceIndicator(coord, TerritoryLogic.BureauRadius, "bureau-influence"))
+              grid.appendChild(renderInfluenceIndicator(coord, TileKingdomLogic.BureauRadius, "bureau-influence"))
             case _ => // No indicator
       // Get all coords we need to render (existing tiles + unlockable if affordable)
-      val unlockableCoords = TerritoryLogic.unlockableCoords(currentGame)
+      val unlockableCoords = TileKingdomLogic.unlockableCoords(currentGame)
       val canAffordUnlock = currentGame.gold >= currentGame.nextTileUnlockCost
       val coordsToRender = currentGame.tiles.keySet ++ (if canAffordUnlock then unlockableCoords else Set.empty)
 
@@ -570,7 +660,7 @@ object TerritoryClient:
 
   private def renderTile(tile: Tile): HTMLElement =
     val coord = tile.coord
-    val tileDiv = div(id = s"tile-${coord.row}-${coord.col}", cls = "territory-tile")
+    val tileDiv = div(id = s"tile-${coord.row}-${coord.col}", cls = "tile-kingdom-tile")
     val tilePixelSize = (70 * zoomLevel).toInt
     // Scale font size with zoom, but clamp to reasonable range
     val fontScale = math.max(0.6, math.min(1.0, zoomLevel))
@@ -584,60 +674,95 @@ object TerritoryClient:
     tile.tileType match
       case TileType.Empty =>
         tileDiv.classList.add("empty")
-        val wheatCost = TerritoryLogic.wheatFieldBuildCost
-        val farmCost = TerritoryLogic.farmBuildCost
-        val woodcutterCost = TerritoryLogic.woodcutterBuildCost
-        val bureauCost = TerritoryLogic.bureauBuildCost
+        val wheatCost = TileKingdomLogic.wheatFieldBuildCost
+        val farmCost = TileKingdomLogic.farmBuildCost
+        val woodcutterCost = TileKingdomLogic.woodcutterBuildCost
+        val bureauCost = TileKingdomLogic.bureauBuildCost
+        val templeCost = TileKingdomLogic.templeBuildCost
         val canBuildOthers = currentGame.hasWheatField
 
+        // Build icon container (shown by default)
+        val buildIconContainer = div(cls = "tile-build-icon-container")
+        buildIconContainer.appendChild(el("i", cls = "fa-solid fa-hammer"))
+        buildIconContainer.appendChild(div(cls = "build-label", content = "Build"))
+        buildIconContainer.onclick = (e: MouseEvent) =>
+          e.stopPropagation()
+          // Clear any other selecting tiles first
+          document.querySelectorAll(".tile-kingdom-tile.selecting").foreach: elem =>
+            elem.asInstanceOf[HTMLElement].classList.remove("selecting")
+          selectingTileCoord = Some(coord)
+          tileDiv.classList.add("selecting")
+        tileDiv.appendChild(buildIconContainer)
+
+        // Restore selecting state if this tile was previously selected
+        if selectingTileCoord.contains(coord) then
+          tileDiv.classList.add("selecting")
+
+        // Build options container (hidden by default, shown when selecting)
+        val buildOptions = div(cls = "tile-build-options")
+
+        // Back/cancel button
+        buildOptions.appendChild(div(cls = "build-option build-back").tap: opt =>
+          opt.appendChild(el("i", cls = "fa-solid fa-arrow-left build-icon"))
+          opt.appendChild(div(cls = "build-name", content = "Back"))
+          opt.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            selectingTileCoord = None
+            tileDiv.classList.remove("selecting")
+        )
+
+        buildOptions.appendChild(div(cls = "build-option").tap: opt =>
+          opt.appendChild(div(cls = "build-icon", content = "🌾"))
+          opt.appendChild(div(cls = "build-name", content = "Field"))
+          opt.appendChild(div(cls = "build-cost", content = s"$wheatCost🌾"))
+          opt.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            handleBuildWheatField(coord)
+        )
+
         if canBuildOthers then
-          tileDiv.appendChild(
-            div(cls = "tile-content tile-build-options")(
-              div(cls = "build-option").tap: opt =>
-                opt.appendChild(div(cls = "build-icon", content = "🌾"))
-                opt.appendChild(div(cls = "build-cost", content = s"$wheatCost"))
-                opt.onclick = (e: MouseEvent) =>
-                  e.stopPropagation()
-                  handleBuildWheatField(coord)
-              ,
-              div(cls = "build-option").tap: opt =>
-                opt.appendChild(div(cls = "build-icon", content = "🏠"))
-                opt.appendChild(div(cls = "build-cost", content = s"$farmCost"))
-                opt.onclick = (e: MouseEvent) =>
-                  e.stopPropagation()
-                  handleBuildFarm(coord)
-              ,
-              div(cls = "build-option").tap: opt =>
-                opt.appendChild(div(cls = "build-icon", content = "🪓"))
-                opt.appendChild(div(cls = "build-cost", content = s"$woodcutterCost"))
-                opt.onclick = (e: MouseEvent) =>
-                  e.stopPropagation()
-                  handleBuildWoodcutter(coord)
-              ,
-              div(cls = "build-option").tap: opt =>
-                opt.appendChild(div(cls = "build-icon", content = "🏛️"))
-                opt.appendChild(div(cls = "build-cost wood-cost", content = s"$bureauCost🪵"))
-                opt.onclick = (e: MouseEvent) =>
-                  e.stopPropagation()
-                  handleBuildBureau(coord)
-            )
+          buildOptions.appendChild(div(cls = "build-option").tap: opt =>
+            opt.appendChild(div(cls = "build-icon", content = "🏠"))
+            opt.appendChild(div(cls = "build-name", content = "Farm"))
+            opt.appendChild(div(cls = "build-cost", content = s"$farmCost🌾"))
+            opt.onclick = (e: MouseEvent) =>
+              e.stopPropagation()
+              handleBuildFarm(coord)
           )
-        else
-          tileDiv.appendChild(
-            div(cls = "tile-content")(
-              div(cls = "tile-icon", content = "➕"),
-              div(cls = "tile-cost", content = s"$wheatCost 🌾")
-            )
+          buildOptions.appendChild(div(cls = "build-option").tap: opt =>
+            opt.appendChild(div(cls = "build-icon", content = "🪓"))
+            opt.appendChild(div(cls = "build-name", content = "Wood"))
+            opt.appendChild(div(cls = "build-cost", content = s"$woodcutterCost🌾"))
+            opt.onclick = (e: MouseEvent) =>
+              e.stopPropagation()
+              handleBuildWoodcutter(coord)
           )
-          tileDiv.onclick = (_: MouseEvent) => handleBuildWheatField(coord)
+          buildOptions.appendChild(div(cls = "build-option").tap: opt =>
+            opt.appendChild(div(cls = "build-icon", content = "🏛️"))
+            opt.appendChild(div(cls = "build-name", content = "Bureau"))
+            opt.appendChild(div(cls = "build-cost", content = s"$bureauCost🪵"))
+            opt.onclick = (e: MouseEvent) =>
+              e.stopPropagation()
+              handleBuildBureau(coord)
+          )
+          buildOptions.appendChild(div(cls = "build-option").tap: opt =>
+            opt.appendChild(div(cls = "build-icon", content = "⛪"))
+            opt.appendChild(div(cls = "build-name", content = "Temple"))
+            opt.appendChild(div(cls = "build-cost", content = s"$templeCost🪵"))
+            opt.onclick = (e: MouseEvent) =>
+              e.stopPropagation()
+              handleBuildTemple(coord)
+          )
+
+        tileDiv.appendChild(buildOptions)
 
       case TileType.WheatField(level) =>
         tileDiv.classList.add("wheat-field")
         tileDiv.setAttribute("data-level", level.toString)
-        val harvestAmount = TerritoryLogic.productionPerHarvest(currentGame, tile)
-        val bonusMultiplier = TerritoryLogic.farmBonusMultiplier(currentGame, coord)
+        val harvestAmount = TileKingdomLogic.productionPerHarvest(currentGame, tile)
+        val bonusMultiplier = TileKingdomLogic.farmBonusMultiplier(currentGame, coord)
         val hasBonus = bonusMultiplier > 1.0
-        val upgradeCost = TerritoryLogic.wheatFieldLevelUpCost(level)
+        val upgradeCost = TileKingdomLogic.wheatFieldLevelUpCost(level)
 
         val content = div(cls = "tile-content")(
           div(cls = "tile-icon", content = "🌾"),
@@ -649,7 +774,15 @@ object TerritoryClient:
           val bonusPercent = ((bonusMultiplier - 1) * 100).toInt
           prodDiv.appendChild(span(cls = "bonus", content = s" +$bonusPercent%"))
         content.appendChild(prodDiv)
-        content.appendChild(div(cls = "tile-upgrade", content = s"⬆$upgradeCost"))
+
+        val upgradeRow = div(cls = "tile-upgrade-row")
+        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost🌾"))
+        upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
+          btn.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            handleBulkLevelUp(coord, 10, TileKingdomLogic.levelUpWheatField, TileKingdomLogic.wheatFieldLevelUpCost)
+        )
+        content.appendChild(upgradeRow)
 
         tileDiv.appendChild(content)
 
@@ -669,17 +802,25 @@ object TerritoryClient:
       case TileType.Farm(level) =>
         tileDiv.classList.add("farm")
         tileDiv.setAttribute("data-level", level.toString)
-        val boostPercent = (level * TerritoryLogic.FarmBoostPerLevel * 100).toInt
-        val upgradeCost = TerritoryLogic.farmLevelUpCost(level)
+        val boostPercent = (level * TileKingdomLogic.FarmBoostPerLevel * 100).toInt
+        val upgradeCost = TileKingdomLogic.farmLevelUpCost(level)
 
-        tileDiv.appendChild(
-          div(cls = "tile-content")(
-            div(cls = "tile-icon", content = "🏠"),
-            div(cls = "tile-label", content = s"Lv$level"),
-            div(cls = "tile-production", content = s"+$boostPercent%"),
-            div(cls = "tile-upgrade", content = s"⬆$upgradeCost")
-          )
+        val content = div(cls = "tile-content")(
+          div(cls = "tile-icon", content = "🏠"),
+          div(cls = "tile-label", content = s"Lv$level"),
+          div(cls = "tile-production", content = s"+$boostPercent%")
         )
+
+        val upgradeRow = div(cls = "tile-upgrade-row")
+        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost🌾"))
+        upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
+          btn.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            handleBulkLevelUp(coord, 10, TileKingdomLogic.levelUpFarm, TileKingdomLogic.farmLevelUpCost)
+        )
+        content.appendChild(upgradeRow)
+
+        tileDiv.appendChild(content)
         tileDiv.onclick = (_: MouseEvent) => handleLevelUpFarm(coord)
         tileDiv.oncontextmenu = (e: MouseEvent) =>
           e.preventDefault()
@@ -688,8 +829,8 @@ object TerritoryClient:
       case TileType.Woodcutter(level) =>
         tileDiv.classList.add("woodcutter")
         tileDiv.setAttribute("data-level", level.toString)
-        val harvestAmount = TerritoryLogic.woodProductionPerHarvest(currentGame, tile)
-        val upgradeCost = TerritoryLogic.woodcutterLevelUpCost(level)
+        val harvestAmount = TileKingdomLogic.woodProductionPerHarvest(currentGame, tile)
+        val upgradeCost = TileKingdomLogic.woodcutterLevelUpCost(level)
 
         val content = div(cls = "tile-content")(
           div(cls = "tile-icon", content = "🪓"),
@@ -697,12 +838,20 @@ object TerritoryClient:
         )
 
         val prodDiv = div(cls = "tile-production", content = s"+${harvestAmount.toInt}🪵")
-        val forestBonus = TerritoryLogic.forestGroupBonusMultiplier(currentGame, coord)
+        val forestBonus = TileKingdomLogic.forestGroupBonusMultiplier(currentGame, coord)
         if forestBonus > 1.0 then
           val bonusPercent = ((forestBonus - 1) * 100).toInt
           prodDiv.appendChild(span(cls = "bonus forest-bonus", content = s" +$bonusPercent%"))
         content.appendChild(prodDiv)
-        content.appendChild(div(cls = "tile-upgrade", content = s"⬆$upgradeCost"))
+
+        val upgradeRow = div(cls = "tile-upgrade-row")
+        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost🌾"))
+        upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
+          btn.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            handleBulkLevelUp(coord, 10, TileKingdomLogic.levelUpWoodcutter, TileKingdomLogic.woodcutterLevelUpCost)
+        )
+        content.appendChild(upgradeRow)
 
         tileDiv.appendChild(content)
 
@@ -723,13 +872,24 @@ object TerritoryClient:
       case TileType.Bureau(level) =>
         tileDiv.classList.add("bureau")
         tileDiv.setAttribute("data-level", level.toString)
+        val boosts = currentGame.bureauBoosts.getOrElse(coord, 0)
+        val speedMultiplier = TileKingdomLogic.bureauSpeedMultiplier(currentGame, coord)
 
         val content = div(cls = "tile-content")(
           div(cls = "tile-icon", content = "🏛️"),
-          div(cls = "tile-label", content = s"Bureau")
+          div(cls = "tile-label", content = if boosts > 0 then s"x${speedMultiplier.toInt}" else "Bureau")
         )
 
         content.appendChild(div(cls = "tile-production", content = s"Auto⬆"))
+        
+        // Add boost button if player has enough faith
+        val boostRow = div(cls = "tile-upgrade-row")
+        boostRow.appendChild(button(cls = "btn-boost", content = s"⚡${TileKingdomLogic.FaithBoostCost}✨").tap: btn =>
+          btn.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            handleBoostBureau(coord)
+        )
+        content.appendChild(boostRow)
 
         tileDiv.appendChild(content)
 
@@ -745,10 +905,47 @@ object TerritoryClient:
           e.preventDefault()
           handleDestroyBuilding(coord)
 
+      case TileType.Temple(level) =>
+        tileDiv.classList.add("temple")
+        tileDiv.setAttribute("data-level", level.toString)
+        val faithAmount = TileKingdomLogic.faithProductionPerHarvest(tile)
+        val upgradeCost = TileKingdomLogic.templeLevelUpCost(level)
+
+        val content = div(cls = "tile-content")(
+          div(cls = "tile-icon", content = "⛪"),
+          div(cls = "tile-label", content = s"Lv$level")
+        )
+
+        content.appendChild(div(cls = "tile-production temple-production", content = s"+${faithAmount.toInt}✨"))
+
+        val upgradeRow = div(cls = "tile-upgrade-row")
+        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost🪵"))
+        upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
+          btn.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            handleBulkLevelUpTemple(coord, 10)
+        )
+        content.appendChild(upgradeRow)
+
+        tileDiv.appendChild(content)
+
+        // Add progress bar
+        val progress = tileProgress.getOrElse(coord, 0.0)
+        val progressContainer = div(cls = "tile-progress-container")
+        val progressBar = div(id = s"progress-bar-${coord.row}-${coord.col}", cls = "tile-progress-bar temple-progress")
+        progressBar.style.width = s"${(progress * 100).toInt}%"
+        progressContainer.appendChild(progressBar)
+        tileDiv.appendChild(progressContainer)
+
+        tileDiv.onclick = (_: MouseEvent) => handleLevelUpTemple(coord)
+        tileDiv.oncontextmenu = (e: MouseEvent) =>
+          e.preventDefault()
+          handleDestroyBuilding(coord)
+
     tileDiv
 
   private def renderUnlockableTile(coord: Coord): HTMLElement =
-    val tileDiv = div(id = s"tile-${coord.row}-${coord.col}", cls = "territory-tile locked unlockable")
+    val tileDiv = div(id = s"tile-${coord.row}-${coord.col}", cls = "tile-kingdom-tile locked unlockable")
     val tilePixelSize = (70 * zoomLevel).toInt
     val fontScale = math.max(0.6, math.min(1.0, zoomLevel))
 
@@ -771,7 +968,7 @@ object TerritoryClient:
     tileDiv
 
   private def renderAbdicationButton(): Unit =
-    getElementById("territory-abdicate-btn").foreach: elem =>
+    getElementById("tile-kingdom-abdicate-btn").foreach: elem =>
       val btn = elem.asInstanceOf[HTMLButtonElement]
       if currentGame.allTilesFilled then
         btn.disabled = false
@@ -788,9 +985,10 @@ object TerritoryClient:
   // ============================================================================
 
   private def handleBuildWheatField(coord: Coord): Unit =
-    val cost = TerritoryLogic.wheatFieldBuildCost
-    TerritoryLogic.buildWheatField(currentGame, coord) match
+    val cost = TileKingdomLogic.wheatFieldBuildCost
+    TileKingdomLogic.buildWheatField(currentGame, coord) match
       case Right(newGame) =>
+        selectingTileCoord = None
         currentGame = newGame
         saveGame()
         renderGame()
@@ -799,9 +997,10 @@ object TerritoryClient:
         showNotification(error)
 
   private def handleBuildFarm(coord: Coord): Unit =
-    val cost = TerritoryLogic.farmBuildCost
-    TerritoryLogic.buildFarm(currentGame, coord) match
+    val cost = TileKingdomLogic.farmBuildCost
+    TileKingdomLogic.buildFarm(currentGame, coord) match
       case Right(newGame) =>
+        selectingTileCoord = None
         currentGame = newGame
         saveGame()
         renderGame()
@@ -810,9 +1009,10 @@ object TerritoryClient:
         showNotification(error)
 
   private def handleBuildWoodcutter(coord: Coord): Unit =
-    val cost = TerritoryLogic.woodcutterBuildCost
-    TerritoryLogic.buildWoodcutter(currentGame, coord) match
+    val cost = TileKingdomLogic.woodcutterBuildCost
+    TileKingdomLogic.buildWoodcutter(currentGame, coord) match
       case Right(newGame) =>
+        selectingTileCoord = None
         currentGame = newGame
         saveGame()
         renderGame()
@@ -821,9 +1021,22 @@ object TerritoryClient:
         showNotification(error)
 
   private def handleBuildBureau(coord: Coord): Unit =
-    val cost = TerritoryLogic.bureauBuildCost
-    TerritoryLogic.buildBureau(currentGame, coord) match
+    val cost = TileKingdomLogic.bureauBuildCost
+    TileKingdomLogic.buildBureau(currentGame, coord) match
       case Right(newGame) =>
+        selectingTileCoord = None
+        currentGame = newGame
+        saveGame()
+        renderGame()
+        showFloatingReward(coord, cost, "🪵", isSpend = true)
+      case Left(error) =>
+        showNotification(error)
+
+  private def handleBuildTemple(coord: Coord): Unit =
+    val cost = TileKingdomLogic.templeBuildCost
+    TileKingdomLogic.buildTemple(currentGame, coord) match
+      case Right(newGame) =>
+        selectingTileCoord = None
         currentGame = newGame
         saveGame()
         renderGame()
@@ -833,8 +1046,8 @@ object TerritoryClient:
 
   private def handleLevelUpWheatField(coord: Coord): Unit =
     currentGame.tiles.get(coord).foreach: tile =>
-      val cost = TerritoryLogic.wheatFieldLevelUpCost(tile.level)
-      TerritoryLogic.levelUpWheatField(currentGame, coord) match
+      val cost = TileKingdomLogic.wheatFieldLevelUpCost(tile.level)
+      TileKingdomLogic.levelUpWheatField(currentGame, coord) match
         case Right(newGame) =>
           currentGame = newGame
           saveGame()
@@ -846,8 +1059,8 @@ object TerritoryClient:
 
   private def handleLevelUpFarm(coord: Coord): Unit =
     currentGame.tiles.get(coord).foreach: tile =>
-      val cost = TerritoryLogic.farmLevelUpCost(tile.level)
-      TerritoryLogic.levelUpFarm(currentGame, coord) match
+      val cost = TileKingdomLogic.farmLevelUpCost(tile.level)
+      TileKingdomLogic.levelUpFarm(currentGame, coord) match
         case Right(newGame) =>
           currentGame = newGame
           saveGame()
@@ -859,8 +1072,8 @@ object TerritoryClient:
 
   private def handleLevelUpWoodcutter(coord: Coord): Unit =
     currentGame.tiles.get(coord).foreach: tile =>
-      val cost = TerritoryLogic.woodcutterLevelUpCost(tile.level)
-      TerritoryLogic.levelUpWoodcutter(currentGame, coord) match
+      val cost = TileKingdomLogic.woodcutterLevelUpCost(tile.level)
+      TileKingdomLogic.levelUpWoodcutter(currentGame, coord) match
         case Right(newGame) =>
           currentGame = newGame
           saveGame()
@@ -870,8 +1083,87 @@ object TerritoryClient:
         case Left(error) =>
           showNotification(error)
 
+  private def handleBulkLevelUp(
+                                 coord: Coord,
+                                 count: Int,
+                                 levelUpFn: (TileKingdomGame, Coord) => Either[String, TileKingdomGame],
+                                 costFn: Int => Int
+  ): Unit =
+    currentGame.tiles.get(coord).foreach: tile =>
+      var game = currentGame
+      var totalCost = 0
+      var successCount = 0
+      var currentLevel = tile.level
+
+      (1 to count).foreach: _ =>
+        levelUpFn(game, coord) match
+          case Right(newGame) =>
+            totalCost += costFn(currentLevel)
+            currentLevel += 1
+            successCount += 1
+            game = newGame
+          case Left(_) => // Stop on first failure
+
+      if successCount > 0 then
+        currentGame = game
+        saveGame()
+        renderGame()
+        showFloatingReward(coord, totalCost, "🌾", isSpend = true)
+        showFloatingLevel(coord, currentLevel)
+      else
+        showNotification("Not enough wheat")
+
+  private def handleLevelUpTemple(coord: Coord): Unit =
+    currentGame.tiles.get(coord).foreach: tile =>
+      val cost = TileKingdomLogic.templeLevelUpCost(tile.level)
+      TileKingdomLogic.levelUpTemple(currentGame, coord) match
+        case Right(newGame) =>
+          currentGame = newGame
+          saveGame()
+          renderGame()
+          showFloatingReward(coord, cost, "🪵", isSpend = true)
+          showFloatingLevel(coord, tile.level + 1)
+        case Left(error) =>
+          showNotification(error)
+
+  private def handleBulkLevelUpTemple(coord: Coord, count: Int): Unit =
+    currentGame.tiles.get(coord).foreach: tile =>
+      var game = currentGame
+      var totalCost = 0
+      var successCount = 0
+      var currentLevel = tile.level
+
+      (1 to count).foreach: _ =>
+        TileKingdomLogic.levelUpTemple(game, coord) match
+          case Right(newGame) =>
+            totalCost += TileKingdomLogic.templeLevelUpCost(currentLevel)
+            currentLevel += 1
+            successCount += 1
+            game = newGame
+          case Left(_) => // Stop on first failure
+
+      if successCount > 0 then
+        currentGame = game
+        saveGame()
+        renderGame()
+        showFloatingReward(coord, totalCost, "🪵", isSpend = true)
+        showFloatingLevel(coord, currentLevel)
+      else
+        showNotification("Not enough wood")
+
+  private def handleBoostBureau(coord: Coord): Unit =
+    TileKingdomLogic.boostBureau(currentGame, coord) match
+      case Right(newGame) =>
+        currentGame = newGame
+        saveGame()
+        renderGame()
+        showFloatingReward(coord, TileKingdomLogic.FaithBoostCost, "✨", isSpend = true)
+        showNotification("Bureau speed boosted!")
+      case Left(error) =>
+        showNotification(error)
+
   private def handleDestroyBuilding(coord: Coord): Unit =
-    TerritoryLogic.destroyBuilding(currentGame, coord) match
+    TileKingdomLogic.destroyBuilding(currentGame, coord) match
       case Right(newGame) =>
         currentGame = newGame
         tileProgress = tileProgress.removed(coord) // Remove progress tracking for this tile
@@ -885,7 +1177,7 @@ object TerritoryClient:
     if currentGame.allTilesFilled then
       val reward = currentGame.abdicationGoldReward
       if window.confirm(s"Abdicate and earn $reward gold? This will reset all your buildings.") then
-        TerritoryLogic.abdicate(currentGame, System.currentTimeMillis()) match
+        TileKingdomLogic.abdicate(currentGame, System.currentTimeMillis()) match
           case Right(newGame) =>
             currentGame = newGame
             tileProgress = Map.empty // Reset progress tracking
@@ -897,7 +1189,7 @@ object TerritoryClient:
 
   private def handleUnlockTile(coord: Coord): Unit =
     val cost = currentGame.nextTileUnlockCost
-    TerritoryLogic.unlockTile(currentGame, coord) match
+    TileKingdomLogic.unlockTile(currentGame, coord) match
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
@@ -909,10 +1201,10 @@ object TerritoryClient:
   private def handleResetGame(): Unit =
     if window.confirm("Reset game? This will delete all progress!") then
       window.localStorage.removeItem(StorageKey)
-      currentGame = TerritoryLogic.newGame(System.currentTimeMillis())
+      currentGame = TileKingdomLogic.newGame(System.currentTimeMillis())
       tileProgress = Map.empty
       saveGame()
-      centerOnTerritory()
+      centerOnKingdom()
       renderGame()
       showNotification("Game reset!")
 
@@ -924,14 +1216,56 @@ object TerritoryClient:
     getElementById(id).foreach(_.textContent = text)
 
   private def showNotification(message: String): Unit =
-    getElementById("territory-notification").foreach: notification =>
+    println(s"[TileKingdom] showNotification called with: $message")
+    val elem = getElementById("tile-kingdom-notification")
+    println(s"[TileKingdom] notification element found: ${elem.isDefined}")
+    elem.foreach: notification =>
       notification.textContent = message
       notification.classList.add("show")
+      println(s"[TileKingdom] notification class list: ${notification.classList}")
       window.setTimeout(
         () =>
           notification.classList.remove("show"),
         3000
       )
+
+  private def showWelcomeBackModal(wheatGain: Int, woodGain: Int, faithGain: Int, offlineSeconds: Double): Unit =
+    getElementById("welcome-modal-body").foreach: body =>
+      body.innerHTML = ""
+      val timeAway = if offlineSeconds >= 3600 then
+        f"${offlineSeconds / 3600}%.1f hours"
+      else if offlineSeconds >= 60 then
+        f"${offlineSeconds / 60}%.0f minutes"
+      else
+        f"${offlineSeconds}%.0f seconds"
+      
+      body.appendChild(p(cls = "welcome-time", content = s"You were away for $timeAway"))
+      body.appendChild(div(cls = "welcome-subtitle", content = "Your kingdom produced:"))
+      
+      val gainsContainer = div(cls = "welcome-gains")
+      if wheatGain > 0 then
+        gainsContainer.appendChild(div(cls = "welcome-gain-item")(
+          span(cls = "welcome-gain-icon", content = "🌾"),
+          span(cls = "welcome-gain-value", content = f"+$wheatGain%,d")
+        ))
+      if woodGain > 0 then
+        gainsContainer.appendChild(div(cls = "welcome-gain-item")(
+          span(cls = "welcome-gain-icon", content = "🪵"),
+          span(cls = "welcome-gain-value", content = f"+$woodGain%,d")
+        ))
+      if faithGain > 0 then
+        gainsContainer.appendChild(div(cls = "welcome-gain-item")(
+          span(cls = "welcome-gain-icon", content = "✨"),
+          span(cls = "welcome-gain-value", content = f"+$faithGain%,d")
+        ))
+      body.appendChild(gainsContainer)
+    
+    getElementById("tile-kingdom-welcome-modal").foreach: modal =>
+      modal.classList.add("show")
+
+  private def hideWelcomeBackModal(): Unit =
+    getElementById("tile-kingdom-welcome-modal").foreach: modal =>
+      modal.classList.remove("show")
 
   private def updateProgressBars(): Unit =
     currentGame.unlockedTiles.filter(t => t.isWheatField || t.isWoodcutter || t.isBureau).foreach: tile =>

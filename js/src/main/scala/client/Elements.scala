@@ -1,7 +1,6 @@
 package client
 
-import org.scalajs.dom
-import org.scalajs.dom.{HTMLAnchorElement, HTMLButtonElement, HTMLElement, HTMLFormElement, HTMLInputElement, document}
+import org.scalajs.dom.{HTMLAnchorElement, HTMLButtonElement, HTMLElement, HTMLFormElement, HTMLInputElement, HTMLLabelElement, HTMLTextAreaElement, document}
 
 import scala.scalajs.js
 import scala.util.chaining.*
@@ -47,6 +46,19 @@ def a(href: String = "#", id: String = "", cls: String = ""): HTMLAnchorElement 
     if cls.nonEmpty then anchor.className = cls
     if id.nonEmpty then anchor.id = id
 
+def textInput(id: String = "", cls: String = ""): HTMLInputElement =
+  input("text", id, cls)
+
+def passwordInput(id: String = "", cls: String = ""): HTMLInputElement =
+  input("password", id, cls)
+
+def textarea(id: String = "", cls: String = ""): HTMLTextAreaElement =
+  el("textarea", id, cls).asInstanceOf[HTMLTextAreaElement]
+
+def label(forId: String, content: String, id: String = "", cls: String = ""): HTMLLabelElement =
+  el("label", id, cls, content).asInstanceOf[HTMLLabelElement].tap: lbl =>
+    lbl.setAttribute("for", forId)
+
 extension [T <: HTMLElement](elem: T)
   def apply(children: HTMLElement*): T =
     children.foreach(elem.appendChild(_))
@@ -58,13 +70,10 @@ extension [T <: HTMLElement](elem: T)
 
 // Helper functions for DOM manipulation
 def getElementById(id: String): Option[HTMLElement] =
-  Option(document.getElementById(id).asInstanceOf[HTMLElement])
+  Option(document.getElementById(id)).map(_.asInstanceOf[HTMLElement])
 
-def getElement(id: String): Option[dom.Element] =
-  Option(document.getElementById(id))
-
-def getInputElement(id: String): Option[HTMLInputElement] =
-  Option(document.getElementById(id).asInstanceOf[HTMLInputElement])
+def getElementByIdAs[T <: HTMLElement](id: String): Option[T] =
+  Option(document.getElementById(id)).map(_.asInstanceOf[T])
 
 def getInputValue(id: String): Option[String] =
-  getInputElement(id).map(_.value)
+  getElementByIdAs[HTMLInputElement](id).map(_.value)

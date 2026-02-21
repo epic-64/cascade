@@ -51,5 +51,11 @@ build/
 /jvm/src/main/resources/static/js/main.js
 /jvm/src/main/resources/static/js/main.js.map
 
+# Jetbrains copilot integration is a joke
+/terminal.txt
+
+# Logs
+/jvm/logs
+
 # Node.js dependencies
 /node_modules
