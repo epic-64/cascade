@@ -194,7 +194,7 @@ case class TileKingdomGame(
     stone: Double = 0.0, // Stone resource from quarries
     lastTickTime: Long, // Timestamp in milliseconds for offline progress
     totalAbdications: Int,
-    bureauBoosts: Map[Coord, Int] = Map.empty, // Number of faith boosts applied to each bureau
+    bureauTurboMode: Map[Coord, Boolean] = Map.empty, // Whether turbo mode is enabled per bureau
     upgradeCooldowns: Map[Coord, Long] = Map.empty, // Deprecated, kept for save compatibility
     politicianRoster: List[Politician] = List.empty, // Available politicians to assign
     lastPoliticianGeneration: Long = 0L, // Timestamp of last politician generation tick
@@ -259,8 +259,10 @@ object TileKingdomLogic:
 
   // Temple constants
   val TempleBuildCost: Int = 200 // Wood cost to build a temple
-  val FaithBoostCost: Int = 100 // Faith cost to boost a bureau
-  val FaithBoostMultiplier: Double = 10.0 // Each boost increases bureau speed by 1000%
+
+  // Bureau turbo mode constants
+  val BureauTurboFaithCost: Int = 100 // Faith cost per upgrade in turbo mode
+  val BureauTurboSpeedMultiplier: Double = 10.0 // 10x speed in turbo mode
 
   // Town Hall constants
   val TownHallBuildCost: Int = 1000 // Stone cost to build a town hall (first one)
@@ -935,27 +937,29 @@ object TileKingdomLogic:
               ))
           case _ => Left("Tile is not a quarry")
 
-  // Boost a bureau's speed with faith
-  def boostBureau(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
+  // Toggle bureau turbo mode on/off
+  def toggleBureauTurbo(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
       case None => Left("Tile not found")
       case Some(tile) if !tile.isBureau => Left("Tile is not a bureau")
-      case Some(_) if game.faith < FaithBoostCost => Left(s"Not enough faith (need $FaithBoostCost)")
       case Some(_) =>
-        val currentBoosts = game.bureauBoosts.getOrElse(coord, 0)
+        val currentTurbo = game.bureauTurboMode.getOrElse(coord, false)
         Right(game.copy(
-          faith = game.faith - FaithBoostCost,
-          bureauBoosts = game.bureauBoosts.updated(coord, currentBoosts + 1)
+          bureauTurboMode = game.bureauTurboMode.updated(coord, !currentTurbo)
         ))
 
-  // Get bureau speed multiplier (1.0 = normal, 11.0 = 1 boost, 21.0 = 2 boosts, etc.)
+  // Check if bureau is in turbo mode
+  def isBureauTurbo(game: TileKingdomGame, bureauCoord: Coord): Boolean =
+    game.bureauTurboMode.getOrElse(bureauCoord, false)
+
+  // Get bureau speed multiplier (1.0 = slow mode, 10.0 = turbo mode)
   def bureauSpeedMultiplier(game: TileKingdomGame, bureauCoord: Coord): Double =
-    val boosts = game.bureauBoosts.getOrElse(bureauCoord, 0)
-    1.0 + boosts * FaithBoostMultiplier
+    if isBureauTurbo(game, bureauCoord) then BureauTurboSpeedMultiplier else 1.0
 
   // Bureau auto-upgrade: upgrade the tile with lowest upgrade cost within radius
   // Returns updated game and the coord that was upgraded (if any)
   // Compares costs numerically - all resources are treated as equivalent
+  // In turbo mode: costs 100 faith + 100 wood per upgrade, auto-disables if not enough
   def bureauAutoUpgrade(
                          game: TileKingdomGame,
                          bureauCoord: Coord,
@@ -963,6 +967,8 @@ object TileKingdomLogic:
   ): Option[(TileKingdomGame, Coord)] =
     game.tiles.get(bureauCoord) match
       case Some(bureauTile) if bureauTile.isBureau =>
+        val isTurbo = isBureauTurbo(game, bureauCoord)
+        
         // Find upgradeable tiles within radius with their costs
         val nearbyCoords = bureauCoord.neighborsWithinRadius(BureauRadius)
         val upgradeableTiles = nearbyCoords
@@ -972,11 +978,19 @@ object TileKingdomLogic:
 
         // Must have wood for the bureau fee regardless of what we upgrade
         if game.wood < BureauWoodCostPerUpgrade then return None
+        
+        // In turbo mode, must also have faith - if not, auto-disable turbo mode
+        val gameWithTurboCheck = 
+          if isTurbo && game.faith < BureauTurboFaithCost then
+            game.copy(bureauTurboMode = game.bureauTurboMode.updated(bureauCoord, false))
+          else game
+        
+        val effectiveIsTurbo = isBureauTurbo(gameWithTurboCheck, bureauCoord)
 
         // Filter to only tiles we can afford (including bureau wood fee for wood-cost upgrades)
         val affordableTiles = upgradeableTiles.filter: (_, _, cost) =>
           val extraWoodNeeded = if cost.resource == Resource.Wood then BureauWoodCostPerUpgrade else 0
-          game.canAfford(cost.amount + extraWoodNeeded, cost.resource)
+          gameWithTurboCheck.canAfford(cost.amount + extraWoodNeeded, cost.resource)
 
         // Select the tile with the lowest upgrade cost (comparing numerically)
         affordableTiles.minByOption(_._3.amount).flatMap: (targetCoord, targetTile, cost) =>
@@ -992,11 +1006,16 @@ object TileKingdomLogic:
           val upgradedTile = targetTile.copy(tileType = upgradedTileType)
 
           // Deduct upgrade cost and bureau fee
-          val afterUpgradeCost = game.deduct(cost)
+          val afterUpgradeCost = gameWithTurboCheck.deduct(cost)
           val afterBureauFee = afterUpgradeCost.copy(wood = afterUpgradeCost.wood - BureauWoodCostPerUpgrade)
+          
+          // Deduct faith cost if in turbo mode
+          val afterTurboCost = 
+            if effectiveIsTurbo then afterBureauFee.copy(faith = afterBureauFee.faith - BureauTurboFaithCost)
+            else afterBureauFee
 
-          val newGame = afterBureauFee.copy(
-            tiles = game.tiles.updated(targetCoord, upgradedTile)
+          val newGame = afterTurboCost.copy(
+            tiles = gameWithTurboCheck.tiles.updated(targetCoord, upgradedTile)
           )
           Some((newGame, targetCoord))
       case _ => None
@@ -1042,7 +1061,7 @@ object TileKingdomLogic:
         gold = game.gold + goldReward,
         lastTickTime = currentTimeMillis,
         totalAbdications = game.totalAbdications + 1,
-        bureauBoosts = Map.empty, // Reset bureau boosts since bureaus are destroyed
+        bureauTurboMode = Map.empty, // Reset bureau turbo mode since bureaus are destroyed
         politicianRoster = game.politicianRoster ++ politiciansFromTownHalls // Return politicians to roster
       ))
 

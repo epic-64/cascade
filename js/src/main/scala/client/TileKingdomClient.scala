@@ -1105,24 +1105,27 @@ object TileKingdomClient:
       case TileType.Bureau(level) =>
         tileDiv.classList.add("bureau")
         tileDiv.setAttribute("data-level", level.toString)
-        val boosts = currentGame.bureauBoosts.getOrElse(coord, 0)
+        val isTurbo = TileKingdomLogic.isBureauTurbo(currentGame, coord)
         val speedMultiplier = TileKingdomLogic.bureauSpeedMultiplier(currentGame, coord)
+
+        if isTurbo then tileDiv.classList.add("turbo")
 
         val content = div(cls = "tile-content")(
           div(cls = "tile-icon", content = "🏛️"),
-          div(cls = "tile-label", content = if boosts > 0 then s"x${speedMultiplier.toInt}" else "Bureau")
+          div(cls = "tile-label", content = if isTurbo then s"⚡x${speedMultiplier.toInt}" else "Bureau")
         )
 
         content.appendChild(div(cls = "tile-production", content = s"Auto⬆"))
         
-        // Add boost button if player has enough faith
-        val boostRow = div(cls = "tile-upgrade-row")
-        boostRow.appendChild(button(cls = "btn-boost", content = s"⚡${TileKingdomLogic.FaithBoostCost}✨").tap: btn =>
+        // Add turbo mode toggle button
+        val turboRow = div(cls = "tile-upgrade-row")
+        val turboLabel = if isTurbo then "🐢 Slow" else "⚡ Turbo"
+        turboRow.appendChild(button(cls = s"btn-turbo${if isTurbo then " active" else ""}", content = turboLabel).tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
-            handleBoostBureau(coord)
+            handleToggleBureauTurbo(coord)
         )
-        content.appendChild(boostRow)
+        content.appendChild(turboRow)
 
         tileDiv.appendChild(content)
 
@@ -1589,14 +1592,15 @@ object TileKingdomClient:
       else
         showNotification("Not enough wood")
 
-  private def handleBoostBureau(coord: Coord): Unit =
-    TileKingdomLogic.boostBureau(currentGame, coord) match
+  private def handleToggleBureauTurbo(coord: Coord): Unit =
+    TileKingdomLogic.toggleBureauTurbo(currentGame, coord) match
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
         renderGame()
-        showFloatingReward(coord, TileKingdomLogic.FaithBoostCost, "✨", isSpend = true)
-        showNotification("Bureau speed boosted!")
+        val isTurbo = TileKingdomLogic.isBureauTurbo(newGame, coord)
+        val modeText = if isTurbo then "Turbo mode enabled (10x speed, +100✨/upgrade)" else "Slow mode enabled"
+        showNotification(modeText)
       case Left(error) =>
         showNotification(error)
 
