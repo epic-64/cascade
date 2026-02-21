@@ -7,7 +7,7 @@ import upickle.default.ReadWriter
 // ============================================================================
 
 enum Resource derives ReadWriter:
-  case Wheat, Wood, Faith, Gold
+  case Wheat, Wood, Faith, Gold, Stone
 
 case class Cost(amount: Int, resource: Resource) derives ReadWriter
 
@@ -15,13 +15,15 @@ case class Resources(
     wheat: Double = 0.0,
     wood: Double = 0.0,
     faith: Double = 0.0,
-    gold: Int = 0
+    gold: Int = 0,
+    stone: Double = 0.0
 ) derives ReadWriter:
   def get(resource: Resource): Double = resource match
     case Resource.Wheat => wheat
     case Resource.Wood  => wood
     case Resource.Faith => faith
     case Resource.Gold  => gold.toDouble
+    case Resource.Stone => stone
 
   def canAfford(cost: Cost): Boolean = get(cost.resource) >= cost.amount
 
@@ -34,12 +36,14 @@ case class Resources(
     case Resource.Wood  => copy(wood = wood - amount)
     case Resource.Faith => copy(faith = faith - amount)
     case Resource.Gold  => copy(gold = gold - amount)
+    case Resource.Stone => copy(stone = stone - amount)
 
   def add(amount: Double, resource: Resource): Resources = resource match
     case Resource.Wheat => copy(wheat = wheat + amount)
     case Resource.Wood  => copy(wood = wood + amount)
     case Resource.Faith => copy(faith = faith + amount)
     case Resource.Gold  => copy(gold = gold + amount.toInt)
+    case Resource.Stone => copy(stone = stone + amount)
 
 // ============================================================================
 // Coordinate type for infinite grid
@@ -67,6 +71,7 @@ enum TileType derives ReadWriter:
   case Bureau(level: Int) // auto-upgrades nearby buildings, costs wood
   case Temple(level: Int) // produces faith, costs wood
   case TownHall(politician: Option[Politician]) // has a slot for a politician
+  case Quarry(level: Int) // produces stone
 
 // ============================================================================
 // Politician System
@@ -128,9 +133,13 @@ case class Tile(
     case TileType.TownHall(_) => true
     case _                    => false
 
-  def isBuilding: Boolean = isWheatField || isFarm || isWoodcutter || isBureau || isTemple || isTownHall
+  def isQuarry: Boolean = tileType match
+    case TileType.Quarry(_) => true
+    case _                  => false
 
-  def isUpgradeable: Boolean = isWheatField || isFarm || isWoodcutter || isTemple
+  def isBuilding: Boolean = isWheatField || isFarm || isWoodcutter || isBureau || isTemple || isTownHall || isQuarry
+
+  def isUpgradeable: Boolean = isWheatField || isFarm || isWoodcutter || isTemple || isQuarry
 
   def level: Int = tileType match
     case TileType.WheatField(lvl) => lvl
@@ -138,6 +147,7 @@ case class Tile(
     case TileType.Woodcutter(lvl) => lvl
     case TileType.Bureau(lvl)     => lvl
     case TileType.Temple(lvl)     => lvl
+    case TileType.Quarry(lvl)     => lvl
     case _                        => 0
 
   def upgradeCost: Option[Cost] = tileType match
@@ -145,6 +155,7 @@ case class Tile(
     case TileType.Farm(lvl)       => Some(Cost(TileKingdomLogic.farmLevelUpCost(lvl), Resource.Wheat))
     case TileType.Woodcutter(lvl) => Some(Cost(TileKingdomLogic.woodcutterLevelUpCost(lvl), Resource.Wheat))
     case TileType.Temple(lvl)     => Some(Cost(TileKingdomLogic.templeLevelUpCost(lvl), Resource.Wood))
+    case TileType.Quarry(lvl)     => Some(Cost(TileKingdomLogic.quarryLevelUpCost(lvl), Resource.Stone))
     case _                        => None
 
 // ============================================================================
@@ -157,6 +168,7 @@ case class TileKingdomGame(
     wood: Double, // Wood resource
     faith: Double, // Faith resource from temples
     gold: Int,
+    stone: Double = 0.0, // Stone resource from quarries
     lastTickTime: Long, // Timestamp in milliseconds for offline progress
     totalAbdications: Int,
     bureauBoosts: Map[Coord, Int] = Map.empty, // Number of faith boosts applied to each bureau
@@ -166,7 +178,7 @@ case class TileKingdomGame(
 ) derives ReadWriter:
 
   // Resource helpers
-  def resources: Resources = Resources(wheat, wood, faith, gold)
+  def resources: Resources = Resources(wheat, wood, faith, gold, stone)
 
   def canAfford(cost: Cost): Boolean = resources.canAfford(cost)
 
@@ -177,6 +189,7 @@ case class TileKingdomGame(
     case Resource.Wood  => copy(wood = wood - cost.amount)
     case Resource.Faith => copy(faith = faith - cost.amount)
     case Resource.Gold  => copy(gold = gold - cost.amount)
+    case Resource.Stone => copy(stone = stone - cost.amount)
 
   def unlockedTiles: List[Tile] =
     tiles.values.filter(_.unlocked).toList.sortBy(t => (t.coord.row, t.coord.col))
@@ -223,10 +236,13 @@ object TileKingdomLogic:
   val FaithBoostMultiplier: Double = 10.0 // Each boost increases bureau speed by 1000%
 
   // Town Hall constants
-  val TownHallBuildCost: Int = 300 // Wood cost to build a town hall
+  val TownHallBuildCost: Int = 1000 // Stone cost to build a town hall (first one)
   val TownHallInfluenceRadius: Int = 2 // Town Hall affects tiles within 2 tile radius
   val PoliticianGenerationIntervalSeconds: Int = 300 // 5 minutes = 300 seconds
   val MaxPoliticianRosterSize: Int = 3 // Maximum politicians in roster
+
+  // Quarry constants
+  val QuarryBuildCost: Int = 50 // Wheat cost to build a quarry
 
   // Politician definitions
   val PoliticianPool: List[(String, String, PoliticianEffect, String)] = List(
@@ -364,6 +380,11 @@ object TileKingdomLogic:
     case TileType.Temple(level) => level * 2.0 // 2 faith at level 1, 4 at level 2, etc. (per 10s)
     case _                      => 0.0
 
+  // Base stone production per harvest (stone per 10-second interval)
+  def baseStoneProductionRate(tile: Tile): Double = tile.tileType match
+    case TileType.Quarry(level) => level * 2.0 // 2 stone at level 1, 4 at level 2, etc. (per 10s)
+    case _                      => 0.0
+
   // Legacy alias
   def baseProductionRate(tile: Tile): Double = baseWheatProductionRate(tile)
 
@@ -371,6 +392,7 @@ object TileKingdomLogic:
   def productionPerSecond(tile: Tile): Double = baseWheatProductionRate(tile) / ProductionIntervalSeconds
   def woodProductionPerSecond(tile: Tile): Double = baseWoodProductionRate(tile) / ProductionIntervalSeconds
   def faithProductionPerSecond(tile: Tile): Double = baseFaithProductionRate(tile) / ProductionIntervalSeconds
+  def stoneProductionPerSecond(tile: Tile): Double = baseStoneProductionRate(tile) / ProductionIntervalSeconds
 
   // Calculate farm bonus multiplier for a wheat field at given coord
   def farmBonusMultiplier(game: TileKingdomGame, coord: Coord): Double =
@@ -397,6 +419,10 @@ object TileKingdomLogic:
     if base > 0 then base * townHallFaithMultiplier(game, tile.coord)
     else 0.0
 
+  // Stone production rate for a specific tile per second (no bonuses for now)
+  def stoneProductionRate(game: TileKingdomGame, tile: Tile): Double =
+    stoneProductionPerSecond(tile)
+
   // Legacy method for backwards compatibility
   def productionRate(tile: Tile): Double = productionPerSecond(tile)
 
@@ -418,6 +444,10 @@ object TileKingdomLogic:
     if base > 0 then base * townHallFaithMultiplier(game, tile.coord)
     else 0.0
 
+  // Stone production per harvest for a specific tile (no bonuses for now)
+  def stoneProductionPerHarvest(game: TileKingdomGame, tile: Tile): Double =
+    baseStoneProductionRate(tile)
+
   // Total wheat production rate for the game (all wheat fields with bonuses)
   def totalWheatProductionRate(game: TileKingdomGame): Double =
     game.unlockedTiles.map(tile => productionRate(game, tile)).sum
@@ -429,6 +459,10 @@ object TileKingdomLogic:
   // Total faith production rate
   def totalFaithProductionRate(game: TileKingdomGame): Double =
     game.unlockedTiles.map(tile => faithProductionRate(game, tile)).sum
+
+  // Total stone production rate
+  def totalStoneProductionRate(game: TileKingdomGame): Double =
+    game.unlockedTiles.map(tile => stoneProductionRate(game, tile)).sum
 
   // Cost to build a wheat field on an empty tile
   def wheatFieldBuildCost: Int = 10
@@ -445,8 +479,13 @@ object TileKingdomLogic:
   // Cost to build a temple on an empty tile (costs wood)
   def templeBuildCost: Int = TempleBuildCost
 
-  // Cost to build a town hall on an empty tile (costs wood)
-  def townHallBuildCost: Int = TownHallBuildCost
+  // Cost to build a town hall on an empty tile (costs stone, scales with existing town halls)
+  def townHallBuildCost(game: TileKingdomGame): Int =
+    val existingTownHalls = game.tiles.values.count(_.isTownHall)
+    TownHallBuildCost * math.pow(10, existingTownHalls).toInt
+
+  // Cost to build a quarry on an empty tile (costs wheat)
+  def quarryBuildCost: Int = QuarryBuildCost
 
   // Legacy alias
   def buildCost: Int = wheatFieldBuildCost
@@ -471,6 +510,10 @@ object TileKingdomLogic:
   // Cost to level up a temple (costs wood)
   def templeLevelUpCost(currentLevel: Int): Int =
     currentLevel * 50 * tierMultiplier(currentLevel) // Level 1→2 costs 50 wood, 2→3 costs 100 wood, etc.
+
+  // Cost to level up a quarry (costs stone)
+  def quarryLevelUpCost(currentLevel: Int): Int =
+    currentLevel * 20 * tierMultiplier(currentLevel) // Level 1→2 costs 20 stone, 2→3 costs 40 stone, etc.
 
   // Cost to unlock next tile (linear with tier multiplier every 10 tiles)
   def tileUnlockCost(currentUnlockedCount: Int): Int =
@@ -516,11 +559,13 @@ object TileKingdomLogic:
     val wheatProduced = totalWheatProductionRate(game) * elapsedSeconds
     val woodProduced = totalWoodProductionRate(game) * elapsedSeconds
     val faithProduced = totalFaithProductionRate(game) * elapsedSeconds
+    val stoneProduced = totalStoneProductionRate(game) * elapsedSeconds
 
     game.copy(
       wheat = game.wheat + wheatProduced,
       wood = game.wood + woodProduced,
       faith = game.faith + faithProduced,
+      stone = game.stone + stoneProduced,
       lastTickTime = currentTimeMillis
     )
 
@@ -598,19 +643,35 @@ object TileKingdomLogic:
           wood = game.wood - templeBuildCost
         ))
 
-  // Build a town hall on an empty tile (costs wood, requires at least one wheat field)
+  // Build a town hall on an empty tile (costs stone, requires at least one wheat field)
   def buildTownHall(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
+    val cost = townHallBuildCost(game)
     game.tiles.get(coord) match
-      case None                                         => Left("Tile not found")
-      case Some(tile) if !tile.unlocked                 => Left("Tile is locked")
-      case Some(tile) if !tile.isEmpty                  => Left("Tile is not empty")
-      case Some(_) if !game.hasWheatField               => Left("Build a wheat field first")
-      case Some(tile) if game.wood < townHallBuildCost  => Left(s"Not enough wood (need $townHallBuildCost)")
+      case None                                => Left("Tile not found")
+      case Some(tile) if !tile.unlocked        => Left("Tile is locked")
+      case Some(tile) if !tile.isEmpty         => Left("Tile is not empty")
+      case Some(_) if !game.hasWheatField      => Left("Build a wheat field first")
+      case Some(tile) if game.stone < cost     => Left(s"Not enough stone (need $cost)")
       case Some(tile) =>
         val updatedTile = tile.copy(tileType = TileType.TownHall(None))
         Right(game.copy(
           tiles = game.tiles.updated(coord, updatedTile),
-          wood = game.wood - townHallBuildCost
+          stone = game.stone - cost
+        ))
+
+  // Build a quarry on an empty tile (costs wheat, requires at least one wheat field)
+  def buildQuarry(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
+    game.tiles.get(coord) match
+      case None                                       => Left("Tile not found")
+      case Some(tile) if !tile.unlocked               => Left("Tile is locked")
+      case Some(tile) if !tile.isEmpty                => Left("Tile is not empty")
+      case Some(_) if !game.hasWheatField             => Left("Build a wheat field first")
+      case Some(tile) if game.wheat < quarryBuildCost => Left(s"Not enough wheat (need $quarryBuildCost)")
+      case Some(tile) =>
+        val updatedTile = tile.copy(tileType = TileType.Quarry(1))
+        Right(game.copy(
+          tiles = game.tiles.updated(coord, updatedTile),
+          wheat = game.wheat - quarryBuildCost
         ))
 
   // Assign a politician from the roster to a town hall (allows swapping)
@@ -713,6 +774,23 @@ object TileKingdomLogic:
               ))
           case _ => Left("Tile is not a temple")
 
+  // Level up a quarry (costs stone)
+  def levelUpQuarry(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
+    game.tiles.get(coord) match
+      case None => Left("Tile not found")
+      case Some(tile) => tile.tileType match
+          case TileType.Quarry(level) =>
+            val cost = quarryLevelUpCost(level)
+            if game.stone < cost then
+              Left(s"Not enough stone (need $cost)")
+            else
+              val updatedTile = tile.copy(tileType = TileType.Quarry(level + 1))
+              Right(game.copy(
+                tiles = game.tiles.updated(coord, updatedTile),
+                stone = game.stone - cost
+              ))
+          case _ => Left("Tile is not a quarry")
+
   // Boost a bureau's speed with faith
   def boostBureau(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
@@ -764,6 +842,7 @@ object TileKingdomLogic:
             case TileType.Farm(lvl)       => TileType.Farm(lvl + 1)
             case TileType.Woodcutter(lvl) => TileType.Woodcutter(lvl + 1)
             case TileType.Temple(lvl)     => TileType.Temple(lvl + 1)
+            case TileType.Quarry(lvl)     => TileType.Quarry(lvl + 1)
             case other                    => other
 
           val upgradedTile = targetTile.copy(tileType = upgradedTileType)
@@ -815,6 +894,7 @@ object TileKingdomLogic:
         wheat = 50.0, // Reset wheat, give starting amount
         wood = 0.0, // Reset wood
         faith = 0.0, // Reset faith
+        stone = 0.0, // Reset stone
         gold = game.gold + goldReward,
         lastTickTime = currentTimeMillis,
         totalAbdications = game.totalAbdications + 1,
