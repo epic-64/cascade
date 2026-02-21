@@ -20,6 +20,7 @@ object TileKingdomClient:
     case Resource.Wood  => "🪵"
     case Resource.Faith => "✨"
     case Resource.Gold  => "💰"
+    case Resource.Stone => "🪨"
 
   // Track progress (0.0 to 1.0) for each wheat field tile
   private var tileProgress: Map[Coord, Double] = Map.empty
@@ -126,6 +127,11 @@ object TileKingdomClient:
         span(cls = "resource-label", content = "🪵"),
         span(id = "tile-kingdom-wood", cls = "resource-value", content = "0"),
         span(id = "tile-kingdom-wood-income", cls = "resource-income", content = "")
+      ),
+      div(cls = "resource-item")(
+        span(cls = "resource-label", content = "🪨"),
+        span(id = "tile-kingdom-stone", cls = "resource-value", content = "0"),
+        span(id = "tile-kingdom-stone-income", cls = "resource-income", content = "")
       ),
       div(cls = "resource-item")(
         span(cls = "resource-label", content = "✨"),
@@ -457,10 +463,12 @@ object TileKingdomClient:
     var totalWheatHarvested = 0.0
     var totalWoodHarvested = 0.0
     var totalFaithHarvested = 0.0
+    var totalStoneHarvested = 0.0
 
     val wheatFields = currentGame.unlockedTiles.filter(_.isWheatField)
     val woodcutters = currentGame.unlockedTiles.filter(_.isWoodcutter)
     val temples = currentGame.unlockedTiles.filter(_.isTemple)
+    val quarries = currentGame.unlockedTiles.filter(_.isQuarry)
 
     // Process wheat fields
     wheatFields.foreach: tile =>
@@ -507,12 +515,28 @@ object TileKingdomClient:
       else
         tileProgress = tileProgress.updated(tile.coord, newProgress)
 
+    // Process quarries
+    quarries.foreach: tile =>
+      val currentProgress = getOrInitProgress(tile.coord)
+      val progressIncrement = elapsedMs / ProductionIntervalMs
+      val newProgress = currentProgress + progressIncrement
+
+      if newProgress >= 1.0 then
+        val harvests = newProgress.toInt
+        val production = TileKingdomLogic.stoneProductionPerHarvest(currentGame, tile)
+        totalStoneHarvested += production * harvests
+        tileProgress = tileProgress.updated(tile.coord, newProgress - harvests)
+        showFloatingReward(tile.coord, (production * harvests).toInt, "🪨")
+      else
+        tileProgress = tileProgress.updated(tile.coord, newProgress)
+
     // Process bureaus
     val bureaus = currentGame.unlockedTiles.filter(_.isBureau)
     var updatedGame = currentGame.copy(
       wheat = currentGame.wheat + totalWheatHarvested,
       wood = currentGame.wood + totalWoodHarvested,
       faith = currentGame.faith + totalFaithHarvested,
+      stone = currentGame.stone + totalStoneHarvested,
       lastTickTime = currentTime
     )
 
@@ -537,6 +561,7 @@ object TileKingdomClient:
               case TileType.Farm(lvl)       => TileType.Farm(lvl - 1)
               case TileType.Woodcutter(lvl) => TileType.Woodcutter(lvl - 1)
               case TileType.Temple(lvl)     => TileType.Temple(lvl - 1)
+              case TileType.Quarry(lvl)     => TileType.Quarry(lvl - 1)
               case other                    => other
             ))
             val upgradeCostOpt = previousTile.flatMap(_.upgradeCost)
@@ -629,6 +654,7 @@ object TileKingdomClient:
   private def renderResources(): Unit =
     setElementText("tile-kingdom-wheat", f"${currentGame.wheat.toInt}%,d")
     setElementText("tile-kingdom-wood", f"${currentGame.wood.toInt}%,d")
+    setElementText("tile-kingdom-stone", f"${currentGame.stone.toInt}%,d")
     setElementText("tile-kingdom-faith", f"${currentGame.faith.toInt}%,d")
     setElementText("tile-kingdom-gold", f"${currentGame.gold}%,d")
     setElementText("tile-kingdom-abdications", currentGame.totalAbdications.toString)
@@ -636,10 +662,12 @@ object TileKingdomClient:
     // Individual income rates
     val wheatIncome = TileKingdomLogic.totalWheatProductionRate(currentGame)
     val woodIncome = TileKingdomLogic.totalWoodProductionRate(currentGame)
+    val stoneIncome = TileKingdomLogic.totalStoneProductionRate(currentGame)
     val faithIncome = TileKingdomLogic.totalFaithProductionRate(currentGame)
 
     setElementText("tile-kingdom-wheat-income", formatIncome(wheatIncome))
     setElementText("tile-kingdom-wood-income", formatIncome(woodIncome))
+    setElementText("tile-kingdom-stone-income", formatIncome(stoneIncome))
     setElementText("tile-kingdom-faith-income", formatIncome(faithIncome))
 
     // Total income
@@ -774,7 +802,8 @@ object TileKingdomClient:
         val woodcutterCost = TileKingdomLogic.woodcutterBuildCost
         val bureauCost = TileKingdomLogic.bureauBuildCost
         val templeCost = TileKingdomLogic.templeBuildCost
-        val townHallCost = TileKingdomLogic.townHallBuildCost
+        val townHallCost = TileKingdomLogic.townHallBuildCost(currentGame)
+        val quarryCost = TileKingdomLogic.quarryBuildCost
         val canBuildOthers = currentGame.hasWheatField
 
         // Build icon container (shown by default)
@@ -850,9 +879,17 @@ object TileKingdomClient:
               handleBuildTemple(coord)
           )
           buildOptions.appendChild(div(cls = "build-option").tap: opt =>
+            opt.appendChild(div(cls = "build-icon", content = "⛏️"))
+            opt.appendChild(div(cls = "build-name", content = "Quarry"))
+            opt.appendChild(div(cls = "build-cost", content = s"$quarryCost🌾"))
+            opt.onclick = (e: MouseEvent) =>
+              e.stopPropagation()
+              handleBuildQuarry(coord)
+          )
+          buildOptions.appendChild(div(cls = "build-option").tap: opt =>
             opt.appendChild(div(cls = "build-icon", content = "🏛️"))
             opt.appendChild(div(cls = "build-name", content = "Town Hall"))
-            opt.appendChild(div(cls = "build-cost", content = s"$townHallCost🪵"))
+            opt.appendChild(div(cls = "build-cost", content = s"$townHallCost🪨"))
             opt.onclick = (e: MouseEvent) =>
               e.stopPropagation()
               handleBuildTownHall(coord)
@@ -1062,6 +1099,44 @@ object TileKingdomClient:
           e.preventDefault()
           handleDestroyBuilding(coord)
 
+      case TileType.Quarry(level) =>
+        tileDiv.classList.add("quarry")
+        tileDiv.setAttribute("data-level", level.toString)
+        val stoneAmount = TileKingdomLogic.stoneProductionPerHarvest(currentGame, tile)
+        val upgradeCost = TileKingdomLogic.quarryLevelUpCost(level)
+
+        val content = div(cls = "tile-content")(
+          div(cls = "tile-icon", content = "⛏️"),
+          div(cls = "tile-label", content = s"Lv$level")
+        )
+
+        val prodDiv = div(cls = "tile-production quarry-production", content = s"+${stoneAmount.toInt}🪨")
+        content.appendChild(prodDiv)
+
+        val upgradeRow = div(cls = "tile-upgrade-row")
+        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost🪨"))
+        upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
+          btn.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            handleBulkLevelUp(coord, 10, TileKingdomLogic.levelUpQuarry, TileKingdomLogic.quarryLevelUpCost, "🪨")
+        )
+        content.appendChild(upgradeRow)
+
+        tileDiv.appendChild(content)
+
+        // Add progress bar
+        val progress = tileProgress.getOrElse(coord, 0.0)
+        val progressContainer = div(cls = "tile-progress-container")
+        val progressBar = div(id = s"progress-bar-${coord.row}-${coord.col}", cls = "tile-progress-bar quarry-progress")
+        progressBar.style.width = s"${(progress * 100).toInt}%"
+        progressContainer.appendChild(progressBar)
+        tileDiv.appendChild(progressContainer)
+
+        tileDiv.onclick = (_: MouseEvent) => handleLevelUpQuarry(coord)
+        tileDiv.oncontextmenu = (e: MouseEvent) =>
+          e.preventDefault()
+          handleDestroyBuilding(coord)
+
       case TileType.TownHall(politician) =>
         tileDiv.classList.add("town-hall")
 
@@ -1206,14 +1281,26 @@ object TileKingdomClient:
         showNotification(error)
 
   private def handleBuildTownHall(coord: Coord): Unit =
-    val cost = TileKingdomLogic.townHallBuildCost
+    val cost = TileKingdomLogic.townHallBuildCost(currentGame)
     TileKingdomLogic.buildTownHall(currentGame, coord) match
       case Right(newGame) =>
         selectingTileCoord = None
         currentGame = newGame
         saveGame()
         renderGame()
-        showFloatingReward(coord, cost, "🪵", isSpend = true)
+        showFloatingReward(coord, cost, "🪨", isSpend = true)
+      case Left(error) =>
+        showNotification(error)
+
+  private def handleBuildQuarry(coord: Coord): Unit =
+    val cost = TileKingdomLogic.quarryBuildCost
+    TileKingdomLogic.buildQuarry(currentGame, coord) match
+      case Right(newGame) =>
+        selectingTileCoord = None
+        currentGame = newGame
+        saveGame()
+        renderGame()
+        showFloatingReward(coord, cost, "🌾", isSpend = true)
       case Left(error) =>
         showNotification(error)
 
@@ -1286,7 +1373,8 @@ object TileKingdomClient:
                                  coord: Coord,
                                  count: Int,
                                  levelUpFn: (TileKingdomGame, Coord) => Either[String, TileKingdomGame],
-                                 costFn: Int => Int
+                                 costFn: Int => Int,
+                                 costEmoji: String = "🌾"
   ): Unit =
     currentGame.tiles.get(coord).foreach: tile =>
       var game = currentGame
@@ -1307,10 +1395,10 @@ object TileKingdomClient:
         currentGame = game
         saveGame()
         renderGame()
-        showFloatingReward(coord, totalCost, "🌾", isSpend = true)
+        showFloatingReward(coord, totalCost, costEmoji, isSpend = true)
         showFloatingLevel(coord, currentLevel)
       else
-        showNotification("Not enough wheat")
+        showNotification(s"Not enough resources")
 
   private def handleLevelUpTemple(coord: Coord): Unit =
     currentGame.tiles.get(coord).foreach: tile =>
@@ -1321,6 +1409,19 @@ object TileKingdomClient:
           saveGame()
           renderGame()
           showFloatingReward(coord, cost, "🪵", isSpend = true)
+          showFloatingLevel(coord, tile.level + 1)
+        case Left(error) =>
+          showNotification(error)
+
+  private def handleLevelUpQuarry(coord: Coord): Unit =
+    currentGame.tiles.get(coord).foreach: tile =>
+      val cost = TileKingdomLogic.quarryLevelUpCost(tile.level)
+      TileKingdomLogic.levelUpQuarry(currentGame, coord) match
+        case Right(newGame) =>
+          currentGame = newGame
+          saveGame()
+          renderGame()
+          showFloatingReward(coord, cost, "🪨", isSpend = true)
           showFloatingLevel(coord, tile.level + 1)
         case Left(error) =>
           showNotification(error)
