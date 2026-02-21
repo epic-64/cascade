@@ -138,6 +138,10 @@ object TileKingdomClient:
       div(cls = "resource-item income")(
         span(cls = "resource-label", content = "📈"),
         span(id = "tile-kingdom-income", cls = "resource-value", content = "0/s")
+      ),
+      div(cls = "resource-item unlock-costs")(
+        span(cls = "resource-label", content = "🔓"),
+        span(id = "tile-kingdom-unlock-costs", cls = "unlock-costs-value")
       )
     )
 
@@ -637,6 +641,13 @@ object TileKingdomClient:
     val income = currentGame.totalIncomeRate
     val incomeText = if income >= 1.0 then f"${income.toInt}%,d/s" else f"$income%.1f/s"
     setElementText("tile-kingdom-income", incomeText)
+
+    // Next 3 tile unlock costs
+    val currentTileCount = currentGame.unlockedTiles.size
+    val nextCosts = (0 until 3).map: i =>
+      TileKingdomLogic.tileUnlockCost(currentTileCount + i)
+    val costsText = nextCosts.map(c => f"$c%,d").mkString(" → ")
+    setElementText("tile-kingdom-unlock-costs", costsText)
 
   private def formatIncome(rate: Double): String =
     if rate <= 0 then ""

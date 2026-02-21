@@ -106,6 +106,21 @@
   color: #16a34a;
 }
 
+.resource-item.unlock-costs {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.15) 100%);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.unlock-costs-value {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-yellow);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Infinite Grid Container */
 .tile-kingdom-grid-viewport {
   position: absolute;
@@ -958,10 +973,10 @@
 
 .politician-roster {
   position: fixed;
-  top: 280px;
+  top: 320px;
   left: 1rem;
   width: 180px;
-  max-height: calc(100vh - 320px);
+  max-height: calc(100vh - 360px);
   z-index: 100;
   background: var(--bg-primary);
   padding: 0.75rem;
