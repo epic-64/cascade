@@ -1160,8 +1160,8 @@
 
 .roster-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.25rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border-medium);
 }
@@ -1172,10 +1172,24 @@
   color: var(--text-primary);
 }
 
+.roster-stats {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .roster-timer {
   font-size: 0.65rem;
   color: var(--text-secondary);
   font-family: monospace;
+}
+
+.roster-rare-chance {
+  font-size: 0.6rem;
+  color: #f59e0b;
+  font-weight: 600;
 }
 
 .roster-list {
