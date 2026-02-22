@@ -96,7 +96,7 @@
 
 .resource-value {
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   color: var(--text-primary);
 }
 
@@ -406,7 +406,7 @@
 
 /* Bureau turbo toggle button */
 .btn-turbo {
-  font-size: 0.5rem;
+  font-size: 0.65rem;
   font-weight: 700;
   padding: 1px 4px;
   border: none;
@@ -440,7 +440,7 @@
 }
 
 .btn-bureau-mode {
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   font-weight: 700;
   padding: 2px 6px;
   border: none;
@@ -479,7 +479,7 @@
 
 /* Bureau cost indicator */
 .bureau-cost {
-  font-size: 0.55rem;
+  font-size: 0.7rem;
   color: #64748b;
   font-weight: 600;
   margin-top: 1px;
@@ -656,7 +656,7 @@
 }
 
 .tile-build-icon-container .build-label {
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   color: #94a3b8;
   margin-top: 2px;
 }
@@ -762,7 +762,7 @@
 }
 
 .build-icon {
-  font-size: 0.8rem;
+  font-size: 0.65rem;
   line-height: 1;
   flex-shrink: 0;
 }
@@ -793,7 +793,7 @@
 /* Bonus indicator on wheat fields */
 .bonus {
   color: #15803d;
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 
@@ -837,7 +837,7 @@
 }
 
 .btn-x10 {
-  font-size: 0.5rem;
+  font-size: 0.65rem;
   font-weight: 700;
   padding: 1px 4px;
   border: none;
@@ -877,7 +877,7 @@
 
 .tile-kingdom-actions button {
   padding: 0.75rem 1.5rem;
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   font-weight: 700;
   border-radius: var(--radius-md);
   border: none;
@@ -955,7 +955,7 @@
   width: 100%;
   padding: 0.75rem 1rem;
   margin-bottom: 0.5rem;
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   font-weight: 600;
   border: none;
   border-radius: var(--radius-md);
@@ -1046,7 +1046,7 @@
 .help-popup-body p {
   margin: 0 0 0.75rem 0;
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   line-height: 1.5;
 }
 
@@ -1071,7 +1071,7 @@
   z-index: 1001;
   max-width: 90%;
   text-align: center;
-  font-size: 0.9rem;
+  font-size: 0.75rem;
 }
 
 .notification.show {
@@ -1132,18 +1132,18 @@
 }
 
 .tile-kingdom-tile.town-hall .slot-label {
-  font-size: 0.5rem;
+  font-size: 0.65rem;
   color: #92400e;
   font-weight: 500;
 }
 
 .tile-kingdom-tile.town-hall .politician-emoji-small {
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   line-height: 1;
 }
 
 .tile-kingdom-tile.town-hall .politician-effect-small {
-  font-size: 0.45rem;
+  font-size: 0.75rem;
   color: #78350f;
   font-weight: 600;
   text-align: center;
@@ -1151,7 +1151,7 @@
 }
 
 .tile-kingdom-tile.town-hall .politician-lifespan {
-  font-size: 0.5rem;
+  font-size: 0.65rem;
   font-weight: 600;
   padding: 1px 4px;
   border-radius: 3px;
@@ -1219,13 +1219,13 @@
 }
 
 .tile-kingdom-tile.academy .tile-label {
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #4c1d95;
 }
 
 .tile-kingdom-tile.academy .academy-mode {
-  font-size: 0.55rem;
+  font-size: 0.7rem;
   font-weight: 500;
   color: #5b21b6;
   background: rgba(255, 255, 255, 0.5);
@@ -1234,7 +1234,7 @@
 }
 
 .tile-kingdom-tile.academy .btn-toggle-mode {
-  font-size: 0.5rem;
+  font-size: 0.65rem;
   padding: 2px 6px;
   background: rgba(124, 58, 237, 0.2);
   border: 1px solid rgba(124, 58, 237, 0.4);
@@ -1278,13 +1278,13 @@
 }
 
 .tile-kingdom-tile.tavern .tile-label {
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #78350f;
 }
 
 .tile-kingdom-tile.tavern .tavern-effect {
-  font-size: 0.5rem;
+  font-size: 0.65rem;
   font-weight: 600;
   color: #92400e;
   background: rgba(255, 255, 255, 0.5);
@@ -1317,7 +1317,7 @@
 }
 
 .roster-title {
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   font-weight: 700;
   color: var(--text-primary);
 }
@@ -1337,7 +1337,7 @@
 }
 
 .roster-rare-chance {
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   color: #f59e0b;
   font-weight: 600;
 }
@@ -1432,7 +1432,7 @@
 }
 
 .politician-card .politician-title {
-  font-size: 0.55rem;
+  font-size: 0.7rem;
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
@@ -1440,13 +1440,13 @@
 }
 
 .politician-card .politician-effect {
-  font-size: 0.55rem;
+  font-size: 0.7rem;
   color: var(--accent-green);
   font-weight: 600;
 }
 
 .politician-card .politician-roster-lifespan {
-  font-size: 0.5rem;
+  font-size: 0.65rem;
   font-weight: 600;
   padding: 2px 6px;
   border-radius: 4px;
@@ -1486,7 +1486,7 @@
 }
 
 .politician-trash i {
-  font-size: 0.9rem;
+  font-size: 0.75rem;
 }
 
 .politician-trash.drag-over {
@@ -1557,7 +1557,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   font-weight: 700;
   color: #22c55e;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -1688,13 +1688,13 @@
 
 .welcome-time {
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   margin-bottom: 1rem;
 }
 
 .welcome-subtitle {
   color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   margin-bottom: 0.75rem;
 }
 
