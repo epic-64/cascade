@@ -537,27 +537,27 @@
 
 /* Quarry Tiles */
 .tile-kingdom-tile.quarry {
-  background: #e7e5e4;
+  background: #f5f5f4;
   border: 2px solid #a8a29e;
 }
 
 .tile-kingdom-tile.quarry:hover {
-  background: #d6d3d1;
+  background: #e7e5e4;
   transform: scale(1.08);
   box-shadow: var(--shadow-lg);
   z-index: 10;
 }
 
 .tile-kingdom-tile.quarry[data-level="2"] {
-  background: #d6d3d1;
+  background: #e7e5e4;
   border-color: #78716c;
 }
 
 .tile-kingdom-tile.quarry[data-level="3"],
 .tile-kingdom-tile.quarry[data-level="4"],
 .tile-kingdom-tile.quarry[data-level="5"] {
-  background: #a8a29e;
-  border-color: #57534e;
+  background: #d6d3d1;
+  border-color: #78716c;
 }
 
 .tile-kingdom-tile.quarry[data-level="6"],
@@ -565,8 +565,8 @@
 .tile-kingdom-tile.quarry[data-level="8"],
 .tile-kingdom-tile.quarry[data-level="9"],
 .tile-kingdom-tile.quarry[data-level="10"] {
-  background: #78716c;
-  border-color: #44403c;
+  background: #c7c4c1;
+  border-color: #57534e;
 }
 
 /* Text colors for quarry tiles */
