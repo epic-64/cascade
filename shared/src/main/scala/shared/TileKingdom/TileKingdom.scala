@@ -73,10 +73,11 @@ enum AcademyMode derives ReadWriter:
 
 // Individual skill nodes within a branch
 enum Skill derives ReadWriter:
-  // Agriculture branch (dual track at level 1)
+  // Agriculture branch (dual track at level 1 and 2)
   case Agriculture1A // Fields start at level 10
   case Agriculture1B // Fields produce 25% faster
-  case Agriculture2 // Farms start at level 10
+  case Agriculture2A // Farms start at level 10
+  case Agriculture2B // Farms bonus applies to forests at half strength
   // Management branch
   case Management1 // Politician roster holds 2 additional politicians
   case Management2 // Town halls are 10x cheaper to build
@@ -90,7 +91,7 @@ enum Skill derives ReadWriter:
 object Skill:
   // Get skill branch name
   def branchName(skill: Skill): String = skill match
-    case Agriculture1A | Agriculture1B | Agriculture2 => "Agriculture"
+    case Agriculture1A | Agriculture1B | Agriculture2A | Agriculture2B => "Agriculture"
     case Management1 | Management2 => "Management"
     case Wisdom1 | Wisdom2 => "Wisdom"
     case Education1 | Education2 => "Education"
@@ -99,7 +100,8 @@ object Skill:
   def description(skill: Skill): String = skill match
     case Agriculture1A => "Fields start at level 10"
     case Agriculture1B => "Fields produce 25% faster"
-    case Agriculture2 => "Farms start at level 10"
+    case Agriculture2A => "Farms start at level 10"
+    case Agriculture2B => "Farms boost forests at half strength"
     case Management1 => "Politician roster holds 2 additional politicians"
     case Management2 => "Town halls are 10x cheaper to build"
     case Wisdom1 => "Quarries produce 25% more stone per neighboring forest"
@@ -110,12 +112,12 @@ object Skill:
   // Get skill cost (position in branch)
   def cost(skill: Skill): Int = skill match
     case Agriculture1A | Agriculture1B | Management1 | Wisdom1 | Education1 => 1
-    case Agriculture2 | Management2 | Wisdom2 | Education2 => 2
+    case Agriculture2A | Agriculture2B | Management2 | Wisdom2 | Education2 => 2
 
   // Get prerequisite skill (if any)
   def prerequisite(skill: Skill): Option[Skill] = skill match
     case Agriculture1A | Agriculture1B | Management1 | Wisdom1 | Education1 => None
-    case Agriculture2 => None // Either Agriculture1A or Agriculture1B, handled by alternativePrerequisites
+    case Agriculture2A | Agriculture2B => None // Either Agriculture1A or Agriculture1B, handled by alternativePrerequisites
     case Management2 => Some(Management1)
     case Wisdom2 => Some(Wisdom1)
     case Education2 => Some(Education1)
@@ -123,18 +125,20 @@ object Skill:
   // Get alternative prerequisites (for dual track choices)
   // Returns the set of skills where having ANY ONE unlocked satisfies the prerequisite
   def alternativePrerequisites(skill: Skill): Option[Set[Skill]] = skill match
-    case Agriculture2 => Some(Set(Agriculture1A, Agriculture1B))
+    case Agriculture2A | Agriculture2B => Some(Set(Agriculture1A, Agriculture1B))
     case _ => None
 
   // Get mutually exclusive skill (choosing one locks out the other)
   def mutuallyExclusive(skill: Skill): Option[Skill] = skill match
     case Agriculture1A => Some(Agriculture1B)
     case Agriculture1B => Some(Agriculture1A)
+    case Agriculture2A => Some(Agriculture2B)
+    case Agriculture2B => Some(Agriculture2A)
     case _ => None
 
   // Get all skills in a branch, in order (dual track alternatives grouped together)
   def branchSkills(branchName: String): List[Skill] = branchName match
-    case "Agriculture" => List(Agriculture1A, Agriculture1B, Agriculture2)
+    case "Agriculture" => List(Agriculture1A, Agriculture1B, Agriculture2A, Agriculture2B)
     case "Management" => List(Management1, Management2)
     case "Wisdom" => List(Wisdom1, Wisdom2)
     case "Education" => List(Education1, Education2)
@@ -745,16 +749,25 @@ object TileKingdomLogic:
   def agriculture1BMultiplier(game: TileKingdomGame): Double =
     if game.hasSkill(Skill.Agriculture1B) then 1.25 else 1.0
 
+  // Agriculture2B: Farm bonus applies to forests at half strength
+  def agriculture2BFarmBonusMultiplier(game: TileKingdomGame, coord: Coord): Double =
+    if game.hasSkill(Skill.Agriculture2B) then
+      val farmBonus = coord.neighbors.toList.flatMap(game.tiles.get).collect:
+        case tile if tile.isFarm => tile.level * FarmBoostPerLevel * 0.5 // Half strength
+      .sum
+      1.0 + farmBonus
+    else 1.0
+
   // Production rate for a specific tile per second (with farm bonuses and town hall bonuses applied)
   def productionRate(game: TileKingdomGame, tile: Tile): Double =
     val base = productionPerSecond(tile)
     if base > 0 then base * farmBonusMultiplier(game, tile.coord) * townHallWheatMultiplier(game, tile.coord) * agriculture1BMultiplier(game)
     else 0.0
 
-  // Wood production rate for a specific tile per second (with forest group bonus and town hall bonuses)
+  // Wood production rate for a specific tile per second (with forest group bonus, town hall bonuses, and Agriculture2B)
   def woodProductionRate(game: TileKingdomGame, tile: Tile): Double =
     val base = woodProductionPerSecond(tile)
-    if base > 0 then base * forestGroupBonusMultiplier(game, tile.coord) * townHallWoodMultiplier(game, tile.coord)
+    if base > 0 then base * forestGroupBonusMultiplier(game, tile.coord) * townHallWoodMultiplier(game, tile.coord) * agriculture2BFarmBonusMultiplier(game, tile.coord)
     else 0.0
 
   // Faith production rate for a specific tile per second (with town hall bonuses and Wisdom2)
@@ -778,10 +791,10 @@ object TileKingdomLogic:
     if base > 0 then base * farmBonusMultiplier(game, tile.coord) * townHallWheatMultiplier(game, tile.coord) * agriculture1BMultiplier(game)
     else 0.0
 
-  // Wood production per harvest for a specific tile (with forest group bonus and town hall bonuses)
+  // Wood production per harvest for a specific tile (with forest group bonus, town hall bonuses, and Agriculture2B)
   def woodProductionPerHarvest(game: TileKingdomGame, tile: Tile): Double =
     val base = baseWoodProductionRate(tile)
-    if base > 0 then base * forestGroupBonusMultiplier(game, tile.coord) * townHallWoodMultiplier(game, tile.coord)
+    if base > 0 then base * forestGroupBonusMultiplier(game, tile.coord) * townHallWoodMultiplier(game, tile.coord) * agriculture2BFarmBonusMultiplier(game, tile.coord)
     else 0.0
 
   // Faith production per harvest for a specific tile (with town hall bonuses and Wisdom2)
@@ -942,7 +955,7 @@ object TileKingdomLogic:
       case Some(_) if !game.hasWheatField           => Left("Build a wheat field first")
       case Some(tile) if game.wheat < farmBuildCost => Left(s"Not enough wheat (need $farmBuildCost)")
       case Some(tile) =>
-        val startLevel = if game.hasSkill(Skill.Agriculture2) then 10 else 1
+        val startLevel = if game.hasSkill(Skill.Agriculture2A) then 10 else 1
         val updatedTile = tile.copy(tileType = TileType.Farm(startLevel))
         Right(game.copy(
           tiles = game.tiles.updated(coord, updatedTile),
