@@ -1230,6 +1230,13 @@ object TileKingdomClient:
 
         content.appendChild(div(cls = "tile-production", content = s"Auto⬆"))
         
+        // Show upgrade cost
+        val costText = if isTurbo then
+          s"${TileKingdomLogic.BureauWoodCostPerUpgrade}🪵 ${TileKingdomLogic.BureauTurboFaithCost}✨"
+        else
+          s"${TileKingdomLogic.BureauWoodCostPerUpgrade}🪵"
+        content.appendChild(div(cls = "bureau-cost", content = costText))
+        
         // Add mode toggle buttons side by side
         val modeRow = div(cls = "bureau-mode-row")
 

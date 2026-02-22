@@ -475,6 +475,14 @@
   cursor: not-allowed;
 }
 
+/* Bureau cost indicator */
+.bureau-cost {
+  font-size: 0.55rem;
+  color: #64748b;
+  font-weight: 600;
+  margin-top: 1px;
+}
+
 /* Temple Tiles */
 .tile-kingdom-tile.temple {
   background: #fefce8;
