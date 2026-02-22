@@ -19,9 +19,9 @@
 - [x] the 10x upgrade button on tiles should only upgrade to the next level divisible by 10. E.g. clicking 10x upgrade on a level 16 quarry should upgrade it to level 20 (or less if you don't have enough resources), not level 26.
 - [x] the temple should cost 10k wood to build
 - [x] if the player does not have enough of a resource to build a building, display the resource as red in the build menu
+- [x] large numbers should be displayed in a more compact format (e.g. 1.2k, 3.4M, etc.)
 
 ## Todos
-- [ ] large numbers should be displayed in a more compact format (e.g. 1.2k, 3.4M, etc.)
 - [ ] add a second tier prestige system, called "Sail". The button unlocks once you reach 25 tiles.
   - When sailing, all your resources including gold reset, and your tile count resets as well.
   - For every tile destroyed in this way, you collect a Legacy Point.

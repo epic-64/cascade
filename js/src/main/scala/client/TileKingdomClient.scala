@@ -75,6 +75,26 @@ object TileKingdomClient:
     val remainder = currentLevel % 10
     if remainder == 0 then 10 else 10 - remainder
 
+  // Format large numbers compactly (e.g. 1.2k, 3.4M, 5.6B)
+  private def formatNumber(n: Double): String =
+    val absN = math.abs(n)
+    val sign = if n < 0 then "-" else ""
+    if absN >= 1_000_000_000 then
+      val v = absN / 1_000_000_000
+      f"$sign$v%.1fB"
+    else if absN >= 1_000_000 then
+      val v = absN / 1_000_000
+      f"$sign$v%.1fM"
+    else if absN >= 10_000 then
+      val v = absN / 1_000
+      f"$sign$v%.1fk"
+    else if absN >= 1 then s"$sign${absN.toInt}"
+    else if absN > 0 then f"$sign$absN%.1f"
+    else "0"
+
+  // Format number for integer values
+  private def formatNumber(n: Int): String = formatNumber(n.toDouble)
+
   // Helper to create a build option with cost checking
   private def buildOption(
     icon: String,
@@ -88,7 +108,7 @@ object TileKingdomClient:
       opt.appendChild(div(cls = "build-icon", content = icon))
       opt.appendChild(div(cls = "build-name", content = name))
       val costCls = if hasEnough then "build-cost" else "build-cost insufficient"
-      opt.appendChild(div(cls = costCls, content = s"$cost$resourceEmoji"))
+      opt.appendChild(div(cls = costCls, content = s"${formatNumber(cost)}$resourceEmoji"))
       opt.onclick = (e: MouseEvent) =>
         e.stopPropagation()
         handler
@@ -762,11 +782,11 @@ object TileKingdomClient:
     renderAbdicationButton()
 
   private def renderResources(): Unit =
-    setElementText("tile-kingdom-wheat", f"${currentGame.wheat.toInt}%,d")
-    setElementText("tile-kingdom-wood", f"${currentGame.wood.toInt}%,d")
-    setElementText("tile-kingdom-stone", f"${currentGame.stone.toInt}%,d")
-    setElementText("tile-kingdom-faith", f"${currentGame.faith.toInt}%,d")
-    setElementText("tile-kingdom-gold", f"${currentGame.gold}%,d")
+    setElementText("tile-kingdom-wheat", formatNumber(currentGame.wheat))
+    setElementText("tile-kingdom-wood", formatNumber(currentGame.wood))
+    setElementText("tile-kingdom-stone", formatNumber(currentGame.stone))
+    setElementText("tile-kingdom-faith", formatNumber(currentGame.faith))
+    setElementText("tile-kingdom-gold", formatNumber(currentGame.gold))
     setElementText("tile-kingdom-abdications", currentGame.totalAbdications.toString)
 
     // Individual income rates
@@ -782,20 +802,18 @@ object TileKingdomClient:
 
     // Total income
     val income = currentGame.totalIncomeRate
-    val incomeText = if income >= 1.0 then f"${income.toInt}%,d/s" else f"$income%.1f/s"
-    setElementText("tile-kingdom-income", incomeText)
+    setElementText("tile-kingdom-income", s"${formatNumber(income)}/s")
 
     // Next 3 tile unlock costs
     val currentTileCount = currentGame.unlockedTiles.size
     val nextCosts = (0 until 3).map: i =>
       TileKingdomLogic.tileUnlockCost(currentTileCount + i)
-    val costsText = nextCosts.map(c => f"$c%,d").mkString(" → ")
+    val costsText = nextCosts.map(formatNumber).mkString(" → ")
     setElementText("tile-kingdom-unlock-costs", costsText)
 
   private def formatIncome(rate: Double): String =
     if rate <= 0 then ""
-    else if rate >= 1.0 then f"+${rate.toInt}%,d/s"
-    else f"+$rate%.1f/s"
+    else s"+${formatNumber(rate)}/s"
 
   private def renderPoliticianRoster(): Unit =
     getElementById("politician-roster-list").foreach: listElem =>
@@ -1090,7 +1108,7 @@ object TileKingdomClient:
           div(cls = "tile-label", content = s"Lv$level")
         )
 
-        val prodDiv = div(cls = "tile-production", content = s"+${harvestAmount.toInt}")
+        val prodDiv = div(cls = "tile-production", content = s"+${formatNumber(harvestAmount)}")
         if hasBonus then
           val bonusPercent = ((bonusMultiplier - 1) * 100).toInt
           prodDiv.appendChild(span(cls = "bonus", content = s" +$bonusPercent%"))
@@ -1100,7 +1118,7 @@ object TileKingdomClient:
         content.appendChild(prodDiv)
 
         val upgradeRow = div(cls = "tile-upgrade-row")
-        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost🌾"))
+        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆${formatNumber(upgradeCost)}🌾"))
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
@@ -1136,7 +1154,7 @@ object TileKingdomClient:
         )
 
         val upgradeRow = div(cls = "tile-upgrade-row")
-        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost🌾"))
+        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆${formatNumber(upgradeCost)}🌾"))
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
@@ -1163,7 +1181,7 @@ object TileKingdomClient:
           div(cls = "tile-label", content = s"Lv$level")
         )
 
-        val prodDiv = div(cls = "tile-production", content = s"+${harvestAmount.toInt}🪵")
+        val prodDiv = div(cls = "tile-production", content = s"+${formatNumber(harvestAmount)}🪵")
         val forestBonus = TileKingdomLogic.forestGroupBonusMultiplier(currentGame, coord)
         if forestBonus > 1.0 then
           val bonusPercent = ((forestBonus - 1) * 100).toInt
@@ -1174,7 +1192,7 @@ object TileKingdomClient:
         content.appendChild(prodDiv)
 
         val upgradeRow = div(cls = "tile-upgrade-row")
-        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost🌾"))
+        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆${formatNumber(upgradeCost)}🌾"))
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
@@ -1268,14 +1286,14 @@ object TileKingdomClient:
           div(cls = "tile-label", content = s"Lv$level")
         )
 
-        val prodDiv = div(cls = "tile-production temple-production", content = s"+${faithAmount.toInt}✨")
+        val prodDiv = div(cls = "tile-production temple-production", content = s"+${formatNumber(faithAmount)}✨")
         if hasTownHallBonus then
           val multiplierText = if townHallMultiplier % 1.0 == 0 then s" x${townHallMultiplier.toInt}" else f" x$townHallMultiplier%.1f"
           prodDiv.appendChild(span(cls = "bonus town-hall-bonus", content = multiplierText))
         content.appendChild(prodDiv)
 
         val upgradeRow = div(cls = "tile-upgrade-row")
-        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost🪵"))
+        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆${formatNumber(upgradeCost)}🪵"))
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
@@ -1311,14 +1329,14 @@ object TileKingdomClient:
           div(cls = "tile-label", content = s"Lv$level")
         )
 
-        val prodDiv = div(cls = "tile-production quarry-production", content = s"+${stoneAmount.toInt}🪨")
+        val prodDiv = div(cls = "tile-production quarry-production", content = s"+${formatNumber(stoneAmount)}🪨")
         if hasTownHallBonus then
           val multiplierText = if townHallMultiplier % 1.0 == 0 then s" x${townHallMultiplier.toInt}" else f" x$townHallMultiplier%.1f"
           prodDiv.appendChild(span(cls = "bonus town-hall-bonus", content = multiplierText))
         content.appendChild(prodDiv)
 
         val upgradeRow = div(cls = "tile-upgrade-row")
-        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost🪵"))
+        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆${formatNumber(upgradeCost)}🪵"))
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
@@ -1490,7 +1508,7 @@ object TileKingdomClient:
     tileDiv.appendChild(
       div(cls = "tile-content")(
         div(cls = "tile-icon", content = "🔓"),
-        div(cls = "tile-cost", content = s"$cost 💰")
+        div(cls = "tile-cost", content = s"${formatNumber(cost)} 💰")
       )
     )
 
@@ -1929,7 +1947,7 @@ object TileKingdomClient:
       val floater = div()
       floater.className = if isSpend then "floating-reward floating-spend" else "floating-reward"
       val sign = if isSpend then "-" else "+"
-      floater.textContent = s"$sign$amount$emoji"
+      floater.textContent = s"$sign${formatNumber(amount)}$emoji"
       tileElem.appendChild(floater)
 
       // Remove after animation completes
