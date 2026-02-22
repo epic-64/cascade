@@ -6,6 +6,7 @@
 - [x] the bureau should send a projectile to the tile it upgrades, for better visual feedback
 - [x] the bureau should signify, the upgrade process costs 100 wood (and 100 faith, in turbo mode)
 - [x] the quarry should cost 500 wood to build, and wood to upgrade
+- [x] Any text in the game should not be selectable. Since there is a lot of clicking and dragging, having text be selectable leads to a lot of accidental text selection, which is frustrating.
 
 ## Todos
 - [ ] Rename Wood tile to Forest
