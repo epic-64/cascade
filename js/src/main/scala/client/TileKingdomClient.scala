@@ -344,6 +344,27 @@ object TileKingdomClient:
               renderGame()
               showNotification(s"Added 1000 wood")
           ,
+          button(cls = "btn-dev-action", content = "🪨 Stone +1000").tap: btn =>
+            btn.onclick = (_: MouseEvent) =>
+              currentGame = currentGame.copy(stone = currentGame.stone + 1000)
+              saveGame()
+              renderGame()
+              showNotification(s"Added 1000 stone")
+          ,
+          button(cls = "btn-dev-action", content = "✨ Faith +1000").tap: btn =>
+            btn.onclick = (_: MouseEvent) =>
+              currentGame = currentGame.copy(faith = currentGame.faith + 1000)
+              saveGame()
+              renderGame()
+              showNotification(s"Added 1000 faith")
+          ,
+          button(cls = "btn-dev-action", content = "🌟 +1 Skill Point").tap: btn =>
+            btn.onclick = (_: MouseEvent) =>
+              currentGame = currentGame.copy(skillPoints = currentGame.skillPoints + 1, hasSailed = true)
+              saveGame()
+              renderGame()
+              showNotification(s"Added 1 skill point (${currentGame.skillPoints} total)")
+          ,
           button(cls = "btn-dev-action", content = "🗺️ +100 Tiles").tap: btn =>
             btn.onclick = (_: MouseEvent) =>
               currentGame = TileKingdomLogic.unlockManyTiles(currentGame, 100)

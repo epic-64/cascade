@@ -28,12 +28,10 @@
   - When sailing, all your resources including gold reset, and your tile count resets as well.
   - For every tile destroyed in this way, you collect a Legacy Point.
   - 25 Legacy points can be converted into one Skill Point
-
-## Todos
-- [ ] add a skill tree that unlocks after the first Sail. It has multiple linear skill lines, that
+- [x] add a skill tree that unlocks after the first Sail. It has multiple linear skill lines, that
   raise in cost (1, 2, 3, 4, 5, etc) and have to be unlocked sequentially (within a branch).
   - starter skills:
-    - Agriculture: 
+    - Agriculture:
       - 1P: fields start at level 10
       - 2P: farms start at level 10
     - Management:
@@ -45,3 +43,6 @@
     - Education:
       - 1P: Your academies are 10x cheaper
       - 2P: Your academies have both modes active at the same time
+
+## Todos
+- add more dev buttons: add Stone, add Faith, add Skill Point
