@@ -366,6 +366,13 @@ object TileKingdomClient:
               saveGame()
               renderGame()
               showNotification(s"Added rare: ${newPolitician.name}")
+          ,
+          button(cls = "btn-dev-action", content = "🌟 +5 Skill Points").tap: btn =>
+            btn.onclick = (_: MouseEvent) =>
+              currentGame = currentGame.copy(skillPoints = currentGame.skillPoints + 5, hasSailed = true)
+              saveGame()
+              renderGame()
+              showNotification(s"Added 5 skill points (${currentGame.skillPoints} total)")
         )
       )
     )
@@ -1677,6 +1684,15 @@ object TileKingdomClient:
         btn.classList.add("disabled")
         btn.textContent = s"⛵ Sail ($tileCount/$minTiles tiles)"
 
+  private def renderSkillsButton(): Unit =
+    getElementById("tile-kingdom-skills-btn").foreach: elem =>
+      val btn = elem.asInstanceOf[HTMLButtonElement]
+      // Add glow animation when player has skill points to spend and has sailed
+      if currentGame.hasSailed && currentGame.skillPoints > 0 then
+        btn.classList.add("has-points")
+      else
+        btn.classList.remove("has-points")
+
   // ============================================================================
   // Event Handlers
   // ============================================================================
@@ -2177,7 +2193,8 @@ object TileKingdomClient:
     setElementText("politician-rare-chance", rareText)
 
     // If roster is full, show "Full"
-    if currentGame.politicianRoster.size >= TileKingdomLogic.MaxPoliticianRosterSize then
+    val maxRosterSize = TileKingdomLogic.maxPoliticianRosterSize(currentGame)
+    if currentGame.politicianRoster.size >= maxRosterSize then
       setElementText("politician-timer", "Full")
       return
 

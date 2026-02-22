@@ -387,8 +387,13 @@ object TileKingdomLogic:
   val TownHallBuildCost: Int = 1000 // Stone cost to build a town hall (first one)
   val TownHallInfluenceRadius: Int = 2 // Town Hall affects tiles within 2 tile radius
   val PoliticianGenerationIntervalSeconds: Int = 300 // 5 minutes = 300 seconds
-  val MaxPoliticianRosterSize: Int = 3 // Maximum politicians in roster
+  val MaxPoliticianRosterSize: Int = 3 // Maximum politicians in roster (base)
+  val Management1RosterBonus: Int = 2 // Extra slots from Management1 skill
   val PoliticianLifespanMs: Long = 600000L // 10 minutes = 600,000 ms
+
+  // Calculate actual max roster size including skill bonuses
+  def maxPoliticianRosterSize(game: TileKingdomGame): Int =
+    MaxPoliticianRosterSize + (if game.hasSkill(Skill.Management1) then Management1RosterBonus else 0)
 
   // Quarry constants
   val QuarryBuildCost: Int = 500 // Wood cost to build a quarry
@@ -455,6 +460,22 @@ object TileKingdomLogic:
     val totalBonus = n * (n + 1) / 2.0 * ForestGroupBonusPerTile // Triangular number * bonus per tile
     1.0 + totalBonus
 
+  // Calculate Wisdom1 bonus multiplier for quarries (25% more stone per neighboring forest)
+  def quarryWisdom1Multiplier(game: TileKingdomGame, coord: Coord): Double =
+    if !game.hasSkill(Skill.Wisdom1) then 1.0
+    else
+      val neighboringForests = coord.neighbors.count: neighborCoord =>
+        game.tiles.get(neighborCoord).exists(_.isWoodcutter)
+      1.0 + (neighboringForests * 0.25)
+
+  // Calculate Wisdom2 bonus multiplier for temples (50% more faith per neighboring forest)
+  def templeWisdom2Multiplier(game: TileKingdomGame, coord: Coord): Double =
+    if !game.hasSkill(Skill.Wisdom2) then 1.0
+    else
+      val neighboringForests = coord.neighbors.count: neighborCoord =>
+        game.tiles.get(neighborCoord).exists(_.isWoodcutter)
+      1.0 + (neighboringForests * 0.50)
+
   // Find all Town Halls that affect a given coord (within their influence radius)
   def townHallsAffecting(game: TileKingdomGame, coord: Coord): List[(Coord, Politician)] =
     game.tiles.toList.flatMap:
@@ -512,12 +533,16 @@ object TileKingdomLogic:
     val tavernCount = tavernsAffectingTownHall(game, townHallCoord)
     math.pow(TavernLifespanMultiplier, tavernCount) // 2x per tavern, multiplicative
 
-  // Count academies by mode
+  // Count academies by mode (with Education2: all academies count for both modes)
   def countAcademies(game: TileKingdomGame, mode: AcademyMode): Int =
-    game.unlockedTiles.count: tile =>
-      tile.tileType match
-        case TileType.Academy(m) if m == mode => true
-        case _ => false
+    if game.hasSkill(Skill.Education2) then
+      // With Education2, all academies count for both modes
+      totalAcademies(game)
+    else
+      game.unlockedTiles.count: tile =>
+        tile.tileType match
+          case TileType.Academy(m) if m == mode => true
+          case _ => false
 
   // Count total academies
   def totalAcademies(game: TileKingdomGame): Int =
@@ -526,7 +551,8 @@ object TileKingdomLogic:
   // Calculate academy build cost
   def academyBuildCost(game: TileKingdomGame): Int =
     val existingCount = totalAcademies(game)
-    AcademyBaseCost * math.pow(AcademyCostMultiplier, existingCount).toInt
+    val baseCost = AcademyBaseCost * math.pow(AcademyCostMultiplier, existingCount).toInt
+    if game.hasSkill(Skill.Education1) then baseCost / 10 else baseCost
 
   // Calculate rare politician chance with academy bonuses
   def rarePoliticianChance(game: TileKingdomGame): Double =
@@ -575,8 +601,10 @@ object TileKingdomLogic:
     if !game.hasTownHall then
       return game.copy(lastPoliticianGeneration = currentTimeMillis, politicianGenerationProgress = 0.0)
 
+    val maxRosterSize = maxPoliticianRosterSize(game)
+    
     // Don't generate or accumulate progress if roster is full
-    if game.politicianRoster.size >= MaxPoliticianRosterSize then
+    if game.politicianRoster.size >= maxRosterSize then
       return game.copy(lastPoliticianGeneration = currentTimeMillis)
 
     val speedMultiplier = politicianGenerationSpeedMultiplier(game)
@@ -595,7 +623,7 @@ object TileKingdomLogic:
       val remainingProgress = newProgress - politiciansToGenerate
       
       // Only generate up to the remaining space in roster
-      val availableSlots = MaxPoliticianRosterSize - game.politicianRoster.size
+      val availableSlots = maxRosterSize - game.politicianRoster.size
       val actualNewCount = math.min(politiciansToGenerate, availableSlots)
       val rareChance = rarePoliticianChance(game)
       val newPoliticians = (0 until actualNewCount).map: i =>
@@ -603,7 +631,7 @@ object TileKingdomLogic:
       .toList
       
       // If we filled the roster, reset progress; otherwise keep remainder
-      val finalProgress = if game.politicianRoster.size + actualNewCount >= MaxPoliticianRosterSize then 0.0 else remainingProgress
+      val finalProgress = if game.politicianRoster.size + actualNewCount >= maxRosterSize then 0.0 else remainingProgress
       
       game.copy(
         politicianRoster = game.politicianRoster ++ newPoliticians,
@@ -703,16 +731,16 @@ object TileKingdomLogic:
     if base > 0 then base * forestGroupBonusMultiplier(game, tile.coord) * townHallWoodMultiplier(game, tile.coord)
     else 0.0
 
-  // Faith production rate for a specific tile per second (with town hall bonuses)
+  // Faith production rate for a specific tile per second (with town hall bonuses and Wisdom2)
   def faithProductionRate(game: TileKingdomGame, tile: Tile): Double =
     val base = faithProductionPerSecond(tile)
-    if base > 0 then base * townHallFaithMultiplier(game, tile.coord)
+    if base > 0 then base * townHallFaithMultiplier(game, tile.coord) * templeWisdom2Multiplier(game, tile.coord)
     else 0.0
 
-  // Stone production rate for a specific tile per second (with town hall bonuses)
+  // Stone production rate for a specific tile per second (with town hall bonuses and Wisdom1)
   def stoneProductionRate(game: TileKingdomGame, tile: Tile): Double =
     val base = stoneProductionPerSecond(tile)
-    if base > 0 then base * townHallStoneMultiplier(game, tile.coord)
+    if base > 0 then base * townHallStoneMultiplier(game, tile.coord) * quarryWisdom1Multiplier(game, tile.coord)
     else 0.0
 
   // Legacy method for backwards compatibility
@@ -776,7 +804,8 @@ object TileKingdomLogic:
   // Cost to build a town hall on an empty tile (costs stone, scales with existing town halls)
   def townHallBuildCost(game: TileKingdomGame): Int =
     val existingTownHalls = game.tiles.values.count(_.isTownHall)
-    TownHallBuildCost * math.pow(10, existingTownHalls).toInt
+    val baseCost = TownHallBuildCost * math.pow(10, existingTownHalls).toInt
+    if game.hasSkill(Skill.Management2) then baseCost / 10 else baseCost
 
   // Cost to build a quarry on an empty tile (costs wheat)
   def quarryBuildCost: Int = QuarryBuildCost
@@ -871,7 +900,8 @@ object TileKingdomLogic:
       case Some(tile) if !tile.isEmpty                    => Left("Tile is not empty")
       case Some(tile) if game.wheat < wheatFieldBuildCost => Left(s"Not enough wheat (need $wheatFieldBuildCost)")
       case Some(tile) =>
-        val updatedTile = tile.copy(tileType = TileType.WheatField(1))
+        val startLevel = if game.hasSkill(Skill.Agriculture1) then 10 else 1
+        val updatedTile = tile.copy(tileType = TileType.WheatField(startLevel))
         Right(game.copy(
           tiles = game.tiles.updated(coord, updatedTile),
           wheat = game.wheat - wheatFieldBuildCost
@@ -886,7 +916,8 @@ object TileKingdomLogic:
       case Some(_) if !game.hasWheatField           => Left("Build a wheat field first")
       case Some(tile) if game.wheat < farmBuildCost => Left(s"Not enough wheat (need $farmBuildCost)")
       case Some(tile) =>
-        val updatedTile = tile.copy(tileType = TileType.Farm(1))
+        val startLevel = if game.hasSkill(Skill.Agriculture2) then 10 else 1
+        val updatedTile = tile.copy(tileType = TileType.Farm(startLevel))
         Right(game.copy(
           tiles = game.tiles.updated(coord, updatedTile),
           wheat = game.wheat - farmBuildCost
