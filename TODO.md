@@ -45,9 +45,9 @@
       - 2P: Your academies have both modes active at the same time
 - add more dev buttons: add Stone, add Faith, add Skill Point
 - when building a town hall, and the roster is empty, automatically generate a politician immediately
-
-## Todos
 - add some player choice in the skill tree. Each tree is a dual track. On each level, you can choose from one of two options
   - Agriculture:
     - 1P: fields start at level 10
     - OR: 1P: fields work 25% faster.
+
+## Todos

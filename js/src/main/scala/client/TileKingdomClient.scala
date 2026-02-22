@@ -480,11 +480,13 @@ object TileKingdomClient:
     val isUnlocked = currentGame.hasSkill(skill)
     val canUnlock = currentGame.canUnlockSkill(skill)
     val isExcluded = Skill.mutuallyExclusive(skill).exists(currentGame.hasSkill)
+    val canSwitch = TileKingdomLogic.canSwitchSkill(currentGame, skill)
     val cost = Skill.cost(skill)
     val description = Skill.description(skill)
 
     val nodeCls =
       if isUnlocked then "skill-node unlocked"
+      else if isExcluded && canSwitch then "skill-node switchable"
       else if isExcluded then "skill-node excluded"
       else if canUnlock then "skill-node available"
       else "skill-node locked"
@@ -494,6 +496,11 @@ object TileKingdomClient:
       div(cls = "skill-node-desc", content = description),
       if isUnlocked then
         div(cls = "skill-node-status", content = "✓ Unlocked")
+      else if isExcluded && canSwitch then
+        button(cls = "skill-node-btn switch-btn", content = s"Switch (${cost}⭐)").tap: btn =>
+          btn.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            handleSwitchSkill(skill)
       else if isExcluded then
         div(cls = "skill-node-status", content = "✗ Excluded")
       else if canUnlock then
@@ -513,6 +520,17 @@ object TileKingdomClient:
         renderGame()
         renderSkillTreeContent()
         showNotification(s"Unlocked: ${Skill.description(skill)}")
+      case Left(error) =>
+        showNotification(error)
+
+  private def handleSwitchSkill(skill: Skill): Unit =
+    TileKingdomLogic.switchSkill(currentGame, skill) match
+      case Right(newGame) =>
+        currentGame = newGame
+        saveGame()
+        renderGame()
+        renderSkillTreeContent()
+        showNotification(s"Switched to: ${Skill.description(skill)}")
       case Left(error) =>
         showNotification(error)
 
