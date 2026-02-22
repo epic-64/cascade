@@ -43,6 +43,7 @@
     - Education:
       - 1P: Your academies are 10x cheaper
       - 2P: Your academies have both modes active at the same time
+- add more dev buttons: add Stone, add Faith, add Skill Point
 
 ## Todos
-- add more dev buttons: add Stone, add Faith, add Skill Point
+- when building a town hall, and the roster is empty, automatically generate a politician immediately
