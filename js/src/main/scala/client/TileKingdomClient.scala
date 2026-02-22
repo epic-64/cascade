@@ -876,6 +876,10 @@ object TileKingdomClient:
     renderResources()
     updatePoliticianTimer()
 
+    // Update build option cost colors when resources change
+    if totalWheatHarvested > 0 || totalWoodHarvested > 0 || totalFaithHarvested > 0 || totalStoneHarvested > 0 then
+      updateBuildCostColors()
+
     if newPoliticianGenerated then
       renderPoliticianRoster()
       showNotification("A new politician has arrived!")
@@ -2210,6 +2214,45 @@ object TileKingdomClient:
       val progress = tileProgress.getOrElse(coord, 0.0)
       getElementById(s"progress-bar-${coord.row}-${coord.col}").foreach: bar =>
         bar.style.width = s"${(progress * 100).toInt}%"
+
+  // Update build cost colors without re-rendering the tile
+  private def updateBuildCostColors(): Unit =
+    // Find all build-cost elements and update their classes based on current resources
+    document.querySelectorAll(".build-option").foreach: optElem =>
+      val opt = optElem.asInstanceOf[HTMLElement]
+      Option(opt.querySelector(".build-cost")).foreach: costElem =>
+        val cost = costElem.asInstanceOf[HTMLElement]
+        val text = cost.textContent
+        // Parse the cost and resource from the text (e.g., "100🌾" or "500🪵")
+        val hasEnough = text match
+          case t if t.contains("🌾") =>
+            val amount = t.replace("🌾", "").replace(",", "").trim
+            parseNumber(amount).exists(_ <= currentGame.wheat)
+          case t if t.contains("🪵") =>
+            val amount = t.replace("🪵", "").replace(",", "").trim
+            parseNumber(amount).exists(_ <= currentGame.wood)
+          case t if t.contains("🪨") =>
+            val amount = t.replace("🪨", "").replace(",", "").trim
+            parseNumber(amount).exists(_ <= currentGame.stone)
+          case t if t.contains("✨") =>
+            val amount = t.replace("✨", "").replace(",", "").trim
+            parseNumber(amount).exists(_ <= currentGame.faith)
+          case _ => true
+
+        if hasEnough then
+          cost.classList.remove("insufficient")
+        else
+          cost.classList.add("insufficient")
+
+  // Parse formatted numbers (handles k, M, B suffixes)
+  private def parseNumber(s: String): Option[Double] =
+    Try:
+      val trimmed = s.trim
+      if trimmed.endsWith("B") then trimmed.dropRight(1).toDouble * 1_000_000_000
+      else if trimmed.endsWith("M") then trimmed.dropRight(1).toDouble * 1_000_000
+      else if trimmed.endsWith("k") then trimmed.dropRight(1).toDouble * 1_000
+      else trimmed.toDouble
+    .toOption
 
   private def showFloatingReward(coord: Coord, amount: Int, emoji: String = "", isSpend: Boolean = false, offsetIndex: Int = 0): Unit =
     getElementById(s"tile-${coord.row}-${coord.col}").foreach: tileElem =>
