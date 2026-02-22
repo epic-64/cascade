@@ -5,9 +5,11 @@
 - [x] the politican roster should be a bit taller to allow for more politicians without needing to scroll
 - [x] the bureau should send a projectile to the tile it upgrades, for better visual feedback
 - [x] the bureau should signify, the upgrade process costs 100 wood (and 100 faith, in turbo mode)
+- [x] the quarry should cost 500 wood to build, and wood to upgrade
 
 ## Todos
-- [ ] the quarry should cost 500 wood to build
+- [ ] Rename Wood tile to Forest
+- [ ] Quarries are too dark
 - [ ] the town hall should cost 1000 stone to build
 - [ ] if the player does not have enough of a resource to build a building, display the resource as red in the build menu
 - [ ] the temple should cost 10k wood to build

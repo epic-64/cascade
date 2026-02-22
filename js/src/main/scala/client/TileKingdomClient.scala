@@ -1012,7 +1012,7 @@ object TileKingdomClient:
           resourcesSubmenu.appendChild(div(cls = "build-option").tap: opt =>
             opt.appendChild(div(cls = "build-icon", content = "⛏️"))
             opt.appendChild(div(cls = "build-name", content = "Quarry"))
-            opt.appendChild(div(cls = "build-cost", content = s"$quarryCost🌾"))
+            opt.appendChild(div(cls = "build-cost", content = s"$quarryCost🪵"))
             opt.onclick = (e: MouseEvent) =>
               e.stopPropagation()
               handleBuildQuarry(coord)
@@ -1236,7 +1236,7 @@ object TileKingdomClient:
         else
           s"${TileKingdomLogic.BureauWoodCostPerUpgrade}🪵"
         content.appendChild(div(cls = "bureau-cost", content = costText))
-        
+
         // Add mode toggle buttons side by side
         val modeRow = div(cls = "bureau-mode-row")
 
@@ -1334,11 +1334,11 @@ object TileKingdomClient:
         content.appendChild(prodDiv)
 
         val upgradeRow = div(cls = "tile-upgrade-row")
-        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost🌾"))
+        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆$upgradeCost🪵"))
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
-            handleBulkLevelUp(coord, 10, TileKingdomLogic.levelUpQuarry, TileKingdomLogic.quarryLevelUpCost, "🌾")
+            handleBulkLevelUp(coord, 10, TileKingdomLogic.levelUpQuarry, TileKingdomLogic.quarryLevelUpCost, "🪵")
         )
         content.appendChild(upgradeRow)
 
@@ -1587,7 +1587,7 @@ object TileKingdomClient:
         currentGame = newGame
         saveGame()
         renderGame()
-        showFloatingReward(coord, cost, "🌾", isSpend = true)
+        showFloatingReward(coord, cost, "🪵", isSpend = true)
       case Left(error) =>
         showNotification(error)
 
@@ -1745,7 +1745,7 @@ object TileKingdomClient:
           currentGame = newGame
           saveGame()
           renderGame()
-          showFloatingReward(coord, cost, "🌾", isSpend = true)
+          showFloatingReward(coord, cost, "🪵", isSpend = true)
           showFloatingLevel(coord, tile.level + 1)
         case Left(error) =>
           showNotification(error)

@@ -184,7 +184,7 @@ case class Tile(
     case TileType.Farm(lvl)       => Some(Cost(TileKingdomLogic.farmLevelUpCost(lvl), Resource.Wheat))
     case TileType.Woodcutter(lvl) => Some(Cost(TileKingdomLogic.woodcutterLevelUpCost(lvl), Resource.Wheat))
     case TileType.Temple(lvl)     => Some(Cost(TileKingdomLogic.templeLevelUpCost(lvl), Resource.Wood))
-    case TileType.Quarry(lvl)     => Some(Cost(TileKingdomLogic.quarryLevelUpCost(lvl), Resource.Wheat))
+    case TileType.Quarry(lvl)     => Some(Cost(TileKingdomLogic.quarryLevelUpCost(lvl), Resource.Wood))
     case _                        => None
 
 // ============================================================================
@@ -298,7 +298,7 @@ object TileKingdomLogic:
   val PoliticianLifespanMs: Long = 600000L // 10 minutes = 600,000 ms
 
   // Quarry constants
-  val QuarryBuildCost: Int = 50 // Wheat cost to build a quarry
+  val QuarryBuildCost: Int = 500 // Wood cost to build a quarry
 
   // Tavern constants
   val TavernBuildCost: Int = 500 // Wood cost to build a tavern
@@ -852,19 +852,19 @@ object TileKingdomLogic:
           stone = game.stone - cost
         ))
 
-  // Build a quarry on an empty tile (costs wheat, requires at least one wheat field)
+  // Build a quarry on an empty tile (costs wood, requires at least one wheat field)
   def buildQuarry(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
-      case None                                       => Left("Tile not found")
-      case Some(tile) if !tile.unlocked               => Left("Tile is locked")
-      case Some(tile) if !tile.isEmpty                => Left("Tile is not empty")
-      case Some(_) if !game.hasWheatField             => Left("Build a wheat field first")
-      case Some(tile) if game.wheat < quarryBuildCost => Left(s"Not enough wheat (need $quarryBuildCost)")
+      case None                                      => Left("Tile not found")
+      case Some(tile) if !tile.unlocked              => Left("Tile is locked")
+      case Some(tile) if !tile.isEmpty               => Left("Tile is not empty")
+      case Some(_) if !game.hasWheatField            => Left("Build a wheat field first")
+      case Some(tile) if game.wood < quarryBuildCost => Left(s"Not enough wood (need $quarryBuildCost)")
       case Some(tile) =>
         val updatedTile = tile.copy(tileType = TileType.Quarry(1))
         Right(game.copy(
           tiles = game.tiles.updated(coord, updatedTile),
-          wheat = game.wheat - quarryBuildCost
+          wood = game.wood - quarryBuildCost
         ))
 
   // Build an academy on an empty tile (costs stone, requires at least one wheat field)
@@ -1011,20 +1011,20 @@ object TileKingdomLogic:
               ))
           case _ => Left("Tile is not a temple")
 
-  // Level up a quarry (costs wheat)
+  // Level up a quarry (costs wood)
   def levelUpQuarry(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
       case None => Left("Tile not found")
       case Some(tile) => tile.tileType match
           case TileType.Quarry(level) =>
             val cost = quarryLevelUpCost(level)
-            if game.wheat < cost then
-              Left(s"Not enough wheat (need $cost)")
+            if game.wood < cost then
+              Left(s"Not enough wood (need $cost)")
             else
               val updatedTile = tile.copy(tileType = TileType.Quarry(level + 1))
               Right(game.copy(
                 tiles = game.tiles.updated(coord, updatedTile),
-                wheat = game.wheat - cost
+                wood = game.wood - cost
               ))
           case _ => Left("Tile is not a quarry")
 
