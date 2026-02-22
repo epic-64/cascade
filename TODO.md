@@ -10,9 +10,11 @@
 - [x] The text is too small in a lot of places
 - [x] create variables for standardized text sizes, and use them across the board to ensure consistency
 - [x] Quarries are too dark
+- [x] When zooming out, the text should become smaller. When zooming out sufficiently, the test should disappear entirely, and just be the tile colors.
 
 ## Todos
-- [ ] When zooming out, the text should become smaller. When zooming out sufficiently, the test should disappear entirely, and just be the tile colors.
+- [ ] When dragging the mouse to move around the map, when releasing the mouse button on a tile,
+  it upgrades the tile. Releasing the mouse after dragging should not create a click event.
 - [ ] Rename Wood tile to Forest
 - [ ] the town hall should cost 1000 stone to build
 - [ ] if the player does not have enough of a resource to build a building, display the resource as red in the build menu
