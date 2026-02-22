@@ -320,14 +320,26 @@ object TileKingdomClient:
   // ============================================================================
 
   private def setupDragHandlers(viewport: HTMLElement): Unit =
+    // Helper to check if element or any ancestor has draggable="true"
+    def hasDraggableAncestor(elem: Element): Boolean =
+      var current: org.scalajs.dom.Node = elem
+      while current != null && current.isInstanceOf[Element] do
+        val el = current.asInstanceOf[Element]
+        if el.getAttribute("draggable") == "true" then return true
+        current = el.parentNode
+      false
+    
     viewport.onmousedown = (e: MouseEvent) =>
       if e.button == 0 then // Left mouse button
-        isDragging = true
-        dragStartX = e.clientX
-        dragStartY = e.clientY
-        panStartX = panOffsetX
-        panStartY = panOffsetY
-        viewport.style.cursor = "grabbing"
+        // Don't start panning if clicking on a draggable element (like politician slot)
+        val target = e.target.asInstanceOf[Element]
+        if !hasDraggableAncestor(target) then
+          isDragging = true
+          dragStartX = e.clientX
+          dragStartY = e.clientY
+          panStartX = panOffsetX
+          panStartY = panOffsetY
+          viewport.style.cursor = "grabbing"
 
     document.onmousemove = (e: MouseEvent) =>
       if isDragging then
@@ -894,7 +906,7 @@ object TileKingdomClient:
     val tilePixelSize = (70 * zoomLevel).toInt
     // Scale font size with zoom - allow it to go smaller when zoomed out
     val fontScale = math.max(0.3, math.min(1.0, zoomLevel))
-    
+
     // Add zoom-minimal class when zoomed out far enough to hide text
     if zoomLevel < 0.5 then tileDiv.classList.add("zoom-minimal")
 
@@ -1397,11 +1409,23 @@ object TileKingdomClient:
             val lifespanClass = if lifespanPercent <= 20 then "lifespan-critical" else if lifespanPercent <= 50 then "lifespan-warning" else "lifespan-normal"
             val multiplierText = if lifespanMultiplier > 1.0 then s" (${lifespanMultiplier.toInt}x)" else ""
 
-            content.appendChild(div(cls = "politician-slot filled")(
+            val slot = div(cls = "politician-slot filled")(
               div(cls = "politician-emoji-small", content = pol.emoji),
               div(cls = "politician-effect-small", content = pol.effectDescription),
               div(id = s"politician-lifespan-${coord.row}-${coord.col}", cls = s"politician-lifespan $lifespanClass", content = s"⏱️ $lifespanText$multiplierText")
-            ))
+            )
+
+            // Make the politician slot draggable for swapping between town halls
+            slot.setAttribute("draggable", "true")
+            slot.asInstanceOf[HTMLElement].ondragstart = (e: DragEvent) =>
+              // Use format "townhall:row,col" to identify source is a town hall
+              e.dataTransfer.effectAllowed = "move"
+              e.dataTransfer.setData("text/plain", s"townhall:${coord.row},${coord.col}")
+              tileDiv.classList.add("dragging")
+            slot.asInstanceOf[HTMLElement].ondragend = (_: DragEvent) =>
+              tileDiv.classList.remove("dragging")
+
+            content.appendChild(slot)
             // Click to remove politician
             tileDiv.onclick = onClick(handleRemovePolitician(coord))
           case None =>
@@ -1436,8 +1460,17 @@ object TileKingdomClient:
           e.preventDefault()
           e.stopPropagation()
           tileDiv.classList.remove("drag-over")
-          val politicianId = e.dataTransfer.getData("text/plain")
-          handleAssignPolitician(politicianId, coord)
+          val data = e.dataTransfer.getData("text/plain")
+          // Check if drag is from another town hall or from roster
+          if data.startsWith("townhall:") then
+            // Parse source coord from "townhall:row,col"
+            val coords = data.stripPrefix("townhall:").split(",")
+            if coords.length == 2 then
+              val fromCoord = Coord(coords(0).toInt, coords(1).toInt)
+              handleSwapPoliticians(fromCoord, coord)
+          else
+            // Regular roster drag
+            handleAssignPolitician(data, coord)
 
         tileDiv.oncontextmenu = (e: MouseEvent) =>
           e.preventDefault()
@@ -1489,7 +1522,7 @@ object TileKingdomClient:
     val tileDiv = div(id = s"tile-${coord.row}-${coord.col}", cls = "tile-kingdom-tile locked unlockable")
     val tilePixelSize = (70 * zoomLevel).toInt
     val fontScale = math.max(0.3, math.min(1.0, zoomLevel))
-    
+
     // Add zoom-minimal class when zoomed out far enough to hide text
     if zoomLevel < 0.5 then tileDiv.classList.add("zoom-minimal")
 
@@ -1672,6 +1705,16 @@ object TileKingdomClient:
         saveGame()
         renderGame()
         showNotification("Politician returned to roster")
+      case Left(error) =>
+        showNotification(error)
+
+  private def handleSwapPoliticians(fromCoord: Coord, toCoord: Coord): Unit =
+    TileKingdomLogic.swapPoliticians(currentGame, fromCoord, toCoord) match
+      case Right(newGame) =>
+        currentGame = newGame
+        saveGame()
+        renderGame()
+        showNotification("Politicians swapped!")
       case Left(error) =>
         showNotification(error)
 

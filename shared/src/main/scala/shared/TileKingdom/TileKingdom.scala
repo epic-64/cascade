@@ -943,6 +943,27 @@ object TileKingdomLogic:
         case TileType.TownHall(None) => Left("Town Hall has no politician")
         case _ => Left("Tile is not a town hall")
 
+  // Swap politicians between two town halls (or move from one to an empty one)
+  def swapPoliticians(game: TileKingdomGame, fromCoord: Coord, toCoord: Coord): Either[String, TileKingdomGame] =
+    if fromCoord == toCoord then return Left("Cannot swap with self")
+
+    (game.tiles.get(fromCoord), game.tiles.get(toCoord)) match
+      case (Some(fromTile), Some(toTile)) =>
+        (fromTile.tileType, toTile.tileType) match
+          case (TileType.TownHall(Some(fromPol)), TileType.TownHall(toPol)) =>
+            val updatedFromTile = fromTile.copy(tileType = TileType.TownHall(toPol))
+            val updatedToTile = toTile.copy(tileType = TileType.TownHall(Some(fromPol)))
+            Right(game.copy(
+              tiles = game.tiles
+                .updated(fromCoord, updatedFromTile)
+                .updated(toCoord, updatedToTile)
+            ))
+          case (TileType.TownHall(None), _) => Left("Source town hall has no politician")
+          case (_, TileType.TownHall(_)) => Left("Source is not a town hall")
+          case _ => Left("Target is not a town hall")
+      case (None, _) => Left("Source tile not found")
+      case (_, None) => Left("Target tile not found")
+
   // Level up a wheat field
   def levelUpWheatField(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
