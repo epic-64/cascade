@@ -1382,15 +1382,29 @@ object TileKingdomClient:
         tileDiv.appendChild(content)
 
         // Setup drag-drop for receiving politicians
+        // Use stopPropagation to prevent event bubbling issues
         tileDiv.ondragover = (e: DragEvent) =>
           e.preventDefault()
+          e.stopPropagation()
           tileDiv.classList.add("drag-over")
 
-        tileDiv.ondragleave = (_: DragEvent) =>
-          tileDiv.classList.remove("drag-over")
+        tileDiv.ondragenter = (e: DragEvent) =>
+          e.preventDefault()
+          e.stopPropagation()
+          tileDiv.classList.add("drag-over")
+
+        // Only remove drag-over when actually leaving the tile, not when moving to children
+        tileDiv.ondragleave = (e: DragEvent) =>
+          e.stopPropagation()
+          val related = e.relatedTarget
+          // Check if we're leaving to an element outside this tile
+          val leavingTile = related == null || !tileDiv.contains(related.asInstanceOf[org.scalajs.dom.Node])
+          if leavingTile then
+            tileDiv.classList.remove("drag-over")
 
         tileDiv.ondrop = (e: DragEvent) =>
           e.preventDefault()
+          e.stopPropagation()
           tileDiv.classList.remove("drag-over")
           val politicianId = e.dataTransfer.getData("text/plain")
           handleAssignPolitician(politicianId, coord)
