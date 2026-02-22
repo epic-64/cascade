@@ -642,16 +642,21 @@ object TileKingdomClient:
       bureaus.foreach: tile =>
         updateSingleTile(tile.coord)
 
-    // Show floating text and update only the upgraded tiles
+    // Show projectile and floating text for bureau upgrades
     bureauUpgrades.foreach: (upgradedCoord, newLevel, bureauCoord, cost, costResource, wasTurbo) =>
-      updateSingleTile(upgradedCoord)
-      updateSingleTile(bureauCoord) // Also update bureau tile to refresh button states
-      val costEmoji = resourceEmoji(costResource)
-      showFloatingReward(upgradedCoord, cost, costEmoji, isSpend = true)
-      showFloatingLevel(upgradedCoord, newLevel)
+      // Show cost deduction immediately at bureau
       showFloatingReward(bureauCoord, TileKingdomLogic.BureauWoodCostPerUpgrade, "🪵", isSpend = true)
       if wasTurbo then
         showFloatingReward(bureauCoord, TileKingdomLogic.BureauTurboFaithCost, "✨", isSpend = true)
+
+      // Fire projectile, then show upgrade effects when it arrives
+      showBureauProjectile(bureauCoord, upgradedCoord, () =>
+        updateSingleTile(upgradedCoord)
+        updateSingleTile(bureauCoord)
+        val costEmoji = resourceEmoji(costResource)
+        showFloatingReward(upgradedCoord, cost, costEmoji, isSpend = true)
+        showFloatingLevel(upgradedCoord, newLevel)
+      )
 
   // ============================================================================
   // Persistence
@@ -1914,6 +1919,36 @@ object TileKingdomClient:
 
       // Remove after animation completes
       window.setTimeout(() => floater.remove(), 1000)
+
+  private def showBureauProjectile(fromCoord: Coord, toCoord: Coord, onComplete: () => Unit): Unit =
+    getElementById("tile-kingdom-grid").foreach: grid =>
+      val projectile = div(cls = "bureau-projectile", content = "📜")
+
+      // Calculate pixel positions (center of tiles)
+      val tilePixelSize = 70 * zoomLevel
+      val fromX = fromCoord.col * TileSize + tilePixelSize / 2 - 12
+      val fromY = fromCoord.row * TileSize + tilePixelSize / 2 - 12
+      val toX = toCoord.col * TileSize + tilePixelSize / 2 - 12
+      val toY = toCoord.row * TileSize + tilePixelSize / 2 - 12
+
+      // Set initial position
+      projectile.style.left = s"${fromX}px"
+      projectile.style.top = s"${fromY}px"
+
+      grid.appendChild(projectile)
+
+      // Trigger animation to target after a brief delay (to allow initial render)
+      window.setTimeout(() =>
+        projectile.style.left = s"${toX}px"
+        projectile.style.top = s"${toY}px"
+      , 20)
+
+      // When animation completes, trigger effects and remove projectile
+      window.setTimeout(() =>
+        projectile.classList.add("arrived")
+        onComplete()
+        window.setTimeout(() => projectile.remove(), 200)
+      , 420)
 
   private def updatePoliticianTimer(): Unit =
     // Update rare chance display
