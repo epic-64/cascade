@@ -1077,6 +1077,11 @@
   border: 2px solid #d97706;
 }
 
+/* Disable pointer events on children to prevent drag-drop flickering */
+.tile-kingdom-tile.town-hall * {
+  pointer-events: none;
+}
+
 .tile-kingdom-tile.town-hall:hover {
   background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
   transform: scale(1.08);
