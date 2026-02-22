@@ -1529,13 +1529,45 @@ object TileKingdomLogic:
       Left("Skill already unlocked")
     else if game.skillPoints < Skill.cost(skill) then
       Left(s"Not enough skill points (need ${Skill.cost(skill)})")
+    else if Skill.mutuallyExclusive(skill).exists(game.unlockedSkills.contains) then
+      Left("Cannot unlock - mutually exclusive skill already chosen")
     else
-      Skill.prerequisite(skill) match
-        case Some(prereq) if !game.unlockedSkills.contains(prereq) =>
-          Left(s"Must unlock ${Skill.branchName(prereq)} ${Skill.cost(prereq)} first")
-        case _ =>
+      val prereqMet = Skill.prerequisite(skill).forall(game.unlockedSkills.contains)
+      val altPrereqMet = Skill.alternativePrerequisites(skill) match
+        case Some(alternatives) => alternatives.exists(game.unlockedSkills.contains)
+        case None => true
+      if !prereqMet || !altPrereqMet then
+        Left(s"Prerequisites not met")
+      else
+        Right(game.copy(
+          skillPoints = game.skillPoints - Skill.cost(skill),
+          unlockedSkills = game.unlockedSkills + skill
+        ))
+
+  // Check if player can switch to a mutually exclusive skill
+  def canSwitchSkill(game: TileKingdomGame, toSkill: Skill): Boolean =
+    if !game.hasSailed then false
+    else if game.unlockedSkills.contains(toSkill) then false
+    else if game.skillPoints < Skill.cost(toSkill) then false
+    else
+      // Must have the mutually exclusive skill already unlocked
+      Skill.mutuallyExclusive(toSkill).exists(game.unlockedSkills.contains)
+
+  // Switch from one skill to its mutually exclusive alternative
+  def switchSkill(game: TileKingdomGame, toSkill: Skill): Either[String, TileKingdomGame] =
+    if !game.hasSailed then
+      Left("Sail at least once to unlock the skill tree")
+    else if game.unlockedSkills.contains(toSkill) then
+      Left("Skill already unlocked")
+    else if game.skillPoints < Skill.cost(toSkill) then
+      Left(s"Not enough skill points (need ${Skill.cost(toSkill)})")
+    else
+      Skill.mutuallyExclusive(toSkill) match
+        case Some(fromSkill) if game.unlockedSkills.contains(fromSkill) =>
           Right(game.copy(
-            skillPoints = game.skillPoints - Skill.cost(skill),
-            unlockedSkills = game.unlockedSkills + skill
+            skillPoints = game.skillPoints - Skill.cost(toSkill),
+            unlockedSkills = game.unlockedSkills - fromSkill + toSkill
           ))
+        case _ =>
+          Left("No mutually exclusive skill to switch from")
 
