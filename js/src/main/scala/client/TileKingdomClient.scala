@@ -200,6 +200,15 @@ object TileKingdomClient:
         span(cls = "resource-label", content = "👑"),
         span(id = "tile-kingdom-abdications", cls = "resource-value", content = "0")
       ),
+      div(cls = "resource-item prestige")(
+        span(cls = "resource-label", content = "🏅"),
+        span(id = "tile-kingdom-legacy-points", cls = "resource-value", content = "0"),
+        span(cls = "resource-label-small", content = "/25")
+      ),
+      div(cls = "resource-item prestige")(
+        span(cls = "resource-label", content = "⭐"),
+        span(id = "tile-kingdom-skill-points", cls = "resource-value", content = "0")
+      ),
       div(cls = "resource-item income")(
         span(cls = "resource-label", content = "📈"),
         span(id = "tile-kingdom-income", cls = "resource-value", content = "0/s")
@@ -250,6 +259,10 @@ object TileKingdomClient:
         btn.disabled = true
         btn.onclick = (_: MouseEvent) => handleAbdicate()
       ,
+      button(id = "tile-kingdom-sail-btn", cls = "btn-sail disabled", content = "⛵ Sail").tap: btn =>
+        btn.disabled = true
+        btn.onclick = (_: MouseEvent) => handleSail()
+      ,
       button(id = "tile-kingdom-center-btn", cls = "btn-secondary", content = "⌖ Center").tap: btn =>
         btn.onclick = (_: MouseEvent) => centerOnKingdom(animated = true),
       button(id = "tile-kingdom-reset-btn", cls = "btn-danger", content = "Reset").tap: btn =>
@@ -289,6 +302,8 @@ object TileKingdomClient:
           p(content = "👑 Fill all unlocked tiles to abdicate"),
           p(content = "💰 Abdication earns gold based on income rate"),
           p(content = "🔓 Click adjacent tiles to expand your territory"),
+          p(content = "⛵ At 25 tiles, you can Sail for legacy points"),
+          p(content = "🏅 25 legacy points = 1 skill point"),
           p(content = "🖱️ Drag to pan, scroll to zoom"),
           p(content = "🗑️ Right-click a building to destroy it")
         )
@@ -780,6 +795,7 @@ object TileKingdomClient:
     renderPoliticianRoster()
     renderTiles()
     renderAbdicationButton()
+    renderSailButton()
 
   private def renderResources(): Unit =
     setElementText("tile-kingdom-wheat", formatNumber(currentGame.wheat))
@@ -788,6 +804,8 @@ object TileKingdomClient:
     setElementText("tile-kingdom-faith", formatNumber(currentGame.faith))
     setElementText("tile-kingdom-gold", formatNumber(currentGame.gold))
     setElementText("tile-kingdom-abdications", currentGame.totalAbdications.toString)
+    setElementText("tile-kingdom-legacy-points", currentGame.legacyPoints.toString)
+    setElementText("tile-kingdom-skill-points", currentGame.skillPoints.toString)
 
     // Individual income rates
     val wheatIncome = TileKingdomLogic.totalWheatProductionRate(currentGame)
@@ -1533,6 +1551,21 @@ object TileKingdomClient:
         btn.classList.add("disabled")
         btn.textContent = "Abdicate"
 
+  private def renderSailButton(): Unit =
+    getElementById("tile-kingdom-sail-btn").foreach: elem =>
+      val btn = elem.asInstanceOf[HTMLButtonElement]
+      val tileCount = currentGame.unlockedTiles.size
+      val minTiles = TileKingdomLogic.SailMinTiles
+      if currentGame.canSail then
+        btn.disabled = false
+        btn.classList.remove("disabled")
+        val legacyReward = currentGame.sailLegacyReward
+        btn.textContent = s"⛵ Sail (+$legacyReward 🏅)"
+      else
+        btn.disabled = true
+        btn.classList.add("disabled")
+        btn.textContent = s"⛵ Sail ($tileCount/$minTiles tiles)"
+
   // ============================================================================
   // Event Handlers
   // ============================================================================
@@ -1856,6 +1889,25 @@ object TileKingdomClient:
             saveGame()
             renderGame()
             showNotification(s"Abdicated! +$reward gold")
+          case Left(error) =>
+            showNotification(error)
+
+  private def handleSail(): Unit =
+    if currentGame.canSail then
+      val legacyReward = currentGame.sailLegacyReward
+      val totalLegacy = currentGame.legacyPoints + legacyReward
+      val skillPointsEarned = totalLegacy / TileKingdomLogic.LegacyPointsPerSkillPoint
+      val skillMsg = if skillPointsEarned > 0 then s" (+$skillPointsEarned ⭐)" else ""
+      if window.confirm(s"Sail away and earn $legacyReward legacy points?$skillMsg\n\nThis will reset ALL progress including gold and tiles!") then
+        TileKingdomLogic.sail(currentGame, System.currentTimeMillis()) match
+          case Right(newGame) =>
+            currentGame = newGame
+            tileProgress = Map.empty
+            saveGame()
+            centerOnKingdom()
+            renderGame()
+            val notification = if skillPointsEarned > 0 then s"Sailed! +$legacyReward 🏅, +$skillPointsEarned ⭐" else s"Sailed! +$legacyReward 🏅"
+            showNotification(notification)
           case Left(error) =>
             showNotification(error)
 
