@@ -242,6 +242,9 @@ case class TileKingdomGame(
   def hasQuarry: Boolean =
     unlockedTiles.exists(_.isQuarry)
 
+  def hasTownHall: Boolean =
+    unlockedTiles.exists(_.isTownHall)
+
   // Building unlock progression:
   // Wheat Field -> Farm -> Forest/Quarry -> Bureau/Temple (from Forest), Town Hall/Academy (from Quarry)
   def canBuildFarm: Boolean = hasWheatField
@@ -474,6 +477,10 @@ object TileKingdomLogic:
 
   // Check and generate new politicians based on elapsed time
   def generateNewPoliticians(game: TileKingdomGame, currentTimeMillis: Long): TileKingdomGame =
+    // Don't generate politicians if there's no town hall
+    if !game.hasTownHall then
+      return game.copy(lastPoliticianGeneration = currentTimeMillis, politicianGenerationProgress = 0.0)
+    
     // Don't generate or accumulate progress if roster is full
     if game.politicianRoster.size >= MaxPoliticianRosterSize then
       return game.copy(lastPoliticianGeneration = currentTimeMillis)
@@ -1163,13 +1170,6 @@ object TileKingdomLogic:
     else
       val goldReward = abdicationReward(game.totalIncomeRate)
 
-      // Collect politicians from town halls before resetting
-      val politiciansFromTownHalls = game.tiles.values.flatMap: tile =>
-        tile.tileType match
-          case TileType.TownHall(Some(politician)) => Some(politician)
-          case _ => None
-      .toList
-
       val resetTiles = game.tiles.map:
         case (coord, tile) if tile.unlocked =>
           coord -> tile.copy(tileType = TileType.Empty)
@@ -1186,7 +1186,8 @@ object TileKingdomLogic:
         lastTickTime = currentTimeMillis,
         totalAbdications = game.totalAbdications + 1,
         bureauTurboMode = Map.empty, // Reset bureau turbo mode since bureaus are destroyed
-        politicianRoster = game.politicianRoster ++ politiciansFromTownHalls // Return politicians to roster
+        politicianRoster = List.empty, // All politicians are destroyed on abdication
+        politicianGenerationProgress = 0.0 // Reset politician generation progress
       ))
 
   // Get all coords that can be unlocked (coords adjacent to unlocked tiles that aren't already tiles)

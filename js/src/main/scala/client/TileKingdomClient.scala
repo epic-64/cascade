@@ -819,41 +819,45 @@ object TileKingdomClient:
     getElementById("politician-roster-list").foreach: listElem =>
       listElem.innerHTML = ""
 
-      currentGame.politicianRoster.foreach: politician =>
-        val cardCls = if politician.isRare then "politician-card rare" else "politician-card"
-        val card = div(cls = cardCls)
-        card.setAttribute("draggable", "true")
-        card.setAttribute("data-politician-id", politician.id)
+      // Check if there's a town hall - politicians only work with town halls
+      if !currentGame.hasTownHall then
+        listElem.appendChild(div(cls = "roster-empty", content = "🏛️ Build Town Hall"))
+      else
+        currentGame.politicianRoster.foreach: politician =>
+          val cardCls = if politician.isRare then "politician-card rare" else "politician-card"
+          val card = div(cls = cardCls)
+          card.setAttribute("draggable", "true")
+          card.setAttribute("data-politician-id", politician.id)
 
-        // Calculate lifespan display
-        val lifespanSeconds = (politician.remainingLifespanMs / 1000).toInt
-        val minutes = lifespanSeconds / 60
-        val seconds = lifespanSeconds % 60
-        val lifespanText = f"$minutes:$seconds%02d"
-        val lifespanPercent = (politician.remainingLifespanMs.toDouble / TileKingdomLogic.PoliticianLifespanMs * 100).toInt
-        val lifespanClass = if lifespanPercent <= 20 then "lifespan-critical" else if lifespanPercent <= 50 then "lifespan-warning" else "lifespan-normal"
+          // Calculate lifespan display
+          val lifespanSeconds = (politician.remainingLifespanMs / 1000).toInt
+          val minutes = lifespanSeconds / 60
+          val seconds = lifespanSeconds % 60
+          val lifespanText = f"$minutes:$seconds%02d"
+          val lifespanPercent = (politician.remainingLifespanMs.toDouble / TileKingdomLogic.PoliticianLifespanMs * 100).toInt
+          val lifespanClass = if lifespanPercent <= 20 then "lifespan-critical" else if lifespanPercent <= 50 then "lifespan-warning" else "lifespan-normal"
 
-        card.appendChild(div(cls = "politician-emoji", content = politician.emoji))
-        card.appendChild(div(cls = "politician-info")(
-          div(cls = "politician-name", content = politician.name),
-          div(cls = "politician-title", content = politician.title),
-          div(cls = "politician-effect", content = politician.effectDescription),
-          div(cls = s"politician-roster-lifespan $lifespanClass", content = s"⏱️ $lifespanText remaining")
-        ))
+          card.appendChild(div(cls = "politician-emoji", content = politician.emoji))
+          card.appendChild(div(cls = "politician-info")(
+            div(cls = "politician-name", content = politician.name),
+            div(cls = "politician-title", content = politician.title),
+            div(cls = "politician-effect", content = politician.effectDescription),
+            div(cls = s"politician-roster-lifespan $lifespanClass", content = s"⏱️ $lifespanText remaining")
+          ))
 
-        // Setup drag events
-        card.ondragstart = (e: DragEvent) =>
-          e.dataTransfer.setData("text/plain", politician.id)
-          card.classList.add("dragging")
+          // Setup drag events
+          card.ondragstart = (e: DragEvent) =>
+            e.dataTransfer.setData("text/plain", politician.id)
+            card.classList.add("dragging")
 
-        card.ondragend = (_: DragEvent) =>
-          card.classList.remove("dragging")
+          card.ondragend = (_: DragEvent) =>
+            card.classList.remove("dragging")
 
-        listElem.appendChild(card)
+          listElem.appendChild(card)
 
-      // If roster is empty, show placeholder
-      if currentGame.politicianRoster.isEmpty then
-        listElem.appendChild(div(cls = "roster-empty", content = "No politicians available"))
+        // If roster is empty, show placeholder
+        if currentGame.politicianRoster.isEmpty then
+          listElem.appendChild(div(cls = "roster-empty", content = "No politicians available"))
 
     // Update timer for next politician
     updatePoliticianTimer()
@@ -1994,6 +1998,12 @@ object TileKingdomClient:
       , 420)
 
   private def updatePoliticianTimer(): Unit =
+    // If no town hall, don't show timer or rare chance
+    if !currentGame.hasTownHall then
+      setElementText("politician-timer", "")
+      setElementText("politician-rare-chance", "")
+      return
+
     // Update rare chance display
     val rareChance = TileKingdomLogic.rarePoliticianChance(currentGame)
     val rareChancePercent = (rareChance * 100).toInt
