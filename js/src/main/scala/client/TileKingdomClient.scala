@@ -1433,7 +1433,9 @@ object TileKingdomClient:
       case TileType.Bureau(level) =>
         tileDiv.classList.add("bureau")
         tileDiv.setAttribute("data-level", level.toString)
-        val isTurbo = TileKingdomLogic.isBureauTurbo(currentGame, coord)
+        val bureauMode = TileKingdomLogic.getBureauMode(currentGame, coord)
+        val isTurbo = bureauMode == BureauMode.Turbo
+        val isDisabled = bureauMode == BureauMode.Disabled
         val speedMultiplier = TileKingdomLogic.bureauSpeedMultiplier(currentGame, coord)
 
         // Find min level of nearby upgradeable tiles for faith cost display
@@ -1448,50 +1450,100 @@ object TileKingdomClient:
         val canAffordTurbo = currentGame.faith >= minFaithCost
 
         if isTurbo then tileDiv.classList.add("turbo")
+        if isDisabled then tileDiv.classList.add("disabled")
+
+        val modeLabel = bureauMode match
+          case BureauMode.Slow => "Bureau"
+          case BureauMode.Turbo => s"⚡x${speedMultiplier.toInt}"
+          case BureauMode.Disabled => "⏸️ Paused"
 
         val content = div(cls = "tile-content")(
           div(cls = "tile-icon", content = "🏛️"),
-          div(cls = "tile-label", content = if isTurbo then s"⚡x${speedMultiplier.toInt}" else "Bureau")
+          div(cls = "tile-label", content = modeLabel)
         )
 
-        content.appendChild(div(cls = "tile-production", content = s"Auto⬆"))
+        if !isDisabled then
+          content.appendChild(div(cls = "tile-production", content = s"Auto⬆"))
         
         // Show upgrade cost - faith cost is now level × 10
-        val costText = if isTurbo then
-          s"${TileKingdomLogic.BureauWoodCostPerUpgrade}🪵 Lv×10✨"
-        else
-          s"${TileKingdomLogic.BureauWoodCostPerUpgrade}🪵"
+        val costText = bureauMode match
+          case BureauMode.Turbo => s"${TileKingdomLogic.BureauWoodCostPerUpgrade}🪵 Lv×10✨"
+          case BureauMode.Slow => s"${TileKingdomLogic.BureauWoodCostPerUpgrade}🪵"
+          case BureauMode.Disabled => "—"
         content.appendChild(div(cls = "bureau-cost", content = costText))
 
         // Add mode toggle buttons side by side
         val modeRow = div(cls = "bureau-mode-row")
 
         // Slow mode button
-        modeRow.appendChild(button(cls = s"btn-bureau-mode slow${if !isTurbo then " active" else ""}", content = "🐢").tap: btn =>
+        modeRow.appendChild(button(cls = s"btn-bureau-mode slow${if bureauMode == BureauMode.Slow then " active" else ""}", content = "🐢").tap: btn =>
+          btn.title = "Slow mode (1x speed)"
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
-            if isTurbo then handleToggleBureauTurbo(coord)
+            if bureauMode != BureauMode.Slow then
+              // Cycle until we reach Slow
+              var game = currentGame
+              while TileKingdomLogic.getBureauMode(game, coord) != BureauMode.Slow do
+                TileKingdomLogic.cycleBureauMode(game, coord) match
+                  case Right(g) => game = g
+                  case Left(_) => ()
+              currentGame = game
+              saveGame()
+              renderGame()
+              showNotification("Slow mode (1x speed)")
         )
 
-        // Turbo mode button (disabled if can't afford)
-        val turboBtn = button(cls = s"btn-bureau-mode turbo${if isTurbo then " active" else ""}${if !canAffordTurbo && !isTurbo then " disabled" else ""}", content = "⚡")
+        // Turbo mode button
+        val turboBtn = button(cls = s"btn-bureau-mode turbo${if isTurbo then " active" else ""}${if !canAffordTurbo && !isTurbo then " insufficient" else ""}", content = "⚡")
+        turboBtn.title = s"Turbo mode (10x speed, ${minFaithCost}✨/upgrade)"
         turboBtn.onclick = (e: MouseEvent) =>
           e.stopPropagation()
-          if !isTurbo && canAffordTurbo then handleToggleBureauTurbo(coord)
-          else if !canAffordTurbo && !isTurbo then showNotification(s"Need ${minFaithCost}✨ for turbo mode (Lv$minLevel × 10)")
+          if bureauMode != BureauMode.Turbo then
+            if canAffordTurbo || bureauMode == BureauMode.Turbo then
+              // Cycle until we reach Turbo
+              var game = currentGame
+              while TileKingdomLogic.getBureauMode(game, coord) != BureauMode.Turbo do
+                TileKingdomLogic.cycleBureauMode(game, coord) match
+                  case Right(g) => game = g
+                  case Left(_) => ()
+              currentGame = game
+              saveGame()
+              renderGame()
+              showNotification("Turbo mode (10x speed, +✨/upgrade)")
+            else
+              showNotification(s"Need ${minFaithCost}✨ for turbo mode (Lv$minLevel × 10)")
         modeRow.appendChild(turboBtn)
+
+        // Disabled/pause button
+        modeRow.appendChild(button(cls = s"btn-bureau-mode pause${if isDisabled then " active" else ""}", content = "⏸️").tap: btn =>
+          btn.title = "Pause bureau"
+          btn.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            if bureauMode != BureauMode.Disabled then
+              // Cycle until we reach Disabled
+              var game = currentGame
+              while TileKingdomLogic.getBureauMode(game, coord) != BureauMode.Disabled do
+                TileKingdomLogic.cycleBureauMode(game, coord) match
+                  case Right(g) => game = g
+                  case Left(_) => ()
+              currentGame = game
+              saveGame()
+              renderGame()
+              showNotification("Bureau paused")
+        )
 
         content.appendChild(modeRow)
 
         tileDiv.appendChild(content)
 
-        // Add progress bar
-        val progress = tileProgress.getOrElse(coord, 0.0)
-        val progressContainer = div(cls = "tile-progress-container")
-        val progressBar = div(id = s"progress-bar-${coord.row}-${coord.col}", cls = "tile-progress-bar bureau-progress")
-        progressBar.style.width = s"${(progress * 100).toInt}%"
-        progressContainer.appendChild(progressBar)
-        tileDiv.appendChild(progressContainer)
+        // Add progress bar (hidden when disabled)
+        if !isDisabled then
+          val progress = tileProgress.getOrElse(coord, 0.0)
+          val progressContainer = div(cls = "tile-progress-container")
+          val progressBar = div(id = s"progress-bar-${coord.row}-${coord.col}", cls = "tile-progress-bar bureau-progress")
+          progressBar.style.width = s"${(progress * 100).toInt}%"
+          progressContainer.appendChild(progressBar)
+          tileDiv.appendChild(progressContainer)
 
         tileDiv.oncontextmenu = (e: MouseEvent) =>
           e.preventDefault()
@@ -2074,14 +2126,17 @@ object TileKingdomClient:
       else
         showNotification("Not enough wood")
 
-  private def handleToggleBureauTurbo(coord: Coord): Unit =
-    TileKingdomLogic.toggleBureauTurbo(currentGame, coord) match
+  private def handleCycleBureauMode(coord: Coord): Unit =
+    TileKingdomLogic.cycleBureauMode(currentGame, coord) match
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
         renderGame()
-        val isTurbo = TileKingdomLogic.isBureauTurbo(newGame, coord)
-        val modeText = if isTurbo then "Turbo mode enabled (10x speed, +100✨/upgrade)" else "Slow mode enabled"
+        val mode = TileKingdomLogic.getBureauMode(newGame, coord)
+        val modeText = mode match
+          case BureauMode.Slow => "Slow mode (1x speed)"
+          case BureauMode.Turbo => "Turbo mode (10x speed, +✨/upgrade)"
+          case BureauMode.Disabled => "Bureau paused"
         showNotification(modeText)
       case Left(error) =>
         showNotification(error)

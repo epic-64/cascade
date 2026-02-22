@@ -67,6 +67,11 @@ enum AcademyMode derives ReadWriter:
   case FasterPoliticians // 2x politician generation speed
   case RareChance // +10% rare politician chance
 
+enum BureauMode derives ReadWriter:
+  case Slow     // Normal speed, costs wood only
+  case Turbo    // 10x speed, costs wood + faith
+  case Disabled // Paused, no upgrades
+
 // ============================================================================
 // Skill Tree System
 // ============================================================================
@@ -288,7 +293,7 @@ case class TileKingdomGame(
     stone: Double = 0.0, // Stone resource from quarries
     lastTickTime: Long, // Timestamp in milliseconds for offline progress
     totalAbdications: Int,
-    bureauTurboMode: Map[Coord, Boolean] = Map.empty, // Whether turbo mode is enabled per bureau
+    bureauMode: Map[Coord, BureauMode] = Map.empty, // Bureau operation mode per bureau
     upgradeCooldowns: Map[Coord, Long] = Map.empty, // Deprecated, kept for save compatibility
     politicianRoster: List[Politician] = List.empty, // Available politicians to assign
     lastPoliticianGeneration: Long = 0L, // Timestamp of last politician generation tick
@@ -628,7 +633,7 @@ object TileKingdomLogic:
       return game.copy(lastPoliticianGeneration = currentTimeMillis, politicianGenerationProgress = 0.0)
 
     val maxRosterSize = maxPoliticianRosterSize(game)
-    
+
     // Don't generate or accumulate progress if roster is full
     if game.politicianRoster.size >= maxRosterSize then
       return game.copy(lastPoliticianGeneration = currentTimeMillis)
@@ -658,7 +663,7 @@ object TileKingdomLogic:
       
       // If we filled the roster, reset progress; otherwise keep remainder
       val finalProgress = if game.politicianRoster.size + actualNewCount >= maxRosterSize then 0.0 else remainingProgress
-      
+
       game.copy(
         politicianRoster = game.politicianRoster ++ newPoliticians,
         lastPoliticianGeneration = currentTimeMillis,
@@ -1231,27 +1236,42 @@ object TileKingdomLogic:
               ))
           case _ => Left("Tile is not a quarry")
 
-  // Toggle bureau turbo mode on/off
-  def toggleBureauTurbo(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
+  // Cycle bureau mode: Slow -> Turbo -> Disabled -> Slow
+  def cycleBureauMode(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
       case None => Left("Tile not found")
       case Some(tile) if !tile.isBureau => Left("Tile is not a bureau")
       case Some(_) =>
-        val currentTurbo = game.bureauTurboMode.getOrElse(coord, false)
+        val currentMode = game.bureauMode.getOrElse(coord, BureauMode.Slow)
+        val nextMode = currentMode match
+          case BureauMode.Slow => BureauMode.Turbo
+          case BureauMode.Turbo => BureauMode.Disabled
+          case BureauMode.Disabled => BureauMode.Slow
         Right(game.copy(
-          bureauTurboMode = game.bureauTurboMode.updated(coord, !currentTurbo)
+          bureauMode = game.bureauMode.updated(coord, nextMode)
         ))
+
+  // Get bureau mode (defaults to Slow)
+  def getBureauMode(game: TileKingdomGame, bureauCoord: Coord): BureauMode =
+    game.bureauMode.getOrElse(bureauCoord, BureauMode.Slow)
 
   // Check if bureau is in turbo mode
   def isBureauTurbo(game: TileKingdomGame, bureauCoord: Coord): Boolean =
-    game.bureauTurboMode.getOrElse(bureauCoord, false)
+    getBureauMode(game, bureauCoord) == BureauMode.Turbo
+
+  // Check if bureau is disabled
+  def isBureauDisabled(game: TileKingdomGame, bureauCoord: Coord): Boolean =
+    getBureauMode(game, bureauCoord) == BureauMode.Disabled
 
   // Calculate turbo faith cost based on target tile level (level × 10)
   def bureauTurboFaithCostForLevel(level: Int): Int = level * 10
 
-  // Get bureau speed multiplier (1.0 = slow mode, 10.0 = turbo mode)
+  // Get bureau speed multiplier (0.0 = disabled, 1.0 = slow mode, 10.0 = turbo mode)
   def bureauSpeedMultiplier(game: TileKingdomGame, bureauCoord: Coord): Double =
-    if isBureauTurbo(game, bureauCoord) then BureauTurboSpeedMultiplier else 1.0
+    getBureauMode(game, bureauCoord) match
+      case BureauMode.Slow => 1.0
+      case BureauMode.Turbo => BureauTurboSpeedMultiplier
+      case BureauMode.Disabled => 0.0
 
   // Bureau auto-upgrade: upgrade the tile with lowest upgrade cost within radius
   // Returns updated game and the coord that was upgraded (if any)
@@ -1283,7 +1303,7 @@ object TileKingdomLogic:
         // Auto-disable turbo mode if we can't afford wood or faith for the cheapest tile
         val gameWithTurboCheck =
           if isTurbo && (!canAffordWood || !canAffordFaith) then
-            game.copy(bureauTurboMode = game.bureauTurboMode.updated(bureauCoord, false))
+            game.copy(bureauMode = game.bureauMode.updated(bureauCoord, BureauMode.Slow))
           else game
         
         val effectiveIsTurbo = isBureauTurbo(gameWithTurboCheck, bureauCoord)
@@ -1370,7 +1390,7 @@ object TileKingdomLogic:
         gold = game.gold + goldReward,
         lastTickTime = currentTimeMillis,
         totalAbdications = game.totalAbdications + 1,
-        bureauTurboMode = Map.empty, // Reset bureau turbo mode since bureaus are destroyed
+        bureauMode = Map.empty, // Reset bureau mode since bureaus are destroyed
         politicianRoster = List.empty, // All politicians are destroyed on abdication
         politicianGenerationProgress = 0.0 // Reset politician generation progress
       ))
@@ -1399,7 +1419,7 @@ object TileKingdomLogic:
         gold = 0, // Gold resets on sail
         lastTickTime = currentTimeMillis,
         totalAbdications = 0, // Abdications reset on sail
-        bureauTurboMode = Map.empty,
+        bureauMode = Map.empty,
         politicianRoster = List.empty,
         politicianGenerationProgress = 0.0,
         legacyPoints = remainingLegacyPoints,
