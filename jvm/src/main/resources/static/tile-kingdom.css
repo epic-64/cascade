@@ -1311,6 +1311,13 @@
   border-radius: 4px;
 }
 
+.tile-kingdom-tile.academy .academy-mode.education2-bonus {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%);
+  border: 1px solid rgba(251, 191, 36, 0.6);
+  color: #7c2d12;
+  font-weight: 600;
+}
+
 .tile-kingdom-tile.academy .btn-toggle-mode {
   font-size: var(--font-sm);
   padding: 2px 6px;
