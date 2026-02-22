@@ -1287,8 +1287,8 @@
    ============================================================================ */
 
 .politician-roster {
-  width: 180px;
-  max-height: 350px;
+  width: 240px;
+  max-height: 500px;
   background: var(--bg-primary);
   padding: 0.75rem;
   border-radius: var(--radius-md);
