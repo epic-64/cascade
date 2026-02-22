@@ -634,7 +634,7 @@ object TileKingdomClient:
       val townHalls = currentGame.unlockedTiles.filter(_.isTownHall)
       townHalls.foreach: tile =>
         tile.tileType match
-          case TileType.TownHall(Some(_)) => updateSingleTile(tile.coord)
+          case TileType.TownHall(Some(_)) => updateTownHallLifespan(tile.coord)
           case _ => ()
 
     // Update all bureau tiles when faith changes to refresh turbo button states
@@ -789,6 +789,29 @@ object TileKingdomClient:
       Option(document.getElementById(s"tile-${coord.row}-${coord.col}")).foreach: oldElement =>
         val newElement = renderTile(tile)
         oldElement.parentNode.replaceChild(newElement, oldElement)
+
+  // Update only the TownHall lifespan timer without replacing the entire tile
+  // This preserves drag-drop handlers during timer updates
+  private def updateTownHallLifespan(coord: Coord): Unit =
+    currentGame.tiles.get(coord).flatMap(_.tileType match
+      case TileType.TownHall(Some(pol)) => Some(pol)
+      case _ => None
+    ).foreach: pol =>
+      Option(document.getElementById(s"politician-lifespan-${coord.row}-${coord.col}")).foreach: lifespanElem =>
+        val elem = lifespanElem.asInstanceOf[HTMLElement]
+        val lifespanMultiplier = TileKingdomLogic.politicianLifespanMultiplier(currentGame, coord)
+        val effectiveLifespanMs = (pol.remainingLifespanMs * lifespanMultiplier).toLong
+        val lifespanSeconds = (effectiveLifespanMs / 1000).toInt
+        val minutes = lifespanSeconds / 60
+        val seconds = lifespanSeconds % 60
+        val lifespanText = f"$minutes:$seconds%02d"
+        val effectiveMaxLifespanMs = (TileKingdomLogic.PoliticianLifespanMs * lifespanMultiplier).toLong
+        val lifespanPercent = (effectiveLifespanMs.toDouble / effectiveMaxLifespanMs * 100).toInt
+        val lifespanClass = if lifespanPercent <= 20 then "lifespan-critical" else if lifespanPercent <= 50 then "lifespan-warning" else "lifespan-normal"
+        val multiplierText = if lifespanMultiplier > 1.0 then s" (${lifespanMultiplier.toInt}x)" else ""
+
+        elem.textContent = s"⏱️ $lifespanText$multiplierText"
+        elem.className = s"politician-lifespan $lifespanClass"
 
   private def renderTiles(): Unit =
     getElementById("tile-kingdom-grid").foreach: gridContainer =>
@@ -1347,7 +1370,7 @@ object TileKingdomClient:
             content.appendChild(div(cls = "politician-slot filled")(
               div(cls = "politician-emoji-small", content = pol.emoji),
               div(cls = "politician-effect-small", content = pol.effectDescription),
-              div(cls = s"politician-lifespan $lifespanClass", content = s"⏱️ $lifespanText$multiplierText")
+              div(id = s"politician-lifespan-${coord.row}-${coord.col}", cls = s"politician-lifespan $lifespanClass", content = s"⏱️ $lifespanText$multiplierText")
             ))
             // Click to remove politician
             tileDiv.onclick = (_: MouseEvent) => handleRemovePolitician(coord)
