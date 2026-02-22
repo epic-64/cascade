@@ -69,6 +69,12 @@ object TileKingdomClient:
     e.stopPropagation()
     if !wasDragging then handler
 
+  // Calculate levels needed to reach next multiple of 10
+  // E.g. level 16 -> 4 (to reach 20), level 20 -> 10 (to reach 30)
+  private def levelsToNextTen(currentLevel: Int): Int =
+    val remainder = currentLevel % 10
+    if remainder == 0 then 10 else 10 - remainder
+
   // ============================================================================
   // Initialization
   // ============================================================================
@@ -1150,7 +1156,7 @@ object TileKingdomClient:
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
-            handleBulkLevelUp(coord, 10, TileKingdomLogic.levelUpWheatField, TileKingdomLogic.wheatFieldLevelUpCost)
+            handleBulkLevelUp(coord, levelsToNextTen(level), TileKingdomLogic.levelUpWheatField, TileKingdomLogic.wheatFieldLevelUpCost)
         )
         content.appendChild(upgradeRow)
 
@@ -1186,7 +1192,7 @@ object TileKingdomClient:
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
-            handleBulkLevelUp(coord, 10, TileKingdomLogic.levelUpFarm, TileKingdomLogic.farmLevelUpCost)
+            handleBulkLevelUp(coord, levelsToNextTen(level), TileKingdomLogic.levelUpFarm, TileKingdomLogic.farmLevelUpCost)
         )
         content.appendChild(upgradeRow)
 
@@ -1224,7 +1230,7 @@ object TileKingdomClient:
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
-            handleBulkLevelUp(coord, 10, TileKingdomLogic.levelUpWoodcutter, TileKingdomLogic.woodcutterLevelUpCost)
+            handleBulkLevelUp(coord, levelsToNextTen(level), TileKingdomLogic.levelUpWoodcutter, TileKingdomLogic.woodcutterLevelUpCost)
         )
         content.appendChild(upgradeRow)
 
@@ -1325,7 +1331,7 @@ object TileKingdomClient:
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
-            handleBulkLevelUpTemple(coord, 10)
+            handleBulkLevelUpTemple(coord, levelsToNextTen(level))
         )
         content.appendChild(upgradeRow)
 
@@ -1368,7 +1374,7 @@ object TileKingdomClient:
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
-            handleBulkLevelUp(coord, 10, TileKingdomLogic.levelUpQuarry, TileKingdomLogic.quarryLevelUpCost, "🪵")
+            handleBulkLevelUp(coord, levelsToNextTen(level), TileKingdomLogic.levelUpQuarry, TileKingdomLogic.quarryLevelUpCost, "🪵")
         )
         content.appendChild(upgradeRow)
 
