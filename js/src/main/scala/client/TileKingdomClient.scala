@@ -153,6 +153,7 @@ object TileKingdomClient:
     container.appendChild(buildWelcomeBackModal())
     container.appendChild(buildHelpPopup())
     container.appendChild(buildDevToolsPopup())
+    container.appendChild(buildSkillTreeModal())
 
     // Setup drag handlers
     setupDragHandlers(viewport)
@@ -262,6 +263,9 @@ object TileKingdomClient:
       button(id = "tile-kingdom-sail-btn", cls = "btn-sail disabled", content = "⛵ Sail").tap: btn =>
         btn.disabled = true
         btn.onclick = (_: MouseEvent) => handleSail()
+      ,
+      button(id = "tile-kingdom-skills-btn", cls = "btn-skills", content = "🌳 Skills").tap: btn =>
+        btn.onclick = (_: MouseEvent) => toggleSkillTree()
       ,
       button(id = "tile-kingdom-center-btn", cls = "btn-secondary", content = "⌖ Center").tap: btn =>
         btn.onclick = (_: MouseEvent) => centerOnKingdom(animated = true),
@@ -373,6 +377,91 @@ object TileKingdomClient:
   private def toggleHelpPopup(): Unit =
     getElementById("tile-kingdom-help-popup").foreach: popup =>
       popup.classList.toggle("show")
+
+  private def toggleSkillTree(): Unit =
+    getElementById("tile-kingdom-skill-tree-modal").foreach: modal =>
+      if modal.classList.contains("show") then
+        modal.classList.remove("show")
+      else
+        renderSkillTreeContent()
+        modal.classList.add("show")
+
+  private def buildSkillTreeModal(): HTMLElement =
+    div(id = "tile-kingdom-skill-tree-modal", cls = "skill-tree-modal")(
+      div(cls = "skill-tree-modal-content")(
+        div(cls = "skill-tree-header")(
+          h3(content = "🌳 Skill Tree"),
+          div(id = "skill-tree-points", cls = "skill-tree-points", content = ""),
+          button(cls = "skill-tree-close-btn", content = "✕").tap: btn =>
+            btn.onclick = (_: MouseEvent) => toggleSkillTree()
+        ),
+        div(id = "skill-tree-body", cls = "skill-tree-body")
+      )
+    )
+
+  private def renderSkillTreeContent(): Unit =
+    getElementById("skill-tree-points").foreach: elem =>
+      elem.textContent = s"⭐ ${currentGame.skillPoints} skill points"
+
+    getElementById("skill-tree-body").foreach: body =>
+      body.innerHTML = ""
+
+      if !currentGame.hasSailed then
+        body.appendChild(div(cls = "skill-tree-locked")(
+          div(cls = "locked-icon", content = "🔒"),
+          div(cls = "locked-text", content = "Sail at least once to unlock the skill tree"),
+          div(cls = "locked-hint", content = "Reach 25 tiles and click ⛵ Sail")
+        ))
+      else
+        // Render each branch
+        Skill.allBranches.foreach: branchName =>
+          val branchDiv = div(cls = "skill-branch")(
+            div(cls = "skill-branch-header")(
+              span(cls = "branch-emoji", content = Skill.branchEmoji(branchName)),
+              span(cls = "branch-name", content = branchName)
+            ),
+            div(cls = "skill-branch-nodes")
+          )
+
+          val nodesContainer = branchDiv.querySelector(".skill-branch-nodes").asInstanceOf[HTMLElement]
+          Skill.branchSkills(branchName).foreach: skill =>
+            val isUnlocked = currentGame.hasSkill(skill)
+            val canUnlock = currentGame.canUnlockSkill(skill)
+            val cost = Skill.cost(skill)
+            val description = Skill.description(skill)
+
+            val nodeCls = 
+              if isUnlocked then "skill-node unlocked"
+              else if canUnlock then "skill-node available"
+              else "skill-node locked"
+
+            val nodeDiv = div(cls = nodeCls)(
+              div(cls = "skill-node-cost", content = s"${cost}⭐"),
+              div(cls = "skill-node-desc", content = description),
+              if isUnlocked then
+                div(cls = "skill-node-status", content = "✓ Unlocked")
+              else if canUnlock then
+                button(cls = "skill-node-btn", content = "Unlock").tap: btn =>
+                  btn.onclick = (e: MouseEvent) =>
+                    e.stopPropagation()
+                    handleUnlockSkill(skill)
+              else
+                div(cls = "skill-node-status", content = "🔒")
+            )
+            nodesContainer.appendChild(nodeDiv)
+
+          body.appendChild(branchDiv)
+
+  private def handleUnlockSkill(skill: Skill): Unit =
+    TileKingdomLogic.unlockSkill(currentGame, skill) match
+      case Right(newGame) =>
+        currentGame = newGame
+        saveGame()
+        renderGame()
+        renderSkillTreeContent()
+        showNotification(s"Unlocked: ${Skill.description(skill)}")
+      case Left(error) =>
+        showNotification(error)
 
   // ============================================================================
   // Drag/Pan Handling

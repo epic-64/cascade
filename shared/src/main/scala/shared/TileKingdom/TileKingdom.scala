@@ -67,6 +67,76 @@ enum AcademyMode derives ReadWriter:
   case FasterPoliticians // 2x politician generation speed
   case RareChance // +10% rare politician chance
 
+// ============================================================================
+// Skill Tree System
+// ============================================================================
+
+// Individual skill nodes within a branch
+enum Skill derives ReadWriter:
+  // Agriculture branch
+  case Agriculture1 // Fields start at level 10
+  case Agriculture2 // Farms start at level 10
+  // Management branch
+  case Management1 // Politician roster holds 2 additional politicians
+  case Management2 // Town halls are 10x cheaper to build
+  // Wisdom branch
+  case Wisdom1 // Quarries produce 25% more stone for each neighboring forest
+  case Wisdom2 // Each forest grants 50% increased faith production to neighboring temples
+  // Education branch
+  case Education1 // Academies are 10x cheaper
+  case Education2 // Academies have both modes active at the same time
+
+object Skill:
+  // Get skill branch name
+  def branchName(skill: Skill): String = skill match
+    case Agriculture1 | Agriculture2 => "Agriculture"
+    case Management1 | Management2 => "Management"
+    case Wisdom1 | Wisdom2 => "Wisdom"
+    case Education1 | Education2 => "Education"
+
+  // Get skill description
+  def description(skill: Skill): String = skill match
+    case Agriculture1 => "Fields start at level 10"
+    case Agriculture2 => "Farms start at level 10"
+    case Management1 => "Politician roster holds 2 additional politicians"
+    case Management2 => "Town halls are 10x cheaper to build"
+    case Wisdom1 => "Quarries produce 25% more stone per neighboring forest"
+    case Wisdom2 => "Forests grant 50% faith to neighboring temples"
+    case Education1 => "Academies are 10x cheaper"
+    case Education2 => "Academies have both modes active"
+
+  // Get skill cost (position in branch)
+  def cost(skill: Skill): Int = skill match
+    case Agriculture1 | Management1 | Wisdom1 | Education1 => 1
+    case Agriculture2 | Management2 | Wisdom2 | Education2 => 2
+
+  // Get prerequisite skill (if any)
+  def prerequisite(skill: Skill): Option[Skill] = skill match
+    case Agriculture1 | Management1 | Wisdom1 | Education1 => None
+    case Agriculture2 => Some(Agriculture1)
+    case Management2 => Some(Management1)
+    case Wisdom2 => Some(Wisdom1)
+    case Education2 => Some(Education1)
+
+  // Get all skills in a branch, in order
+  def branchSkills(branchName: String): List[Skill] = branchName match
+    case "Agriculture" => List(Agriculture1, Agriculture2)
+    case "Management" => List(Management1, Management2)
+    case "Wisdom" => List(Wisdom1, Wisdom2)
+    case "Education" => List(Education1, Education2)
+    case _ => List.empty
+
+  // Get all branch names
+  val allBranches: List[String] = List("Agriculture", "Management", "Wisdom", "Education")
+
+  // Get emoji for branch
+  def branchEmoji(branchName: String): String = branchName match
+    case "Agriculture" => "🌾"
+    case "Management" => "📋"
+    case "Wisdom" => "📿"
+    case "Education" => "📚"
+    case _ => "❓"
+
 enum TileType derives ReadWriter:
   case Empty
   case WheatField(level: Int) // level determines production rate
@@ -206,7 +276,9 @@ case class TileKingdomGame(
     lastPoliticianGeneration: Long = 0L, // Timestamp of last politician generation tick
     politicianGenerationProgress: Double = 0.0, // Progress towards next politician (0.0 to 1.0)
     legacyPoints: Int = 0, // Legacy points earned from Sailing (second tier prestige)
-    skillPoints: Int = 0 // Skill points (1 per 25 legacy points)
+    skillPoints: Int = 0, // Skill points (1 per 25 legacy points)
+    unlockedSkills: Set[Skill] = Set.empty, // Skills unlocked via skill tree
+    hasSailed: Boolean = false // Whether player has sailed at least once (unlocks skill tree)
 ) derives ReadWriter:
 
   // Resource helpers
@@ -274,6 +346,17 @@ case class TileKingdomGame(
   def canSail: Boolean = unlockedTiles.size >= TileKingdomLogic.SailMinTiles
 
   def sailLegacyReward: Int = unlockedTiles.size // 1 legacy point per tile destroyed
+
+  // Skill helpers
+  def hasSkill(skill: Skill): Boolean = unlockedSkills.contains(skill)
+
+  def canUnlockSkill(skill: Skill): Boolean =
+    if unlockedSkills.contains(skill) then false
+    else if skillPoints < Skill.cost(skill) then false
+    else Skill.prerequisite(skill).forall(unlockedSkills.contains)
+
+  def totalSkillPointsSpent: Int =
+    unlockedSkills.toList.map(Skill.cost).sum
 
 // ============================================================================
 // Game Logic
@@ -491,7 +574,7 @@ object TileKingdomLogic:
     // Don't generate politicians if there's no town hall
     if !game.hasTownHall then
       return game.copy(lastPoliticianGeneration = currentTimeMillis, politicianGenerationProgress = 0.0)
-    
+
     // Don't generate or accumulate progress if roster is full
     if game.politicianRoster.size >= MaxPoliticianRosterSize then
       return game.copy(lastPoliticianGeneration = currentTimeMillis)
@@ -1115,9 +1198,9 @@ object TileKingdomLogic:
         val minLevelTile = upgradeableTiles.minByOption(_._2.level)
         val minFaithCost = minLevelTile.map(t => bureauTurboFaithCostForLevel(t._2.level)).getOrElse(Int.MaxValue)
         val canAffordFaith = game.faith >= minFaithCost
-        
+
         // Auto-disable turbo mode if we can't afford wood or faith for the cheapest tile
-        val gameWithTurboCheck = 
+        val gameWithTurboCheck =
           if isTurbo && (!canAffordWood || !canAffordFaith) then
             game.copy(bureauTurboMode = game.bureauTurboMode.updated(bureauCoord, false))
           else game
@@ -1158,7 +1241,7 @@ object TileKingdomLogic:
             
             // Deduct faith cost if effectively in turbo mode (level × 10)
             val turboFaithCost = bureauTurboFaithCostForLevel(targetTile.level)
-            val afterTurboCost = 
+            val afterTurboCost =
               if effectiveIsTurbo then afterBureauFee.copy(faith = afterBureauFee.faith - turboFaithCost)
               else afterBureauFee
 
@@ -1239,7 +1322,8 @@ object TileKingdomLogic:
         politicianRoster = List.empty,
         politicianGenerationProgress = 0.0,
         legacyPoints = remainingLegacyPoints,
-        skillPoints = game.skillPoints + skillPointsEarned
+        skillPoints = game.skillPoints + skillPointsEarned,
+        hasSailed = true // Mark that player has sailed at least once
       ))
 
   // Get all coords that can be unlocked (coords adjacent to unlocked tiles that aren't already tiles)
@@ -1368,3 +1452,22 @@ object TileKingdomLogic:
 
         val newTile = Tile(coord = best, tileType = TileType.Empty, unlocked = true)
         currentGame.copy(tiles = currentGame.tiles.updated(best, newTile))
+
+  // Unlock a skill from the skill tree
+  def unlockSkill(game: TileKingdomGame, skill: Skill): Either[String, TileKingdomGame] =
+    if !game.hasSailed then
+      Left("Sail at least once to unlock the skill tree")
+    else if game.unlockedSkills.contains(skill) then
+      Left("Skill already unlocked")
+    else if game.skillPoints < Skill.cost(skill) then
+      Left(s"Not enough skill points (need ${Skill.cost(skill)})")
+    else
+      Skill.prerequisite(skill) match
+        case Some(prereq) if !game.unlockedSkills.contains(prereq) =>
+          Left(s"Must unlock ${Skill.branchName(prereq)} ${Skill.cost(prereq)} first")
+        case _ =>
+          Right(game.copy(
+            skillPoints = game.skillPoints - Skill.cost(skill),
+            unlockedSkills = game.unlockedSkills + skill
+          ))
+
