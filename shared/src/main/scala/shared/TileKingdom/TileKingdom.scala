@@ -204,7 +204,9 @@ case class TileKingdomGame(
     upgradeCooldowns: Map[Coord, Long] = Map.empty, // Deprecated, kept for save compatibility
     politicianRoster: List[Politician] = List.empty, // Available politicians to assign
     lastPoliticianGeneration: Long = 0L, // Timestamp of last politician generation tick
-    politicianGenerationProgress: Double = 0.0 // Progress towards next politician (0.0 to 1.0)
+    politicianGenerationProgress: Double = 0.0, // Progress towards next politician (0.0 to 1.0)
+    legacyPoints: Int = 0, // Legacy points earned from Sailing (second tier prestige)
+    skillPoints: Int = 0 // Skill points (1 per 25 legacy points)
 ) derives ReadWriter:
 
   // Resource helpers
@@ -268,6 +270,11 @@ case class TileKingdomGame(
   def abdicationGoldReward: Int =
     TileKingdomLogic.abdicationReward(totalIncomeRate)
 
+  // Sail (second tier prestige) - requires 25 tiles
+  def canSail: Boolean = unlockedTiles.size >= TileKingdomLogic.SailMinTiles
+
+  def sailLegacyReward: Int = unlockedTiles.size // 1 legacy point per tile destroyed
+
 // ============================================================================
 // Game Logic
 // ============================================================================
@@ -313,6 +320,10 @@ object TileKingdomLogic:
   val AcademySpeedMultiplier: Double = 2.0 // 2x faster politician generation
   val AcademyRareChanceBonus: Double = 0.10 // +10% rare chance per academy in RareChance mode
   val BaseRarePoliticianChance: Double = 0.05 // 5% base chance for rare politician
+
+  // Sail (second tier prestige) constants
+  val SailMinTiles: Int = 25 // Minimum tiles required to sail
+  val LegacyPointsPerSkillPoint: Int = 25 // Legacy points needed for 1 skill point
 
   // Politician definitions
   val PoliticianPool: List[(String, String, PoliticianEffect, String)] = List(
@@ -1188,6 +1199,37 @@ object TileKingdomLogic:
         bureauTurboMode = Map.empty, // Reset bureau turbo mode since bureaus are destroyed
         politicianRoster = List.empty, // All politicians are destroyed on abdication
         politicianGenerationProgress = 0.0 // Reset politician generation progress
+      ))
+
+  // Sail: second tier prestige - reset everything including gold, gain legacy points for tiles
+  def sail(game: TileKingdomGame, currentTimeMillis: Long): Either[String, TileKingdomGame] =
+    if !game.canSail then
+      Left(s"Must have at least $SailMinTiles tiles to sail")
+    else
+      val tilesDestroyed = game.unlockedTiles.size
+      val totalLegacyPoints = game.legacyPoints + tilesDestroyed
+      val skillPointsEarned = totalLegacyPoints / LegacyPointsPerSkillPoint
+      val remainingLegacyPoints = totalLegacyPoints % LegacyPointsPerSkillPoint
+
+      // Reset to initial 4 tiles, all empty
+      val initialTiles = InitialUnlockedCoords.map: coord =>
+        coord -> Tile(coord = coord, tileType = TileType.Empty, unlocked = true)
+      .toMap
+
+      Right(game.copy(
+        tiles = initialTiles,
+        wheat = 50.0, // Reset to starting amount
+        wood = 0.0,
+        faith = 0.0,
+        stone = 0.0,
+        gold = 0, // Gold resets on sail
+        lastTickTime = currentTimeMillis,
+        totalAbdications = 0, // Abdications reset on sail
+        bureauTurboMode = Map.empty,
+        politicianRoster = List.empty,
+        politicianGenerationProgress = 0.0,
+        legacyPoints = remainingLegacyPoints,
+        skillPoints = game.skillPoints + skillPointsEarned
       ))
 
   // Get all coords that can be unlocked (coords adjacent to unlocked tiles that aren't already tiles)
