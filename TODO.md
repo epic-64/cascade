@@ -17,6 +17,7 @@
 - [x] allow dragging politicians from one town hall to another, to swap them
 
 ## Todos
+- [ ] not all texts in the tiles are invisible on low zoom levels. Also, the text should disappear sooner (decrease zoom level threshold for text disappearance), since it becomes unreadable very quickly as you zoom out.
 - [ ] the 10x upgrade button on tiles should only upgrade to the next level divisible by 10. E.g. clicking 10x upgrade on a level 16 quarry should upgrade it to level 20 (or less if you don't have enough resources), not level 26.
 - [ ] the town hall should cost 1000 stone to build
 - [ ] if the player does not have enough of a resource to build a building, display the resource as red in the build menu
