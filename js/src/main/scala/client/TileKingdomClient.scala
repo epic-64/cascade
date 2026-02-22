@@ -452,33 +452,58 @@ object TileKingdomClient:
           )
 
           val nodesContainer = branchDiv.querySelector(".skill-branch-nodes").asInstanceOf[HTMLElement]
-          Skill.branchSkills(branchName).foreach: skill =>
-            val isUnlocked = currentGame.hasSkill(skill)
-            val canUnlock = currentGame.canUnlockSkill(skill)
-            val cost = Skill.cost(skill)
-            val description = Skill.description(skill)
-
-            val nodeCls = 
-              if isUnlocked then "skill-node unlocked"
-              else if canUnlock then "skill-node available"
-              else "skill-node locked"
-
-            val nodeDiv = div(cls = nodeCls)(
-              div(cls = "skill-node-cost", content = s"${cost}⭐"),
-              div(cls = "skill-node-desc", content = description),
-              if isUnlocked then
-                div(cls = "skill-node-status", content = "✓ Unlocked")
-              else if canUnlock then
-                button(cls = "skill-node-btn", content = "Unlock").tap: btn =>
-                  btn.onclick = (e: MouseEvent) =>
-                    e.stopPropagation()
-                    handleUnlockSkill(skill)
-              else
-                div(cls = "skill-node-status", content = "🔒")
-            )
-            nodesContainer.appendChild(nodeDiv)
+          val skills = Skill.branchSkills(branchName)
+          
+          // Group skills by cost level, then render with OR between alternatives
+          val skillsByCost = skills.groupBy(Skill.cost).toList.sortBy(_._1)
+          
+          skillsByCost.foreach: (cost, skillsAtLevel) =>
+            // Check if this is a dual track level (has mutually exclusive skills)
+            val isDualTrack = skillsAtLevel.exists(s => Skill.mutuallyExclusive(s).isDefined)
+            
+            if isDualTrack then
+              // Render dual track with OR separator
+              val dualTrackContainer = div(cls = "skill-dual-track")
+              skillsAtLevel.zipWithIndex.foreach: (skill, idx) =>
+                if idx > 0 then
+                  dualTrackContainer.appendChild(div(cls = "skill-or-separator", content = "OR"))
+                dualTrackContainer.appendChild(renderSkillNode(skill))
+              nodesContainer.appendChild(dualTrackContainer)
+            else
+              // Render single skill normally
+              skillsAtLevel.foreach: skill =>
+                nodesContainer.appendChild(renderSkillNode(skill))
 
           body.appendChild(branchDiv)
+
+  private def renderSkillNode(skill: Skill): HTMLElement =
+    val isUnlocked = currentGame.hasSkill(skill)
+    val canUnlock = currentGame.canUnlockSkill(skill)
+    val isExcluded = Skill.mutuallyExclusive(skill).exists(currentGame.hasSkill)
+    val cost = Skill.cost(skill)
+    val description = Skill.description(skill)
+
+    val nodeCls = 
+      if isUnlocked then "skill-node unlocked"
+      else if isExcluded then "skill-node excluded"
+      else if canUnlock then "skill-node available"
+      else "skill-node locked"
+
+    div(cls = nodeCls)(
+      div(cls = "skill-node-cost", content = s"${cost}⭐"),
+      div(cls = "skill-node-desc", content = description),
+      if isUnlocked then
+        div(cls = "skill-node-status", content = "✓ Unlocked")
+      else if isExcluded then
+        div(cls = "skill-node-status", content = "✗ Excluded")
+      else if canUnlock then
+        button(cls = "skill-node-btn", content = "Unlock").tap: btn =>
+          btn.onclick = (e: MouseEvent) =>
+            e.stopPropagation()
+            handleUnlockSkill(skill)
+      else
+        div(cls = "skill-node-status", content = "🔒")
+    )
 
   private def handleUnlockSkill(skill: Skill): Unit =
     TileKingdomLogic.unlockSkill(currentGame, skill) match

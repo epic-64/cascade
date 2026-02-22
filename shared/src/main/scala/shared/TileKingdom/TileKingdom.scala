@@ -73,8 +73,9 @@ enum AcademyMode derives ReadWriter:
 
 // Individual skill nodes within a branch
 enum Skill derives ReadWriter:
-  // Agriculture branch
-  case Agriculture1 // Fields start at level 10
+  // Agriculture branch (dual track at level 1)
+  case Agriculture1A // Fields start at level 10
+  case Agriculture1B // Fields produce 25% faster
   case Agriculture2 // Farms start at level 10
   // Management branch
   case Management1 // Politician roster holds 2 additional politicians
@@ -89,14 +90,15 @@ enum Skill derives ReadWriter:
 object Skill:
   // Get skill branch name
   def branchName(skill: Skill): String = skill match
-    case Agriculture1 | Agriculture2 => "Agriculture"
+    case Agriculture1A | Agriculture1B | Agriculture2 => "Agriculture"
     case Management1 | Management2 => "Management"
     case Wisdom1 | Wisdom2 => "Wisdom"
     case Education1 | Education2 => "Education"
 
   // Get skill description
   def description(skill: Skill): String = skill match
-    case Agriculture1 => "Fields start at level 10"
+    case Agriculture1A => "Fields start at level 10"
+    case Agriculture1B => "Fields produce 25% faster"
     case Agriculture2 => "Farms start at level 10"
     case Management1 => "Politician roster holds 2 additional politicians"
     case Management2 => "Town halls are 10x cheaper to build"
@@ -107,20 +109,32 @@ object Skill:
 
   // Get skill cost (position in branch)
   def cost(skill: Skill): Int = skill match
-    case Agriculture1 | Management1 | Wisdom1 | Education1 => 1
+    case Agriculture1A | Agriculture1B | Management1 | Wisdom1 | Education1 => 1
     case Agriculture2 | Management2 | Wisdom2 | Education2 => 2
 
   // Get prerequisite skill (if any)
   def prerequisite(skill: Skill): Option[Skill] = skill match
-    case Agriculture1 | Management1 | Wisdom1 | Education1 => None
-    case Agriculture2 => Some(Agriculture1)
+    case Agriculture1A | Agriculture1B | Management1 | Wisdom1 | Education1 => None
+    case Agriculture2 => None // Either Agriculture1A or Agriculture1B, handled by alternativePrerequisites
     case Management2 => Some(Management1)
     case Wisdom2 => Some(Wisdom1)
     case Education2 => Some(Education1)
 
-  // Get all skills in a branch, in order
+  // Get alternative prerequisites (for dual track choices)
+  // Returns the set of skills where having ANY ONE unlocked satisfies the prerequisite
+  def alternativePrerequisites(skill: Skill): Option[Set[Skill]] = skill match
+    case Agriculture2 => Some(Set(Agriculture1A, Agriculture1B))
+    case _ => None
+
+  // Get mutually exclusive skill (choosing one locks out the other)
+  def mutuallyExclusive(skill: Skill): Option[Skill] = skill match
+    case Agriculture1A => Some(Agriculture1B)
+    case Agriculture1B => Some(Agriculture1A)
+    case _ => None
+
+  // Get all skills in a branch, in order (dual track alternatives grouped together)
   def branchSkills(branchName: String): List[Skill] = branchName match
-    case "Agriculture" => List(Agriculture1, Agriculture2)
+    case "Agriculture" => List(Agriculture1A, Agriculture1B, Agriculture2)
     case "Management" => List(Management1, Management2)
     case "Wisdom" => List(Wisdom1, Wisdom2)
     case "Education" => List(Education1, Education2)
@@ -353,7 +367,15 @@ case class TileKingdomGame(
   def canUnlockSkill(skill: Skill): Boolean =
     if unlockedSkills.contains(skill) then false
     else if skillPoints < Skill.cost(skill) then false
-    else Skill.prerequisite(skill).forall(unlockedSkills.contains)
+    // Check if mutually exclusive skill is already unlocked
+    else if Skill.mutuallyExclusive(skill).exists(unlockedSkills.contains) then false
+    else
+      // Check prerequisites - either standard prerequisite or alternative prerequisites
+      val standardPrereqMet = Skill.prerequisite(skill).forall(unlockedSkills.contains)
+      val alternativePrereqMet = Skill.alternativePrerequisites(skill) match
+        case Some(alternatives) => alternatives.exists(unlockedSkills.contains)
+        case None => true
+      standardPrereqMet && alternativePrereqMet
 
   def totalSkillPointsSpent: Int =
     unlockedSkills.toList.map(Skill.cost).sum
@@ -719,10 +741,14 @@ object TileKingdomLogic:
     .sum
     1.0 + farmBonus
 
+  // Agriculture1B skill multiplier (25% faster = 1.25x production)
+  def agriculture1BMultiplier(game: TileKingdomGame): Double =
+    if game.hasSkill(Skill.Agriculture1B) then 1.25 else 1.0
+
   // Production rate for a specific tile per second (with farm bonuses and town hall bonuses applied)
   def productionRate(game: TileKingdomGame, tile: Tile): Double =
     val base = productionPerSecond(tile)
-    if base > 0 then base * farmBonusMultiplier(game, tile.coord) * townHallWheatMultiplier(game, tile.coord)
+    if base > 0 then base * farmBonusMultiplier(game, tile.coord) * townHallWheatMultiplier(game, tile.coord) * agriculture1BMultiplier(game)
     else 0.0
 
   // Wood production rate for a specific tile per second (with forest group bonus and town hall bonuses)
@@ -749,7 +775,7 @@ object TileKingdomLogic:
   // Production per harvest for a specific tile (with farm bonuses and town hall bonuses applied)
   def productionPerHarvest(game: TileKingdomGame, tile: Tile): Double =
     val base = baseWheatProductionRate(tile)
-    if base > 0 then base * farmBonusMultiplier(game, tile.coord) * townHallWheatMultiplier(game, tile.coord)
+    if base > 0 then base * farmBonusMultiplier(game, tile.coord) * townHallWheatMultiplier(game, tile.coord) * agriculture1BMultiplier(game)
     else 0.0
 
   // Wood production per harvest for a specific tile (with forest group bonus and town hall bonuses)
@@ -900,7 +926,7 @@ object TileKingdomLogic:
       case Some(tile) if !tile.isEmpty                    => Left("Tile is not empty")
       case Some(tile) if game.wheat < wheatFieldBuildCost => Left(s"Not enough wheat (need $wheatFieldBuildCost)")
       case Some(tile) =>
-        val startLevel = if game.hasSkill(Skill.Agriculture1) then 10 else 1
+        val startLevel = if game.hasSkill(Skill.Agriculture1A) then 10 else 1
         val updatedTile = tile.copy(tileType = TileType.WheatField(startLevel))
         Right(game.copy(
           tiles = game.tiles.updated(coord, updatedTile),

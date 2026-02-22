@@ -1991,6 +1991,37 @@
   opacity: 0.6;
 }
 
+.skill-node.excluded {
+  opacity: 0.5;
+  border-color: var(--accent-red);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.skill-node.excluded .skill-node-status {
+  color: var(--accent-red);
+}
+
+/* Dual track skill container */
+.skill-dual-track {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border-subtle);
+}
+
+.skill-or-separator {
+  text-align: center;
+  font-size: var(--font-sm);
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 0.25rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
 .skill-node-cost {
   font-size: var(--font-lg);
   font-weight: 700;
