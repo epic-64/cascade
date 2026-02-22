@@ -1621,22 +1621,27 @@ object TileKingdomClient:
 
       case TileType.Academy(mode) =>
         tileDiv.classList.add("academy")
+        val hasEducation2 = currentGame.hasSkill(Skill.Education2)
 
-        val modeText = mode match
+        val modeText = if hasEducation2 then
+          "⚡ 2x  ⭐ +10%"
+        else mode match
           case AcademyMode.FasterPoliticians => "⚡ 2x Speed"
           case AcademyMode.RareChance => "⭐ +10% Rare"
 
         val content = div(cls = "tile-content academy-content")(
           div(cls = "tile-icon", content = "🎓"),
           div(cls = "tile-label", content = "Academy"),
-          div(cls = "academy-mode", content = modeText)
+          div(cls = s"academy-mode${if hasEducation2 then " education2-bonus" else ""}", content = modeText)
         )
 
-        content.appendChild(button(cls = "btn-toggle-mode", content = "⇄ Mode").tap: btn =>
-          btn.onclick = (e: MouseEvent) =>
-            e.stopPropagation()
-            handleToggleAcademyMode(coord)
-        )
+        // Only show mode toggle if Education2 is not active
+        if !hasEducation2 then
+          content.appendChild(button(cls = "btn-toggle-mode", content = "⇄ Mode").tap: btn =>
+            btn.onclick = (e: MouseEvent) =>
+              e.stopPropagation()
+              handleToggleAcademyMode(coord)
+          )
 
         tileDiv.appendChild(content)
 
