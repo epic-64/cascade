@@ -53,3 +53,8 @@
 - add an off-switch to the Bureau
 
 ## Todos
+- use the nice badge-like styling for all tile modifiers (see the production speed multiplier for fields)
+- simplify unlock requirements for tile types. After field, farm and forest, everything else should be unlocked.
+  The build costs are enough to guide the player.
+- allow switching between skills of the same tier for free
+- add a respec button that resets your skill tree. For now, it shall be free.
