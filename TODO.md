@@ -14,9 +14,9 @@
 - [x] When dragging the mouse to move around the map, when releasing the mouse button on a tile,
     it upgrades the tile. Releasing the mouse after dragging should not create a click event.
 - [x] Rename Wood tile to Forest
+- [x] allow dragging politicians from one town hall to another, to swap them
 
 ## Todos
-- [ ] allow dragging politicians from one town hall to another, to swap them
 - [ ] the 10x upgrade button on tiles should only upgrade to the next level divisible by 10. E.g. clicking 10x upgrade on a level 16 quarry should upgrade it to level 20 (or less if you don't have enough resources), not level 26.
 - [ ] the town hall should cost 1000 stone to build
 - [ ] if the player does not have enough of a resource to build a building, display the resource as red in the build menu
@@ -33,9 +33,7 @@
       - 1P: fields start at level 10
       - 2P: farms start at level 10
     - Management:
-      - 1P: increases politician level by 1
-      - 2P: your first town hall is free (note: the second one still costs its usual amount)
-      - 3P: You can fit two politicians in one town hall
+      - 1P: Your town halls are 10x cheaper to build
     - Wisdom:
       - 1P: Your quarries produce 25% more stone for each neighboring forest.
       - 2P: Each forest grants 50% increased faith production to neighboring temples.
