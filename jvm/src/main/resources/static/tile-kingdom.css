@@ -195,8 +195,16 @@
 .tile-kingdom-tile.zoom-minimal .bureau-cost,
 .tile-kingdom-tile.zoom-minimal .politician-info,
 .tile-kingdom-tile.zoom-minimal .politician-lifespan,
+.tile-kingdom-tile.zoom-minimal .politician-slot,
+.tile-kingdom-tile.zoom-minimal .politician-emoji-small,
+.tile-kingdom-tile.zoom-minimal .politician-effect-small,
+.tile-kingdom-tile.zoom-minimal .slot-label,
 .tile-kingdom-tile.zoom-minimal .tavern-effect,
+.tile-kingdom-tile.zoom-minimal .academy-mode,
+.tile-kingdom-tile.zoom-minimal .btn-toggle-mode,
 .tile-kingdom-tile.zoom-minimal .build-options,
+.tile-kingdom-tile.zoom-minimal .build-label,
+.tile-kingdom-tile.zoom-minimal .tile-build-icon-container,
 .tile-kingdom-tile.zoom-minimal .tile-progress-container {
   display: none !important;
 }
