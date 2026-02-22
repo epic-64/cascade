@@ -1018,7 +1018,7 @@ object TileKingdomClient:
         if canBuildWoodcutter then
           resourcesSubmenu.appendChild(div(cls = "build-option").tap: opt =>
             opt.appendChild(div(cls = "build-icon", content = "🪓"))
-            opt.appendChild(div(cls = "build-name", content = "Wood"))
+            opt.appendChild(div(cls = "build-name", content = "Forest"))
             opt.appendChild(div(cls = "build-cost", content = s"$woodcutterCost🌾"))
             opt.onclick = (e: MouseEvent) =>
               e.stopPropagation()
