@@ -60,6 +60,15 @@ object TileKingdomClient:
   // Track which tile is currently in build-selection mode
   private var selectingTileCoord: Option[Coord] = None
 
+  // Helper to wrap click handlers - only executes if we weren't just dragging
+  private def onClick(handler: => Unit): MouseEvent => Unit = (_: MouseEvent) =>
+    if !wasDragging then handler
+
+  // Helper that also stops event propagation
+  private def onClickStop(handler: => Unit): MouseEvent => Unit = (e: MouseEvent) =>
+    e.stopPropagation()
+    if !wasDragging then handler
+
   // ============================================================================
   // Initialization
   // ============================================================================
@@ -925,14 +934,12 @@ object TileKingdomClient:
         val buildIconContainer = div(cls = "tile-build-icon-container")
         buildIconContainer.appendChild(el("i", cls = "fa-solid fa-hammer"))
         buildIconContainer.appendChild(div(cls = "build-label", content = "Build"))
-        buildIconContainer.onclick = (e: MouseEvent) =>
-          e.stopPropagation()
-          if !wasDragging then
-            // Clear any other selecting tiles first
-            document.querySelectorAll(".tile-kingdom-tile.selecting").foreach: elem =>
-              elem.asInstanceOf[HTMLElement].classList.remove("selecting")
-            selectingTileCoord = Some(coord)
-            tileDiv.classList.add("selecting")
+        buildIconContainer.onclick = onClickStop:
+          // Clear any other selecting tiles first
+          document.querySelectorAll(".tile-kingdom-tile.selecting").foreach: elem =>
+            elem.asInstanceOf[HTMLElement].classList.remove("selecting")
+          selectingTileCoord = Some(coord)
+          tileDiv.classList.add("selecting")
         tileDiv.appendChild(buildIconContainer)
 
         // Restore selecting state if this tile was previously selected
@@ -1145,7 +1152,7 @@ object TileKingdomClient:
         progressContainer.appendChild(progressBar)
         tileDiv.appendChild(progressContainer)
 
-        tileDiv.onclick = (_: MouseEvent) => if !wasDragging then handleLevelUpWheatField(coord)
+        tileDiv.onclick = onClick(handleLevelUpWheatField(coord))
         tileDiv.oncontextmenu = (e: MouseEvent) =>
           e.preventDefault()
           handleDestroyBuilding(coord)
@@ -1172,7 +1179,7 @@ object TileKingdomClient:
         content.appendChild(upgradeRow)
 
         tileDiv.appendChild(content)
-        tileDiv.onclick = (_: MouseEvent) => if !wasDragging then handleLevelUpFarm(coord)
+        tileDiv.onclick = onClick(handleLevelUpFarm(coord))
         tileDiv.oncontextmenu = (e: MouseEvent) =>
           e.preventDefault()
           handleDestroyBuilding(coord)
@@ -1220,7 +1227,7 @@ object TileKingdomClient:
         progressContainer.appendChild(progressBar)
         tileDiv.appendChild(progressContainer)
 
-        tileDiv.onclick = (_: MouseEvent) => if !wasDragging then handleLevelUpWoodcutter(coord)
+        tileDiv.onclick = onClick(handleLevelUpWoodcutter(coord))
         tileDiv.oncontextmenu = (e: MouseEvent) =>
           e.preventDefault()
           handleDestroyBuilding(coord)
@@ -1320,7 +1327,7 @@ object TileKingdomClient:
         progressContainer.appendChild(progressBar)
         tileDiv.appendChild(progressContainer)
 
-        tileDiv.onclick = (_: MouseEvent) => if !wasDragging then handleLevelUpTemple(coord)
+        tileDiv.onclick = onClick(handleLevelUpTemple(coord))
         tileDiv.oncontextmenu = (e: MouseEvent) =>
           e.preventDefault()
           handleDestroyBuilding(coord)
@@ -1363,7 +1370,7 @@ object TileKingdomClient:
         progressContainer.appendChild(progressBar)
         tileDiv.appendChild(progressContainer)
 
-        tileDiv.onclick = (_: MouseEvent) => if !wasDragging then handleLevelUpQuarry(coord)
+        tileDiv.onclick = onClick(handleLevelUpQuarry(coord))
         tileDiv.oncontextmenu = (e: MouseEvent) =>
           e.preventDefault()
           handleDestroyBuilding(coord)
@@ -1396,7 +1403,7 @@ object TileKingdomClient:
               div(id = s"politician-lifespan-${coord.row}-${coord.col}", cls = s"politician-lifespan $lifespanClass", content = s"⏱️ $lifespanText$multiplierText")
             ))
             // Click to remove politician
-            tileDiv.onclick = (_: MouseEvent) => if !wasDragging then handleRemovePolitician(coord)
+            tileDiv.onclick = onClick(handleRemovePolitician(coord))
           case None =>
             content.appendChild(div(cls = "politician-slot empty")(
               div(cls = "slot-label", content = "Drop politician")
@@ -1500,7 +1507,7 @@ object TileKingdomClient:
       )
     )
 
-    tileDiv.onclick = (_: MouseEvent) => if !wasDragging then handleUnlockTile(coord)
+    tileDiv.onclick = onClick(handleUnlockTile(coord))
 
     tileDiv
 
