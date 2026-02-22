@@ -876,8 +876,11 @@ object TileKingdomClient:
     val coord = tile.coord
     val tileDiv = div(id = s"tile-${coord.row}-${coord.col}", cls = "tile-kingdom-tile")
     val tilePixelSize = (70 * zoomLevel).toInt
-    // Scale font size with zoom, but clamp to reasonable range
-    val fontScale = math.max(0.6, math.min(1.0, zoomLevel))
+    // Scale font size with zoom - allow it to go smaller when zoomed out
+    val fontScale = math.max(0.3, math.min(1.0, zoomLevel))
+    
+    // Add zoom-minimal class when zoomed out far enough to hide text
+    if zoomLevel < 0.5 then tileDiv.classList.add("zoom-minimal")
 
     // Position the tile absolutely with zoom-adjusted size
     tileDiv.asInstanceOf[HTMLElement].style.cssText =
@@ -1470,7 +1473,10 @@ object TileKingdomClient:
   private def renderUnlockableTile(coord: Coord): HTMLElement =
     val tileDiv = div(id = s"tile-${coord.row}-${coord.col}", cls = "tile-kingdom-tile locked unlockable")
     val tilePixelSize = (70 * zoomLevel).toInt
-    val fontScale = math.max(0.6, math.min(1.0, zoomLevel))
+    val fontScale = math.max(0.3, math.min(1.0, zoomLevel))
+    
+    // Add zoom-minimal class when zoomed out far enough to hide text
+    if zoomLevel < 0.5 then tileDiv.classList.add("zoom-minimal")
 
     // Position the tile absolutely with zoom-adjusted size
     tileDiv.style.cssText =
