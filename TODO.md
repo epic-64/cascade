@@ -34,6 +34,7 @@
       - 2P: farms start at level 10
     - Management:
       - 1P: Your town halls are 10x cheaper to build
+      - 2P: Increase politician base lifetime by 100%
     - Wisdom:
       - 1P: Your quarries produce 25% more stone for each neighboring forest.
       - 2P: Each forest grants 50% increased faith production to neighboring temples.
