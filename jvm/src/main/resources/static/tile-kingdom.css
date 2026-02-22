@@ -823,6 +823,10 @@
   text-align: right;
 }
 
+.build-cost.insufficient {
+  color: #dc2626;
+}
+
 /* Bonus indicator on wheat fields */
 .bonus {
   color: #15803d;

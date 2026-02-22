@@ -334,7 +334,7 @@ object TileKingdomClient:
         if el.getAttribute("draggable") == "true" then return true
         current = el.parentNode
       false
-    
+
     viewport.onmousedown = (e: MouseEvent) =>
       if e.button == 0 then // Left mouse button
         // Don't start panning if clicking on a draggable element (like politician slot)
@@ -1015,7 +1015,8 @@ object TileKingdomClient:
         resourcesSubmenu.appendChild(div(cls = "build-option").tap: opt =>
           opt.appendChild(div(cls = "build-icon", content = "🌾"))
           opt.appendChild(div(cls = "build-name", content = "Field"))
-          opt.appendChild(div(cls = "build-cost", content = s"$wheatCost🌾"))
+          val costCls = if currentGame.wheat < wheatCost then "build-cost insufficient" else "build-cost"
+          opt.appendChild(div(cls = costCls, content = s"$wheatCost🌾"))
           opt.onclick = (e: MouseEvent) =>
             e.stopPropagation()
             handleBuildWheatField(coord)
@@ -1026,7 +1027,8 @@ object TileKingdomClient:
           resourcesSubmenu.appendChild(div(cls = "build-option").tap: opt =>
             opt.appendChild(div(cls = "build-icon", content = "🏠"))
             opt.appendChild(div(cls = "build-name", content = "Farm"))
-            opt.appendChild(div(cls = "build-cost", content = s"$farmCost🌾"))
+            val costCls = if currentGame.wheat < farmCost then "build-cost insufficient" else "build-cost"
+            opt.appendChild(div(cls = costCls, content = s"$farmCost🌾"))
             opt.onclick = (e: MouseEvent) =>
               e.stopPropagation()
               handleBuildFarm(coord)
@@ -1037,7 +1039,8 @@ object TileKingdomClient:
           resourcesSubmenu.appendChild(div(cls = "build-option").tap: opt =>
             opt.appendChild(div(cls = "build-icon", content = "🪓"))
             opt.appendChild(div(cls = "build-name", content = "Forest"))
-            opt.appendChild(div(cls = "build-cost", content = s"$woodcutterCost🌾"))
+            val costCls = if currentGame.wheat < woodcutterCost then "build-cost insufficient" else "build-cost"
+            opt.appendChild(div(cls = costCls, content = s"$woodcutterCost🌾"))
             opt.onclick = (e: MouseEvent) =>
               e.stopPropagation()
               handleBuildWoodcutter(coord)
@@ -1048,7 +1051,8 @@ object TileKingdomClient:
           resourcesSubmenu.appendChild(div(cls = "build-option").tap: opt =>
             opt.appendChild(div(cls = "build-icon", content = "⛏️"))
             opt.appendChild(div(cls = "build-name", content = "Quarry"))
-            opt.appendChild(div(cls = "build-cost", content = s"$quarryCost🪵"))
+            val costCls = if currentGame.wood < quarryCost then "build-cost insufficient" else "build-cost"
+            opt.appendChild(div(cls = costCls, content = s"$quarryCost🪵"))
             opt.onclick = (e: MouseEvent) =>
               e.stopPropagation()
               handleBuildQuarry(coord)
@@ -1073,7 +1077,8 @@ object TileKingdomClient:
             managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
               opt.appendChild(div(cls = "build-icon", content = "🏛️"))
               opt.appendChild(div(cls = "build-name", content = "Bureau"))
-              opt.appendChild(div(cls = "build-cost", content = s"$bureauCost🪵"))
+              val costCls = if currentGame.wood < bureauCost then "build-cost insufficient" else "build-cost"
+              opt.appendChild(div(cls = costCls, content = s"$bureauCost🪵"))
               opt.onclick = (e: MouseEvent) =>
                 e.stopPropagation()
                 handleBuildBureau(coord)
@@ -1084,7 +1089,8 @@ object TileKingdomClient:
             managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
               opt.appendChild(div(cls = "build-icon", content = "⛪"))
               opt.appendChild(div(cls = "build-name", content = "Temple"))
-              opt.appendChild(div(cls = "build-cost", content = s"$templeCost🪵"))
+              val costCls = if currentGame.wood < templeCost then "build-cost insufficient" else "build-cost"
+              opt.appendChild(div(cls = costCls, content = s"$templeCost🪵"))
               opt.onclick = (e: MouseEvent) =>
                 e.stopPropagation()
                 handleBuildTemple(coord)
@@ -1095,7 +1101,8 @@ object TileKingdomClient:
             managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
               opt.appendChild(div(cls = "build-icon", content = "🏛️"))
               opt.appendChild(div(cls = "build-name", content = "Town Hall"))
-              opt.appendChild(div(cls = "build-cost", content = s"$townHallCost🪨"))
+              val costCls = if currentGame.stone < townHallCost then "build-cost insufficient" else "build-cost"
+              opt.appendChild(div(cls = costCls, content = s"$townHallCost🪨"))
               opt.onclick = (e: MouseEvent) =>
                 e.stopPropagation()
                 handleBuildTownHall(coord)
@@ -1106,7 +1113,8 @@ object TileKingdomClient:
             managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
               opt.appendChild(div(cls = "build-icon", content = "🎓"))
               opt.appendChild(div(cls = "build-name", content = "Academy"))
-              opt.appendChild(div(cls = "build-cost", content = s"$academyCost🪨"))
+              val costCls = if currentGame.stone < academyCost then "build-cost insufficient" else "build-cost"
+              opt.appendChild(div(cls = costCls, content = s"$academyCost🪨"))
               opt.onclick = (e: MouseEvent) =>
                 e.stopPropagation()
                 handleBuildAcademy(coord)
@@ -1117,7 +1125,9 @@ object TileKingdomClient:
             managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
               opt.appendChild(div(cls = "build-icon", content = "🍺"))
               opt.appendChild(div(cls = "build-name", content = "Tavern"))
-              opt.appendChild(div(cls = "build-cost", content = s"${TileKingdomLogic.TavernBuildCost}🪵"))
+              val tavernCost = TileKingdomLogic.TavernBuildCost
+              val costCls = if currentGame.wood < tavernCost then "build-cost insufficient" else "build-cost"
+              opt.appendChild(div(cls = costCls, content = s"$tavernCost🪵"))
               opt.onclick = (e: MouseEvent) =>
                 e.stopPropagation()
                 handleBuildTavern(coord)
