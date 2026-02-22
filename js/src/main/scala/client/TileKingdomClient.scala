@@ -914,7 +914,7 @@ object TileKingdomClient:
     val fontScale = math.max(0.3, math.min(1.0, zoomLevel))
 
     // Add zoom-minimal class when zoomed out far enough to hide text
-    if zoomLevel < 0.5 then tileDiv.classList.add("zoom-minimal")
+    if zoomLevel < 0.7 then tileDiv.classList.add("zoom-minimal")
 
     // Position the tile absolutely with zoom-adjusted size
     tileDiv.asInstanceOf[HTMLElement].style.cssText =
@@ -1530,7 +1530,7 @@ object TileKingdomClient:
     val fontScale = math.max(0.3, math.min(1.0, zoomLevel))
 
     // Add zoom-minimal class when zoomed out far enough to hide text
-    if zoomLevel < 0.5 then tileDiv.classList.add("zoom-minimal")
+    if zoomLevel < 0.7 then tileDiv.classList.add("zoom-minimal")
 
     // Position the tile absolutely with zoom-adjusted size
     tileDiv.style.cssText =
