@@ -205,7 +205,7 @@ object TileKingdomClient:
         span(id = "tile-kingdom-income", cls = "resource-value", content = "0/s")
       ),
       div(cls = "resource-item unlock-costs")(
-        span(cls = "resource-label", content = "🔓"),
+        span(cls = "resource-label", content = "🔓 Next tiles cost:"),
         span(id = "tile-kingdom-unlock-costs", cls = "unlock-costs-value")
       )
     )
