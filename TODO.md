@@ -1,12 +1,12 @@
-## Done
+## Done 2026-02-23
 - [x] when placing a politician into a townhall, there is a sub second time window for dropping it. The drop area keeps disappearing and reappearing,
   which is very frustrating. This is especially bad when trying to swap a politician, and may be related to the timer updates and too aggressive re-rendering.
 - [x] the politician roster should be a bit wider to allow longer descriptions to remain as one line
 - [x] the politican roster should be a bit taller to allow for more politicians without needing to scroll
 - [x] the bureau should send a projectile to the tile it upgrades, for better visual feedback
+- [x] the bureau should signify, the upgrade process costs 100 wood (and 100 faith, in turbo mode)
 
 ## Todos
-- [ ] the bureau should signify, the upgrade process costs 100 wood (and 100 faith, in turbo mode)
 - [ ] the quarry should cost 500 wood to build
 - [ ] the town hall should cost 1000 stone to build
 - [ ] if the player does not have enough of a resource to build a building, display the resource as red in the build menu
