@@ -1441,6 +1441,8 @@ object TileKingdomClient:
         val upgradeCost = TileKingdomLogic.templeLevelUpCost(level)
         val townHallMultiplier = TileKingdomLogic.townHallFaithMultiplier(currentGame, coord)
         val hasTownHallBonus = townHallMultiplier > 1.0
+        val wisdomMultiplier = TileKingdomLogic.templeWisdom2Multiplier(currentGame, coord)
+        val hasWisdomBonus = wisdomMultiplier > 1.0
 
         val content = div(cls = "tile-content")(
           div(cls = "tile-icon", content = "⛪"),
@@ -1451,6 +1453,9 @@ object TileKingdomClient:
         if hasTownHallBonus then
           val multiplierText = if townHallMultiplier % 1.0 == 0 then s" x${townHallMultiplier.toInt}" else f" x$townHallMultiplier%.1f"
           prodDiv.appendChild(span(cls = "bonus town-hall-bonus", content = multiplierText))
+        if hasWisdomBonus then
+          val multiplierText = if wisdomMultiplier % 1.0 == 0 then s" x${wisdomMultiplier.toInt}" else f" x$wisdomMultiplier%.1f"
+          prodDiv.appendChild(span(cls = "bonus wisdom-bonus", content = s"🌲$multiplierText"))
         content.appendChild(prodDiv)
 
         val upgradeRow = div(cls = "tile-upgrade-row")
@@ -1484,6 +1489,8 @@ object TileKingdomClient:
         val upgradeCost = TileKingdomLogic.quarryLevelUpCost(level)
         val townHallMultiplier = TileKingdomLogic.townHallStoneMultiplier(currentGame, coord)
         val hasTownHallBonus = townHallMultiplier > 1.0
+        val wisdomMultiplier = TileKingdomLogic.quarryWisdom1Multiplier(currentGame, coord)
+        val hasWisdomBonus = wisdomMultiplier > 1.0
 
         val content = div(cls = "tile-content")(
           div(cls = "tile-icon", content = "⛏️"),
@@ -1494,6 +1501,9 @@ object TileKingdomClient:
         if hasTownHallBonus then
           val multiplierText = if townHallMultiplier % 1.0 == 0 then s" x${townHallMultiplier.toInt}" else f" x$townHallMultiplier%.1f"
           prodDiv.appendChild(span(cls = "bonus town-hall-bonus", content = multiplierText))
+        if hasWisdomBonus then
+          val multiplierText = if wisdomMultiplier % 1.0 == 0 then s" x${wisdomMultiplier.toInt}" else f" x$wisdomMultiplier%.1f"
+          prodDiv.appendChild(span(cls = "bonus wisdom-bonus", content = s"🌲$multiplierText"))
         content.appendChild(prodDiv)
 
         val upgradeRow = div(cls = "tile-upgrade-row")

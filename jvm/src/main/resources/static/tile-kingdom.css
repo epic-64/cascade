@@ -393,6 +393,12 @@
   font-weight: 700;
 }
 
+/* Wisdom skill bonus indicator (forest synergy) */
+.bonus.wisdom-bonus {
+  color: #166534;
+  font-weight: 700;
+}
+
 /* Woodcutter progress bar */
 .tile-progress-bar.woodcutter-progress {
   background: linear-gradient(90deg, #16a34a 0%, #4ade80 100%);
