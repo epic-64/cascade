@@ -57,7 +57,7 @@
 - simplify unlock requirements for tile types. After field, farm and forest, everything else should be unlocked.
   The build costs are enough to guide the player.
 - allow switching between skills of the same tier for free
-- add a respec button that resets your skill tree. For now, it shall be free. But you can only reset when all your tiles are empty.
+- add a respec button that resets your skill tree. It costs 1000 gold per skill point spent, and gives you back all your skill points.
 - add skill choice:
   - reduce bureau wood cost by 90%
   - or: reduce bureau faith cost (when turbo enabled) by 90%
