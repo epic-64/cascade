@@ -652,7 +652,16 @@ object TileKingdomClient:
     bureaus.foreach: tile =>
       val currentProgress = getOrInitProgress(tile.coord)
       val isTurbo = TileKingdomLogic.isBureauTurbo(currentGame, tile.coord)
-      val canAffordTurbo = currentGame.faith >= TileKingdomLogic.BureauTurboFaithCost
+      // Check if turbo is affordable based on min level nearby tile
+      val nearbyCoords = tile.coord.neighborsWithinRadius(TileKingdomLogic.BureauRadius)
+      val minLevel = nearbyCoords
+        .flatMap(c => currentGame.tiles.get(c))
+        .filter(_.isUpgradeable)
+        .map(_.level)
+        .minOption
+        .getOrElse(1)
+      val minFaithCost = TileKingdomLogic.bureauTurboFaithCostForLevel(minLevel)
+      val canAffordTurbo = currentGame.faith >= minFaithCost
       val effectivelyTurbo = isTurbo && canAffordTurbo
       val speedMultiplier = TileKingdomLogic.bureauSpeedMultiplier(currentGame, tile.coord)
       val progressIncrement = elapsedMs / BureauIntervalMs * speedMultiplier
@@ -732,9 +741,12 @@ object TileKingdomClient:
     // Show projectile and floating text for bureau upgrades
     bureauUpgrades.foreach: (upgradedCoord, newLevel, bureauCoord, cost, costResource, wasTurbo) =>
       // Show cost deduction immediately at bureau
-      showFloatingReward(bureauCoord, TileKingdomLogic.BureauWoodCostPerUpgrade, "🪵", isSpend = true)
+      showFloatingReward(bureauCoord, TileKingdomLogic.BureauWoodCostPerUpgrade, "🪵", isSpend = true, offsetIndex = 0)
       if wasTurbo then
-        showFloatingReward(bureauCoord, TileKingdomLogic.BureauTurboFaithCost, "✨", isSpend = true)
+        // Faith cost is based on target tile's level before upgrade (newLevel - 1)
+        val previousLevel = newLevel - 1
+        val faithCost = TileKingdomLogic.bureauTurboFaithCostForLevel(previousLevel)
+        showFloatingReward(bureauCoord, faithCost, "✨", isSpend = true, offsetIndex = 1)
 
       // Fire projectile, then show upgrade effects when it arrives
       showBureauProjectile(bureauCoord, upgradedCoord, () =>
@@ -1243,7 +1255,17 @@ object TileKingdomClient:
         tileDiv.setAttribute("data-level", level.toString)
         val isTurbo = TileKingdomLogic.isBureauTurbo(currentGame, coord)
         val speedMultiplier = TileKingdomLogic.bureauSpeedMultiplier(currentGame, coord)
-        val canAffordTurbo = currentGame.faith >= TileKingdomLogic.BureauTurboFaithCost
+
+        // Find min level of nearby upgradeable tiles for faith cost display
+        val nearbyCoords = coord.neighborsWithinRadius(TileKingdomLogic.BureauRadius)
+        val minLevel = nearbyCoords
+          .flatMap(c => currentGame.tiles.get(c))
+          .filter(_.isUpgradeable)
+          .map(_.level)
+          .minOption
+          .getOrElse(1)
+        val minFaithCost = TileKingdomLogic.bureauTurboFaithCostForLevel(minLevel)
+        val canAffordTurbo = currentGame.faith >= minFaithCost
 
         if isTurbo then tileDiv.classList.add("turbo")
 
@@ -1254,9 +1276,9 @@ object TileKingdomClient:
 
         content.appendChild(div(cls = "tile-production", content = s"Auto⬆"))
         
-        // Show upgrade cost
+        // Show upgrade cost - faith cost is now level × 10
         val costText = if isTurbo then
-          s"${TileKingdomLogic.BureauWoodCostPerUpgrade}🪵 ${TileKingdomLogic.BureauTurboFaithCost}✨"
+          s"${TileKingdomLogic.BureauWoodCostPerUpgrade}🪵 Lv×10✨"
         else
           s"${TileKingdomLogic.BureauWoodCostPerUpgrade}🪵"
         content.appendChild(div(cls = "bureau-cost", content = costText))
@@ -1276,7 +1298,7 @@ object TileKingdomClient:
         turboBtn.onclick = (e: MouseEvent) =>
           e.stopPropagation()
           if !isTurbo && canAffordTurbo then handleToggleBureauTurbo(coord)
-          else if !canAffordTurbo && !isTurbo then showNotification(s"Need ${TileKingdomLogic.BureauTurboFaithCost}✨ for turbo mode")
+          else if !canAffordTurbo && !isTurbo then showNotification(s"Need ${minFaithCost}✨ for turbo mode (Lv$minLevel × 10)")
         modeRow.appendChild(turboBtn)
 
         content.appendChild(modeRow)
@@ -1998,12 +2020,15 @@ object TileKingdomClient:
       getElementById(s"progress-bar-${coord.row}-${coord.col}").foreach: bar =>
         bar.style.width = s"${(progress * 100).toInt}%"
 
-  private def showFloatingReward(coord: Coord, amount: Int, emoji: String = "", isSpend: Boolean = false): Unit =
+  private def showFloatingReward(coord: Coord, amount: Int, emoji: String = "", isSpend: Boolean = false, offsetIndex: Int = 0): Unit =
     getElementById(s"tile-${coord.row}-${coord.col}").foreach: tileElem =>
       val floater = div()
       floater.className = if isSpend then "floating-reward floating-spend" else "floating-reward"
       val sign = if isSpend then "-" else "+"
       floater.textContent = s"$sign${formatNumber(amount)}$emoji"
+      // Apply vertical offset to prevent overlapping (each index shifts down)
+      if offsetIndex > 0 then
+        floater.style.top = s"calc(50% + ${offsetIndex * 18}px)"
       tileElem.appendChild(floater)
 
       // Remove after animation completes
