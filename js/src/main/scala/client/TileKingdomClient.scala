@@ -75,6 +75,24 @@ object TileKingdomClient:
     val remainder = currentLevel % 10
     if remainder == 0 then 10 else 10 - remainder
 
+  // Helper to create a build option with cost checking
+  private def buildOption(
+    icon: String,
+    name: String,
+    cost: Int,
+    resourceEmoji: String,
+    hasEnough: Boolean,
+    handler: => Unit
+  ): HTMLElement =
+    div(cls = "build-option").tap: opt =>
+      opt.appendChild(div(cls = "build-icon", content = icon))
+      opt.appendChild(div(cls = "build-name", content = name))
+      val costCls = if hasEnough then "build-cost" else "build-cost insufficient"
+      opt.appendChild(div(cls = costCls, content = s"$cost$resourceEmoji"))
+      opt.onclick = (e: MouseEvent) =>
+        e.stopPropagation()
+        handler
+
   // ============================================================================
   // Initialization
   // ============================================================================
@@ -1012,51 +1030,16 @@ object TileKingdomClient:
             buildOptions.classList.remove("submenu-resources")
         )
 
-        resourcesSubmenu.appendChild(div(cls = "build-option").tap: opt =>
-          opt.appendChild(div(cls = "build-icon", content = "🌾"))
-          opt.appendChild(div(cls = "build-name", content = "Field"))
-          val costCls = if currentGame.wheat < wheatCost then "build-cost insufficient" else "build-cost"
-          opt.appendChild(div(cls = costCls, content = s"$wheatCost🌾"))
-          opt.onclick = (e: MouseEvent) =>
-            e.stopPropagation()
-            handleBuildWheatField(coord)
-        )
+        resourcesSubmenu.appendChild(buildOption("🌾", "Field", wheatCost, "🌾", currentGame.wheat >= wheatCost, handleBuildWheatField(coord)))
 
-        // Farm unlocked by Wheat Field
         if canBuildFarm then
-          resourcesSubmenu.appendChild(div(cls = "build-option").tap: opt =>
-            opt.appendChild(div(cls = "build-icon", content = "🏠"))
-            opt.appendChild(div(cls = "build-name", content = "Farm"))
-            val costCls = if currentGame.wheat < farmCost then "build-cost insufficient" else "build-cost"
-            opt.appendChild(div(cls = costCls, content = s"$farmCost🌾"))
-            opt.onclick = (e: MouseEvent) =>
-              e.stopPropagation()
-              handleBuildFarm(coord)
-          )
+          resourcesSubmenu.appendChild(buildOption("🏠", "Farm", farmCost, "🌾", currentGame.wheat >= farmCost, handleBuildFarm(coord)))
 
-        // Woodcutter unlocked by Farm
         if canBuildWoodcutter then
-          resourcesSubmenu.appendChild(div(cls = "build-option").tap: opt =>
-            opt.appendChild(div(cls = "build-icon", content = "🪓"))
-            opt.appendChild(div(cls = "build-name", content = "Forest"))
-            val costCls = if currentGame.wheat < woodcutterCost then "build-cost insufficient" else "build-cost"
-            opt.appendChild(div(cls = costCls, content = s"$woodcutterCost🌾"))
-            opt.onclick = (e: MouseEvent) =>
-              e.stopPropagation()
-              handleBuildWoodcutter(coord)
-          )
+          resourcesSubmenu.appendChild(buildOption("🪓", "Forest", woodcutterCost, "🌾", currentGame.wheat >= woodcutterCost, handleBuildWoodcutter(coord)))
 
-        // Quarry unlocked by Farm
         if canBuildQuarry then
-          resourcesSubmenu.appendChild(div(cls = "build-option").tap: opt =>
-            opt.appendChild(div(cls = "build-icon", content = "⛏️"))
-            opt.appendChild(div(cls = "build-name", content = "Quarry"))
-            val costCls = if currentGame.wood < quarryCost then "build-cost insufficient" else "build-cost"
-            opt.appendChild(div(cls = costCls, content = s"$quarryCost🪵"))
-            opt.onclick = (e: MouseEvent) =>
-              e.stopPropagation()
-              handleBuildQuarry(coord)
-          )
+          resourcesSubmenu.appendChild(buildOption("⛏️", "Quarry", quarryCost, "🪵", currentGame.wood >= quarryCost, handleBuildQuarry(coord)))
 
         buildOptions.appendChild(resourcesSubmenu)
 
@@ -1072,66 +1055,21 @@ object TileKingdomClient:
               buildOptions.classList.remove("submenu-management")
           )
 
-          // Bureau unlocked by Woodcutter
           if canBuildBureau then
-            managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
-              opt.appendChild(div(cls = "build-icon", content = "🏛️"))
-              opt.appendChild(div(cls = "build-name", content = "Bureau"))
-              val costCls = if currentGame.wood < bureauCost then "build-cost insufficient" else "build-cost"
-              opt.appendChild(div(cls = costCls, content = s"$bureauCost🪵"))
-              opt.onclick = (e: MouseEvent) =>
-                e.stopPropagation()
-                handleBuildBureau(coord)
-            )
+            managementSubmenu.appendChild(buildOption("🏛️", "Bureau", bureauCost, "🪵", currentGame.wood >= bureauCost, handleBuildBureau(coord)))
 
-          // Temple unlocked by Woodcutter
           if canBuildTemple then
-            managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
-              opt.appendChild(div(cls = "build-icon", content = "⛪"))
-              opt.appendChild(div(cls = "build-name", content = "Temple"))
-              val costCls = if currentGame.wood < templeCost then "build-cost insufficient" else "build-cost"
-              opt.appendChild(div(cls = costCls, content = s"$templeCost🪵"))
-              opt.onclick = (e: MouseEvent) =>
-                e.stopPropagation()
-                handleBuildTemple(coord)
-            )
+            managementSubmenu.appendChild(buildOption("⛪", "Temple", templeCost, "🪵", currentGame.wood >= templeCost, handleBuildTemple(coord)))
 
-          // Town Hall unlocked by Quarry
           if canBuildTownHall then
-            managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
-              opt.appendChild(div(cls = "build-icon", content = "🏛️"))
-              opt.appendChild(div(cls = "build-name", content = "Town Hall"))
-              val costCls = if currentGame.stone < townHallCost then "build-cost insufficient" else "build-cost"
-              opt.appendChild(div(cls = costCls, content = s"$townHallCost🪨"))
-              opt.onclick = (e: MouseEvent) =>
-                e.stopPropagation()
-                handleBuildTownHall(coord)
-            )
+            managementSubmenu.appendChild(buildOption("🏛️", "Town Hall", townHallCost, "🪨", currentGame.stone >= townHallCost, handleBuildTownHall(coord)))
 
-          // Academy unlocked by Quarry
           if canBuildAcademy then
-            managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
-              opt.appendChild(div(cls = "build-icon", content = "🎓"))
-              opt.appendChild(div(cls = "build-name", content = "Academy"))
-              val costCls = if currentGame.stone < academyCost then "build-cost insufficient" else "build-cost"
-              opt.appendChild(div(cls = costCls, content = s"$academyCost🪨"))
-              opt.onclick = (e: MouseEvent) =>
-                e.stopPropagation()
-                handleBuildAcademy(coord)
-            )
+            managementSubmenu.appendChild(buildOption("🎓", "Academy", academyCost, "🪨", currentGame.stone >= academyCost, handleBuildAcademy(coord)))
 
-          // Tavern unlocked by Town Hall
           if canBuildTavern then
-            managementSubmenu.appendChild(div(cls = "build-option").tap: opt =>
-              opt.appendChild(div(cls = "build-icon", content = "🍺"))
-              opt.appendChild(div(cls = "build-name", content = "Tavern"))
-              val tavernCost = TileKingdomLogic.TavernBuildCost
-              val costCls = if currentGame.wood < tavernCost then "build-cost insufficient" else "build-cost"
-              opt.appendChild(div(cls = costCls, content = s"$tavernCost🪵"))
-              opt.onclick = (e: MouseEvent) =>
-                e.stopPropagation()
-                handleBuildTavern(coord)
-            )
+            val tavernCost = TileKingdomLogic.TavernBuildCost
+            managementSubmenu.appendChild(buildOption("🍺", "Tavern", tavernCost, "🪵", currentGame.wood >= tavernCost, handleBuildTavern(coord)))
 
           buildOptions.appendChild(managementSubmenu)
 
