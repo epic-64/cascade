@@ -184,6 +184,31 @@
   transform: none;
 }
 
+/* Zoom minimal mode - hide text when zoomed out far */
+.tile-kingdom-tile.zoom-minimal .tile-label,
+.tile-kingdom-tile.zoom-minimal .tile-cost,
+.tile-kingdom-tile.zoom-minimal .tile-upgrade,
+.tile-kingdom-tile.zoom-minimal .tile-upgrade-row,
+.tile-kingdom-tile.zoom-minimal .tile-production,
+.tile-kingdom-tile.zoom-minimal .bonus,
+.tile-kingdom-tile.zoom-minimal .btn-x10,
+.tile-kingdom-tile.zoom-minimal .bureau-cost,
+.tile-kingdom-tile.zoom-minimal .politician-info,
+.tile-kingdom-tile.zoom-minimal .politician-lifespan,
+.tile-kingdom-tile.zoom-minimal .tavern-effect,
+.tile-kingdom-tile.zoom-minimal .build-options,
+.tile-kingdom-tile.zoom-minimal .tile-progress-container {
+  display: none !important;
+}
+
+.tile-kingdom-tile.zoom-minimal .tile-icon {
+  font-size: 1.2em;
+}
+
+.tile-kingdom-tile.zoom-minimal .tile-content {
+  justify-content: center;
+}
+
 .tile-kingdom-tile.empty {
   background: #f1f5f9;
   border: 1px dashed #94a3b8;

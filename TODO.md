@@ -12,6 +12,7 @@
 - [x] Quarries are too dark
 
 ## Todos
+- [ ] When zooming out, the text should become smaller. When zooming out sufficiently, the test should disappear entirely, and just be the tile colors.
 - [ ] Rename Wood tile to Forest
 - [ ] the town hall should cost 1000 stone to build
 - [ ] if the player does not have enough of a resource to build a building, display the resource as red in the build menu
