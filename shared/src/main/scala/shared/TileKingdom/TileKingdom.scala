@@ -969,7 +969,7 @@ object TileKingdomLogic:
         ))
 
   // Build a town hall on an empty tile (costs stone, requires at least one wheat field)
-  def buildTownHall(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
+  def buildTownHall(game: TileKingdomGame, coord: Coord, currentTimeMillis: Long = System.currentTimeMillis()): Either[String, TileKingdomGame] =
     val cost = townHallBuildCost(game)
     game.tiles.get(coord) match
       case None                                => Left("Tile not found")
@@ -979,10 +979,21 @@ object TileKingdomLogic:
       case Some(tile) if game.stone < cost     => Left(s"Not enough stone (need $cost)")
       case Some(tile) =>
         val updatedTile = tile.copy(tileType = TileType.TownHall(None))
-        Right(game.copy(
+        val baseGame = game.copy(
           tiles = game.tiles.updated(coord, updatedTile),
           stone = game.stone - cost
-        ))
+        )
+        // If roster is empty, generate a politician immediately
+        if baseGame.politicianRoster.isEmpty then
+          val rareChance = rarePoliticianChance(baseGame)
+          val newPolitician = generatePolitician(currentTimeMillis, rareChance)
+          Right(baseGame.copy(
+            politicianRoster = List(newPolitician),
+            lastPoliticianGeneration = currentTimeMillis,
+            politicianGenerationProgress = 0.0
+          ))
+        else
+          Right(baseGame)
 
   // Build a quarry on an empty tile (costs wood, requires at least one wheat field)
   def buildQuarry(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
