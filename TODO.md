@@ -20,10 +20,10 @@
 - [x] the temple should cost 10k wood to build
 - [x] if the player does not have enough of a resource to build a building, display the resource as red in the build menu
 - [x] large numbers should be displayed in a more compact format (e.g. 1.2k, 3.4M, etc.)
+- [x] on abdication, destroy all politicians
+- [x] Politicians should only start being produced when there is at least one town hall. Before that, write "Build Town Hall" into the roster list.
 
 ## Todos
-- [ ] on abdication, destroy all politicians
-- [ ] Politicians should only start being produced when there is at least one town hall. Before that, write "Build Town Hall" into the roster list.
 - [ ] add a second tier prestige system, called "Sail". The button unlocks once you reach 25 tiles.
   - When sailing, all your resources including gold reset, and your tile count resets as well.
   - For every tile destroyed in this way, you collect a Legacy Point.
