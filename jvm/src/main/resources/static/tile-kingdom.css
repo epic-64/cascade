@@ -1597,6 +1597,26 @@
   }
 }
 
+/* Bureau Projectile Animation */
+.bureau-projectile {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  font-size: 1.2rem;
+  text-align: center;
+  line-height: 24px;
+  pointer-events: none;
+  z-index: 200;
+  filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.8));
+  transition: left 0.4s ease-in-out, top 0.4s ease-in-out, transform 0.4s ease-in-out;
+}
+
+.bureau-projectile.arrived {
+  transform: scale(1.5);
+  opacity: 0;
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+}
+
 /* Unlockable tiles styling - only shown when player can afford */
 .tile-kingdom-tile.unlockable {
   opacity: 1;
