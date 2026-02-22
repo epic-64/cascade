@@ -9,10 +9,10 @@
 - [x] Any text in the game should not be selectable. Since there is a lot of clicking and dragging, having text be selectable leads to a lot of accidental text selection, which is frustrating.
 - [x] The text is too small in a lot of places
 - [x] create variables for standardized text sizes, and use them across the board to ensure consistency
+- [x] Quarries are too dark
 
 ## Todos
 - [ ] Rename Wood tile to Forest
-- [ ] Quarries are too dark
 - [ ] the town hall should cost 1000 stone to build
 - [ ] if the player does not have enough of a resource to build a building, display the resource as red in the build menu
 - [ ] the temple should cost 10k wood to build
