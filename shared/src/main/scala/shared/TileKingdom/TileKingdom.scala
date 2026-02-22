@@ -758,16 +758,16 @@ object TileKingdomLogic:
     if base > 0 then base * forestGroupBonusMultiplier(game, tile.coord) * townHallWoodMultiplier(game, tile.coord)
     else 0.0
 
-  // Faith production per harvest for a specific tile (with town hall bonuses)
+  // Faith production per harvest for a specific tile (with town hall bonuses and Wisdom2)
   def faithProductionPerHarvest(game: TileKingdomGame, tile: Tile): Double =
     val base = baseFaithProductionRate(tile)
-    if base > 0 then base * townHallFaithMultiplier(game, tile.coord)
+    if base > 0 then base * townHallFaithMultiplier(game, tile.coord) * templeWisdom2Multiplier(game, tile.coord)
     else 0.0
 
-  // Stone production per harvest for a specific tile (with town hall bonuses)
+  // Stone production per harvest for a specific tile (with town hall bonuses and Wisdom1)
   def stoneProductionPerHarvest(game: TileKingdomGame, tile: Tile): Double =
     val base = baseStoneProductionRate(tile)
-    if base > 0 then base * townHallStoneMultiplier(game, tile.coord)
+    if base > 0 then base * townHallStoneMultiplier(game, tile.coord) * quarryWisdom1Multiplier(game, tile.coord)
     else 0.0
 
   // Total wheat production rate for the game (all wheat fields with bonuses)
