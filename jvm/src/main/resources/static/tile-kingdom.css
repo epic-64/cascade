@@ -1117,6 +1117,11 @@
   pointer-events: none;
 }
 
+/* Re-enable pointer events on filled politician slot for dragging */
+.tile-kingdom-tile.town-hall .politician-slot.filled {
+  pointer-events: auto;
+}
+
 .tile-kingdom-tile.town-hall:hover {
   background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
   transform: scale(1.08);
@@ -1154,6 +1159,19 @@
 
 .tile-kingdom-tile.town-hall .politician-slot.filled {
   background: rgba(255, 255, 255, 0.7);
+  cursor: grab;
+}
+
+.tile-kingdom-tile.town-hall .politician-slot.filled:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.tile-kingdom-tile.town-hall.dragging {
+  opacity: 0.6;
+}
+
+.tile-kingdom-tile.town-hall.dragging .politician-slot.filled {
+  cursor: grabbing;
 }
 
 .tile-kingdom-tile.town-hall .slot-label {
