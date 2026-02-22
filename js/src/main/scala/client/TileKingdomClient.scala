@@ -1380,11 +1380,20 @@ object TileKingdomClient:
         val upgradeCost = TileKingdomLogic.woodcutterLevelUpCost(level)
         val townHallMultiplier = TileKingdomLogic.townHallWoodMultiplier(currentGame, coord)
         val hasTownHallBonus = townHallMultiplier > 1.0
+        val agriculture2BBonus = TileKingdomLogic.agriculture2BFarmBonusMultiplier(currentGame, coord)
+        val hasFarmBoost = agriculture2BBonus > 1.0
 
         val content = div(cls = "tile-content")(
           div(cls = "tile-icon", content = "🪓"),
           div(cls = "tile-label", content = s"Lv$level")
         )
+
+        // Add farm boost indicator if Agriculture2B is active and there are nearby farms
+        if hasFarmBoost then
+          val boostPercent = ((agriculture2BBonus - 1) * 100).toInt
+          val indicator = div(cls = "farm-boost-indicator", content = s"🏠+$boostPercent%")
+          indicator.title = "Agriculture skill: Farms boost forests at half strength"
+          content.appendChild(indicator)
 
         val prodDiv = div(cls = "tile-production", content = s"+${formatNumber(harvestAmount)}🪵")
         val forestBonus = TileKingdomLogic.forestGroupBonusMultiplier(currentGame, coord)

@@ -915,6 +915,18 @@
   cursor: help;
 }
 
+/* Farm boost indicator for Agriculture2B skill on woodcutters */
+.farm-boost-indicator {
+  font-size: var(--font-xs);
+  color: #22c55e;
+  font-weight: 700;
+  background: rgba(34, 197, 94, 0.15);
+  padding: 0.1rem 0.3rem;
+  border-radius: var(--radius-xs);
+  margin-bottom: 0.1rem;
+  cursor: help;
+}
+
 /* Actions - overlay at bottom */
 .tile-kingdom-actions {
   position: fixed;

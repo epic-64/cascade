@@ -49,5 +49,6 @@
   - Agriculture:
     - 1P: fields start at level 10
     - OR: 1P: fields work 25% faster.
+- add Agriculture2B: farms bonus applies to forests at half strength
 
 ## Todos
