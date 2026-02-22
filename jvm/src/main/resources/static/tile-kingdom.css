@@ -957,6 +957,23 @@
   opacity: 0.6;
 }
 
+.btn-sail {
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+  color: white;
+}
+
+.btn-sail:hover:not(.disabled) {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.btn-sail.disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .btn-danger {
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   color: white;
@@ -1785,4 +1802,292 @@
 .welcome-modal-close {
   padding: 0.75rem 2rem;
   font-size: var(--font-xl);
+}
+
+/* Skill Tree Modal */
+.skill-tree-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.skill-tree-modal.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.skill-tree-modal-content {
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  min-width: 400px;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-xl);
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+}
+
+.skill-tree-modal.show .skill-tree-modal-content {
+  transform: scale(1);
+}
+
+.skill-tree-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.skill-tree-header h3 {
+  margin: 0;
+  font-size: var(--font-2xl);
+  color: var(--text-primary);
+}
+
+.skill-tree-points {
+  font-size: var(--font-lg);
+  font-weight: 600;
+  color: var(--accent-yellow);
+  background: var(--bg-secondary);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+}
+
+.skill-tree-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: var(--font-lg);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.skill-tree-close-btn:hover {
+  background: var(--accent-red);
+  color: white;
+}
+
+.skill-tree-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Locked state */
+.skill-tree-locked {
+  text-align: center;
+  padding: 3rem 2rem;
+}
+
+.skill-tree-locked .locked-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.skill-tree-locked .locked-text {
+  font-size: var(--font-xl);
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.skill-tree-locked .locked-hint {
+  font-size: var(--font-md);
+  color: var(--text-muted);
+}
+
+/* Skill Branch */
+.skill-branch {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+}
+
+.skill-branch-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.branch-emoji {
+  font-size: var(--font-xl);
+}
+
+.branch-name {
+  font-size: var(--font-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.skill-branch-nodes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Skill Node */
+.skill-node {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--border-subtle);
+  transition: all 0.2s ease;
+}
+
+.skill-node.unlocked {
+  border-color: var(--accent-green);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.skill-node.available {
+  border-color: var(--accent-yellow);
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.skill-node.available:hover {
+  border-color: var(--accent-yellow);
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.3);
+}
+
+.skill-node.locked {
+  opacity: 0.6;
+}
+
+.skill-node-cost {
+  font-size: var(--font-lg);
+  font-weight: 700;
+  min-width: 40px;
+  text-align: center;
+}
+
+.skill-node.unlocked .skill-node-cost {
+  color: var(--accent-green);
+}
+
+.skill-node.available .skill-node-cost {
+  color: var(--accent-yellow);
+}
+
+.skill-node.locked .skill-node-cost {
+  color: var(--text-muted);
+}
+
+.skill-node-desc {
+  flex: 1;
+  font-size: var(--font-md);
+  color: var(--text-primary);
+}
+
+.skill-node-status {
+  font-size: var(--font-md);
+  color: var(--text-muted);
+}
+
+.skill-node.unlocked .skill-node-status {
+  color: var(--accent-green);
+  font-weight: 600;
+}
+
+.skill-node-btn {
+  padding: 0.4rem 0.75rem;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  background: var(--accent-yellow);
+  color: var(--bg-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.skill-node-btn:hover {
+  background: #f59e0b;
+  transform: scale(1.05);
+}
+
+/* Skills button style */
+.btn-skills {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-skills:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: scale(1.05);
+}
+
+.btn-skills.has-points {
+  animation: skillGlow 2s infinite;
+}
+
+@keyframes skillGlow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(16, 185, 129, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.8);
+  }
+}
+
+/* Mobile responsiveness for skill tree */
+@media (max-width: 768px) {
+  .skill-tree-modal-content {
+    min-width: auto;
+    width: 95%;
+    max-height: 90vh;
+    padding: 1rem;
+  }
+
+  .skill-tree-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .skill-tree-points {
+    order: 3;
+    width: 100%;
+    text-align: center;
+    margin-top: 0.5rem;
+  }
+
+  .skill-node {
+    flex-wrap: wrap;
+  }
+
+  .skill-node-desc {
+    flex: 0 0 100%;
+    order: 3;
+    margin-top: 0.5rem;
+  }
 }
