@@ -31,7 +31,7 @@
 .tile-kingdom-header h1 {
   margin: 0;
   color: var(--text-primary);
-  font-size: 1.5rem;
+  font-size: var(--font-3xl);
 }
 
 .help-button {
@@ -41,7 +41,7 @@
   border: 2px solid var(--border-medium);
   background: var(--bg-secondary);
   color: var(--text-secondary);
-  font-size: 1.25rem;
+  font-size: var(--font-2xl);
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -89,19 +89,19 @@
 }
 
 .resource-label {
-  font-size: 0.75rem;
+  font-size: var(--font-md);
   font-weight: 600;
   color: var(--text-secondary);
 }
 
 .resource-value {
   font-weight: 700;
-  font-size: 0.75rem;
+  font-size: var(--font-md);
   color: var(--text-primary);
 }
 
 .resource-income {
-  font-size: 0.7rem;
+  font-size: var(--font-sm);
   font-weight: 600;
   color: #16a34a;
   margin-left: 0.25rem;
@@ -125,7 +125,7 @@
 }
 
 .unlock-costs-value {
-  font-size: 0.75rem;
+  font-size: var(--font-md);
   font-weight: 600;
   color: var(--accent-yellow);
   font-variant-numeric: tabular-nums;
@@ -177,7 +177,7 @@
 }
 
 .tile-kingdom-tile.locked .tile-content {
-  font-size: 1rem;
+  font-size: var(--font-xl);
 }
 
 .tile-kingdom-tile.locked:hover {
@@ -406,7 +406,7 @@
 
 /* Bureau turbo toggle button */
 .btn-turbo {
-  font-size: 0.65rem;
+  font-size: var(--font-sm);
   font-weight: 700;
   padding: 1px 4px;
   border: none;
@@ -440,7 +440,7 @@
 }
 
 .btn-bureau-mode {
-  font-size: 0.75rem;
+  font-size: var(--font-md);
   font-weight: 700;
   padding: 2px 6px;
   border: none;
@@ -479,7 +479,7 @@
 
 /* Bureau cost indicator */
 .bureau-cost {
-  font-size: 0.7rem;
+  font-size: var(--font-sm);
   color: #64748b;
   font-weight: 600;
   margin-top: 1px;
@@ -646,7 +646,7 @@
 }
 
 .tile-build-icon-container i {
-  font-size: 1.5rem;
+  font-size: var(--font-3xl);
   color: #64748b;
   transition: color 0.2s ease;
 }
@@ -656,7 +656,7 @@
 }
 
 .tile-build-icon-container .build-label {
-  font-size: 0.75rem;
+  font-size: var(--font-md);
   color: #94a3b8;
   margin-top: 2px;
 }
@@ -672,7 +672,7 @@
 }
 
 .build-option.build-back .build-icon {
-  font-size: 0.7rem;
+  font-size: var(--font-sm);
   color: #64748b;
 }
 
@@ -762,13 +762,13 @@
 }
 
 .build-icon {
-  font-size: 0.65rem;
+  font-size: var(--font-sm);
   line-height: 1;
   flex-shrink: 0;
 }
 
 .build-name {
-  font-size: 0.65rem;
+  font-size: var(--font-sm);
   font-weight: 600;
   color: #1e293b;
   flex: 1;
@@ -776,13 +776,13 @@
 }
 
 .build-label {
-  font-size: 0.65rem;
+  font-size: var(--font-sm);
   font-weight: 700;
   color: #1e293b;
 }
 
 .build-cost {
-  font-size: 0.65rem;
+  font-size: var(--font-sm);
   color: #475569;
   font-weight: 600;
   white-space: nowrap;
@@ -793,7 +793,7 @@
 /* Bonus indicator on wheat fields */
 .bonus {
   color: #15803d;
-  font-size: 0.75rem;
+  font-size: var(--font-md);
   font-weight: 700;
 }
 
@@ -810,19 +810,19 @@
 }
 
 .tile-icon {
-  font-size: 1.5rem;
+  font-size: var(--font-3xl);
   line-height: 1;
 }
 
 .tile-label {
   font-weight: 700;
-  font-size: 0.75rem;
+  font-size: var(--font-md);
   color: #1e293b;
 }
 
 .tile-cost,
 .tile-upgrade {
-  font-size: 0.65rem;
+  font-size: var(--font-sm);
   color: #475569;
   font-weight: 600;
 }
@@ -837,7 +837,7 @@
 }
 
 .btn-x10 {
-  font-size: 0.65rem;
+  font-size: var(--font-sm);
   font-weight: 700;
   padding: 1px 4px;
   border: none;
@@ -855,7 +855,7 @@
 }
 
 .tile-production {
-  font-size: 0.65rem;
+  font-size: var(--font-sm);
   color: #166534;
   font-weight: 700;
 }
@@ -877,7 +877,7 @@
 
 .tile-kingdom-actions button {
   padding: 0.75rem 1.5rem;
-  font-size: 0.75rem;
+  font-size: var(--font-md);
   font-weight: 700;
   border-radius: var(--radius-md);
   border: none;
@@ -924,7 +924,7 @@
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   color: white;
   padding: 0.5rem 1rem;
-  font-size: 0.75rem;
+  font-size: var(--font-md);
 }
 
 .btn-danger:hover {
@@ -937,7 +937,7 @@
   background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
   color: white;
   padding: 0.5rem 1rem;
-  font-size: 0.75rem;
+  font-size: var(--font-md);
 }
 
 .btn-dev:hover {
@@ -955,7 +955,7 @@
   width: 100%;
   padding: 0.75rem 1rem;
   margin-bottom: 0.5rem;
-  font-size: 0.75rem;
+  font-size: var(--font-md);
   font-weight: 600;
   border: none;
   border-radius: var(--radius-md);
@@ -1026,7 +1026,7 @@
   border: none;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 1.25rem;
+  font-size: var(--font-2xl);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1046,7 +1046,7 @@
 .help-popup-body p {
   margin: 0 0 0.75rem 0;
   color: var(--text-secondary);
-  font-size: 0.75rem;
+  font-size: var(--font-md);
   line-height: 1.5;
 }
 
@@ -1071,7 +1071,7 @@
   z-index: 1001;
   max-width: 90%;
   text-align: center;
-  font-size: 0.75rem;
+  font-size: var(--font-md);
 }
 
 .notification.show {
@@ -1132,18 +1132,18 @@
 }
 
 .tile-kingdom-tile.town-hall .slot-label {
-  font-size: 0.65rem;
+  font-size: var(--font-sm);
   color: #92400e;
   font-weight: 500;
 }
 
 .tile-kingdom-tile.town-hall .politician-emoji-small {
-  font-size: 0.75rem;
+  font-size: var(--font-md);
   line-height: 1;
 }
 
 .tile-kingdom-tile.town-hall .politician-effect-small {
-  font-size: 0.75rem;
+  font-size: var(--font-md);
   color: #78350f;
   font-weight: 600;
   text-align: center;
@@ -1151,7 +1151,7 @@
 }
 
 .tile-kingdom-tile.town-hall .politician-lifespan {
-  font-size: 0.65rem;
+  font-size: var(--font-sm);
   font-weight: 600;
   padding: 1px 4px;
   border-radius: 3px;
@@ -1215,17 +1215,17 @@
 }
 
 .tile-kingdom-tile.academy .tile-icon {
-  font-size: 1.2rem;
+  font-size: var(--font-2xl);
 }
 
 .tile-kingdom-tile.academy .tile-label {
-  font-size: 0.75rem;
+  font-size: var(--font-md);
   font-weight: 600;
   color: #4c1d95;
 }
 
 .tile-kingdom-tile.academy .academy-mode {
-  font-size: 0.7rem;
+  font-size: var(--font-sm);
   font-weight: 500;
   color: #5b21b6;
   background: rgba(255, 255, 255, 0.5);
@@ -1234,7 +1234,7 @@
 }
 
 .tile-kingdom-tile.academy .btn-toggle-mode {
-  font-size: 0.65rem;
+  font-size: var(--font-sm);
   padding: 2px 6px;
   background: rgba(124, 58, 237, 0.2);
   border: 1px solid rgba(124, 58, 237, 0.4);
@@ -1274,17 +1274,17 @@
 }
 
 .tile-kingdom-tile.tavern .tile-icon {
-  font-size: 1.2rem;
+  font-size: var(--font-2xl);
 }
 
 .tile-kingdom-tile.tavern .tile-label {
-  font-size: 0.75rem;
+  font-size: var(--font-md);
   font-weight: 600;
   color: #78350f;
 }
 
 .tile-kingdom-tile.tavern .tavern-effect {
-  font-size: 0.65rem;
+  font-size: var(--font-sm);
   font-weight: 600;
   color: #92400e;
   background: rgba(255, 255, 255, 0.5);
@@ -1317,7 +1317,7 @@
 }
 
 .roster-title {
-  font-size: 0.7rem;
+  font-size: var(--font-sm);
   font-weight: 700;
   color: var(--text-primary);
 }
@@ -1331,13 +1331,13 @@
 }
 
 .roster-timer {
-  font-size: 0.65rem;
+  font-size: var(--font-sm);
   color: var(--text-secondary);
   font-family: monospace;
 }
 
 .roster-rare-chance {
-  font-size: 0.75rem;
+  font-size: var(--font-md);
   color: #f59e0b;
   font-weight: 600;
 }
@@ -1353,7 +1353,7 @@
 }
 
 .roster-empty {
-  font-size: 0.75rem;
+  font-size: var(--font-md);
   color: var(--text-secondary);
   text-align: center;
   padding: 1rem 0;
@@ -1410,7 +1410,7 @@
 }
 
 .politician-card .politician-emoji {
-  font-size: 1.5rem;
+  font-size: var(--font-3xl);
   line-height: 1;
 }
 
@@ -1423,7 +1423,7 @@
 }
 
 .politician-card .politician-name {
-  font-size: 0.7rem;
+  font-size: var(--font-sm);
   font-weight: 700;
   color: var(--text-primary);
   white-space: nowrap;
@@ -1432,7 +1432,7 @@
 }
 
 .politician-card .politician-title {
-  font-size: 0.7rem;
+  font-size: var(--font-sm);
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
@@ -1440,13 +1440,13 @@
 }
 
 .politician-card .politician-effect {
-  font-size: 0.7rem;
+  font-size: var(--font-sm);
   color: var(--accent-green);
   font-weight: 600;
 }
 
 .politician-card .politician-roster-lifespan {
-  font-size: 0.65rem;
+  font-size: var(--font-sm);
   font-weight: 600;
   padding: 2px 6px;
   border-radius: 4px;
@@ -1481,12 +1481,12 @@
   border: 2px dashed var(--border-medium);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
-  font-size: 0.75rem;
+  font-size: var(--font-md);
   transition: all 0.2s ease;
 }
 
 .politician-trash i {
-  font-size: 0.75rem;
+  font-size: var(--font-md);
 }
 
 .politician-trash.drag-over {
@@ -1557,7 +1557,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 0.7rem;
+  font-size: var(--font-sm);
   font-weight: 700;
   color: #22c55e;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -1612,7 +1612,7 @@
   position: absolute;
   width: 24px;
   height: 24px;
-  font-size: 1.2rem;
+  font-size: var(--font-2xl);
   text-align: center;
   line-height: 24px;
   pointer-events: none;
@@ -1678,7 +1678,7 @@
 
 .welcome-modal-header h3 {
   margin: 0 0 1rem 0;
-  font-size: 1.5rem;
+  font-size: var(--font-3xl);
   color: var(--text-primary);
 }
 
@@ -1688,13 +1688,13 @@
 
 .welcome-time {
   color: var(--text-secondary);
-  font-size: 0.75rem;
+  font-size: var(--font-md);
   margin-bottom: 1rem;
 }
 
 .welcome-subtitle {
   color: var(--text-secondary);
-  font-size: 0.7rem;
+  font-size: var(--font-sm);
   margin-bottom: 0.75rem;
 }
 
@@ -1709,7 +1709,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 1.25rem;
+  font-size: var(--font-2xl);
   padding: 0.5rem 1rem;
   background: var(--bg-secondary);
   border-radius: var(--radius-md);
@@ -1718,7 +1718,7 @@
 }
 
 .welcome-gain-icon {
-  font-size: 1.5rem;
+  font-size: var(--font-3xl);
 }
 
 .welcome-gain-value {
@@ -1729,5 +1729,5 @@
 
 .welcome-modal-close {
   padding: 0.75rem 2rem;
-  font-size: 1rem;
+  font-size: var(--font-xl);
 }

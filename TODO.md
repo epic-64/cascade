@@ -8,9 +8,9 @@
 - [x] the quarry should cost 500 wood to build, and wood to upgrade
 - [x] Any text in the game should not be selectable. Since there is a lot of clicking and dragging, having text be selectable leads to a lot of accidental text selection, which is frustrating.
 - [x] The text is too small in a lot of places
+- [x] create variables for standardized text sizes, and use them across the board to ensure consistency
 
 ## Todos
-- [ ] create variables for standardized text sizes, and use them across the board to ensure consistency
 - [ ] Rename Wood tile to Forest
 - [ ] Quarries are too dark
 - [ ] the town hall should cost 1000 stone to build
