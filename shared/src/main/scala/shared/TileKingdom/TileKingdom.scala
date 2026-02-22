@@ -1082,6 +1082,9 @@ object TileKingdomLogic:
   def isBureauTurbo(game: TileKingdomGame, bureauCoord: Coord): Boolean =
     game.bureauTurboMode.getOrElse(bureauCoord, false)
 
+  // Calculate turbo faith cost based on target tile level (level × 10)
+  def bureauTurboFaithCostForLevel(level: Int): Int = level * 10
+
   // Get bureau speed multiplier (1.0 = slow mode, 10.0 = turbo mode)
   def bureauSpeedMultiplier(game: TileKingdomGame, bureauCoord: Coord): Double =
     if isBureauTurbo(game, bureauCoord) then BureauTurboSpeedMultiplier else 1.0
@@ -1107,10 +1110,13 @@ object TileKingdomLogic:
           .flatMap((coord, tile) => tile.upgradeCost.map(cost => (coord, tile, cost)))
 
         // Check if we have enough resources for turbo mode
+        // Faith cost is level × 10, so check against the cheapest upgradeable tile
         val canAffordWood = game.wood >= BureauWoodCostPerUpgrade
-        val canAffordFaith = game.faith >= BureauTurboFaithCost
+        val minLevelTile = upgradeableTiles.minByOption(_._2.level)
+        val minFaithCost = minLevelTile.map(t => bureauTurboFaithCostForLevel(t._2.level)).getOrElse(Int.MaxValue)
+        val canAffordFaith = game.faith >= minFaithCost
         
-        // Auto-disable turbo mode if we can't afford wood or faith
+        // Auto-disable turbo mode if we can't afford wood or faith for the cheapest tile
         val gameWithTurboCheck = 
           if isTurbo && (!canAffordWood || !canAffordFaith) then
             game.copy(bureauTurboMode = game.bureauTurboMode.updated(bureauCoord, false))
@@ -1125,9 +1131,12 @@ object TileKingdomLogic:
           else return None
 
         // Filter to only tiles we can afford (including bureau wood fee for wood-cost upgrades)
-        val affordableTiles = upgradeableTiles.filter: (_, _, cost) =>
+        // In turbo mode, also check if we can afford the faith cost for each tile's level
+        val affordableTiles = upgradeableTiles.filter: (_, tile, cost) =>
           val extraWoodNeeded = if cost.resource == Resource.Wood then BureauWoodCostPerUpgrade else 0
-          gameWithTurboCheck.canAfford(cost.amount + extraWoodNeeded, cost.resource)
+          val canAffordUpgrade = gameWithTurboCheck.canAfford(cost.amount + extraWoodNeeded, cost.resource)
+          val canAffordTurboFaith = !effectiveIsTurbo || gameWithTurboCheck.faith >= bureauTurboFaithCostForLevel(tile.level)
+          canAffordUpgrade && canAffordTurboFaith
 
         // Select the tile with the lowest upgrade cost (comparing numerically)
         affordableTiles.minByOption(_._3.amount) match
@@ -1147,9 +1156,10 @@ object TileKingdomLogic:
             val afterUpgradeCost = gameWithTurboCheck.deduct(cost)
             val afterBureauFee = afterUpgradeCost.copy(wood = afterUpgradeCost.wood - BureauWoodCostPerUpgrade)
             
-            // Deduct faith cost if effectively in turbo mode
+            // Deduct faith cost if effectively in turbo mode (level × 10)
+            val turboFaithCost = bureauTurboFaithCostForLevel(targetTile.level)
             val afterTurboCost = 
-              if effectiveIsTurbo then afterBureauFee.copy(faith = afterBureauFee.faith - BureauTurboFaithCost)
+              if effectiveIsTurbo then afterBureauFee.copy(faith = afterBureauFee.faith - turboFaithCost)
               else afterBureauFee
 
             val newGame = afterTurboCost.copy(
