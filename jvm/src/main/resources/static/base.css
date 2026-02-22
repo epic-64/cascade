@@ -60,6 +60,15 @@ html {
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 20px;
+
+  /* Font sizes */
+  --font-xs: 0.6rem;
+  --font-sm: 0.7rem;
+  --font-md: 0.8rem;
+  --font-lg: 0.9rem;
+  --font-xl: 1rem;
+  --font-2xl: 1.25rem;
+  --font-3xl: 1.5rem;
 }
 
 
