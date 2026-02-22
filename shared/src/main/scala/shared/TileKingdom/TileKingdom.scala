@@ -284,7 +284,7 @@ object TileKingdomLogic:
   val ForestGroupBonusPerTile: Double = 0.10 // 10% bonus per connected woodcutter
 
   // Temple constants
-  val TempleBuildCost: Int = 200 // Wood cost to build a temple
+  val TempleBuildCost: Int = 10000 // Wood cost to build a temple
 
   // Bureau turbo mode constants
   val BureauTurboFaithCost: Int = 100 // Faith cost per upgrade in turbo mode
