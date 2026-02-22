@@ -31,10 +31,14 @@
   - starter skills:
     - Agriculture: 
       - 1P: fields start at level 10
+      - 2P: farms start at level 10
     - Management:
       - 1P: increases politician level by 1
       - 2P: your first town hall is free (note: the second one still costs its usual amount)
       - 3P: You can fit two politicians in one town hall
     - Wisdom:
       - 1P: Your quarries produce 25% more stone for each neighboring forest.
-      - 2P:
+      - 2P: Each forest grants 50% increased faith production to neighboring temples.
+    - Education:
+      - 1P: Your academies are 10x cheaper
+      - 2P: Your academies have both modes active at the same time
