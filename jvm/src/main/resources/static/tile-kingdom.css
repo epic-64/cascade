@@ -912,17 +912,7 @@
   padding: 0.1rem 0.3rem;
   border-radius: var(--radius-xs);
   margin-bottom: 0.1rem;
-  animation: speedPulse 2s ease-in-out infinite;
-}
-
-@keyframes speedPulse {
-  0%, 100% {
-    opacity: 0.8;
-  }
-  50% {
-    opacity: 1;
-    text-shadow: 0 0 4px rgba(245, 158, 11, 0.5);
-  }
+  cursor: help;
 }
 
 /* Actions - overlay at bottom */

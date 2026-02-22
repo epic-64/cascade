@@ -453,14 +453,14 @@ object TileKingdomClient:
 
           val nodesContainer = branchDiv.querySelector(".skill-branch-nodes").asInstanceOf[HTMLElement]
           val skills = Skill.branchSkills(branchName)
-          
+
           // Group skills by cost level, then render with OR between alternatives
           val skillsByCost = skills.groupBy(Skill.cost).toList.sortBy(_._1)
-          
+
           skillsByCost.foreach: (cost, skillsAtLevel) =>
             // Check if this is a dual track level (has mutually exclusive skills)
             val isDualTrack = skillsAtLevel.exists(s => Skill.mutuallyExclusive(s).isDefined)
-            
+
             if isDualTrack then
               // Render dual track with OR separator
               val dualTrackContainer = div(cls = "skill-dual-track")
@@ -483,7 +483,7 @@ object TileKingdomClient:
     val cost = Skill.cost(skill)
     val description = Skill.description(skill)
 
-    val nodeCls = 
+    val nodeCls =
       if isUnlocked then "skill-node unlocked"
       else if isExcluded then "skill-node excluded"
       else if canUnlock then "skill-node available"
@@ -1287,7 +1287,9 @@ object TileKingdomClient:
 
         // Add speed boost indicator
         if hasSpeedBoost then
-          content.appendChild(div(cls = "speed-boost-indicator", content = "⚡+25%"))
+          val indicator = div(cls = "speed-boost-indicator", content = "⚡+25%")
+          indicator.title = "Agriculture skill: Fields produce 25% faster"
+          content.appendChild(indicator)
 
         val prodDiv = div(cls = "tile-production", content = s"+${formatNumber(harvestAmount)}")
         if hasBonus then
