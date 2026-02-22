@@ -1277,12 +1277,17 @@ object TileKingdomClient:
         val townHallMultiplier = TileKingdomLogic.townHallWheatMultiplier(currentGame, coord)
         val hasBonus = bonusMultiplier > 1.0
         val hasTownHallBonus = townHallMultiplier > 1.0
+        val hasSpeedBoost = currentGame.hasSkill(Skill.Agriculture1B)
         val upgradeCost = TileKingdomLogic.wheatFieldLevelUpCost(level)
 
         val content = div(cls = "tile-content")(
           div(cls = "tile-icon", content = "🌾"),
           div(cls = "tile-label", content = s"Lv$level")
         )
+
+        // Add speed boost indicator
+        if hasSpeedBoost then
+          content.appendChild(div(cls = "speed-boost-indicator", content = "⚡+25%"))
 
         val prodDiv = div(cls = "tile-production", content = s"+${formatNumber(harvestAmount)}")
         if hasBonus then
