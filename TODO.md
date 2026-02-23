@@ -62,3 +62,6 @@
 - add skill choice:
   - reduce bureau wood cost by 90%
   - or: reduce bureau faith cost (when turbo enabled) by 90%
+- add skill choice:
+  - farm can affect quarry at half strength
+  - or: reduce wheat field upgrade costs by 90%
