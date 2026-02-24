@@ -7,6 +7,7 @@ import scala.concurrent.ExecutionContext
 class TaskSpec extends AnyFunSuite:
 
   given Logger = Logger.silent
+  given Timer = Timer.silent
   given ExecutionContext = ExecutionContext.global
 
   // Test domain
@@ -217,4 +218,77 @@ class TaskSpec extends AnyFunSuite:
     assert(result == Right("from step1 -> step2"))
     assert(step1Count == 3, s"step1 should run 3 times but ran $step1Count")  // re-runs step1 each retry!
     assert(step2Count == 3, s"step2 should run 3 times but ran $step2Count")
+
+  test("named task records timing on success"):
+    val timer = new Timer.Collecting
+
+    def slowOp: Task[String] = Task:
+      Thread.sleep(50)
+      Right("done")
+
+    slowOp.named("slowOp").execute(using Logger.silent, timer)
+
+    val timings = timer.getTimings
+    assert(timings.size == 1)
+    assert(timings.head.name == "slowOp")
+    assert(timings.head.success)
+    assert(timings.head.durationMs >= 50)
+    assert(timings.head.durationMs <= 60)
+
+  test("named task records timing on failure"):
+    val timer = new Timer.Collecting
+
+    def failingOp: Task[String] = Task:
+      Thread.sleep(30)
+      Left(Fail("failingOp", "oops"))
+
+    failingOp.named("failingOp").execute(using Logger.silent, timer)
+
+    val timings = timer.getTimings
+    assert(timings.size == 1)
+    assert(timings.head.name == "failingOp")
+    assert(!timings.head.success)
+    assert(timings.head.durationMs >= 30)
+    assert(timings.head.durationMs <= 40)
+
+  test("unnamed tasks do not record timing"):
+    val timer = new Timer.Collecting
+
+    Task.pure(42).execute(using Logger.silent, timer)
+
+    assert(timer.getTimings.isEmpty)
+
+  test("timing works with full pipeline"):
+    val timer = new Timer.Collecting
+
+    def step1: Task[Int] = Task:
+      Thread.sleep(50)
+      Right(42)
+
+    def step2(n: Int): Task[String] = Task:
+      Thread.sleep(50)
+      Right(s"result: $n")
+
+    val result = (for
+      a <- step1.named("step1")
+      b <- step2(a).named("step2")
+    yield b).execute(using Logger.silent, timer)
+
+    assert(result == Right("result: 42"))
+
+    val timings = timer.getTimings
+    assert(timings.size == 2)
+    assert(timings.map(_.name) == List("step1", "step2"))
+    assert(timings.forall(_.success))
+    assert(timer.totalMs >= 100)
+
+  test("Timer.Collecting provides summary"):
+    val timer = new Timer.Collecting
+
+    Task.pure(1).named("fast").execute(using Logger.silent, timer)
+    Task.pure(2).named("also-fast").execute(using Logger.silent, timer)
+
+    val summary = timer.summary
+    assert(summary.contains("fast"))
+    assert(summary.contains("also-fast"))
 

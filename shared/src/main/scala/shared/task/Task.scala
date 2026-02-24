@@ -23,6 +23,29 @@ object Logger:
     def error(fail: Fail): Unit = ()
     def info(msg: String): Unit = ()
 
+case class Timing(name: String, durationMs: Long, success: Boolean)
+
+trait Timer:
+  def record(timing: Timing): Unit
+
+object Timer:
+  val console: Timer = (timing: Timing) =>
+    val status = if timing.success then "OK" else "FAILED"
+    println(f"TIMING: ${timing.name}%-30s ${timing.durationMs}%6dms [$status]")
+
+  val silent: Timer = (_: Timing) => ()
+
+  class Collecting extends Timer:
+    private var timings = List.empty[Timing]
+    def record(timing: Timing): Unit = synchronized:
+      timings = timings :+ timing
+    def getTimings: List[Timing] = synchronized(timings)
+    def clear(): Unit = synchronized:
+      timings = Nil
+    def totalMs: Long = synchronized(timings.map(_.durationMs).sum)
+    def summary: String = synchronized:
+      timings.map(t => f"${t.name}%-30s ${t.durationMs}%6dms").mkString("\n")
+
 extension [A](opt: Option[A])
   def toResult(context: String, ifNone: => Any = "not found"): Result[A] = opt match
     case Some(value) => Right(value)
@@ -38,8 +61,13 @@ extension [A](result: Result[A])
     result.left.foreach(logger.error)
     result
 
-class Task[A](private val work: Logger ?=> Result[A]):
-  def execute(using Logger): Result[A] = work.logged
+class Task[A](private val work: (Logger, Timer) ?=> Result[A], val name: Option[String] = None):
+  def execute(using Logger, Timer): Result[A] =
+    val start = System.currentTimeMillis()
+    val result = work.logged
+    val elapsed = System.currentTimeMillis() - start
+    name.foreach(n => summon[Timer].record(Timing(n, elapsed, result.isRight)))
+    result
 
   def map[B](f: A => B): Task[B] = Task(work.map(f))
 
@@ -50,8 +78,9 @@ class Task[A](private val work: Logger ?=> Result[A]):
 
   def zip[B](other: Task[B])(using ExecutionContext): Task[(A, B)] = Task:
     val logger = summon[Logger]
-    val futureA = Future(work(using logger))
-    val futureB = Future(other.work(using logger))
+    val timer = summon[Timer]
+    val futureA = Future(work(using logger, timer))
+    val futureB = Future(other.work(using logger, timer))
 
     val combined = for
       a <- futureA
@@ -74,8 +103,10 @@ class Task[A](private val work: Logger ?=> Result[A]):
         case Left(f) => Left(f)
     loop(attempts)
 
+  def named(taskName: String): Task[A] = new Task(work, Some(taskName))
+
 object Task:
-  def apply[A](f: Logger ?=> Result[A]): Task[A] = new Task(f)
+  def apply[A](f: (Logger, Timer) ?=> Result[A]): Task[A] = new Task(f)
   def pure[A](a: A): Task[A] = Task(Right(a))
   def fail[A](context: String, cause: Any): Task[A] = Task(Left(Fail(context, cause)))
   def fromTry[A](context: String)(t: => Try[A]): Task[A] = Task(t.toResult(context))
