@@ -84,8 +84,9 @@ object TileKingdomClient:
   private def TileSize: Double = BaseTileSize * zoomLevel
   private val VisiblePadding: Int = 2 // Extra tiles to render outside viewport
 
-  // Track which tile is currently in build-selection mode
+  // Track which tile is currently in build-selection mode and which submenu is open
   private var selectingTileCoord: Option[Coord] = None
+  private var activeSubmenu: Option[String] = None // "resources" or "management"
 
   // Helper to wrap click handlers - only executes if we weren't just dragging
   private def onClick(handler: => Unit): MouseEvent => Unit = (_: MouseEvent) =>
@@ -1277,6 +1278,7 @@ object TileKingdomClient:
           opt.onclick = (e: MouseEvent) =>
             e.stopPropagation()
             selectingTileCoord = None
+            activeSubmenu = None
             tileDiv.classList.remove("selecting")
         )
 
@@ -1286,6 +1288,7 @@ object TileKingdomClient:
           opt.appendChild(div(cls = "build-name", content = "Resources"))
           opt.onclick = (e: MouseEvent) =>
             e.stopPropagation()
+            activeSubmenu = Some("resources")
             buildOptions.classList.add("submenu-resources")
         )
 
@@ -1296,8 +1299,9 @@ object TileKingdomClient:
             opt.appendChild(div(cls = "build-name", content = "Management"))
             opt.onclick = (e: MouseEvent) =>
               e.stopPropagation()
+              activeSubmenu = Some("management")
               buildOptions.classList.add("submenu-management")
-          )
+           )
 
         buildOptions.appendChild(mainMenu)
 
@@ -1309,6 +1313,7 @@ object TileKingdomClient:
           opt.appendChild(div(cls = "build-name", content = "Back"))
           opt.onclick = (e: MouseEvent) =>
             e.stopPropagation()
+            activeSubmenu = None
             buildOptions.classList.remove("submenu-resources")
         )
 
@@ -1334,6 +1339,7 @@ object TileKingdomClient:
             opt.appendChild(div(cls = "build-name", content = "Back"))
             opt.onclick = (e: MouseEvent) =>
               e.stopPropagation()
+              activeSubmenu = None
               buildOptions.classList.remove("submenu-management")
           )
 
@@ -1354,6 +1360,13 @@ object TileKingdomClient:
             managementSubmenu.appendChild(buildOption("🍺", "Tavern", tavernCost, "🪵", currentGame.wood >= tavernCost, handleBuildTavern(coord)))
 
           buildOptions.appendChild(managementSubmenu)
+
+        // Restore active submenu if this tile was previously selected
+        if selectingTileCoord.contains(coord) then
+          activeSubmenu.foreach:
+            case "resources" => buildOptions.classList.add("submenu-resources")
+            case "management" => buildOptions.classList.add("submenu-management")
+            case _ => ()
 
         tileDiv.appendChild(buildOptions)
 
@@ -1916,6 +1929,7 @@ object TileKingdomClient:
     buildFn(currentGame, coord) match
       case Right(newGame) =>
         selectingTileCoord = None
+        activeSubmenu = None
         currentGame = newGame
         saveGame()
         renderGame()
