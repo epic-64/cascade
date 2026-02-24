@@ -73,6 +73,32 @@ class TaskSpec extends AnyFunSuite:
     // Parallel should take ~100ms, not ~200ms
     assert(elapsed < 180, s"Expected parallel execution but took ${elapsed}ms")
 
+  test("Task.zip proves concurrency by overlapping execution windows"):
+    // Track when each operation starts and ends
+    case class Timing(name: String, startedAt: Long, endedAt: Long)
+    var timings = List.empty[Timing]
+    val testStart = System.currentTimeMillis()
+
+    def timedOp(name: String, durationMs: Int): Task[String] = Task:
+      val started = System.currentTimeMillis() - testStart
+      Thread.sleep(durationMs)
+      val ended = System.currentTimeMillis() - testStart
+      synchronized:
+        timings = timings :+ Timing(name, started, ended)
+      Right(name)
+
+    val result = timedOp("A", 200).zip(timedOp("B", 200)).execute
+
+    assert(result == Right(("A", "B")))
+
+    val a = timings.find(_.name == "A").get
+    val b = timings.find(_.name == "B").get
+
+    // If parallel: B starts before A ends (their execution windows overlap)
+    // If sequential: B starts after A ends (no overlap)
+    val overlaps = b.startedAt < a.endedAt && a.startedAt < b.endedAt
+    assert(overlaps, s"Expected overlapping execution but got A=$a, B=$b")
+
   test("Task.zip returns first failure"):
     val result = Task.fail[Int]("first", "oops")
       .zip(Task.pure("ok"))
