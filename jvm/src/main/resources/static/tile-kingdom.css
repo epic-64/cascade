@@ -187,31 +187,24 @@
   transform: none;
 }
 
-/* Zoom minimal mode - hide text when zoomed out far */
-.tile-kingdom-tile.zoom-minimal .tile-label,
-.tile-kingdom-tile.zoom-minimal .tile-cost,
-.tile-kingdom-tile.zoom-minimal .tile-upgrade,
-.tile-kingdom-tile.zoom-minimal .tile-upgrade-row,
-.tile-kingdom-tile.zoom-minimal .tile-production,
-.tile-kingdom-tile.zoom-minimal .tile-modifiers,
-.tile-kingdom-tile.zoom-minimal .tile-badge,
-.tile-kingdom-tile.zoom-minimal .btn-x10,
-.tile-kingdom-tile.zoom-minimal .politician-info,
-.tile-kingdom-tile.zoom-minimal .politician-lifespan,
-.tile-kingdom-tile.zoom-minimal .politician-slot,
-.tile-kingdom-tile.zoom-minimal .politician-emoji-small,
-.tile-kingdom-tile.zoom-minimal .politician-effect-small,
-.tile-kingdom-tile.zoom-minimal .slot-label,
-.tile-kingdom-tile.zoom-minimal .btn-toggle-mode,
-.tile-kingdom-tile.zoom-minimal .build-options,
-.tile-kingdom-tile.zoom-minimal .build-label,
-.tile-kingdom-tile.zoom-minimal .tile-build-icon-container,
-.tile-kingdom-tile.zoom-minimal .tile-progress-container {
+/* Zoom tiers — hide everything by default, then show back selectively */
+
+/* Middle zoom: show only the big tile emoji */
+.tile-kingdom-tile.zoom-icons .tile-content > *:not(.tile-icon) {
   display: none !important;
 }
 
-.tile-kingdom-tile.zoom-minimal .tile-icon {
-  font-size: 1.2em;
+.tile-kingdom-tile.zoom-icons .tile-content {
+  justify-content: center;
+}
+
+.tile-kingdom-tile.zoom-icons .tile-icon {
+  font-size: 1.4em;
+}
+
+/* Far zoom: hide everything including the emoji */
+.tile-kingdom-tile.zoom-minimal .tile-content > * {
+  display: none !important;
 }
 
 .tile-kingdom-tile.zoom-minimal .tile-content {

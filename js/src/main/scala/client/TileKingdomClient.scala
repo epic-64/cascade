@@ -70,6 +70,15 @@ object TileKingdomClient:
   private val MaxZoom: Double = 2.0
   private val ZoomStep: Double = 0.1
 
+  // Zoom tier thresholds (split 0.3–2.0 range into thirds)
+  private val ZoomTierIcons: Double = 0.87   // below this: icons only
+  private val ZoomTierMinimal: Double = 0.58  // below this: no content at all
+
+  /** Apply the appropriate zoom tier CSS class to a tile element. */
+  private def applyZoomTier(tileDiv: HTMLElement): Unit =
+    if zoomLevel < ZoomTierMinimal then tileDiv.classList.add("zoom-minimal")
+    else if zoomLevel < ZoomTierIcons then tileDiv.classList.add("zoom-icons")
+
   // Grid rendering constants
   private val BaseTileSize: Int = 74 // 70px tile + 4px gap
   private def TileSize: Double = BaseTileSize * zoomLevel
@@ -1170,8 +1179,8 @@ object TileKingdomClient:
     // Scale font size with zoom - allow it to go smaller when zoomed out
     val fontScale = math.max(0.3, math.min(1.0, zoomLevel))
 
-    // Add zoom-minimal class when zoomed out far enough to hide text
-    if zoomLevel < 0.7 then tileDiv.classList.add("zoom-minimal")
+    // Add zoom tier class: icons-only (middle third) or minimal (bottom third)
+    applyZoomTier(tileDiv)
 
     // Position the tile absolutely with zoom-adjusted size
     tileDiv.asInstanceOf[HTMLElement].style.cssText =
@@ -1790,8 +1799,8 @@ object TileKingdomClient:
     val tilePixelSize = (70 * zoomLevel).toInt
     val fontScale = math.max(0.3, math.min(1.0, zoomLevel))
 
-    // Add zoom-minimal class when zoomed out far enough to hide text
-    if zoomLevel < 0.7 then tileDiv.classList.add("zoom-minimal")
+    // Add zoom tier class: icons-only (middle third) or minimal (bottom third)
+    applyZoomTier(tileDiv)
 
     // Position the tile absolutely with zoom-adjusted size
     tileDiv.style.cssText =
