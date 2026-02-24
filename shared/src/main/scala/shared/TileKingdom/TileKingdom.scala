@@ -946,154 +946,73 @@ object TileKingdomLogic:
       lastTickTime = currentTimeMillis
     )
 
-  // Build a wheat field on an empty tile
+  /** Shared validation and placement for all build actions. */
+  private def buildOnEmptyTile(
+      game: TileKingdomGame,
+      coord: Coord,
+      tileType: TileType,
+      cost: Cost,
+      prerequisite: => Boolean = true,
+      prerequisiteMsg: String = ""
+  ): Either[String, TileKingdomGame] =
+    game.tiles.get(coord) match
+      case None                                 => Left("Tile not found")
+      case Some(tile) if !tile.unlocked         => Left("Tile is locked")
+      case Some(tile) if !tile.isEmpty          => Left("Tile is not empty")
+      case Some(_) if !prerequisite             => Left(prerequisiteMsg)
+      case Some(_) if !game.canAfford(cost)     => Left(s"Not enough ${cost.resource.toString.toLowerCase} (need ${cost.amount})")
+      case Some(tile) =>
+        Right(game.deduct(cost).copy(
+          tiles = game.tiles.updated(coord, tile.copy(tileType = tileType))
+        ))
+
   def buildWheatField(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
-    game.tiles.get(coord) match
-      case None                                           => Left("Tile not found")
-      case Some(tile) if !tile.unlocked                   => Left("Tile is locked")
-      case Some(tile) if !tile.isEmpty                    => Left("Tile is not empty")
-      case Some(tile) if game.wheat < wheatFieldBuildCost => Left(s"Not enough wheat (need $wheatFieldBuildCost)")
-      case Some(tile) =>
-        val startLevel = if game.hasSkill(Skill.Agriculture1A) then 10 else 1
-        val updatedTile = tile.copy(tileType = TileType.WheatField(startLevel))
-        Right(game.copy(
-          tiles = game.tiles.updated(coord, updatedTile),
-          wheat = game.wheat - wheatFieldBuildCost
-        ))
+    val startLevel = if game.hasSkill(Skill.Agriculture1A) then 10 else 1
+    buildOnEmptyTile(game, coord, TileType.WheatField(startLevel), Cost(wheatFieldBuildCost, Resource.Wheat))
 
-  // Build a farm on an empty tile (requires at least one wheat field)
   def buildFarm(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
-    game.tiles.get(coord) match
-      case None                                     => Left("Tile not found")
-      case Some(tile) if !tile.unlocked             => Left("Tile is locked")
-      case Some(tile) if !tile.isEmpty              => Left("Tile is not empty")
-      case Some(_) if !game.hasWheatField           => Left("Build a wheat field first")
-      case Some(tile) if game.wheat < farmBuildCost => Left(s"Not enough wheat (need $farmBuildCost)")
-      case Some(tile) =>
-        val startLevel = if game.hasSkill(Skill.Agriculture2A) then 10 else 1
-        val updatedTile = tile.copy(tileType = TileType.Farm(startLevel))
-        Right(game.copy(
-          tiles = game.tiles.updated(coord, updatedTile),
-          wheat = game.wheat - farmBuildCost
-        ))
+    val startLevel = if game.hasSkill(Skill.Agriculture2A) then 10 else 1
+    buildOnEmptyTile(game, coord, TileType.Farm(startLevel), Cost(farmBuildCost, Resource.Wheat),
+      game.canBuildFarm, "Build a wheat field first")
 
-  // Build a woodcutter on an empty tile (requires at least one wheat field)
   def buildWoodcutter(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
-    game.tiles.get(coord) match
-      case None                                           => Left("Tile not found")
-      case Some(tile) if !tile.unlocked                   => Left("Tile is locked")
-      case Some(tile) if !tile.isEmpty                    => Left("Tile is not empty")
-      case Some(_) if !game.hasWheatField                 => Left("Build a wheat field first")
-      case Some(tile) if game.wheat < woodcutterBuildCost => Left(s"Not enough wheat (need $woodcutterBuildCost)")
-      case Some(tile) =>
-        val updatedTile = tile.copy(tileType = TileType.Woodcutter(1))
-        Right(game.copy(
-          tiles = game.tiles.updated(coord, updatedTile),
-          wheat = game.wheat - woodcutterBuildCost
-        ))
+    buildOnEmptyTile(game, coord, TileType.Woodcutter(1), Cost(woodcutterBuildCost, Resource.Wheat),
+      game.canBuildWoodcutter, "Build a farm first")
 
-  // Build a bureau on an empty tile (costs wood, requires at least one wheat field)
   def buildBureau(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
-    game.tiles.get(coord) match
-      case None                                      => Left("Tile not found")
-      case Some(tile) if !tile.unlocked              => Left("Tile is locked")
-      case Some(tile) if !tile.isEmpty               => Left("Tile is not empty")
-      case Some(_) if !game.hasWheatField            => Left("Build a wheat field first")
-      case Some(tile) if game.wood < bureauBuildCost => Left(s"Not enough wood (need $bureauBuildCost)")
-      case Some(tile) =>
-        val updatedTile = tile.copy(tileType = TileType.Bureau(1))
-        Right(game.copy(
-          tiles = game.tiles.updated(coord, updatedTile),
-          wood = game.wood - bureauBuildCost
-        ))
+    buildOnEmptyTile(game, coord, TileType.Bureau(1), Cost(bureauBuildCost, Resource.Wood),
+      game.canBuildBureau, "Build a woodcutter first")
 
-  // Build a temple on an empty tile (costs wood, requires at least one wheat field)
   def buildTemple(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
-    game.tiles.get(coord) match
-      case None                                       => Left("Tile not found")
-      case Some(tile) if !tile.unlocked               => Left("Tile is locked")
-      case Some(tile) if !tile.isEmpty                => Left("Tile is not empty")
-      case Some(_) if !game.hasWheatField             => Left("Build a wheat field first")
-      case Some(tile) if game.wood < templeBuildCost  => Left(s"Not enough wood (need $templeBuildCost)")
-      case Some(tile) =>
-        val updatedTile = tile.copy(tileType = TileType.Temple(1))
-        Right(game.copy(
-          tiles = game.tiles.updated(coord, updatedTile),
-          wood = game.wood - templeBuildCost
-        ))
+    buildOnEmptyTile(game, coord, TileType.Temple(1), Cost(templeBuildCost, Resource.Wood),
+      game.canBuildTemple, "Build a woodcutter first")
 
-  // Build a town hall on an empty tile (costs stone, requires at least one wheat field)
   def buildTownHall(game: TileKingdomGame, coord: Coord, currentTimeMillis: Long = System.currentTimeMillis()): Either[String, TileKingdomGame] =
     val cost = townHallBuildCost(game)
-    game.tiles.get(coord) match
-      case None                                => Left("Tile not found")
-      case Some(tile) if !tile.unlocked        => Left("Tile is locked")
-      case Some(tile) if !tile.isEmpty         => Left("Tile is not empty")
-      case Some(_) if !game.hasWheatField      => Left("Build a wheat field first")
-      case Some(tile) if game.stone < cost     => Left(s"Not enough stone (need $cost)")
-      case Some(tile) =>
-        val updatedTile = tile.copy(tileType = TileType.TownHall(None))
-        val baseGame = game.copy(
-          tiles = game.tiles.updated(coord, updatedTile),
-          stone = game.stone - cost
-        )
+    buildOnEmptyTile(game, coord, TileType.TownHall(None), Cost(cost, Resource.Stone),
+      game.canBuildTownHall, "Build a quarry first").map: baseGame =>
         // If roster is empty, generate a politician immediately
         if baseGame.politicianRoster.isEmpty then
           val rareChance = rarePoliticianChance(baseGame)
           val newPolitician = generatePolitician(currentTimeMillis, rareChance)
-          Right(baseGame.copy(
+          baseGame.copy(
             politicianRoster = List(newPolitician),
             lastPoliticianGeneration = currentTimeMillis,
             politicianGenerationProgress = 0.0
-          ))
-        else
-          Right(baseGame)
+          )
+        else baseGame
 
-  // Build a quarry on an empty tile (costs wood, requires at least one wheat field)
   def buildQuarry(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
-    game.tiles.get(coord) match
-      case None                                      => Left("Tile not found")
-      case Some(tile) if !tile.unlocked              => Left("Tile is locked")
-      case Some(tile) if !tile.isEmpty               => Left("Tile is not empty")
-      case Some(_) if !game.hasWheatField            => Left("Build a wheat field first")
-      case Some(tile) if game.wood < quarryBuildCost => Left(s"Not enough wood (need $quarryBuildCost)")
-      case Some(tile) =>
-        val updatedTile = tile.copy(tileType = TileType.Quarry(1))
-        Right(game.copy(
-          tiles = game.tiles.updated(coord, updatedTile),
-          wood = game.wood - quarryBuildCost
-        ))
+    buildOnEmptyTile(game, coord, TileType.Quarry(1), Cost(quarryBuildCost, Resource.Wood),
+      game.canBuildQuarry, "Build a farm first")
 
-  // Build an academy on an empty tile (costs stone, requires at least one wheat field)
   def buildAcademy(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
-    val cost = academyBuildCost(game)
-    game.tiles.get(coord) match
-      case None                                => Left("Tile not found")
-      case Some(tile) if !tile.unlocked        => Left("Tile is locked")
-      case Some(tile) if !tile.isEmpty         => Left("Tile is not empty")
-      case Some(_) if !game.hasWheatField      => Left("Build a wheat field first")
-      case Some(tile) if game.stone < cost     => Left(s"Not enough stone (need $cost)")
-      case Some(tile) =>
-        val updatedTile = tile.copy(tileType = TileType.Academy(AcademyMode.FasterPoliticians))
-        Right(game.copy(
-          tiles = game.tiles.updated(coord, updatedTile),
-          stone = game.stone - cost
-        ))
+    buildOnEmptyTile(game, coord, TileType.Academy(AcademyMode.FasterPoliticians), Cost(academyBuildCost(game), Resource.Stone),
+      game.canBuildAcademy, "Build a quarry first")
 
-  // Build a tavern on an empty tile (costs wood, requires at least one town hall)
   def buildTavern(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
-    game.tiles.get(coord) match
-      case None                                      => Left("Tile not found")
-      case Some(tile) if !tile.unlocked              => Left("Tile is locked")
-      case Some(tile) if !tile.isEmpty               => Left("Tile is not empty")
-      case Some(_) if !game.canBuildTavern           => Left("Build a town hall first")
-      case Some(tile) if game.wood < TavernBuildCost => Left(s"Not enough wood (need $TavernBuildCost)")
-      case Some(tile) =>
-        val updatedTile = tile.copy(tileType = TileType.Tavern)
-        Right(game.copy(
-          tiles = game.tiles.updated(coord, updatedTile),
-          wood = game.wood - TavernBuildCost
-        ))
+    buildOnEmptyTile(game, coord, TileType.Tavern, Cost(TavernBuildCost, Resource.Wood),
+      game.canBuildTavern, "Build a town hall first")
 
   // Toggle academy mode between FasterPoliticians and RareChance
   def toggleAcademyMode(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
