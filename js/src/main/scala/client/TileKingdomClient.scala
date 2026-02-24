@@ -2106,9 +2106,7 @@ object TileKingdomClient:
       modal.classList.remove("show")
 
   private def updateProgressBars(): Unit =
-    currentGame.unlockedTiles.filter(t => t.isWheatField || t.isWoodcutter || t.isBureau).foreach: tile =>
-      val coord = tile.coord
-      val progress = tileProgress.getOrElse(coord, 0.0)
+    tileProgress.foreach: (coord, progress) =>
       getElementById(s"progress-bar-${coord.row}-${coord.col}").foreach: bar =>
         bar.style.width = s"${(progress * 100).toInt}%"
 
