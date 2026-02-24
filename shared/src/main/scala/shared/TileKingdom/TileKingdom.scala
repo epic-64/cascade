@@ -1429,28 +1429,24 @@ object TileKingdomLogic:
           unlockedSkills = game.unlockedSkills + skill
         ))
 
-  // Check if player can switch to a mutually exclusive skill
+  // Check if player can switch to a mutually exclusive skill (free)
   def canSwitchSkill(game: TileKingdomGame, toSkill: Skill): Boolean =
     if !game.hasSailed then false
     else if game.unlockedSkills.contains(toSkill) then false
-    else if game.skillPoints < Skill.cost(toSkill) then false
     else
       // Must have the mutually exclusive skill already unlocked
       Skill.mutuallyExclusive(toSkill).exists(game.unlockedSkills.contains)
 
-  // Switch from one skill to its mutually exclusive alternative
+  // Switch from one skill to its mutually exclusive alternative (free)
   def switchSkill(game: TileKingdomGame, toSkill: Skill): Either[String, TileKingdomGame] =
     if !game.hasSailed then
       Left("Sail at least once to unlock the skill tree")
     else if game.unlockedSkills.contains(toSkill) then
       Left("Skill already unlocked")
-    else if game.skillPoints < Skill.cost(toSkill) then
-      Left(s"Not enough skill points (need ${Skill.cost(toSkill)})")
     else
       Skill.mutuallyExclusive(toSkill) match
         case Some(fromSkill) if game.unlockedSkills.contains(fromSkill) =>
           Right(game.copy(
-            skillPoints = game.skillPoints - Skill.cost(toSkill),
             unlockedSkills = game.unlockedSkills - fromSkill + toSkill
           ))
         case _ =>
