@@ -193,17 +193,15 @@
 .tile-kingdom-tile.zoom-minimal .tile-upgrade,
 .tile-kingdom-tile.zoom-minimal .tile-upgrade-row,
 .tile-kingdom-tile.zoom-minimal .tile-production,
-.tile-kingdom-tile.zoom-minimal .bonus,
+.tile-kingdom-tile.zoom-minimal .tile-modifiers,
+.tile-kingdom-tile.zoom-minimal .tile-badge,
 .tile-kingdom-tile.zoom-minimal .btn-x10,
-.tile-kingdom-tile.zoom-minimal .bureau-cost,
 .tile-kingdom-tile.zoom-minimal .politician-info,
 .tile-kingdom-tile.zoom-minimal .politician-lifespan,
 .tile-kingdom-tile.zoom-minimal .politician-slot,
 .tile-kingdom-tile.zoom-minimal .politician-emoji-small,
 .tile-kingdom-tile.zoom-minimal .politician-effect-small,
 .tile-kingdom-tile.zoom-minimal .slot-label,
-.tile-kingdom-tile.zoom-minimal .tavern-effect,
-.tile-kingdom-tile.zoom-minimal .academy-mode,
 .tile-kingdom-tile.zoom-minimal .btn-toggle-mode,
 .tile-kingdom-tile.zoom-minimal .build-options,
 .tile-kingdom-tile.zoom-minimal .build-label,
@@ -280,9 +278,6 @@
   color: #166534;
 }
 
-.tile-kingdom-tile.wheat-field .bonus {
-  color: #15803d;
-}
 
 /* Farm Tiles */
 .tile-kingdom-tile.farm {
@@ -385,22 +380,6 @@
   color: #166534;
 }
 
-/* Forest group bonus indicator */
-.tile-kingdom-tile.woodcutter .bonus.forest-bonus {
-  color: #166534;
-}
-
-/* Town hall bonus indicator */
-.bonus.town-hall-bonus {
-  color: #d97706;
-  font-weight: 700;
-}
-
-/* Wisdom skill bonus indicator (forest synergy) */
-.bonus.wisdom-bonus {
-  color: #166534;
-  font-weight: 700;
-}
 
 /* Woodcutter progress bar */
 .tile-progress-bar.woodcutter-progress {
@@ -535,13 +514,6 @@
   opacity: 0.6;
 }
 
-/* Bureau cost indicator */
-.bureau-cost {
-  font-size: var(--font-sm);
-  color: #64748b;
-  font-weight: 600;
-  margin-top: 1px;
-}
 
 /* Temple Tiles */
 .tile-kingdom-tile.temple {
@@ -852,11 +824,85 @@
   color: #dc2626;
 }
 
-/* Bonus indicator on wheat fields */
-.bonus {
-  color: #15803d;
-  font-size: var(--font-md);
+/* ============================================================================
+   Tile Modifier Badges - consistent badge-like styling for all modifiers
+   ============================================================================ */
+
+.tile-modifiers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  justify-content: center;
+  align-items: center;
+  margin: 1px 0;
+}
+
+.tile-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--font-xs);
   font-weight: 700;
+  padding: 0.05rem 0.25rem;
+  border-radius: var(--radius-xs);
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+/* Speed boost badge (Agriculture1B on wheat fields) */
+.tile-badge.badge-speed {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.18);
+  cursor: help;
+}
+
+/* Farm adjacency badge (farm bonus on wheat fields, Agriculture2B on woodcutters) */
+.tile-badge.badge-farm {
+  color: #1d4ed8;
+  background: rgba(59, 130, 246, 0.15);
+}
+
+/* Forest group badge (woodcutter clustering bonus) */
+.tile-badge.badge-forest {
+  color: #166534;
+  background: rgba(22, 163, 74, 0.15);
+}
+
+/* Town hall multiplier badge */
+.tile-badge.badge-townhall {
+  color: #b45309;
+  background: rgba(217, 119, 6, 0.15);
+}
+
+/* Wisdom skill badge (forest synergy on temples/quarries) */
+.tile-badge.badge-wisdom {
+  color: #166534;
+  background: rgba(22, 163, 74, 0.15);
+}
+
+/* Bureau cost badge */
+.tile-badge.badge-cost {
+  color: #475569;
+  background: rgba(100, 116, 139, 0.15);
+  font-weight: 600;
+}
+
+/* Tavern effect badge */
+.tile-badge.badge-tavern {
+  color: #92400e;
+  background: rgba(245, 158, 11, 0.2);
+}
+
+/* Academy mode badge */
+.tile-badge.badge-academy {
+  color: #5b21b6;
+  background: rgba(124, 58, 237, 0.15);
+}
+
+/* Academy dual mode (Education2 active) */
+.tile-badge.badge-academy-dual {
+  color: #7c2d12;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(139, 92, 246, 0.25) 100%);
+  border: 1px solid rgba(251, 191, 36, 0.5);
 }
 
 /* Tile Content */
@@ -920,30 +966,6 @@
   font-size: var(--font-sm);
   color: #166534;
   font-weight: 700;
-}
-
-/* Speed boost indicator for Agriculture1B skill */
-.speed-boost-indicator {
-  font-size: var(--font-xs);
-  color: #f59e0b;
-  font-weight: 700;
-  background: rgba(245, 158, 11, 0.15);
-  padding: 0.1rem 0.3rem;
-  border-radius: var(--radius-xs);
-  margin-bottom: 0.1rem;
-  cursor: help;
-}
-
-/* Farm boost indicator for Agriculture2B skill on woodcutters */
-.farm-boost-indicator {
-  font-size: var(--font-xs);
-  color: #22c55e;
-  font-weight: 700;
-  background: rgba(34, 197, 94, 0.15);
-  padding: 0.1rem 0.3rem;
-  border-radius: var(--radius-xs);
-  margin-bottom: 0.1rem;
-  cursor: help;
 }
 
 /* Actions - overlay at bottom */
@@ -1345,21 +1367,6 @@
   color: #4c1d95;
 }
 
-.tile-kingdom-tile.academy .academy-mode {
-  font-size: var(--font-sm);
-  font-weight: 500;
-  color: #5b21b6;
-  background: rgba(255, 255, 255, 0.5);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.tile-kingdom-tile.academy .academy-mode.education2-bonus {
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%);
-  border: 1px solid rgba(251, 191, 36, 0.6);
-  color: #7c2d12;
-  font-weight: 600;
-}
 
 .tile-kingdom-tile.academy .btn-toggle-mode {
   font-size: var(--font-sm);
@@ -1411,14 +1418,6 @@
   color: #78350f;
 }
 
-.tile-kingdom-tile.tavern .tavern-effect {
-  font-size: var(--font-sm);
-  font-weight: 600;
-  color: #92400e;
-  background: rgba(255, 255, 255, 0.5);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
 
 /* ============================================================================
    Politician Roster Panel

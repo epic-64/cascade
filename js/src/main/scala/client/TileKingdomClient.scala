@@ -388,7 +388,30 @@ object TileKingdomClient:
             val newTiles = filled.foldLeft(currentGame.tiles): (tiles, coord) =>
               tiles.updated(coord, tiles(coord).copy(tileType = TileType.Woodcutter(1)))
             currentGame = currentGame.copy(tiles = newTiles)
-          }, s"Filled ${currentGame.unlockedTiles.count(_.isEmpty)} tiles with forests")
+          }, s"Filled ${currentGame.unlockedTiles.count(_.isEmpty)} tiles with forests"),
+          devAction("🧱 +50 Random Block", {
+            val rng = new scala.util.Random(System.currentTimeMillis())
+            val existingCoords = currentGame.tiles.keySet
+            val maxRow = if existingCoords.isEmpty then 0 else existingCoords.map(_.row).max
+            val minCol = if existingCoords.isEmpty then 0 else existingCoords.map(_.col).min
+            val startRow = maxRow + 1
+            val startCol = minCol
+            def randomTileType(): TileType = rng.nextInt(7) match
+              case 0 => TileType.WheatField(1)
+              case 1 => TileType.Farm(1)
+              case 2 => TileType.Woodcutter(1)
+              case 3 => TileType.Bureau(1)
+              case 4 => TileType.Temple(1)
+              case 5 => TileType.Quarry(1)
+              case _ => TileType.TownHall(None)
+            val blockTiles = for
+              r <- 0 until 10
+              c <- 0 until 5
+            yield
+              val coord = Coord(startRow + r, startCol + c)
+              coord -> Tile(coord = coord, tileType = randomTileType(), unlocked = true)
+            currentGame = currentGame.copy(tiles = currentGame.tiles ++ blockTiles.toMap)
+          }, "Added 50 random tiles in a 5x10 block")
         )
       )
     )
@@ -1305,20 +1328,20 @@ object TileKingdomClient:
           div(cls = "tile-label", content = s"Lv$level")
         )
 
-        // Add speed boost indicator
-        if hasSpeedBoost then
-          val indicator = div(cls = "speed-boost-indicator", content = "⚡+25%")
-          indicator.title = "Agriculture skill: Fields produce 25% faster"
-          content.appendChild(indicator)
+        content.appendChild(div(cls = "tile-production", content = s"+${formatNumber(harvestAmount)}"))
 
-        val prodDiv = div(cls = "tile-production", content = s"+${formatNumber(harvestAmount)}")
+        val modifiers = div(cls = "tile-modifiers")
+        if hasSpeedBoost then
+          val badge = span(cls = "tile-badge badge-speed", content = "⚡+25%")
+          badge.title = "Agriculture skill: Fields produce 25% faster"
+          modifiers.appendChild(badge)
         if hasBonus then
           val bonusPercent = ((bonusMultiplier - 1) * 100).toInt
-          prodDiv.appendChild(span(cls = "bonus", content = s" +$bonusPercent%"))
+          modifiers.appendChild(span(cls = "tile-badge badge-farm", content = s"🏠+$bonusPercent%"))
         if hasTownHallBonus then
-          val multiplierText = if townHallMultiplier % 1.0 == 0 then s" x${townHallMultiplier.toInt}" else f" x$townHallMultiplier%.1f"
-          prodDiv.appendChild(span(cls = "bonus town-hall-bonus", content = multiplierText))
-        content.appendChild(prodDiv)
+          val multiplierText = if townHallMultiplier % 1.0 == 0 then s"x${townHallMultiplier.toInt}" else f"x$townHallMultiplier%.1f"
+          modifiers.appendChild(span(cls = "tile-badge badge-townhall", content = s"🏛️$multiplierText"))
+        if modifiers.childElementCount > 0 then content.appendChild(modifiers)
 
         val upgradeRow = div(cls = "tile-upgrade-row")
         upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆${formatNumber(upgradeCost)}🌾"))
@@ -1381,22 +1404,22 @@ object TileKingdomClient:
           div(cls = "tile-label", content = s"Lv$level")
         )
 
-        // Add farm boost indicator if Agriculture2B is active and there are nearby farms
+        content.appendChild(div(cls = "tile-production", content = s"+${formatNumber(harvestAmount)}🪵"))
+
+        val modifiers = div(cls = "tile-modifiers")
         if hasFarmBoost then
           val boostPercent = ((agriculture2BBonus - 1) * 100).toInt
-          val indicator = div(cls = "farm-boost-indicator", content = s"🏠+$boostPercent%")
-          indicator.title = "Agriculture skill: Farms boost forests at half strength"
-          content.appendChild(indicator)
-
-        val prodDiv = div(cls = "tile-production", content = s"+${formatNumber(harvestAmount)}🪵")
+          val badge = span(cls = "tile-badge badge-farm", content = s"🏠+$boostPercent%")
+          badge.title = "Agriculture skill: Farms boost forests at half strength"
+          modifiers.appendChild(badge)
         val forestBonus = TileKingdomLogic.forestGroupBonusMultiplier(currentGame, coord)
         if forestBonus > 1.0 then
           val bonusPercent = ((forestBonus - 1) * 100).toInt
-          prodDiv.appendChild(span(cls = "bonus forest-bonus", content = s" +$bonusPercent%"))
+          modifiers.appendChild(span(cls = "tile-badge badge-forest", content = s"🌲+$bonusPercent%"))
         if hasTownHallBonus then
-          val multiplierText = if townHallMultiplier % 1.0 == 0 then s" x${townHallMultiplier.toInt}" else f" x$townHallMultiplier%.1f"
-          prodDiv.appendChild(span(cls = "bonus town-hall-bonus", content = multiplierText))
-        content.appendChild(prodDiv)
+          val multiplierText = if townHallMultiplier % 1.0 == 0 then s"x${townHallMultiplier.toInt}" else f"x$townHallMultiplier%.1f"
+          modifiers.appendChild(span(cls = "tile-badge badge-townhall", content = s"🏛️$multiplierText"))
+        if modifiers.childElementCount > 0 then content.appendChild(modifiers)
 
         val upgradeRow = div(cls = "tile-upgrade-row")
         upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆${formatNumber(upgradeCost)}🌾"))
@@ -1452,12 +1475,12 @@ object TileKingdomClient:
         if !isDisabled then
           content.appendChild(div(cls = "tile-production", content = s"Auto⬆"))
         
-        // Show upgrade cost - faith cost is now level × 10
+        // Show upgrade cost as badge
         val costText = bureauMode match
           case BureauMode.Turbo => s"${TileKingdomLogic.BureauWoodCostPerUpgrade}🪵 Lv×10✨"
           case BureauMode.Slow => s"${TileKingdomLogic.BureauWoodCostPerUpgrade}🪵"
           case BureauMode.Disabled => "—"
-        content.appendChild(div(cls = "bureau-cost", content = costText))
+        content.appendChild(div(cls = "tile-badge badge-cost", content = costText))
 
         // Add mode toggle buttons side by side
         val modeRow = div(cls = "bureau-mode-row")
@@ -1549,14 +1572,16 @@ object TileKingdomClient:
           div(cls = "tile-label", content = s"Lv$level")
         )
 
-        val prodDiv = div(cls = "tile-production temple-production", content = s"+${formatNumber(faithAmount)}✨")
+        content.appendChild(div(cls = "tile-production temple-production", content = s"+${formatNumber(faithAmount)}✨"))
+
+        val modifiers = div(cls = "tile-modifiers")
         if hasTownHallBonus then
-          val multiplierText = if townHallMultiplier % 1.0 == 0 then s" x${townHallMultiplier.toInt}" else f" x$townHallMultiplier%.1f"
-          prodDiv.appendChild(span(cls = "bonus town-hall-bonus", content = multiplierText))
+          val multiplierText = if townHallMultiplier % 1.0 == 0 then s"x${townHallMultiplier.toInt}" else f"x$townHallMultiplier%.1f"
+          modifiers.appendChild(span(cls = "tile-badge badge-townhall", content = s"🏛️$multiplierText"))
         if hasWisdomBonus then
-          val multiplierText = if wisdomMultiplier % 1.0 == 0 then s" x${wisdomMultiplier.toInt}" else f" x$wisdomMultiplier%.1f"
-          prodDiv.appendChild(span(cls = "bonus wisdom-bonus", content = s"🌲$multiplierText"))
-        content.appendChild(prodDiv)
+          val multiplierText = if wisdomMultiplier % 1.0 == 0 then s"x${wisdomMultiplier.toInt}" else f"x$wisdomMultiplier%.1f"
+          modifiers.appendChild(span(cls = "tile-badge badge-wisdom", content = s"🌲$multiplierText"))
+        if modifiers.childElementCount > 0 then content.appendChild(modifiers)
 
         val upgradeRow = div(cls = "tile-upgrade-row")
         upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆${formatNumber(upgradeCost)}🪵"))
@@ -1592,14 +1617,16 @@ object TileKingdomClient:
           div(cls = "tile-label", content = s"Lv$level")
         )
 
-        val prodDiv = div(cls = "tile-production quarry-production", content = s"+${formatNumber(stoneAmount)}🪨")
+        content.appendChild(div(cls = "tile-production quarry-production", content = s"+${formatNumber(stoneAmount)}🪨"))
+
+        val modifiers = div(cls = "tile-modifiers")
         if hasTownHallBonus then
-          val multiplierText = if townHallMultiplier % 1.0 == 0 then s" x${townHallMultiplier.toInt}" else f" x$townHallMultiplier%.1f"
-          prodDiv.appendChild(span(cls = "bonus town-hall-bonus", content = multiplierText))
+          val multiplierText = if townHallMultiplier % 1.0 == 0 then s"x${townHallMultiplier.toInt}" else f"x$townHallMultiplier%.1f"
+          modifiers.appendChild(span(cls = "tile-badge badge-townhall", content = s"🏛️$multiplierText"))
         if hasWisdomBonus then
-          val multiplierText = if wisdomMultiplier % 1.0 == 0 then s" x${wisdomMultiplier.toInt}" else f" x$wisdomMultiplier%.1f"
-          prodDiv.appendChild(span(cls = "bonus wisdom-bonus", content = s"🌲$multiplierText"))
-        content.appendChild(prodDiv)
+          val multiplierText = if wisdomMultiplier % 1.0 == 0 then s"x${wisdomMultiplier.toInt}" else f"x$wisdomMultiplier%.1f"
+          modifiers.appendChild(span(cls = "tile-badge badge-wisdom", content = s"🌲$multiplierText"))
+        if modifiers.childElementCount > 0 then content.appendChild(modifiers)
 
         val upgradeRow = div(cls = "tile-upgrade-row")
         upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆${formatNumber(upgradeCost)}🪵"))
@@ -1722,7 +1749,7 @@ object TileKingdomClient:
         val content = div(cls = "tile-content academy-content")(
           div(cls = "tile-icon", content = "🎓"),
           div(cls = "tile-label", content = "Academy"),
-          div(cls = s"academy-mode${if hasEducation2 then " education2-bonus" else ""}", content = modeText)
+          span(cls = s"tile-badge badge-academy${if hasEducation2 then " badge-academy-dual" else ""}", content = modeText)
         )
 
         // Only show mode toggle if Education2 is not active
@@ -1745,7 +1772,7 @@ object TileKingdomClient:
         val content = div(cls = "tile-content tavern-content")(
           div(cls = "tile-icon", content = "🍺"),
           div(cls = "tile-label", content = "Tavern"),
-          div(cls = "tavern-effect", content = s"${TileKingdomLogic.TavernLifespanMultiplier.toInt}x Lifespan")
+          span(cls = "tile-badge badge-tavern", content = s"${TileKingdomLogic.TavernLifespanMultiplier.toInt}x Lifespan")
         )
 
         tileDiv.appendChild(content)
