@@ -1,3 +1,5 @@
+// ⚠️ Remember to run `sbt bloopInstall` after modifying this file
+
 // scalafmt: { align.preset = most, danglingParentheses.preset = false }
 addSbtPlugin("org.jetbrains.scala" % "sbt-ide-settings"         % "1.1.2")  // forgot what this is for
 addSbtPlugin("org.scoverage"       % "sbt-scoverage"            % "2.4.4")  // code coverage
