@@ -62,25 +62,28 @@ extension [A](result: Result[A])
     result
 
 class Task[A](private val work: (Logger, Timer) ?=> Result[A], val name: Option[String] = None):
-  def execute(using Logger, Timer): Result[A] =
+  /** Run the task and record timing if named */
+  private def run(using Logger, Timer): Result[A] =
     val start = System.currentTimeMillis()
     val result = work.logged
     val elapsed = System.currentTimeMillis() - start
     name.foreach(n => summon[Timer].record(Timing(n, elapsed, result.isRight)))
     result
 
-  def map[B](f: A => B): Task[B] = Task(work.map(f))
+  def execute(using Logger, Timer): Result[A] = run
+
+  def map[B](f: A => B): Task[B] = Task(run.map(f))
 
   def flatMap[B](f: A => Task[B]): Task[B] = Task:
-    work match
+    run match
       case Left(fail) => Left(fail)
-      case Right(a)   => f(a).work
+      case Right(a)   => f(a).run
 
   def zip[B](other: Task[B])(using ExecutionContext): Task[(A, B)] = Task:
     val logger = summon[Logger]
     val timer = summon[Timer]
-    val futureA = Future(work(using logger, timer))
-    val futureB = Future(other.work(using logger, timer))
+    val futureA = Future(run(using logger, timer))
+    val futureB = Future(other.run(using logger, timer))
 
     val combined = for
       a <- futureA
@@ -95,7 +98,7 @@ class Task[A](private val work: (Logger, Timer) ?=> Result[A], val name: Option[
   def retry(attempts: Int): Task[A] = Task:
     @tailrec
     def loop(remaining: Int): Result[A] =
-      work match
+      work match  // use work here, not run - we don't want to record each retry attempt
         case Right(a) => Right(a)
         case Left(f) if remaining > 1 =>
           summon[Logger].info(s"Retrying after: $f (${remaining - 1} attempts left)")
