@@ -59,8 +59,6 @@
 - allow switching between skills of the same tier for free
 - Allow refunding skills. It costs 1000 gold per skill point and refunds skill points. Skills can only be refunded if they are not a prerequisite for another purchased skill. Skill switching/refunding only allowed on a fresh abdication (no buildings placed).
 - add Logistics skill branch (dual-track): reduce bureau wood cost by 90% OR reduce bureau turbo faith cost by 90%
+- add Agriculture tier 3 (dual-track): wheat field upgrade costs reduced by 90% OR farm bonus applies to quarries at 50%
 
 ## Todos
-- add skill choice:
-  - farm can affect quarry at half strength
-  - or: reduce wheat field upgrade costs by 90%
