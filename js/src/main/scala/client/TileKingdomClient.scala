@@ -527,7 +527,7 @@ object TileKingdomClient:
       if isUnlocked then
         div(cls = "skill-node-status", content = "✓ Unlocked")
       else if isExcluded && canSwitch then
-        button(cls = "skill-node-btn switch-btn", content = s"Switch (${cost}⭐)").tap: btn =>
+        button(cls = "skill-node-btn switch-btn", content = "Switch").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
             handleSwitchSkill(skill)
