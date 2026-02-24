@@ -65,13 +65,13 @@ object TileKingdomClient:
   private var panStartY: Double = 0.0
 
   // Zoom state
-  private var zoomLevel: Double = 1.0
+  private var zoomLevel: Double = 2.0
   private val MinZoom: Double = 0.3
   private val MaxZoom: Double = 2.0
   private val ZoomStep: Double = 0.1
 
   // Zoom tier thresholds (split 0.3–2.0 range into thirds)
-  private val ZoomTierIcons: Double = 0.87   // below this: icons only
+  private val ZoomTierIcons: Double = 1.4   // below this: icons only
   private val ZoomTierMinimal: Double = 0.58  // below this: no content at all
 
   /** Apply the appropriate zoom tier CSS class to a tile element. */
