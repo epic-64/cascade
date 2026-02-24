@@ -152,6 +152,8 @@
   gap: 4px;
   padding: 0;
   background: transparent;
+  will-change: transform;
+  contain: layout style;
   /* Grid columns set dynamically via JS */
 }
 
@@ -168,6 +170,7 @@
   box-shadow: var(--shadow-sm);
   position: relative;
   overflow: hidden;
+  contain: layout style paint;
 }
 
 .tile-kingdom-tile.locked {

@@ -2159,6 +2159,7 @@ object TileKingdomClient:
     .toOption
 
   private def showFloatingReward(coord: Coord, amount: Int, emoji: String = "", isSpend: Boolean = false, offsetIndex: Int = 0): Unit =
+    if isDragging then return // Skip animations while panning to reduce DOM churn
     getElementById(s"tile-${coord.row}-${coord.col}").foreach: tileElem =>
       val floater = div()
       floater.className = if isSpend then "floating-reward floating-spend" else "floating-reward"
@@ -2183,6 +2184,7 @@ object TileKingdomClient:
       window.setTimeout(() => floater.remove(), 1000)
 
   private def showBureauProjectile(fromCoord: Coord, toCoord: Coord, onComplete: () => Unit): Unit =
+    if isDragging then { onComplete(); return } // Skip animations while panning
     getElementById("tile-kingdom-grid").foreach: grid =>
       val projectile = div(cls = "bureau-projectile", content = "📜")
 
