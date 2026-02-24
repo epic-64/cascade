@@ -280,6 +280,16 @@ case class Tile(
     case TileType.Quarry(lvl)     => Some(Cost(TileKingdomLogic.quarryLevelUpCost(lvl), Resource.Wood))
     case _                        => None
 
+  def withNextLevel: Tile = copy(tileType = tileType match
+    case TileType.WheatField(lvl) => TileType.WheatField(lvl + 1)
+    case TileType.Farm(lvl)       => TileType.Farm(lvl + 1)
+    case TileType.Woodcutter(lvl) => TileType.Woodcutter(lvl + 1)
+    case TileType.Temple(lvl)     => TileType.Temple(lvl + 1)
+    case TileType.Quarry(lvl)     => TileType.Quarry(lvl + 1)
+    case TileType.Bureau(lvl)     => TileType.Bureau(lvl + 1)
+    case other                    => other
+  )
+
 // ============================================================================
 // Game State
 // ============================================================================
@@ -1151,90 +1161,21 @@ object TileKingdomLogic:
       case (None, _) => Left("Source tile not found")
       case (_, None) => Left("Target tile not found")
 
-  // Level up a wheat field
-  def levelUpWheatField(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
+  // Level up any upgradeable tile (wheat field, farm, woodcutter, temple, quarry)
+  def levelUp(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
       case None => Left("Tile not found")
-      case Some(tile) => tile.tileType match
-          case TileType.WheatField(level) =>
-            val cost = wheatFieldLevelUpCost(level)
-            if game.wheat < cost then
-              Left(s"Not enough wheat (need $cost)")
+      case Some(tile) =>
+        tile.upgradeCost match
+          case None => Left("Tile is not upgradeable")
+          case Some(cost) =>
+            if !game.canAfford(cost) then
+              Left(s"Not enough ${cost.resource.toString.toLowerCase} (need ${cost.amount})")
             else
-              val updatedTile = tile.copy(tileType = TileType.WheatField(level + 1))
-              Right(game.copy(
-                tiles = game.tiles.updated(coord, updatedTile),
-                wheat = game.wheat - cost
+              Right(game.deduct(cost).copy(
+                tiles = game.tiles.updated(coord, tile.withNextLevel)
               ))
-          case _ => Left("Tile is not a wheat field")
 
-  // Level up a farm
-  def levelUpFarm(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
-    game.tiles.get(coord) match
-      case None => Left("Tile not found")
-      case Some(tile) => tile.tileType match
-          case TileType.Farm(level) =>
-            val cost = farmLevelUpCost(level)
-            if game.wheat < cost then
-              Left(s"Not enough wheat (need $cost)")
-            else
-              val updatedTile = tile.copy(tileType = TileType.Farm(level + 1))
-              Right(game.copy(
-                tiles = game.tiles.updated(coord, updatedTile),
-                wheat = game.wheat - cost
-              ))
-          case _ => Left("Tile is not a farm")
-
-  // Level up a woodcutter
-  def levelUpWoodcutter(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
-    game.tiles.get(coord) match
-      case None => Left("Tile not found")
-      case Some(tile) => tile.tileType match
-          case TileType.Woodcutter(level) =>
-            val cost = woodcutterLevelUpCost(level)
-            if game.wheat < cost then
-              Left(s"Not enough wheat (need $cost)")
-            else
-              val updatedTile = tile.copy(tileType = TileType.Woodcutter(level + 1))
-              Right(game.copy(
-                tiles = game.tiles.updated(coord, updatedTile),
-                wheat = game.wheat - cost
-              ))
-          case _ => Left("Tile is not a woodcutter")
-
-  // Level up a temple (costs wood)
-  def levelUpTemple(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
-    game.tiles.get(coord) match
-      case None => Left("Tile not found")
-      case Some(tile) => tile.tileType match
-          case TileType.Temple(level) =>
-            val cost = templeLevelUpCost(level)
-            if game.wood < cost then
-              Left(s"Not enough wood (need $cost)")
-            else
-              val updatedTile = tile.copy(tileType = TileType.Temple(level + 1))
-              Right(game.copy(
-                tiles = game.tiles.updated(coord, updatedTile),
-                wood = game.wood - cost
-              ))
-          case _ => Left("Tile is not a temple")
-
-  // Level up a quarry (costs wood)
-  def levelUpQuarry(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
-    game.tiles.get(coord) match
-      case None => Left("Tile not found")
-      case Some(tile) => tile.tileType match
-          case TileType.Quarry(level) =>
-            val cost = quarryLevelUpCost(level)
-            if game.wood < cost then
-              Left(s"Not enough wood (need $cost)")
-            else
-              val updatedTile = tile.copy(tileType = TileType.Quarry(level + 1))
-              Right(game.copy(
-                tiles = game.tiles.updated(coord, updatedTile),
-                wood = game.wood - cost
-              ))
-          case _ => Left("Tile is not a quarry")
 
   // Cycle bureau mode: Slow -> Turbo -> Disabled -> Slow
   def cycleBureauMode(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
@@ -1325,16 +1266,8 @@ object TileKingdomLogic:
         // Select the tile with the lowest upgrade cost (comparing numerically)
         affordableTiles.minByOption(_._3.amount) match
           case Some((targetCoord, targetTile, cost)) =>
-            // Perform the upgrade based on tile type
-            val upgradedTileType = targetTile.tileType match
-              case TileType.WheatField(lvl) => TileType.WheatField(lvl + 1)
-              case TileType.Farm(lvl)       => TileType.Farm(lvl + 1)
-              case TileType.Woodcutter(lvl) => TileType.Woodcutter(lvl + 1)
-              case TileType.Temple(lvl)     => TileType.Temple(lvl + 1)
-              case TileType.Quarry(lvl)     => TileType.Quarry(lvl + 1)
-              case other                    => other
-
-            val upgradedTile = targetTile.copy(tileType = upgradedTileType)
+            // Perform the upgrade
+            val upgradedTile = targetTile.withNextLevel
 
             // Deduct upgrade cost and bureau fee from the turbo-checked game
             val afterUpgradeCost = gameWithTurboCheck.deduct(cost)
