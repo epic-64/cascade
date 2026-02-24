@@ -27,6 +27,19 @@ object TileKingdomClient:
 
   // Track progress (0.0 to 1.0) for each wheat field tile
   private var tileProgress: Map[Coord, Double] = Map.empty
+  // Cache progress bar DOM elements to avoid getElementById on every tick
+  private var progressBarCache: Map[Coord, HTMLElement] = Map.empty
+
+  /** Create a progress bar element and cache it for fast tick updates. */
+  private def createProgressBar(coord: Coord, extraCls: String = ""): HTMLElement =
+    val progress = tileProgress.getOrElse(coord, 0.0)
+    val progressContainer = div(cls = "tile-progress-container")
+    val cls = if extraCls.isEmpty then "tile-progress-bar" else s"tile-progress-bar $extraCls"
+    val progressBar = div(id = s"progress-bar-${coord.row}-${coord.col}", cls = cls)
+    progressBar.style.width = s"${(progress * 100).toInt}%"
+    progressBarCache = progressBarCache.updated(coord, progressBar)
+    progressContainer.appendChild(progressBar)
+    progressContainer
   private val ProductionIntervalMs: Double = TileKingdomLogic.ProductionIntervalSeconds * 1000.0
   private val BureauIntervalMs: Double = TileKingdomLogic.BureauIntervalSeconds * 1000.0
   private val PoliticianGenerationIntervalMs: Double = TileKingdomLogic.PoliticianGenerationIntervalSeconds * 1000.0
@@ -1034,6 +1047,7 @@ object TileKingdomClient:
   private def updateSingleTile(coord: Coord): Unit =
     currentGame.tiles.get(coord).foreach: tile =>
       Option(document.getElementById(s"tile-${coord.row}-${coord.col}")).foreach: oldElement =>
+        progressBarCache = progressBarCache.removed(coord)
         val newElement = renderTile(tile)
         oldElement.parentNode.replaceChild(newElement, oldElement)
 
@@ -1063,6 +1077,7 @@ object TileKingdomClient:
   private def renderTiles(): Unit =
     getElementById("tile-kingdom-grid").foreach: gridContainer =>
       gridContainer.innerHTML = ""
+      progressBarCache = Map.empty
       val grid = gridContainer.asInstanceOf[HTMLElement]
 
       // Calculate visible tile range based on viewport and pan offset
@@ -1308,12 +1323,7 @@ object TileKingdomClient:
         tileDiv.appendChild(content)
 
         // Add progress bar
-        val progress = tileProgress.getOrElse(coord, 0.0)
-        val progressContainer = div(cls = "tile-progress-container")
-        val progressBar = div(id = s"progress-bar-${coord.row}-${coord.col}", cls = "tile-progress-bar")
-        progressBar.asInstanceOf[HTMLElement].style.width = s"${(progress * 100).toInt}%"
-        progressContainer.appendChild(progressBar)
-        tileDiv.appendChild(progressContainer)
+        tileDiv.appendChild(createProgressBar(coord))
 
         tileDiv.onclick = onClick(handleLevelUp(coord))
         tileDiv.oncontextmenu = (e: MouseEvent) =>
@@ -1391,13 +1401,7 @@ object TileKingdomClient:
         tileDiv.appendChild(content)
 
         // Add progress bar
-        val progress = tileProgress.getOrElse(coord, 0.0)
-        val progressContainer = div(cls = "tile-progress-container")
-        val progressBar =
-          div(id = s"progress-bar-${coord.row}-${coord.col}", cls = "tile-progress-bar woodcutter-progress")
-        progressBar.style.width = s"${(progress * 100).toInt}%"
-        progressContainer.appendChild(progressBar)
-        tileDiv.appendChild(progressContainer)
+        tileDiv.appendChild(createProgressBar(coord, "woodcutter-progress"))
 
         tileDiv.onclick = onClick(handleLevelUp(coord))
         tileDiv.oncontextmenu = (e: MouseEvent) =>
@@ -1512,12 +1516,7 @@ object TileKingdomClient:
 
         // Add progress bar (hidden when disabled)
         if !isDisabled then
-          val progress = tileProgress.getOrElse(coord, 0.0)
-          val progressContainer = div(cls = "tile-progress-container")
-          val progressBar = div(id = s"progress-bar-${coord.row}-${coord.col}", cls = "tile-progress-bar bureau-progress")
-          progressBar.style.width = s"${(progress * 100).toInt}%"
-          progressContainer.appendChild(progressBar)
-          tileDiv.appendChild(progressContainer)
+          tileDiv.appendChild(createProgressBar(coord, "bureau-progress"))
 
         tileDiv.oncontextmenu = (e: MouseEvent) =>
           e.preventDefault()
@@ -1559,12 +1558,7 @@ object TileKingdomClient:
         tileDiv.appendChild(content)
 
         // Add progress bar
-        val progress = tileProgress.getOrElse(coord, 0.0)
-        val progressContainer = div(cls = "tile-progress-container")
-        val progressBar = div(id = s"progress-bar-${coord.row}-${coord.col}", cls = "tile-progress-bar temple-progress")
-        progressBar.style.width = s"${(progress * 100).toInt}%"
-        progressContainer.appendChild(progressBar)
-        tileDiv.appendChild(progressContainer)
+        tileDiv.appendChild(createProgressBar(coord, "temple-progress"))
 
         tileDiv.onclick = onClick(handleLevelUp(coord))
         tileDiv.oncontextmenu = (e: MouseEvent) =>
@@ -1607,12 +1601,7 @@ object TileKingdomClient:
         tileDiv.appendChild(content)
 
         // Add progress bar
-        val progress = tileProgress.getOrElse(coord, 0.0)
-        val progressContainer = div(cls = "tile-progress-container")
-        val progressBar = div(id = s"progress-bar-${coord.row}-${coord.col}", cls = "tile-progress-bar quarry-progress")
-        progressBar.style.width = s"${(progress * 100).toInt}%"
-        progressContainer.appendChild(progressBar)
-        tileDiv.appendChild(progressContainer)
+        tileDiv.appendChild(createProgressBar(coord, "quarry-progress"))
 
         tileDiv.onclick = onClick(handleLevelUp(coord))
         tileDiv.oncontextmenu = (e: MouseEvent) =>
@@ -2107,7 +2096,7 @@ object TileKingdomClient:
 
   private def updateProgressBars(): Unit =
     tileProgress.foreach: (coord, progress) =>
-      getElementById(s"progress-bar-${coord.row}-${coord.col}").foreach: bar =>
+      progressBarCache.get(coord).foreach: bar =>
         bar.style.width = s"${(progress * 100).toInt}%"
 
   // Update build cost colors without re-rendering the tile
