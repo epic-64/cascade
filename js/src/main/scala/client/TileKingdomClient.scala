@@ -959,6 +959,15 @@ object TileKingdomClient:
     renderTiles()
     renderAbdicationButton()
     renderSailButton()
+    renderSkillsButton()
+
+  /** Lightweight UI refresh — updates resources, buttons, and roster without rebuilding tiles. */
+  private def refreshUI(): Unit =
+    renderResources()
+    renderPoliticianRoster()
+    renderAbdicationButton()
+    renderSailButton()
+    renderSkillsButton()
 
   private def renderResources(): Unit =
     setElementText("tile-kingdom-wheat", formatNumber(currentGame.wheat))
@@ -1467,7 +1476,8 @@ object TileKingdomClient:
                   case Left(_) => ()
               currentGame = game
               saveGame()
-              renderGame()
+              updateSingleTile(coord)
+              refreshUI()
               showNotification("Slow mode (1x speed)")
         )
 
@@ -1486,7 +1496,8 @@ object TileKingdomClient:
                   case Left(_) => ()
               currentGame = game
               saveGame()
-              renderGame()
+              updateSingleTile(coord)
+              refreshUI()
               showNotification("Turbo mode (10x speed, +✨/upgrade)")
             else
               showNotification(s"Need ${minFaithCost}✨ for turbo mode (Lv$minLevel × 10)")
@@ -1506,7 +1517,8 @@ object TileKingdomClient:
                   case Left(_) => ()
               currentGame = game
               saveGame()
-              renderGame()
+              updateSingleTile(coord)
+              refreshUI()
               showNotification("Bureau paused")
         )
 
@@ -1859,7 +1871,8 @@ object TileKingdomClient:
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
-        renderGame()
+        updateSingleTile(coord)
+        refreshUI()
         val modeText = newGame.tiles.get(coord).map(_.tileType) match
           case Some(TileType.Academy(AcademyMode.FasterPoliticians)) => "Faster Politicians (2x speed)"
           case Some(TileType.Academy(AcademyMode.RareChance)) => "Rare Chance (+10%)"
@@ -1879,7 +1892,8 @@ object TileKingdomClient:
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
-        renderGame()
+        updateSingleTile(townHallCoord)
+        refreshUI()
         showNotification(if hadPolitician then "Politician swapped!" else "Politician assigned!")
       case Left(error) =>
         showNotification(error)
@@ -1889,7 +1903,8 @@ object TileKingdomClient:
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
-        renderGame()
+        updateSingleTile(townHallCoord)
+        refreshUI()
         showNotification("Politician returned to roster")
       case Left(error) =>
         showNotification(error)
@@ -1899,7 +1914,9 @@ object TileKingdomClient:
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
-        renderGame()
+        updateSingleTile(fromCoord)
+        updateSingleTile(toCoord)
+        refreshUI()
         showNotification("Politicians swapped!")
       case Left(error) =>
         showNotification(error)
@@ -1911,7 +1928,8 @@ object TileKingdomClient:
           case Right(newGame) =>
             currentGame = newGame
             saveGame()
-            renderGame()
+            updateSingleTile(coord)
+            refreshUI()
             showFloatingReward(coord, cost.amount, resourceEmoji(cost.resource), isSpend = true)
             showFloatingLevel(coord, tile.level + 1)
           case Left(error) =>
@@ -1940,7 +1958,8 @@ object TileKingdomClient:
       if successCount > 0 then
         currentGame = game
         saveGame()
-        renderGame()
+        updateSingleTile(coord)
+        refreshUI()
         showFloatingReward(coord, totalCost, resourceEmoji(costResource), isSpend = true)
         showFloatingLevel(coord, currentLevel)
       else
@@ -1952,7 +1971,8 @@ object TileKingdomClient:
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
-        renderGame()
+        updateSingleTile(coord)
+        refreshUI()
         val mode = TileKingdomLogic.getBureauMode(newGame, coord)
         val modeText = mode match
           case BureauMode.Slow => "Slow mode (1x speed)"
