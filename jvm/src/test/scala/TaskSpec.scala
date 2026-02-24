@@ -137,3 +137,50 @@ class TaskSpec extends AnyFunSuite:
 
     assert(result == Right("Invoice for User Bob (ID: 456): Bow, Arrow"))
 
+  test("retry on a middle step retries just that step"):
+    var fetchAttempts = 0
+
+    def flakyFetch: Task[String] = Task:
+      fetchAttempts += 1
+      if fetchAttempts < 3 then Left(Fail("flakyFetch", "temporary"))
+      else Right("data")
+
+    def process(data: String): Task[String] = Task:
+      Right(s"processed: $data")
+
+    fetchAttempts = 0
+    val result = (for
+      data   <- flakyFetch.retry(5)  // retry just this step
+      output <- process(data)
+    yield output).execute
+
+    assert(result == Right("processed: data"))
+    assert(fetchAttempts == 3)
+
+  test("retry on whole pipeline restarts from beginning"):
+    var step1Count = 0
+    var step2Count = 0
+
+    def step1: Task[String] = Task:
+      step1Count += 1
+      Right("from step1")
+
+    def step2(input: String): Task[String] = Task:
+      step2Count += 1
+      if step2Count < 3 then Left(Fail("step2", "temporary"))
+      else Right(s"$input -> step2")
+
+    step1Count = 0
+    step2Count = 0
+
+    val pipeline = for
+      a <- step1
+      b <- step2(a)
+    yield b
+
+    val result = pipeline.retry(5).execute
+
+    assert(result == Right("from step1 -> step2"))
+    assert(step1Count == 3, s"step1 should run 3 times but ran $step1Count")  // re-runs step1 each retry!
+    assert(step2Count == 3, s"step2 should run 3 times but ran $step2Count")
+
