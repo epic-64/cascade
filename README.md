@@ -55,6 +55,8 @@ http://localhost:8080
 
 ## Commands
 
+### Using sbt (CI / first-time setup)
+
 Compile:
 ```bash
 sbt compile
@@ -68,6 +70,11 @@ sbt clean compile
 Run tests:
 ```bash
 sbt "jvm/test"
+```
+
+Run specific test:
+```bash
+sbt "jvm/testOnly TaskSpec"
 ```
 
 Start server:
@@ -94,6 +101,34 @@ Generate coverage report:
 ```bash
 ENABLE_COVERAGE=true sbt clean coverage test coverageReport
 ```
+
+### Using bloop (fast local development)
+
+Bloop keeps a compilation server running, making incremental builds much faster (~300ms vs ~20s).
+
+First-time setup:
+```bash
+sbt bloopInstall  # generates .bloop/ config files
+```
+
+> **Note:** After changing `build.sbt` or `plugins.sbt`, regenerate bloop config with `sbt bloopInstall`.
+
+Compile:
+```bash
+bloop compile jvm-test
+```
+
+Run tests:
+```bash
+bloop test jvm-test
+```
+
+Run specific test:
+```bash
+bloop test jvm-test --only TaskSpec
+```
+
+### Other commands
 
 Count lines of code:
 ```bash
