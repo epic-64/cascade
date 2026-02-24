@@ -1,9 +1,11 @@
 package client
 
 import org.scalajs.dom.*
+
 import scala.util.Try
 import scala.util.chaining.*
 import shared.TileKingdom.*
+import shared.TileKingdom.AcademyMode.FasterPoliticians
 
 def initializeTileKingdom(): Unit =
   TileKingdomClient.init()
@@ -396,13 +398,14 @@ object TileKingdomClient:
             val minCol = if existingCoords.isEmpty then 0 else existingCoords.map(_.col).min
             val startRow = maxRow + 1
             val startCol = minCol
-            def randomTileType(): TileType = rng.nextInt(7) match
+            def randomTileType(): TileType = rng.nextInt(8) match
               case 0 => TileType.WheatField(1)
               case 1 => TileType.Farm(1)
               case 2 => TileType.Woodcutter(1)
               case 3 => TileType.Bureau(1)
               case 4 => TileType.Temple(1)
               case 5 => TileType.Quarry(1)
+              case 6 => TileType.Academy(FasterPoliticians)
               case _ => TileType.TownHall(None)
             val blockTiles = for
               r <- 0 until 10
