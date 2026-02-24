@@ -7,5 +7,6 @@ addSbtPlugin("org.scala-js"        % "sbt-jsdependencies"       % "1.0.2")  // J
 addSbtPlugin("org.portable-scala"  % "sbt-scalajs-crossproject" % "1.3.2")  // Cross-compile for JVM and JS
 addSbtPlugin("org.scalameta"       % "sbt-scalafmt"             % "2.5.6")  // Scala code formatter
 addSbtPlugin("io.spray"            % "sbt-revolver"             % "0.10.0") // Auto-restart server on changes
+addSbtPlugin("ch.epfl.scala"       % "sbt-bloop"                % "2.0.8")  // Faster compilation server
 
 libraryDependencies += "org.scala-js" %% "scalajs-env-jsdom-nodejs" % "1.1.0" // jsdom environment for tests
