@@ -8,9 +8,7 @@ ThisBuild / scalaVersion := "3.8.1"
 val caskVersion    = "0.11.3"
 val enableCoverage = sys.env.get("ENABLE_COVERAGE").contains("true")
 
-// Dev workflow: watches for changes to any source, recompiles JS and restarts the server.
-// Usage: sbt dev
-addCommandAlias("dev", "~jvm/reStart")
+// ⚠️ Remember to run `sbt bloopInstall` after modifying this file
 
 // Root project that aggregates JS and JVM subprojects
 lazy val root = project
