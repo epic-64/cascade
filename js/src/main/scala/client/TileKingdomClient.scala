@@ -321,6 +321,14 @@ object TileKingdomClient:
       )
     )
 
+  private def devAction(label: String, transform: => Unit, message: => String): HTMLElement =
+    button(cls = "btn-dev-action", content = label).tap: btn =>
+      btn.onclick = (_: MouseEvent) =>
+        transform
+        saveGame()
+        renderGame()
+        showNotification(message)
+
   private def buildDevToolsPopup(): HTMLElement =
     div(id = "tile-kingdom-dev-popup", cls = "help-popup")(
       div(cls = "help-popup-content dev-tools-content")(
@@ -330,77 +338,38 @@ object TileKingdomClient:
             btn.onclick = (_: MouseEvent) => toggleDevTools()
         ),
         div(cls = "help-popup-body")(
-          button(cls = "btn-dev-action", content = "💰 Gold x10").tap: btn =>
-            btn.onclick = (_: MouseEvent) =>
-              currentGame = currentGame.copy(gold = math.max(currentGame.gold * 10, 100))
-              saveGame()
-              renderGame()
-              showNotification(s"Gold is now ${currentGame.gold}")
-          ,
-          button(cls = "btn-dev-action", content = "🌾 Wheat +1000").tap: btn =>
-            btn.onclick = (_: MouseEvent) =>
-              currentGame = currentGame.copy(wheat = currentGame.wheat + 1000)
-              saveGame()
-              renderGame()
-              showNotification(s"Added 1000 wheat")
-          ,
-          button(cls = "btn-dev-action", content = "🪵 Wood +1000").tap: btn =>
-            btn.onclick = (_: MouseEvent) =>
-              currentGame = currentGame.copy(wood = currentGame.wood + 1000)
-              saveGame()
-              renderGame()
-              showNotification(s"Added 1000 wood")
-          ,
-          button(cls = "btn-dev-action", content = "🪨 Stone +1000").tap: btn =>
-            btn.onclick = (_: MouseEvent) =>
-              currentGame = currentGame.copy(stone = currentGame.stone + 1000)
-              saveGame()
-              renderGame()
-              showNotification(s"Added 1000 stone")
-          ,
-          button(cls = "btn-dev-action", content = "✨ Faith +1000").tap: btn =>
-            btn.onclick = (_: MouseEvent) =>
-              currentGame = currentGame.copy(faith = currentGame.faith + 1000)
-              saveGame()
-              renderGame()
-              showNotification(s"Added 1000 faith")
-          ,
-          button(cls = "btn-dev-action", content = "🌟 +1 Skill Point").tap: btn =>
-            btn.onclick = (_: MouseEvent) =>
-              currentGame = currentGame.copy(skillPoints = currentGame.skillPoints + 1, hasSailed = true)
-              saveGame()
-              renderGame()
-              showNotification(s"Added 1 skill point (${currentGame.skillPoints} total)")
-          ,
-          button(cls = "btn-dev-action", content = "🗺️ +100 Tiles").tap: btn =>
-            btn.onclick = (_: MouseEvent) =>
-              currentGame = TileKingdomLogic.unlockManyTiles(currentGame, 100)
-              saveGame()
-              renderGame()
-              showNotification(s"Added 100 tiles")
-          ,
-          button(cls = "btn-dev-action", content = "👤 +Politician").tap: btn =>
-            btn.onclick = (_: MouseEvent) =>
-              val newPolitician = TileKingdomLogic.generatePolitician(System.currentTimeMillis(), 0.0)
-              currentGame = currentGame.copy(politicianRoster = currentGame.politicianRoster :+ newPolitician)
-              saveGame()
-              renderGame()
-              showNotification(s"Added ${newPolitician.name}")
-          ,
-          button(cls = "btn-dev-action", content = "⭐ +Rare Politician").tap: btn =>
-            btn.onclick = (_: MouseEvent) =>
-              val newPolitician = TileKingdomLogic.generatePolitician(System.currentTimeMillis(), 1.0)
-              currentGame = currentGame.copy(politicianRoster = currentGame.politicianRoster :+ newPolitician)
-              saveGame()
-              renderGame()
-              showNotification(s"Added rare: ${newPolitician.name}")
-          ,
-          button(cls = "btn-dev-action", content = "🌟 +5 Skill Points").tap: btn =>
-            btn.onclick = (_: MouseEvent) =>
-              currentGame = currentGame.copy(skillPoints = currentGame.skillPoints + 5, hasSailed = true)
-              saveGame()
-              renderGame()
-              showNotification(s"Added 5 skill points (${currentGame.skillPoints} total)")
+          devAction("💰 Gold x10",
+            { currentGame = currentGame.copy(gold = math.max(currentGame.gold * 10, 100)) },
+            s"Gold is now ${currentGame.gold}"),
+          devAction("🌾 Wheat +1000",
+            { currentGame = currentGame.copy(wheat = currentGame.wheat + 1000) },
+            "Added 1000 wheat"),
+          devAction("🪵 Wood +1000",
+            { currentGame = currentGame.copy(wood = currentGame.wood + 1000) },
+            "Added 1000 wood"),
+          devAction("🪨 Stone +1000",
+            { currentGame = currentGame.copy(stone = currentGame.stone + 1000) },
+            "Added 1000 stone"),
+          devAction("✨ Faith +1000",
+            { currentGame = currentGame.copy(faith = currentGame.faith + 1000) },
+            "Added 1000 faith"),
+          devAction("🌟 +1 Skill Point",
+            { currentGame = currentGame.copy(skillPoints = currentGame.skillPoints + 1, hasSailed = true) },
+            s"Added 1 skill point (${currentGame.skillPoints} total)"),
+          devAction("🗺️ +100 Tiles",
+            { currentGame = TileKingdomLogic.unlockManyTiles(currentGame, 100) },
+            "Added 100 tiles"),
+          devAction("👤 +Politician", {
+            val p = TileKingdomLogic.generatePolitician(System.currentTimeMillis(), 0.0)
+            currentGame = currentGame.copy(politicianRoster = currentGame.politicianRoster :+ p)
+          }, "Added politician"),
+          devAction("⭐ +Rare Politician", {
+            val p = TileKingdomLogic.generatePolitician(System.currentTimeMillis(), 1.0)
+            currentGame = currentGame.copy(politicianRoster = currentGame.politicianRoster :+ p)
+          }, "Added rare politician"),
+          devAction("🌟 +5 Skill Points",
+            { currentGame = currentGame.copy(skillPoints = currentGame.skillPoints + 5, hasSailed = true) },
+            s"Added 5 skill points (${currentGame.skillPoints} total)")
         )
       )
     )
@@ -728,80 +697,44 @@ object TileKingdomClient:
     gameTickerHandle.foreach(window.clearInterval)
     gameTickerHandle = None
 
+  /** Process a group of producing tiles, advancing progress and collecting harvests. */
+  private def harvestProducingTiles(
+      tiles: List[Tile],
+      elapsedMs: Double,
+      productionFn: Tile => Double,
+      emoji: String
+  ): Double =
+    var totalHarvested = 0.0
+    tiles.foreach: tile =>
+      val currentProgress = getOrInitProgress(tile.coord)
+      val newProgress = currentProgress + elapsedMs / ProductionIntervalMs
+      if newProgress >= 1.0 then
+        val harvests = newProgress.toInt
+        val production = productionFn(tile)
+        totalHarvested += production * harvests
+        tileProgress = tileProgress.updated(tile.coord, newProgress - harvests)
+        showFloatingReward(tile.coord, (production * harvests).toInt, emoji)
+      else
+        tileProgress = tileProgress.updated(tile.coord, newProgress)
+    totalHarvested
+
   private def gameTick(): Unit =
     val currentTime = System.currentTimeMillis()
     val elapsedMs = (currentTime - currentGame.lastTickTime).toDouble
 
     // Update progress for each producing tile and collect harvests
-    var totalWheatHarvested = 0.0
-    var totalWoodHarvested = 0.0
-    var totalFaithHarvested = 0.0
-    var totalStoneHarvested = 0.0
-
-    val wheatFields = currentGame.unlockedTiles.filter(_.isWheatField)
-    val woodcutters = currentGame.unlockedTiles.filter(_.isWoodcutter)
-    val temples = currentGame.unlockedTiles.filter(_.isTemple)
-    val quarries = currentGame.unlockedTiles.filter(_.isQuarry)
-
-    // Process wheat fields
-    wheatFields.foreach: tile =>
-      val currentProgress = getOrInitProgress(tile.coord)
-      val progressIncrement = elapsedMs / ProductionIntervalMs
-      val newProgress = currentProgress + progressIncrement
-
-      if newProgress >= 1.0 then
-        val harvests = newProgress.toInt
-        val production = TileKingdomLogic.productionPerHarvest(currentGame, tile)
-        totalWheatHarvested += production * harvests
-        tileProgress = tileProgress.updated(tile.coord, newProgress - harvests)
-        showFloatingReward(tile.coord, (production * harvests).toInt, "🌾")
-      else
-        tileProgress = tileProgress.updated(tile.coord, newProgress)
-
-    // Process woodcutters
-    woodcutters.foreach: tile =>
-      val currentProgress = getOrInitProgress(tile.coord)
-      val progressIncrement = elapsedMs / ProductionIntervalMs
-      val newProgress = currentProgress + progressIncrement
-
-      if newProgress >= 1.0 then
-        val harvests = newProgress.toInt
-        val production = TileKingdomLogic.woodProductionPerHarvest(currentGame, tile)
-        totalWoodHarvested += production * harvests
-        tileProgress = tileProgress.updated(tile.coord, newProgress - harvests)
-        showFloatingReward(tile.coord, (production * harvests).toInt, "🪵")
-      else
-        tileProgress = tileProgress.updated(tile.coord, newProgress)
-
-    // Process temples
-    temples.foreach: tile =>
-      val currentProgress = getOrInitProgress(tile.coord)
-      val progressIncrement = elapsedMs / ProductionIntervalMs
-      val newProgress = currentProgress + progressIncrement
-
-      if newProgress >= 1.0 then
-        val harvests = newProgress.toInt
-        val production = TileKingdomLogic.faithProductionPerHarvest(currentGame, tile)
-        totalFaithHarvested += production * harvests
-        tileProgress = tileProgress.updated(tile.coord, newProgress - harvests)
-        showFloatingReward(tile.coord, (production * harvests).toInt, "✨")
-      else
-        tileProgress = tileProgress.updated(tile.coord, newProgress)
-
-    // Process quarries
-    quarries.foreach: tile =>
-      val currentProgress = getOrInitProgress(tile.coord)
-      val progressIncrement = elapsedMs / ProductionIntervalMs
-      val newProgress = currentProgress + progressIncrement
-
-      if newProgress >= 1.0 then
-        val harvests = newProgress.toInt
-        val production = TileKingdomLogic.stoneProductionPerHarvest(currentGame, tile)
-        totalStoneHarvested += production * harvests
-        tileProgress = tileProgress.updated(tile.coord, newProgress - harvests)
-        showFloatingReward(tile.coord, (production * harvests).toInt, "🪨")
-      else
-        tileProgress = tileProgress.updated(tile.coord, newProgress)
+    val totalWheatHarvested = harvestProducingTiles(
+      currentGame.unlockedTiles.filter(_.isWheatField), elapsedMs,
+      TileKingdomLogic.productionPerHarvest(currentGame, _), "🌾")
+    val totalWoodHarvested = harvestProducingTiles(
+      currentGame.unlockedTiles.filter(_.isWoodcutter), elapsedMs,
+      TileKingdomLogic.woodProductionPerHarvest(currentGame, _), "🪵")
+    val totalFaithHarvested = harvestProducingTiles(
+      currentGame.unlockedTiles.filter(_.isTemple), elapsedMs,
+      TileKingdomLogic.faithProductionPerHarvest(currentGame, _), "✨")
+    val totalStoneHarvested = harvestProducingTiles(
+      currentGame.unlockedTiles.filter(_.isQuarry), elapsedMs,
+      TileKingdomLogic.stoneProductionPerHarvest(currentGame, _), "🪨")
 
     // Process bureaus
     val bureaus = currentGame.unlockedTiles.filter(_.isBureau)
@@ -1883,112 +1816,48 @@ object TileKingdomClient:
   // Event Handlers
   // ============================================================================
 
-  private def handleBuildWheatField(coord: Coord): Unit =
-    val cost = TileKingdomLogic.wheatFieldBuildCost
-    TileKingdomLogic.buildWheatField(currentGame, coord) match
+  private def handleBuild(
+      coord: Coord,
+      buildFn: (TileKingdomGame, Coord) => Either[String, TileKingdomGame],
+      cost: Int,
+      costEmoji: String
+  ): Unit =
+    buildFn(currentGame, coord) match
       case Right(newGame) =>
         selectingTileCoord = None
         currentGame = newGame
         saveGame()
         renderGame()
-        showFloatingReward(coord, cost, "🌾", isSpend = true)
+        showFloatingReward(coord, cost, costEmoji, isSpend = true)
       case Left(error) =>
         showNotification(error)
+
+  private def handleBuildWheatField(coord: Coord): Unit =
+    handleBuild(coord, TileKingdomLogic.buildWheatField, TileKingdomLogic.wheatFieldBuildCost, "🌾")
 
   private def handleBuildFarm(coord: Coord): Unit =
-    val cost = TileKingdomLogic.farmBuildCost
-    TileKingdomLogic.buildFarm(currentGame, coord) match
-      case Right(newGame) =>
-        selectingTileCoord = None
-        currentGame = newGame
-        saveGame()
-        renderGame()
-        showFloatingReward(coord, cost, "🌾", isSpend = true)
-      case Left(error) =>
-        showNotification(error)
+    handleBuild(coord, TileKingdomLogic.buildFarm, TileKingdomLogic.farmBuildCost, "🌾")
 
   private def handleBuildWoodcutter(coord: Coord): Unit =
-    val cost = TileKingdomLogic.woodcutterBuildCost
-    TileKingdomLogic.buildWoodcutter(currentGame, coord) match
-      case Right(newGame) =>
-        selectingTileCoord = None
-        currentGame = newGame
-        saveGame()
-        renderGame()
-        showFloatingReward(coord, cost, "🌾", isSpend = true)
-      case Left(error) =>
-        showNotification(error)
+    handleBuild(coord, TileKingdomLogic.buildWoodcutter, TileKingdomLogic.woodcutterBuildCost, "🌾")
 
   private def handleBuildBureau(coord: Coord): Unit =
-    val cost = TileKingdomLogic.bureauBuildCost
-    TileKingdomLogic.buildBureau(currentGame, coord) match
-      case Right(newGame) =>
-        selectingTileCoord = None
-        currentGame = newGame
-        saveGame()
-        renderGame()
-        showFloatingReward(coord, cost, "🪵", isSpend = true)
-      case Left(error) =>
-        showNotification(error)
+    handleBuild(coord, TileKingdomLogic.buildBureau, TileKingdomLogic.bureauBuildCost, "🪵")
 
   private def handleBuildTemple(coord: Coord): Unit =
-    val cost = TileKingdomLogic.templeBuildCost
-    TileKingdomLogic.buildTemple(currentGame, coord) match
-      case Right(newGame) =>
-        selectingTileCoord = None
-        currentGame = newGame
-        saveGame()
-        renderGame()
-        showFloatingReward(coord, cost, "🪵", isSpend = true)
-      case Left(error) =>
-        showNotification(error)
+    handleBuild(coord, TileKingdomLogic.buildTemple, TileKingdomLogic.templeBuildCost, "🪵")
 
   private def handleBuildTownHall(coord: Coord): Unit =
-    val cost = TileKingdomLogic.townHallBuildCost(currentGame)
-    TileKingdomLogic.buildTownHall(currentGame, coord) match
-      case Right(newGame) =>
-        selectingTileCoord = None
-        currentGame = newGame
-        saveGame()
-        renderGame()
-        showFloatingReward(coord, cost, "🪨", isSpend = true)
-      case Left(error) =>
-        showNotification(error)
+    handleBuild(coord, TileKingdomLogic.buildTownHall(_, _), TileKingdomLogic.townHallBuildCost(currentGame), "🪨")
 
   private def handleBuildQuarry(coord: Coord): Unit =
-    val cost = TileKingdomLogic.quarryBuildCost
-    TileKingdomLogic.buildQuarry(currentGame, coord) match
-      case Right(newGame) =>
-        selectingTileCoord = None
-        currentGame = newGame
-        saveGame()
-        renderGame()
-        showFloatingReward(coord, cost, "🪵", isSpend = true)
-      case Left(error) =>
-        showNotification(error)
+    handleBuild(coord, TileKingdomLogic.buildQuarry, TileKingdomLogic.quarryBuildCost, "🪵")
 
   private def handleBuildAcademy(coord: Coord): Unit =
-    val cost = TileKingdomLogic.academyBuildCost(currentGame)
-    TileKingdomLogic.buildAcademy(currentGame, coord) match
-      case Right(newGame) =>
-        selectingTileCoord = None
-        currentGame = newGame
-        saveGame()
-        renderGame()
-        showFloatingReward(coord, cost, "🪨", isSpend = true)
-      case Left(error) =>
-        showNotification(error)
+    handleBuild(coord, TileKingdomLogic.buildAcademy, TileKingdomLogic.academyBuildCost(currentGame), "🪨")
 
   private def handleBuildTavern(coord: Coord): Unit =
-    TileKingdomLogic.buildTavern(currentGame, coord) match
-      case Right(newGame) =>
-        selectingTileCoord = None
-        currentGame = newGame
-        saveGame()
-        renderGame()
-        showFloatingReward(coord, TileKingdomLogic.TavernBuildCost, "🪵", isSpend = true)
-      case Left(error) =>
-        showNotification(error)
+    handleBuild(coord, TileKingdomLogic.buildTavern, TileKingdomLogic.TavernBuildCost, "🪵")
 
   private def handleToggleAcademyMode(coord: Coord): Unit =
     TileKingdomLogic.toggleAcademyMode(currentGame, coord) match
