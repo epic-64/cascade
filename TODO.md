@@ -52,8 +52,10 @@
 - add Agriculture2B: farms bonus applies to forests at half strength
 - add an off-switch to the Bureau
 
-## Todos
+## Done 2026-02-25
 - game writes to localStorage every tick. This sounds a bit excessive, can we do something about it?
+
+## Todos
 - use the nice badge-like styling for all tile modifiers (see the production speed multiplier for fields)
 - simplify unlock requirements for tile types. After field, farm and forest, everything else should be unlocked.
   The build costs are enough to guide the player.
