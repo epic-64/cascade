@@ -131,6 +131,11 @@ bloop test jvm-test --only TaskSpec
 
 Start server:
 ```bash
+bloop run jvm
+```
+
+(or with a specific main class, if you have multiple):
+```bash
 bloop run jvm --main server.WebServer
 ```
 
