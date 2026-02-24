@@ -311,7 +311,8 @@ case class TileKingdomGame(
     legacyPoints: Int = 0, // Legacy points earned from Sailing (second tier prestige)
     skillPoints: Int = 0, // Skill points (1 per 25 legacy points)
     unlockedSkills: Set[Skill] = Set.empty, // Skills unlocked via skill tree
-    hasSailed: Boolean = false // Whether player has sailed at least once (unlocks skill tree)
+    hasSailed: Boolean = false, // Whether player has sailed at least once (unlocks skill tree)
+    hasPlacedBuilding: Boolean = false // Whether any building has been placed since last abdication/sail
 ) derives ReadWriter:
 
   // Resource helpers
@@ -399,6 +400,24 @@ case class TileKingdomGame(
   def totalSkillPointsSpent: Int =
     unlockedSkills.toList.map(Skill.cost).sum
 
+  /** True when no buildings have been placed since the last abdication/sail. */
+  def isFreshAbdication: Boolean = !hasPlacedBuilding
+
+  /** A skill can be refunded if it is unlocked, no other unlocked skill depends on it,
+    * the player can afford the gold cost, and no buildings have been placed yet. */
+  def canRefundSkill(skill: Skill): Boolean =
+    if !hasSailed then false
+    else if !isFreshAbdication then false
+    else if !unlockedSkills.contains(skill) then false
+    else if gold < Skill.cost(skill) * TileKingdomLogic.SkillRefundGoldCost then false
+    else
+      // Check no other unlocked skill has this skill as a prerequisite
+      val dependents = unlockedSkills.filter: other =>
+        Skill.prerequisite(other).contains(skill) ||
+          Skill.alternativePrerequisites(other).exists: alts =>
+            alts.contains(skill) && !alts.exists(alt => alt != skill && unlockedSkills.contains(alt))
+      dependents.isEmpty
+
 // ============================================================================
 // Game Logic
 // ============================================================================
@@ -453,6 +472,7 @@ object TileKingdomLogic:
   // Sail (second tier prestige) constants
   val SailMinTiles: Int = 25 // Minimum tiles required to sail
   val LegacyPointsPerSkillPoint: Int = 25 // Legacy points needed for 1 skill point
+  val SkillRefundGoldCost: Int = 1000 // Gold cost per skill point refunded
 
   // Politician definitions
   val PoliticianPool: List[(String, String, PoliticianEffect, String)] = List(
@@ -963,7 +983,8 @@ object TileKingdomLogic:
       case Some(_) if !game.canAfford(cost)     => Left(s"Not enough ${cost.resource.toString.toLowerCase} (need ${cost.amount})")
       case Some(tile) =>
         Right(game.deduct(cost).copy(
-          tiles = game.tiles.updated(coord, tile.copy(tileType = tileType))
+          tiles = game.tiles.updated(coord, tile.copy(tileType = tileType)),
+          hasPlacedBuilding = true
         ))
 
   def buildWheatField(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
@@ -1244,7 +1265,8 @@ object TileKingdomLogic:
         totalAbdications = game.totalAbdications + 1,
         bureauMode = Map.empty, // Reset bureau mode since bureaus are destroyed
         politicianRoster = List.empty, // All politicians are destroyed on abdication
-        politicianGenerationProgress = 0.0 // Reset politician generation progress
+        politicianGenerationProgress = 0.0, // Reset politician generation progress
+        hasPlacedBuilding = false // Fresh abdication
       ))
 
   // Sail: second tier prestige - reset everything including gold, gain legacy points for tiles
@@ -1276,7 +1298,8 @@ object TileKingdomLogic:
         politicianGenerationProgress = 0.0,
         legacyPoints = remainingLegacyPoints,
         skillPoints = game.skillPoints + skillPointsEarned,
-        hasSailed = true // Mark that player has sailed at least once
+        hasSailed = true, // Mark that player has sailed at least once
+        hasPlacedBuilding = false // Fresh sail
       ))
 
   // Get all coords that can be unlocked (coords adjacent to unlocked tiles that aren't already tiles)
@@ -1429,18 +1452,21 @@ object TileKingdomLogic:
           unlockedSkills = game.unlockedSkills + skill
         ))
 
-  // Check if player can switch to a mutually exclusive skill (free)
+  // Check if player can switch to a mutually exclusive skill (free, only on fresh abdication)
   def canSwitchSkill(game: TileKingdomGame, toSkill: Skill): Boolean =
     if !game.hasSailed then false
+    else if !game.isFreshAbdication then false
     else if game.unlockedSkills.contains(toSkill) then false
     else
       // Must have the mutually exclusive skill already unlocked
       Skill.mutuallyExclusive(toSkill).exists(game.unlockedSkills.contains)
 
-  // Switch from one skill to its mutually exclusive alternative (free)
+  // Switch from one skill to its mutually exclusive alternative (free, only on fresh abdication)
   def switchSkill(game: TileKingdomGame, toSkill: Skill): Either[String, TileKingdomGame] =
     if !game.hasSailed then
       Left("Sail at least once to unlock the skill tree")
+    else if !game.isFreshAbdication then
+      Left("Can only switch skills before placing any buildings")
     else if game.unlockedSkills.contains(toSkill) then
       Left("Skill already unlocked")
     else
@@ -1451,4 +1477,26 @@ object TileKingdomLogic:
           ))
         case _ =>
           Left("No mutually exclusive skill to switch from")
+
+  // Refund a skill: costs 1000 gold per skill point, only on fresh abdication
+  def refundSkill(game: TileKingdomGame, skill: Skill): Either[String, TileKingdomGame] =
+    if !game.hasSailed then
+      Left("Sail at least once to unlock the skill tree")
+    else if !game.isFreshAbdication then
+      Left("Can only refund skills before placing any buildings")
+    else if !game.unlockedSkills.contains(skill) then
+      Left("Skill is not unlocked")
+    else
+      val cost = Skill.cost(skill)
+      val goldCost = cost * SkillRefundGoldCost
+      if game.gold < goldCost then
+        Left(s"Not enough gold (need ${goldCost} 💰)")
+      else if !game.canRefundSkill(skill) then
+        Left("Cannot refund — another skill depends on this one")
+      else
+        Right(game.copy(
+          gold = game.gold - goldCost,
+          skillPoints = game.skillPoints + cost,
+          unlockedSkills = game.unlockedSkills - skill
+        ))
 

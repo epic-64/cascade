@@ -511,8 +511,10 @@ object TileKingdomClient:
     val canUnlock = currentGame.canUnlockSkill(skill)
     val isExcluded = Skill.mutuallyExclusive(skill).exists(currentGame.hasSkill)
     val canSwitch = TileKingdomLogic.canSwitchSkill(currentGame, skill)
+    val canRefund = currentGame.canRefundSkill(skill)
     val cost = Skill.cost(skill)
     val description = Skill.description(skill)
+    val goldCost = cost * TileKingdomLogic.SkillRefundGoldCost
 
     val nodeCls =
       if isUnlocked then "skill-node unlocked"
@@ -524,7 +526,26 @@ object TileKingdomClient:
     div(cls = nodeCls)(
       div(cls = "skill-node-cost", content = s"${cost}⭐"),
       div(cls = "skill-node-desc", content = description),
-      if isUnlocked then
+      if isUnlocked && currentGame.hasSailed then
+        val refundReason =
+          if !currentGame.isFreshAbdication then Some("Abdicate first")
+          else if currentGame.gold < goldCost then Some(s"Need ${formatNumber(goldCost)} 💰")
+          else if !canRefund then Some("Has dependents")
+          else None
+        div(cls = "skill-node-actions")(
+          div(cls = "skill-node-status", content = "✓ Unlocked"),
+          refundReason match
+            case None =>
+              button(cls = "skill-node-btn refund-btn", content = s"Refund (${formatNumber(goldCost)} 💰)").tap: btn =>
+                btn.onclick = (e: MouseEvent) =>
+                  e.stopPropagation()
+                  handleRefundSkill(skill)
+            case Some(reason) =>
+              button(cls = "skill-node-btn refund-btn disabled", content = s"Refund (${formatNumber(goldCost)} 💰)").tap: btn =>
+                btn.disabled = true
+                btn.title = reason
+        )
+      else if isUnlocked then
         div(cls = "skill-node-status", content = "✓ Unlocked")
       else if isExcluded && canSwitch then
         button(cls = "skill-node-btn switch-btn", content = "Switch").tap: btn =>
@@ -561,6 +582,19 @@ object TileKingdomClient:
         renderGame()
         renderSkillTreeContent()
         showNotification(s"Switched to: ${Skill.description(skill)}")
+      case Left(error) =>
+        showNotification(error)
+
+  private def handleRefundSkill(skill: Skill): Unit =
+    TileKingdomLogic.refundSkill(currentGame, skill) match
+      case Right(newGame) =>
+        currentGame = newGame
+        saveGame()
+        renderGame()
+        renderSkillTreeContent()
+        val cost = Skill.cost(skill)
+        val goldCost = cost * TileKingdomLogic.SkillRefundGoldCost
+        showNotification(s"Refunded ${Skill.description(skill)} (+${cost}⭐, -${formatNumber(goldCost)} 💰)")
       case Left(error) =>
         showNotification(error)
 

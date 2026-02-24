@@ -2140,6 +2140,34 @@
   transform: scale(1.05);
 }
 
+.skill-node-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.skill-node-btn.refund-btn {
+  background: var(--accent-red, #ef4444);
+  font-size: var(--font-xs);
+  padding: 0.25rem 0.5rem;
+}
+
+.skill-node-btn.refund-btn:hover {
+  background: #dc2626;
+}
+
+.skill-node-btn.refund-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: var(--text-muted);
+}
+
+.skill-node-btn.refund-btn.disabled:hover {
+  transform: none;
+  background: var(--text-muted);
+}
+
 /* Skills button style */
 .btn-skills {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
