@@ -106,12 +106,13 @@ ENABLE_COVERAGE=true sbt clean coverage test coverageReport
 
 Bloop keeps a compilation server running, making incremental builds much faster (~300ms vs ~20s).
 
+> **Note:** After changing `build.sbt` or `plugins.sbt`, regenerate bloop config with `sbt bloopInstall`.
+> If bloop behaves strangely (missing dependencies, weird errors), try `sbt bloopInstall` first.
+
 First-time setup:
 ```bash
 sbt bloopInstall  # generates .bloop/ config files
 ```
-
-> **Note:** After changing `build.sbt` or `plugins.sbt`, regenerate bloop config with `sbt bloopInstall`.
 
 Compile:
 ```bash
@@ -126,6 +127,11 @@ bloop test jvm-test
 Run specific test:
 ```bash
 bloop test jvm-test --only TaskSpec
+```
+
+Stop the bloop server:
+```bash
+bloop exit
 ```
 
 ### Other commands
