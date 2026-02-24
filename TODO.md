@@ -54,9 +54,9 @@
 
 ## Done 2026-02-25
 - game writes to localStorage every tick. This sounds a bit excessive, can we do something about it?
+- use the nice badge-like styling for all tile modifiers (see the production speed multiplier for fields)
 
 ## Todos
-- use the nice badge-like styling for all tile modifiers (see the production speed multiplier for fields)
 - simplify unlock requirements for tile types. After field, farm and forest, everything else should be unlocked.
   The build costs are enough to guide the player.
 - allow switching between skills of the same tier for free
