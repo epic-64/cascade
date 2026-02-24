@@ -11,8 +11,11 @@ def initializeTileKingdom(): Unit =
 object TileKingdomClient:
 
   private val StorageKey = "tile_kingdom_game_state"
+  private val SaveIntervalMs: Int = 30_000 // Save to localStorage at most every 30 seconds
   private var currentGame: TileKingdomGame = TileKingdomLogic.newGame(System.currentTimeMillis())
   private var gameTickerHandle: Option[Int] = None
+  private var saveTimerHandle: Option[Int] = None
+  private var isDirty: Boolean = false
 
   // Resource emoji mapping
   private def resourceEmoji(resource: Resource): String = resource match
@@ -124,10 +127,14 @@ object TileKingdomClient:
     centerOnKingdom()
     renderGame()
     startGameTicker()
+    startSaveTimer()
+    registerLifecycleHooks()
 
   def cleanup(): Unit =
     println("[TileKingdom] Cleaning up Tile Kingdom game")
     stopGameTicker()
+    stopSaveTimer()
+    saveIfDirty()
 
   // ============================================================================
   // UI Building
@@ -871,7 +878,7 @@ object TileKingdomClient:
     currentGame = TileKingdomLogic.generateNewPoliticians(currentGame, currentTime)
     val newPoliticianGenerated = currentGame.politicianRoster.size > previousRosterSize
 
-    saveGame()
+    markDirty()
     updateProgressBars()
     renderResources()
     updatePoliticianTimer()
@@ -925,13 +932,41 @@ object TileKingdomClient:
   // Persistence
   // ============================================================================
 
+  /** Mark game state as changed — will be flushed on the next periodic save. */
+  private def markDirty(): Unit =
+    isDirty = true
+
+  /** Write to localStorage only when the state has actually changed. */
+  private def saveIfDirty(): Unit =
+    if isDirty then
+      saveGame()
+
+  /** Immediately persist the current game to localStorage. */
   private def saveGame(): Unit =
     Try:
       import upickle.default.*
       val json = write(currentGame)
       window.localStorage.setItem(StorageKey, json)
+      isDirty = false
     .recover:
       case ex => println(s"[TileKingdom] Failed to save game: ${ex.getMessage}")
+
+  /** Start a periodic timer that flushes dirty state to localStorage. */
+  private def startSaveTimer(): Unit =
+    stopSaveTimer()
+    val id = window.setInterval(() => saveIfDirty(), SaveIntervalMs)
+    saveTimerHandle = Some(id)
+
+  private def stopSaveTimer(): Unit =
+    saveTimerHandle.foreach(window.clearInterval)
+    saveTimerHandle = None
+
+  /** Register page-lifecycle handlers so we never lose progress. */
+  private def registerLifecycleHooks(): Unit =
+    window.addEventListener("beforeunload", (_: Event) => saveIfDirty())
+    document.addEventListener("visibilitychange", (_: Event) =>
+      if document.visibilityState == "hidden" then saveIfDirty()
+    )
 
   private def loadGame(): Unit =
     Try:
@@ -2206,6 +2241,7 @@ object TileKingdomClient:
   private def handleResetGame(): Unit =
     if window.confirm("Reset game? This will delete all progress!") then
       window.localStorage.removeItem(StorageKey)
+      isDirty = false
       currentGame = TileKingdomLogic.newGame(System.currentTimeMillis())
       tileProgress = Map.empty
       saveGame()
