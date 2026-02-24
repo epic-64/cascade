@@ -78,11 +78,13 @@ enum BureauMode derives ReadWriter:
 
 // Individual skill nodes within a branch
 enum Skill derives ReadWriter:
-  // Agriculture branch (dual track at level 1 and 2)
+  // Agriculture branch (dual track at level 1, 2, and 3)
   case Agriculture1A // Fields start at level 10
   case Agriculture1B // Fields produce 25% faster
   case Agriculture2A // Farms start at level 10
   case Agriculture2B // Farms bonus applies to forests at half strength
+  case Agriculture3A // Wheat field upgrade costs reduced by 90%
+  case Agriculture3B // Farm bonus applies to quarries at half strength
   // Management branch
   case Management1 // Politician roster holds 2 additional politicians
   case Management2 // Town halls are 10x cheaper to build
@@ -99,7 +101,7 @@ enum Skill derives ReadWriter:
 object Skill:
   // Get skill branch name
   def branchName(skill: Skill): String = skill match
-    case Agriculture1A | Agriculture1B | Agriculture2A | Agriculture2B => "Agriculture"
+    case Agriculture1A | Agriculture1B | Agriculture2A | Agriculture2B | Agriculture3A | Agriculture3B => "Agriculture"
     case Management1 | Management2 => "Management"
     case Wisdom1 | Wisdom2 => "Wisdom"
     case Education1 | Education2 => "Education"
@@ -119,16 +121,20 @@ object Skill:
     case Education2 => "Academies run both modes simultaneously"
     case Logistics1A => "Bureaus spend 90% less wood per upgrade (100→10)"
     case Logistics1B => "Bureau turbo spends 90% less faith per upgrade"
+    case Agriculture3A => "Wheat field upgrade costs reduced by 90%"
+    case Agriculture3B => "Farm bonus applies to neighboring quarries at 50%"
 
   // Get skill cost (position in branch)
   def cost(skill: Skill): Int = skill match
     case Agriculture1A | Agriculture1B | Management1 | Wisdom1 | Education1 | Logistics1A | Logistics1B => 1
     case Agriculture2A | Agriculture2B | Management2 | Wisdom2 | Education2 => 2
+    case Agriculture3A | Agriculture3B => 3
 
   // Get prerequisite skill (if any)
   def prerequisite(skill: Skill): Option[Skill] = skill match
     case Agriculture1A | Agriculture1B | Management1 | Wisdom1 | Education1 | Logistics1A | Logistics1B => None
     case Agriculture2A | Agriculture2B => None // Either Agriculture1A or Agriculture1B, handled by alternativePrerequisites
+    case Agriculture3A | Agriculture3B => None // Either Agriculture2A or Agriculture2B, handled by alternativePrerequisites
     case Management2 => Some(Management1)
     case Wisdom2 => Some(Wisdom1)
     case Education2 => Some(Education1)
@@ -137,6 +143,7 @@ object Skill:
   // Returns the set of skills where having ANY ONE unlocked satisfies the prerequisite
   def alternativePrerequisites(skill: Skill): Option[Set[Skill]] = skill match
     case Agriculture2A | Agriculture2B => Some(Set(Agriculture1A, Agriculture1B))
+    case Agriculture3A | Agriculture3B => Some(Set(Agriculture2A, Agriculture2B))
     case _ => None
 
   // Get mutually exclusive skill (choosing one locks out the other)
@@ -145,13 +152,15 @@ object Skill:
     case Agriculture1B => Some(Agriculture1A)
     case Agriculture2A => Some(Agriculture2B)
     case Agriculture2B => Some(Agriculture2A)
+    case Agriculture3A => Some(Agriculture3B)
+    case Agriculture3B => Some(Agriculture3A)
     case Logistics1A => Some(Logistics1B)
     case Logistics1B => Some(Logistics1A)
     case _ => None
 
   // Get all skills in a branch, in order (dual track alternatives grouped together)
   def branchSkills(branchName: String): List[Skill] = branchName match
-    case "Agriculture" => List(Agriculture1A, Agriculture1B, Agriculture2A, Agriculture2B)
+    case "Agriculture" => List(Agriculture1A, Agriculture1B, Agriculture2A, Agriculture2B, Agriculture3A, Agriculture3B)
     case "Management" => List(Management1, Management2)
     case "Wisdom" => List(Wisdom1, Wisdom2)
     case "Education" => List(Education1, Education2)
@@ -803,6 +812,22 @@ object TileKingdomLogic:
       1.0 + farmBonus
     else 1.0
 
+  // Agriculture3A: Wheat field upgrade costs reduced by 90%
+  def effectiveUpgradeCost(game: TileKingdomGame, tile: Tile): Option[Cost] =
+    tile.upgradeCost.map: cost =>
+      if game.hasSkill(Skill.Agriculture3A) && tile.isWheatField then
+        cost.copy(amount = (cost.amount * 0.1).toInt.max(1))
+      else cost
+
+  // Agriculture3B: Farm bonus applies to quarries at half strength
+  def agriculture3BFarmBonusMultiplier(game: TileKingdomGame, coord: Coord): Double =
+    if game.hasSkill(Skill.Agriculture3B) then
+      val farmBonus = coord.neighbors.toList.flatMap(game.tiles.get).collect:
+        case tile if tile.isFarm => tile.level * FarmBoostPerLevel * 0.5 // Half strength
+      .sum
+      1.0 + farmBonus
+    else 1.0
+
   // Production rate for a specific tile per second (with farm bonuses and town hall bonuses applied)
   def productionRate(game: TileKingdomGame, tile: Tile): Double =
     val base = productionPerSecond(tile)
@@ -821,10 +846,10 @@ object TileKingdomLogic:
     if base > 0 then base * townHallFaithMultiplier(game, tile.coord) * templeWisdom2Multiplier(game, tile.coord)
     else 0.0
 
-  // Stone production rate for a specific tile per second (with town hall bonuses and Wisdom1)
+  // Stone production rate for a specific tile per second (with town hall bonuses, Wisdom1, and Agriculture3B)
   def stoneProductionRate(game: TileKingdomGame, tile: Tile): Double =
     val base = stoneProductionPerSecond(tile)
-    if base > 0 then base * townHallStoneMultiplier(game, tile.coord) * quarryWisdom1Multiplier(game, tile.coord)
+    if base > 0 then base * townHallStoneMultiplier(game, tile.coord) * quarryWisdom1Multiplier(game, tile.coord) * agriculture3BFarmBonusMultiplier(game, tile.coord)
     else 0.0
 
   // Legacy method for backwards compatibility
@@ -851,7 +876,7 @@ object TileKingdomLogic:
   // Stone production per harvest for a specific tile (with town hall bonuses and Wisdom1)
   def stoneProductionPerHarvest(game: TileKingdomGame, tile: Tile): Double =
     val base = baseStoneProductionRate(tile)
-    if base > 0 then base * townHallStoneMultiplier(game, tile.coord) * quarryWisdom1Multiplier(game, tile.coord)
+    if base > 0 then base * townHallStoneMultiplier(game, tile.coord) * quarryWisdom1Multiplier(game, tile.coord) * agriculture3BFarmBonusMultiplier(game, tile.coord)
     else 0.0
 
   // Total wheat production rate for the game (all wheat fields with bonuses)
@@ -1116,7 +1141,7 @@ object TileKingdomLogic:
     game.tiles.get(coord) match
       case None => Left("Tile not found")
       case Some(tile) =>
-        tile.upgradeCost match
+        effectiveUpgradeCost(game, tile) match
           case None => Left("Tile is not upgradeable")
           case Some(cost) =>
             if !game.canAfford(cost) then
@@ -1194,7 +1219,7 @@ object TileKingdomLogic:
         val upgradeableTiles = nearbyCoords
           .flatMap(coord => game.tiles.get(coord).map(coord -> _))
           .filter((_, tile) => tile.isUpgradeable)
-          .flatMap((coord, tile) => tile.upgradeCost.map(cost => (coord, tile, cost)))
+          .flatMap((coord, tile) => effectiveUpgradeCost(game, tile).map(cost => (coord, tile, cost)))
 
         // Check if we have enough resources for turbo mode
         // Faith cost is level × 10 (possibly reduced), so check against the cheapest upgradeable tile

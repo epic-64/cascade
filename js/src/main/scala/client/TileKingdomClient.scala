@@ -871,7 +871,7 @@ object TileKingdomClient:
               case TileType.Quarry(lvl)     => TileType.Quarry(lvl - 1)
               case other                    => other
             ))
-            val upgradeCostOpt = previousTile.flatMap(_.upgradeCost)
+            val upgradeCostOpt = previousTile.flatMap(t => TileKingdomLogic.effectiveUpgradeCost(currentGame, t))
             val upgradeCost = upgradeCostOpt.map(_.amount).getOrElse(0)
             val costResource = upgradeCostOpt.map(_.resource).getOrElse(Resource.Wheat)
             val newLevel = upgradedTile.map(_.level).getOrElse(1)
@@ -1366,7 +1366,7 @@ object TileKingdomClient:
         val hasBonus = bonusMultiplier > 1.0
         val hasTownHallBonus = townHallMultiplier > 1.0
         val hasSpeedBoost = currentGame.hasSkill(Skill.Agriculture1B)
-        val upgradeCost = TileKingdomLogic.wheatFieldLevelUpCost(level)
+        val upgradeCost = TileKingdomLogic.effectiveUpgradeCost(currentGame, tile).map(_.amount).getOrElse(0)
 
         val content = div(cls = "tile-content")(
           div(cls = "tile-icon", content = "🌾"),
@@ -1376,6 +1376,10 @@ object TileKingdomClient:
         content.appendChild(div(cls = "tile-production", content = s"+${formatNumber(harvestAmount)}"))
 
         val modifiers = div(cls = "tile-modifiers")
+        if currentGame.hasSkill(Skill.Agriculture3A) then
+          val badge = span(cls = "tile-badge badge-speed", content = "💰-90%")
+          badge.title = "Agriculture skill: Wheat field upgrades cost 90% less"
+          modifiers.appendChild(badge)
         if hasSpeedBoost then
           val badge = span(cls = "tile-badge badge-speed", content = "⚡+25%")
           badge.title = "Agriculture skill: Fields produce 25% faster"
@@ -1657,6 +1661,8 @@ object TileKingdomClient:
         val hasTownHallBonus = townHallMultiplier > 1.0
         val wisdomMultiplier = TileKingdomLogic.quarryWisdom1Multiplier(currentGame, coord)
         val hasWisdomBonus = wisdomMultiplier > 1.0
+        val agriculture3BBonus = TileKingdomLogic.agriculture3BFarmBonusMultiplier(currentGame, coord)
+        val hasFarmBoost = agriculture3BBonus > 1.0
 
         val content = div(cls = "tile-content")(
           div(cls = "tile-icon", content = "⛏️"),
@@ -1666,6 +1672,11 @@ object TileKingdomClient:
         content.appendChild(div(cls = "tile-production quarry-production", content = s"+${formatNumber(stoneAmount)}🪨"))
 
         val modifiers = div(cls = "tile-modifiers")
+        if hasFarmBoost then
+          val boostPercent = ((agriculture3BBonus - 1) * 100).toInt
+          val badge = span(cls = "tile-badge badge-farm", content = s"🏠+$boostPercent%")
+          badge.title = "Agriculture skill: Farms boost quarries at half strength"
+          modifiers.appendChild(badge)
         if hasTownHallBonus then
           val multiplierText = if townHallMultiplier % 1.0 == 0 then s"x${townHallMultiplier.toInt}" else f"x$townHallMultiplier%.1f"
           modifiers.appendChild(span(cls = "tile-badge badge-townhall", content = s"🏛️$multiplierText"))
@@ -1995,7 +2006,7 @@ object TileKingdomClient:
 
   private def handleLevelUp(coord: Coord): Unit =
     currentGame.tiles.get(coord).foreach: tile =>
-      tile.upgradeCost.foreach: cost =>
+      TileKingdomLogic.effectiveUpgradeCost(currentGame, tile).foreach: cost =>
         TileKingdomLogic.levelUp(currentGame, coord) match
           case Right(newGame) =>
             currentGame = newGame
@@ -2013,13 +2024,13 @@ object TileKingdomClient:
       var totalCost = 0
       var successCount = 0
       var currentLevel = tile.level
-      var costResource = tile.upgradeCost.map(_.resource).getOrElse(Resource.Wheat)
+      var costResource = TileKingdomLogic.effectiveUpgradeCost(currentGame, tile).map(_.resource).getOrElse(Resource.Wheat)
 
       (1 to count).foreach: _ =>
         TileKingdomLogic.levelUp(game, coord) match
           case Right(newGame) =>
             game.tiles.get(coord).foreach: t =>
-              t.upgradeCost.foreach: c =>
+              TileKingdomLogic.effectiveUpgradeCost(game, t).foreach: c =>
                 totalCost += c.amount
                 costResource = c.resource
             currentLevel += 1
