@@ -1362,7 +1362,7 @@ object TileKingdomClient:
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
-            handleBulkLevelUp(coord, levelsToNextTen(level), TileKingdomLogic.levelUpWheatField, TileKingdomLogic.wheatFieldLevelUpCost)
+            handleBulkLevelUp(coord, levelsToNextTen(level))
         )
         content.appendChild(upgradeRow)
 
@@ -1376,7 +1376,7 @@ object TileKingdomClient:
         progressContainer.appendChild(progressBar)
         tileDiv.appendChild(progressContainer)
 
-        tileDiv.onclick = onClick(handleLevelUpWheatField(coord))
+        tileDiv.onclick = onClick(handleLevelUp(coord))
         tileDiv.oncontextmenu = (e: MouseEvent) =>
           e.preventDefault()
           handleDestroyBuilding(coord)
@@ -1398,12 +1398,12 @@ object TileKingdomClient:
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
-            handleBulkLevelUp(coord, levelsToNextTen(level), TileKingdomLogic.levelUpFarm, TileKingdomLogic.farmLevelUpCost)
+            handleBulkLevelUp(coord, levelsToNextTen(level))
         )
         content.appendChild(upgradeRow)
 
         tileDiv.appendChild(content)
-        tileDiv.onclick = onClick(handleLevelUpFarm(coord))
+        tileDiv.onclick = onClick(handleLevelUp(coord))
         tileDiv.oncontextmenu = (e: MouseEvent) =>
           e.preventDefault()
           handleDestroyBuilding(coord)
@@ -1445,7 +1445,7 @@ object TileKingdomClient:
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
-            handleBulkLevelUp(coord, levelsToNextTen(level), TileKingdomLogic.levelUpWoodcutter, TileKingdomLogic.woodcutterLevelUpCost)
+            handleBulkLevelUp(coord, levelsToNextTen(level))
         )
         content.appendChild(upgradeRow)
 
@@ -1460,7 +1460,7 @@ object TileKingdomClient:
         progressContainer.appendChild(progressBar)
         tileDiv.appendChild(progressContainer)
 
-        tileDiv.onclick = onClick(handleLevelUpWoodcutter(coord))
+        tileDiv.onclick = onClick(handleLevelUp(coord))
         tileDiv.oncontextmenu = (e: MouseEvent) =>
           e.preventDefault()
           handleDestroyBuilding(coord)
@@ -1613,7 +1613,7 @@ object TileKingdomClient:
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
-            handleBulkLevelUpTemple(coord, levelsToNextTen(level))
+            handleBulkLevelUp(coord, levelsToNextTen(level))
         )
         content.appendChild(upgradeRow)
 
@@ -1627,7 +1627,7 @@ object TileKingdomClient:
         progressContainer.appendChild(progressBar)
         tileDiv.appendChild(progressContainer)
 
-        tileDiv.onclick = onClick(handleLevelUpTemple(coord))
+        tileDiv.onclick = onClick(handleLevelUp(coord))
         tileDiv.oncontextmenu = (e: MouseEvent) =>
           e.preventDefault()
           handleDestroyBuilding(coord)
@@ -1661,7 +1661,7 @@ object TileKingdomClient:
         upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
           btn.onclick = (e: MouseEvent) =>
             e.stopPropagation()
-            handleBulkLevelUp(coord, levelsToNextTen(level), TileKingdomLogic.levelUpQuarry, TileKingdomLogic.quarryLevelUpCost, "🪵")
+            handleBulkLevelUp(coord, levelsToNextTen(level))
         )
         content.appendChild(upgradeRow)
 
@@ -1675,7 +1675,7 @@ object TileKingdomClient:
         progressContainer.appendChild(progressBar)
         tileDiv.appendChild(progressContainer)
 
-        tileDiv.onclick = onClick(handleLevelUpQuarry(coord))
+        tileDiv.onclick = onClick(handleLevelUp(coord))
         tileDiv.oncontextmenu = (e: MouseEvent) =>
           e.preventDefault()
           handleDestroyBuilding(coord)
@@ -2040,62 +2040,34 @@ object TileKingdomClient:
       case Left(error) =>
         showNotification(error)
 
-  private def handleLevelUpWheatField(coord: Coord): Unit =
+  private def handleLevelUp(coord: Coord): Unit =
     currentGame.tiles.get(coord).foreach: tile =>
-      val cost = TileKingdomLogic.wheatFieldLevelUpCost(tile.level)
-      TileKingdomLogic.levelUpWheatField(currentGame, coord) match
-        case Right(newGame) =>
-          currentGame = newGame
-          saveGame()
-          renderGame()
-          showFloatingReward(coord, cost, "🌾", isSpend = true)
-          showFloatingLevel(coord, tile.level + 1)
-        case Left(error) =>
-          showNotification(error)
+      tile.upgradeCost.foreach: cost =>
+        TileKingdomLogic.levelUp(currentGame, coord) match
+          case Right(newGame) =>
+            currentGame = newGame
+            saveGame()
+            renderGame()
+            showFloatingReward(coord, cost.amount, resourceEmoji(cost.resource), isSpend = true)
+            showFloatingLevel(coord, tile.level + 1)
+          case Left(error) =>
+            showNotification(error)
 
-  private def handleLevelUpFarm(coord: Coord): Unit =
-    currentGame.tiles.get(coord).foreach: tile =>
-      val cost = TileKingdomLogic.farmLevelUpCost(tile.level)
-      TileKingdomLogic.levelUpFarm(currentGame, coord) match
-        case Right(newGame) =>
-          currentGame = newGame
-          saveGame()
-          renderGame()
-          showFloatingReward(coord, cost, "🌾", isSpend = true)
-          showFloatingLevel(coord, tile.level + 1)
-        case Left(error) =>
-          showNotification(error)
-
-  private def handleLevelUpWoodcutter(coord: Coord): Unit =
-    currentGame.tiles.get(coord).foreach: tile =>
-      val cost = TileKingdomLogic.woodcutterLevelUpCost(tile.level)
-      TileKingdomLogic.levelUpWoodcutter(currentGame, coord) match
-        case Right(newGame) =>
-          currentGame = newGame
-          saveGame()
-          renderGame()
-          showFloatingReward(coord, cost, "🌾", isSpend = true)
-          showFloatingLevel(coord, tile.level + 1)
-        case Left(error) =>
-          showNotification(error)
-
-  private def handleBulkLevelUp(
-                                 coord: Coord,
-                                 count: Int,
-                                 levelUpFn: (TileKingdomGame, Coord) => Either[String, TileKingdomGame],
-                                 costFn: Int => Int,
-                                 costEmoji: String = "🌾"
-  ): Unit =
+  private def handleBulkLevelUp(coord: Coord, count: Int): Unit =
     currentGame.tiles.get(coord).foreach: tile =>
       var game = currentGame
       var totalCost = 0
       var successCount = 0
       var currentLevel = tile.level
+      var costResource = tile.upgradeCost.map(_.resource).getOrElse(Resource.Wheat)
 
       (1 to count).foreach: _ =>
-        levelUpFn(game, coord) match
+        TileKingdomLogic.levelUp(game, coord) match
           case Right(newGame) =>
-            totalCost += costFn(currentLevel)
+            game.tiles.get(coord).foreach: t =>
+              t.upgradeCost.foreach: c =>
+                totalCost += c.amount
+                costResource = c.resource
             currentLevel += 1
             successCount += 1
             game = newGame
@@ -2105,61 +2077,11 @@ object TileKingdomClient:
         currentGame = game
         saveGame()
         renderGame()
-        showFloatingReward(coord, totalCost, costEmoji, isSpend = true)
+        showFloatingReward(coord, totalCost, resourceEmoji(costResource), isSpend = true)
         showFloatingLevel(coord, currentLevel)
       else
         showNotification(s"Not enough resources")
 
-  private def handleLevelUpTemple(coord: Coord): Unit =
-    currentGame.tiles.get(coord).foreach: tile =>
-      val cost = TileKingdomLogic.templeLevelUpCost(tile.level)
-      TileKingdomLogic.levelUpTemple(currentGame, coord) match
-        case Right(newGame) =>
-          currentGame = newGame
-          saveGame()
-          renderGame()
-          showFloatingReward(coord, cost, "🪵", isSpend = true)
-          showFloatingLevel(coord, tile.level + 1)
-        case Left(error) =>
-          showNotification(error)
-
-  private def handleLevelUpQuarry(coord: Coord): Unit =
-    currentGame.tiles.get(coord).foreach: tile =>
-      val cost = TileKingdomLogic.quarryLevelUpCost(tile.level)
-      TileKingdomLogic.levelUpQuarry(currentGame, coord) match
-        case Right(newGame) =>
-          currentGame = newGame
-          saveGame()
-          renderGame()
-          showFloatingReward(coord, cost, "🪵", isSpend = true)
-          showFloatingLevel(coord, tile.level + 1)
-        case Left(error) =>
-          showNotification(error)
-
-  private def handleBulkLevelUpTemple(coord: Coord, count: Int): Unit =
-    currentGame.tiles.get(coord).foreach: tile =>
-      var game = currentGame
-      var totalCost = 0
-      var successCount = 0
-      var currentLevel = tile.level
-
-      (1 to count).foreach: _ =>
-        TileKingdomLogic.levelUpTemple(game, coord) match
-          case Right(newGame) =>
-            totalCost += TileKingdomLogic.templeLevelUpCost(currentLevel)
-            currentLevel += 1
-            successCount += 1
-            game = newGame
-          case Left(_) => // Stop on first failure
-
-      if successCount > 0 then
-        currentGame = game
-        saveGame()
-        renderGame()
-        showFloatingReward(coord, totalCost, "🪵", isSpend = true)
-        showFloatingLevel(coord, currentLevel)
-      else
-        showNotification("Not enough wood")
 
   private def handleCycleBureauMode(coord: Coord): Unit =
     TileKingdomLogic.cycleBureauMode(currentGame, coord) match
