@@ -30,7 +30,7 @@ class TaskSpec extends AnyFunSuite:
   // Tests
 
   test("Task.pure creates a successful task"):
-    val result = Task.pure(42).execute
+    val result = Task.succeed(42).execute
     assert(result == Right(42))
 
   test("Task.fail creates a failed task"):
@@ -38,7 +38,7 @@ class TaskSpec extends AnyFunSuite:
     assert(result == Left(Fail("test", "something went wrong")))
 
   test("Task maps over successful values"):
-    val result = Task.pure(21).map(_ * 2).execute
+    val result = Task.succeed(21).map(_ * 2).execute
     assert(result == Right(42))
 
   test("Task flatMap chains operations"):
@@ -102,7 +102,7 @@ class TaskSpec extends AnyFunSuite:
 
   test("Task.zip returns first failure"):
     val result = Task.fail[Int]("first", "oops")
-      .zip(Task.pure("ok"))
+      .zip(Task.succeed("ok"))
       .execute
 
     assert(result.isLeft)
@@ -254,7 +254,7 @@ class TaskSpec extends AnyFunSuite:
   test("unnamed tasks do not record timing"):
     val timer = new Timer.Collecting
 
-    Task.pure(42).execute(using Logger.silent, timer)
+    Task.succeed(42).execute(using Logger.silent, timer)
 
     assert(timer.getTimings.isEmpty)
 
@@ -285,8 +285,8 @@ class TaskSpec extends AnyFunSuite:
   test("Timer.Collecting provides summary"):
     val timer = new Timer.Collecting
 
-    Task.pure(1).named("fast").execute(using Logger.silent, timer)
-    Task.pure(2).named("also-fast").execute(using Logger.silent, timer)
+    Task.succeed(1).named("fast").execute(using Logger.silent, timer)
+    Task.succeed(2).named("also-fast").execute(using Logger.silent, timer)
 
     val summary = timer.summary
     assert(summary.contains("fast"))

@@ -107,7 +107,8 @@ class Task[A](private val work: (Logger, Timer) ?=> Result[A], val name: Option[
 
 object Task:
   def apply[A](f: (Logger, Timer) ?=> Result[A]): Task[A] = new Task(f)
-  def pure[A](a: A): Task[A] = Task(Right(a))
+  /** Wrap a plain value in a successful Task. (Called "pure" in FP circles.) */
+  def succeed[A](a: A): Task[A] = Task(Right(a))
   def fail[A](context: String, cause: Any): Task[A] = Task(Left(Fail(context, cause)))
   def fromTry[A](context: String)(t: => Try[A]): Task[A] = Task(t.toResult(context))
   def fromOption[A](context: String, ifNone: => Any = "not found")(o: => Option[A]): Task[A] =
