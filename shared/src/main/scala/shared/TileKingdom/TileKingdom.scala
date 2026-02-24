@@ -406,7 +406,7 @@ case class TileKingdomGame(
 object TileKingdomLogic:
 
   // Constants
-  val TickIntervalSeconds: Double = 2 // Tick four times per second
+  val TickIntervalSeconds: Double = 0.5 // Tick four times per second
   val ProductionIntervalSeconds: Int = 10 // Wheat fields produce every 10 seconds
   val InitialTileCount: Int = 4
   val FarmBoostPerLevel: Double = 0.25 // 25% boost per farm level
