@@ -134,6 +134,11 @@ Start server:
 bloop run jvm
 ```
 
+In watch mode (restarts server on code changes):
+```bash
+bloop run jvm --watch
+```
+
 (or with a specific main class, if you have multiple):
 ```bash
 bloop run jvm --main server.WebServer
