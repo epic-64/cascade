@@ -899,8 +899,7 @@ object TileKingdomClient:
 
       // Fire projectile, then show upgrade effects when it arrives
       showBureauProjectile(bureauCoord, upgradedCoord, () =>
-        updateSingleTile(upgradedCoord)
-        updateSingleTile(bureauCoord)
+        renderTiles()
         val costEmoji = resourceEmoji(costResource)
         showFloatingReward(upgradedCoord, cost, costEmoji, isSpend = true)
         showFloatingLevel(upgradedCoord, newLevel)
@@ -1922,7 +1921,7 @@ object TileKingdomClient:
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
-        updateSingleTile(townHallCoord)
+        renderTiles()
         refreshUI()
         showNotification(if hadPolitician then "Politician swapped!" else "Politician assigned!")
       case Left(error) =>
@@ -1933,7 +1932,7 @@ object TileKingdomClient:
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
-        updateSingleTile(townHallCoord)
+        renderTiles()
         refreshUI()
         showNotification("Politician returned to roster")
       case Left(error) =>
@@ -1944,8 +1943,7 @@ object TileKingdomClient:
       case Right(newGame) =>
         currentGame = newGame
         saveGame()
-        updateSingleTile(fromCoord)
-        updateSingleTile(toCoord)
+        renderTiles()
         refreshUI()
         showNotification("Politicians swapped!")
       case Left(error) =>
@@ -1958,7 +1956,7 @@ object TileKingdomClient:
           case Right(newGame) =>
             currentGame = newGame
             saveGame()
-            updateSingleTile(coord)
+            renderTiles()
             refreshUI()
             showFloatingReward(coord, cost.amount, resourceEmoji(cost.resource), isSpend = true)
             showFloatingLevel(coord, tile.level + 1)
@@ -1988,7 +1986,7 @@ object TileKingdomClient:
       if successCount > 0 then
         currentGame = game
         saveGame()
-        updateSingleTile(coord)
+        renderTiles()
         refreshUI()
         showFloatingReward(coord, totalCost, resourceEmoji(costResource), isSpend = true)
         showFloatingLevel(coord, currentLevel)
