@@ -369,7 +369,13 @@ object TileKingdomClient:
           }, "Added rare politician"),
           devAction("🌟 +5 Skill Points",
             { currentGame = currentGame.copy(skillPoints = currentGame.skillPoints + 5, hasSailed = true) },
-            s"Added 5 skill points (${currentGame.skillPoints} total)")
+            s"Added 5 skill points (${currentGame.skillPoints} total)"),
+          devAction("🪓 Fill Forests", {
+            val filled = currentGame.unlockedTiles.filter(_.isEmpty).map(_.coord)
+            val newTiles = filled.foldLeft(currentGame.tiles): (tiles, coord) =>
+              tiles.updated(coord, tiles(coord).copy(tileType = TileType.Woodcutter(1)))
+            currentGame = currentGame.copy(tiles = newTiles)
+          }, s"Filled ${currentGame.unlockedTiles.count(_.isEmpty)} tiles with forests")
         )
       )
     )
