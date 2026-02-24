@@ -98,7 +98,7 @@ class Task[A](private val work: (Logger, Timer) ?=> Result[A], val name: Option[
   def retry(attempts: Int): Task[A] = Task:
     @tailrec
     def loop(remaining: Int): Result[A] =
-      work match  // use work here, not run - we don't want to record each retry attempt
+      run match  // each attempt is timed separately if task is named
         case Right(a) => Right(a)
         case Left(f) if remaining > 1 =>
           summon[Logger].info(s"Retrying after: $f (${remaining - 1} attempts left)")
