@@ -353,15 +353,15 @@ case class TileKingdomGame(
     unlockedTiles.exists(_.isTownHall)
 
   // Building unlock progression:
-  // Wheat Field -> Farm -> Forest/Quarry -> Bureau/Temple (from Forest), Town Hall/Academy (from Quarry)
+  // Wheat Field -> Farm -> Forest -> everything else
   def canBuildFarm: Boolean = hasWheatField
   def canBuildWoodcutter: Boolean = hasFarm
-  def canBuildQuarry: Boolean = hasFarm
+  def canBuildQuarry: Boolean = hasWoodcutter
   def canBuildBureau: Boolean = hasWoodcutter
   def canBuildTemple: Boolean = hasWoodcutter
-  def canBuildTownHall: Boolean = hasQuarry
-  def canBuildAcademy: Boolean = hasQuarry
-  def canBuildTavern: Boolean = unlockedTiles.exists(_.isTownHall)
+  def canBuildTownHall: Boolean = hasWoodcutter
+  def canBuildAcademy: Boolean = hasWoodcutter
+  def canBuildTavern: Boolean = hasWoodcutter
 
   def totalIncomeRate: Double =
     TileKingdomLogic.totalWheatProductionRate(this) + 
@@ -981,16 +981,16 @@ object TileKingdomLogic:
 
   def buildBureau(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     buildOnEmptyTile(game, coord, TileType.Bureau(1), Cost(bureauBuildCost, Resource.Wood),
-      game.canBuildBureau, "Build a woodcutter first")
+      game.canBuildBureau, "Build a forest first")
 
   def buildTemple(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     buildOnEmptyTile(game, coord, TileType.Temple(1), Cost(templeBuildCost, Resource.Wood),
-      game.canBuildTemple, "Build a woodcutter first")
+      game.canBuildTemple, "Build a forest first")
 
   def buildTownHall(game: TileKingdomGame, coord: Coord, currentTimeMillis: Long = System.currentTimeMillis()): Either[String, TileKingdomGame] =
     val cost = townHallBuildCost(game)
     buildOnEmptyTile(game, coord, TileType.TownHall(None), Cost(cost, Resource.Stone),
-      game.canBuildTownHall, "Build a quarry first").map: baseGame =>
+      game.canBuildTownHall, "Build a forest first").map: baseGame =>
         // If roster is empty, generate a politician immediately
         if baseGame.politicianRoster.isEmpty then
           val rareChance = rarePoliticianChance(baseGame)
@@ -1004,15 +1004,15 @@ object TileKingdomLogic:
 
   def buildQuarry(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     buildOnEmptyTile(game, coord, TileType.Quarry(1), Cost(quarryBuildCost, Resource.Wood),
-      game.canBuildQuarry, "Build a farm first")
+      game.canBuildQuarry, "Build a forest first")
 
   def buildAcademy(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     buildOnEmptyTile(game, coord, TileType.Academy(AcademyMode.FasterPoliticians), Cost(academyBuildCost(game), Resource.Stone),
-      game.canBuildAcademy, "Build a quarry first")
+      game.canBuildAcademy, "Build a forest first")
 
   def buildTavern(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     buildOnEmptyTile(game, coord, TileType.Tavern, Cost(TavernBuildCost, Resource.Wood),
-      game.canBuildTavern, "Build a town hall first")
+      game.canBuildTavern, "Build a forest first")
 
   // Toggle academy mode between FasterPoliticians and RareChance
   def toggleAcademyMode(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
