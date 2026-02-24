@@ -1,7 +1,8 @@
 package shared.task
 
+import scala.annotation.tailrec
 import scala.util.Try
-import scala.concurrent.{Future, Await, ExecutionContext}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.*
 
 case class Fail(context: String, cause: Any):
@@ -63,6 +64,7 @@ class Task[A](private val work: Logger ?=> Result[A]):
     Await.result(combined, 30.seconds)
 
   def retry(attempts: Int): Task[A] = Task:
+    @tailrec
     def loop(remaining: Int): Result[A] =
       work match
         case Right(a) => Right(a)
