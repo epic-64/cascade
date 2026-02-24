@@ -92,6 +92,9 @@ enum Skill derives ReadWriter:
   // Education branch
   case Education1 // Academies are 10x cheaper
   case Education2 // Academies have both modes active at the same time
+  // Logistics branch (dual track at level 1)
+  case Logistics1A // Bureau wood cost reduced by 90%
+  case Logistics1B // Bureau turbo faith cost reduced by 90%
 
 object Skill:
   // Get skill branch name
@@ -100,28 +103,31 @@ object Skill:
     case Management1 | Management2 => "Management"
     case Wisdom1 | Wisdom2 => "Wisdom"
     case Education1 | Education2 => "Education"
+    case Logistics1A | Logistics1B => "Logistics"
 
   // Get skill description
   def description(skill: Skill): String = skill match
-    case Agriculture1A => "Fields start at level 10"
-    case Agriculture1B => "Fields produce 25% faster"
-    case Agriculture2A => "Farms start at level 10"
-    case Agriculture2B => "Farms boost forests at half strength"
-    case Management1 => "Politician roster holds 2 additional politicians"
-    case Management2 => "Town halls are 10x cheaper to build"
-    case Wisdom1 => "Quarries produce 25% more stone per neighboring forest"
-    case Wisdom2 => "Forests grant 50% faith to neighboring temples"
-    case Education1 => "Academies are 10x cheaper"
-    case Education2 => "Academies have both modes active"
+    case Agriculture1A => "New wheat fields start at level 10"
+    case Agriculture1B => "Wheat fields produce 25% faster"
+    case Agriculture2A => "New farms start at level 10"
+    case Agriculture2B => "Farm bonus applies to neighboring forests at 50%"
+    case Management1 => "+2 politician roster slots"
+    case Management2 => "Town halls cost 10x less stone to build"
+    case Wisdom1 => "+25% quarry stone output per neighboring forest"
+    case Wisdom2 => "+50% temple faith output per neighboring forest"
+    case Education1 => "Academies cost 10x less stone to build"
+    case Education2 => "Academies run both modes simultaneously"
+    case Logistics1A => "Bureaus spend 90% less wood per upgrade (100→10)"
+    case Logistics1B => "Bureau turbo spends 90% less faith per upgrade"
 
   // Get skill cost (position in branch)
   def cost(skill: Skill): Int = skill match
-    case Agriculture1A | Agriculture1B | Management1 | Wisdom1 | Education1 => 1
+    case Agriculture1A | Agriculture1B | Management1 | Wisdom1 | Education1 | Logistics1A | Logistics1B => 1
     case Agriculture2A | Agriculture2B | Management2 | Wisdom2 | Education2 => 2
 
   // Get prerequisite skill (if any)
   def prerequisite(skill: Skill): Option[Skill] = skill match
-    case Agriculture1A | Agriculture1B | Management1 | Wisdom1 | Education1 => None
+    case Agriculture1A | Agriculture1B | Management1 | Wisdom1 | Education1 | Logistics1A | Logistics1B => None
     case Agriculture2A | Agriculture2B => None // Either Agriculture1A or Agriculture1B, handled by alternativePrerequisites
     case Management2 => Some(Management1)
     case Wisdom2 => Some(Wisdom1)
@@ -139,6 +145,8 @@ object Skill:
     case Agriculture1B => Some(Agriculture1A)
     case Agriculture2A => Some(Agriculture2B)
     case Agriculture2B => Some(Agriculture2A)
+    case Logistics1A => Some(Logistics1B)
+    case Logistics1B => Some(Logistics1A)
     case _ => None
 
   // Get all skills in a branch, in order (dual track alternatives grouped together)
@@ -147,10 +155,11 @@ object Skill:
     case "Management" => List(Management1, Management2)
     case "Wisdom" => List(Wisdom1, Wisdom2)
     case "Education" => List(Education1, Education2)
+    case "Logistics" => List(Logistics1A, Logistics1B)
     case _ => List.empty
 
   // Get all branch names
-  val allBranches: List[String] = List("Agriculture", "Management", "Wisdom", "Education")
+  val allBranches: List[String] = List("Agriculture", "Management", "Wisdom", "Education", "Logistics")
 
   // Get emoji for branch
   def branchEmoji(branchName: String): String = branchName match
@@ -158,6 +167,7 @@ object Skill:
     case "Management" => "📋"
     case "Wisdom" => "📿"
     case "Education" => "📚"
+    case "Logistics" => "🏛️"
     case _ => "❓"
 
 enum TileType derives ReadWriter:
@@ -1147,6 +1157,17 @@ object TileKingdomLogic:
   // Calculate turbo faith cost based on target tile level (level × 10)
   def bureauTurboFaithCostForLevel(level: Int): Int = level * 10
 
+  // Effective bureau wood cost per upgrade (reduced by 90% with Logistics1A skill)
+  def effectiveBureauWoodCost(game: TileKingdomGame): Int =
+    if game.hasSkill(Skill.Logistics1A) then (BureauWoodCostPerUpgrade * 0.1).toInt.max(1)
+    else BureauWoodCostPerUpgrade
+
+  // Effective bureau turbo faith cost (reduced by 90% with Logistics1B skill)
+  def effectiveBureauFaithCostForLevel(game: TileKingdomGame, level: Int): Int =
+    val base = bureauTurboFaithCostForLevel(level)
+    if game.hasSkill(Skill.Logistics1B) then (base * 0.1).toInt.max(1)
+    else base
+
   // Get bureau speed multiplier (0.0 = disabled, 1.0 = slow mode, 10.0 = turbo mode)
   def bureauSpeedMultiplier(game: TileKingdomGame, bureauCoord: Coord): Double =
     getBureauMode(game, bureauCoord) match
@@ -1166,6 +1187,7 @@ object TileKingdomLogic:
     game.tiles.get(bureauCoord) match
       case Some(bureauTile) if bureauTile.isBureau =>
         val isTurbo = isBureauTurbo(game, bureauCoord)
+        val woodCost = effectiveBureauWoodCost(game)
         
         // Find upgradeable tiles within radius with their costs
         val nearbyCoords = bureauCoord.neighborsWithinRadius(BureauRadius)
@@ -1175,10 +1197,10 @@ object TileKingdomLogic:
           .flatMap((coord, tile) => tile.upgradeCost.map(cost => (coord, tile, cost)))
 
         // Check if we have enough resources for turbo mode
-        // Faith cost is level × 10, so check against the cheapest upgradeable tile
-        val canAffordWood = game.wood >= BureauWoodCostPerUpgrade
+        // Faith cost is level × 10 (possibly reduced), so check against the cheapest upgradeable tile
+        val canAffordWood = game.wood >= woodCost
         val minLevelTile = upgradeableTiles.minByOption(_._2.level)
-        val minFaithCost = minLevelTile.map(t => bureauTurboFaithCostForLevel(t._2.level)).getOrElse(Int.MaxValue)
+        val minFaithCost = minLevelTile.map(t => effectiveBureauFaithCostForLevel(game, t._2.level)).getOrElse(Int.MaxValue)
         val canAffordFaith = game.faith >= minFaithCost
 
         // Auto-disable turbo mode if we can't afford wood or faith for the cheapest tile
@@ -1190,7 +1212,7 @@ object TileKingdomLogic:
         val effectiveIsTurbo = isBureauTurbo(gameWithTurboCheck, bureauCoord)
 
         // Must have wood for the bureau fee regardless of what we upgrade
-        if gameWithTurboCheck.wood < BureauWoodCostPerUpgrade then 
+        if gameWithTurboCheck.wood < woodCost then 
           // Return game with turbo disabled if it was disabled
           if gameWithTurboCheck ne game then return Some((gameWithTurboCheck, bureauCoord))
           else return None
@@ -1198,9 +1220,9 @@ object TileKingdomLogic:
         // Filter to only tiles we can afford (including bureau wood fee for wood-cost upgrades)
         // In turbo mode, also check if we can afford the faith cost for each tile's level
         val affordableTiles = upgradeableTiles.filter: (_, tile, cost) =>
-          val extraWoodNeeded = if cost.resource == Resource.Wood then BureauWoodCostPerUpgrade else 0
+          val extraWoodNeeded = if cost.resource == Resource.Wood then woodCost else 0
           val canAffordUpgrade = gameWithTurboCheck.canAfford(cost.amount + extraWoodNeeded, cost.resource)
-          val canAffordTurboFaith = !effectiveIsTurbo || gameWithTurboCheck.faith >= bureauTurboFaithCostForLevel(tile.level)
+          val canAffordTurboFaith = !effectiveIsTurbo || gameWithTurboCheck.faith >= effectiveBureauFaithCostForLevel(gameWithTurboCheck, tile.level)
           canAffordUpgrade && canAffordTurboFaith
 
         // Select the tile with the lowest upgrade cost (comparing numerically)
@@ -1211,10 +1233,10 @@ object TileKingdomLogic:
 
             // Deduct upgrade cost and bureau fee from the turbo-checked game
             val afterUpgradeCost = gameWithTurboCheck.deduct(cost)
-            val afterBureauFee = afterUpgradeCost.copy(wood = afterUpgradeCost.wood - BureauWoodCostPerUpgrade)
+            val afterBureauFee = afterUpgradeCost.copy(wood = afterUpgradeCost.wood - woodCost)
             
-            // Deduct faith cost if effectively in turbo mode (level × 10)
-            val turboFaithCost = bureauTurboFaithCostForLevel(targetTile.level)
+            // Deduct faith cost if effectively in turbo mode
+            val turboFaithCost = effectiveBureauFaithCostForLevel(gameWithTurboCheck, targetTile.level)
             val afterTurboCost =
               if effectiveIsTurbo then afterBureauFee.copy(faith = afterBureauFee.faith - turboFaithCost)
               else afterBureauFee

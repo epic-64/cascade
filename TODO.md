@@ -58,11 +58,9 @@
 - simplify unlock requirements for tile types. After field, farm and forest, everything else should be unlocked. The build costs are enough to guide the player.
 - allow switching between skills of the same tier for free
 - Allow refunding skills. It costs 1000 gold per skill point and refunds skill points. Skills can only be refunded if they are not a prerequisite for another purchased skill. Skill switching/refunding only allowed on a fresh abdication (no buildings placed).
+- add Logistics skill branch (dual-track): reduce bureau wood cost by 90% OR reduce bureau turbo faith cost by 90%
 
 ## Todos
-- add skill choice:
-  - reduce bureau wood cost by 90%
-  - or: reduce bureau faith cost (when turbo enabled) by 90%
 - add skill choice:
   - farm can affect quarry at half strength
   - or: reduce wheat field upgrade costs by 90%

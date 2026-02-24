@@ -848,7 +848,7 @@ object TileKingdomClient:
         .map(_.level)
         .minOption
         .getOrElse(1)
-      val minFaithCost = TileKingdomLogic.bureauTurboFaithCostForLevel(minLevel)
+      val minFaithCost = TileKingdomLogic.effectiveBureauFaithCostForLevel(currentGame, minLevel)
       val canAffordTurbo = currentGame.faith >= minFaithCost
       val effectivelyTurbo = isTurbo && canAffordTurbo
       val speedMultiplier = TileKingdomLogic.bureauSpeedMultiplier(currentGame, tile.coord)
@@ -933,11 +933,11 @@ object TileKingdomClient:
     // Show projectile and floating text for bureau upgrades
     bureauUpgrades.foreach: (upgradedCoord, newLevel, bureauCoord, cost, costResource, wasTurbo) =>
       // Show cost deduction immediately at bureau
-      showFloatingReward(bureauCoord, TileKingdomLogic.BureauWoodCostPerUpgrade, "🪵", isSpend = true, offsetIndex = 0)
+      showFloatingReward(bureauCoord, TileKingdomLogic.effectiveBureauWoodCost(currentGame), "🪵", isSpend = true, offsetIndex = 0)
       if wasTurbo then
         // Faith cost is based on target tile's level before upgrade (newLevel - 1)
         val previousLevel = newLevel - 1
-        val faithCost = TileKingdomLogic.bureauTurboFaithCostForLevel(previousLevel)
+        val faithCost = TileKingdomLogic.effectiveBureauFaithCostForLevel(currentGame, previousLevel)
         showFloatingReward(bureauCoord, faithCost, "✨", isSpend = true, offsetIndex = 1)
 
       // Fire projectile, then show upgrade effects when it arrives
@@ -1501,7 +1501,7 @@ object TileKingdomClient:
           .map(_.level)
           .minOption
           .getOrElse(1)
-        val minFaithCost = TileKingdomLogic.bureauTurboFaithCostForLevel(minLevel)
+        val minFaithCost = TileKingdomLogic.effectiveBureauFaithCostForLevel(currentGame, minLevel)
         val canAffordTurbo = currentGame.faith >= minFaithCost
 
         if isTurbo then tileDiv.classList.add("turbo")
@@ -1521,9 +1521,10 @@ object TileKingdomClient:
           content.appendChild(div(cls = "tile-production", content = s"Auto⬆"))
         
         // Show upgrade cost as badge
+        val effectiveWoodCost = TileKingdomLogic.effectiveBureauWoodCost(currentGame)
         val costText = bureauMode match
-          case BureauMode.Turbo => s"${TileKingdomLogic.BureauWoodCostPerUpgrade}🪵 Lv×10✨"
-          case BureauMode.Slow => s"${TileKingdomLogic.BureauWoodCostPerUpgrade}🪵"
+          case BureauMode.Turbo => s"${effectiveWoodCost}🪵 Lv×10✨"
+          case BureauMode.Slow => s"${effectiveWoodCost}🪵"
           case BureauMode.Disabled => "—"
         content.appendChild(div(cls = "tile-badge badge-cost", content = costText))
 
