@@ -223,41 +223,17 @@
   z-index: 10;
 }
 
+/* Wheat Field Tiles - bright golden color */
 .tile-kingdom-tile.wheat-field {
-  background: #fefce8;
-  border: 2px solid #ca8a04;
+  background: #eab308;
+  border: 2px solid #422006;
 }
 
 .tile-kingdom-tile.wheat-field:hover {
-  background: #fef9c3;
+  background: #facc15;
   transform: scale(1.08);
   box-shadow: var(--shadow-lg);
   z-index: 10;
-}
-
-.tile-kingdom-tile.wheat-field[data-level="2"] {
-  background: #fef08a;
-  border-color: #a16207;
-}
-
-.tile-kingdom-tile.wheat-field[data-level="3"] {
-  background: #fde047;
-  border-color: #854d0e;
-}
-
-.tile-kingdom-tile.wheat-field[data-level="4"] {
-  background: #facc15;
-  border-color: #713f12;
-}
-
-.tile-kingdom-tile.wheat-field[data-level="5"],
-.tile-kingdom-tile.wheat-field[data-level="6"],
-.tile-kingdom-tile.wheat-field[data-level="7"],
-.tile-kingdom-tile.wheat-field[data-level="8"],
-.tile-kingdom-tile.wheat-field[data-level="9"],
-.tile-kingdom-tile.wheat-field[data-level="10"] {
-  background: #eab308;
-  border-color: #422006;
 }
 
 /* Text colors for wheat fields - ensure contrast */
@@ -272,95 +248,43 @@
 }
 
 
-/* Farm Tiles */
+/* Farm Tiles - bright blue color */
 .tile-kingdom-tile.farm {
-  background: #eff6ff;
-  border: 2px solid #3b82f6;
+  background: #60a5fa;
+  border: 2px solid #1e40af;
 }
 
 .tile-kingdom-tile.farm:hover {
-  background: #dbeafe;
+  background: #93c5fd;
   transform: scale(1.08);
   box-shadow: var(--shadow-lg);
   z-index: 10;
-}
-
-.tile-kingdom-tile.farm[data-level="2"] {
-  background: #bfdbfe;
-  border-color: #2563eb;
-}
-
-.tile-kingdom-tile.farm[data-level="3"] {
-  background: #93c5fd;
-  border-color: #1d4ed8;
-}
-
-.tile-kingdom-tile.farm[data-level="4"],
-.tile-kingdom-tile.farm[data-level="5"],
-.tile-kingdom-tile.farm[data-level="6"] {
-  background: #60a5fa;
-  border-color: #1e40af;
 }
 
 /* Text colors for farm tiles */
 .tile-kingdom-tile.farm .tile-label,
 .tile-kingdom-tile.farm .tile-cost,
 .tile-kingdom-tile.farm .tile-upgrade {
-  color: #1e3a5f;
-}
-
-.tile-kingdom-tile.farm .tile-production {
-  color: #1d4ed8;
-}
-
-/* Higher level farms need lighter text */
-.tile-kingdom-tile.farm[data-level="4"] .tile-label,
-.tile-kingdom-tile.farm[data-level="4"] .tile-cost,
-.tile-kingdom-tile.farm[data-level="4"] .tile-upgrade,
-.tile-kingdom-tile.farm[data-level="5"] .tile-label,
-.tile-kingdom-tile.farm[data-level="5"] .tile-cost,
-.tile-kingdom-tile.farm[data-level="5"] .tile-upgrade,
-.tile-kingdom-tile.farm[data-level="6"] .tile-label,
-.tile-kingdom-tile.farm[data-level="6"] .tile-cost,
-.tile-kingdom-tile.farm[data-level="6"] .tile-upgrade {
   color: #1e3a8a;
 }
 
-.tile-kingdom-tile.farm[data-level="4"] .tile-production,
-.tile-kingdom-tile.farm[data-level="5"] .tile-production,
-.tile-kingdom-tile.farm[data-level="6"] .tile-production {
+.tile-kingdom-tile.farm .tile-production {
   color: #1e40af;
 }
 
-/* Woodcutter Tiles */
+/* Woodcutter Tiles - bright green color */
 .tile-kingdom-tile.woodcutter {
-  background: #f0fdf4;
-  border: 2px solid #16a34a;
+  background: #4ade80;
+  border: 2px solid #14532d;
 }
 
 .tile-kingdom-tile.woodcutter:hover {
-  background: #dcfce7;
+  background: #86efac;
   transform: scale(1.08);
   box-shadow: var(--shadow-lg);
   z-index: 10;
 }
 
-.tile-kingdom-tile.woodcutter[data-level="2"] {
-  background: #bbf7d0;
-  border-color: #15803d;
-}
-
-.tile-kingdom-tile.woodcutter[data-level="3"] {
-  background: #86efac;
-  border-color: #166534;
-}
-
-.tile-kingdom-tile.woodcutter[data-level="4"],
-.tile-kingdom-tile.woodcutter[data-level="5"],
-.tile-kingdom-tile.woodcutter[data-level="6"] {
-  background: #4ade80;
-  border-color: #14532d;
-}
 
 /* Text colors for woodcutter tiles */
 .tile-kingdom-tile.woodcutter .tile-label,
@@ -508,38 +432,17 @@
 }
 
 
-/* Temple Tiles */
+/* Temple Tiles - bright amber/gold color */
 .tile-kingdom-tile.temple {
-  background: #fefce8;
-  border: 2px solid #eab308;
+  background: #facc15;
+  border: 2px solid #854d0e;
 }
 
 .tile-kingdom-tile.temple:hover {
-  background: #fef9c3;
+  background: #fde047;
   transform: scale(1.08);
   box-shadow: var(--shadow-lg);
   z-index: 10;
-}
-
-.tile-kingdom-tile.temple[data-level="2"] {
-  background: #fef08a;
-  border-color: #ca8a04;
-}
-
-.tile-kingdom-tile.temple[data-level="3"],
-.tile-kingdom-tile.temple[data-level="4"],
-.tile-kingdom-tile.temple[data-level="5"] {
-  background: #fde047;
-  border-color: #a16207;
-}
-
-.tile-kingdom-tile.temple[data-level="6"],
-.tile-kingdom-tile.temple[data-level="7"],
-.tile-kingdom-tile.temple[data-level="8"],
-.tile-kingdom-tile.temple[data-level="9"],
-.tile-kingdom-tile.temple[data-level="10"] {
-  background: #facc15;
-  border-color: #854d0e;
 }
 
 /* Text colors for temple tiles */
@@ -558,49 +461,28 @@
   background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
 }
 
-/* Quarry Tiles */
+/* Quarry Tiles - bright stone gray color */
 .tile-kingdom-tile.quarry {
-  background: #f5f5f4;
-  border: 2px solid #a8a29e;
+  background: #a8a29e;
+  border: 2px solid #57534e;
 }
 
 .tile-kingdom-tile.quarry:hover {
-  background: #e7e5e4;
+  background: #d6d3d1;
   transform: scale(1.08);
   box-shadow: var(--shadow-lg);
   z-index: 10;
-}
-
-.tile-kingdom-tile.quarry[data-level="2"] {
-  background: #e7e5e4;
-  border-color: #78716c;
-}
-
-.tile-kingdom-tile.quarry[data-level="3"],
-.tile-kingdom-tile.quarry[data-level="4"],
-.tile-kingdom-tile.quarry[data-level="5"] {
-  background: #d6d3d1;
-  border-color: #78716c;
-}
-
-.tile-kingdom-tile.quarry[data-level="6"],
-.tile-kingdom-tile.quarry[data-level="7"],
-.tile-kingdom-tile.quarry[data-level="8"],
-.tile-kingdom-tile.quarry[data-level="9"],
-.tile-kingdom-tile.quarry[data-level="10"] {
-  background: #c7c4c1;
-  border-color: #57534e;
 }
 
 /* Text colors for quarry tiles */
 .tile-kingdom-tile.quarry .tile-label,
 .tile-kingdom-tile.quarry .tile-cost,
 .tile-kingdom-tile.quarry .tile-upgrade {
-  color: #44403c;
+  color: #1c1917;
 }
 
 .tile-kingdom-tile.quarry .tile-production.quarry-production {
-  color: #57534e;
+  color: #44403c;
 }
 
 /* Quarry progress bar */
@@ -919,6 +801,26 @@
   font-weight: 700;
   font-size: var(--font-md);
   color: #1e293b;
+}
+
+/* Tier Label - shows T1, T2, etc with level squares */
+.tile-tier-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  line-height: 1;
+}
+
+.tile-tier-label .tier-text {
+  font-weight: 700;
+  font-size: var(--font-md);
+}
+
+.tile-tier-label .tier-squares {
+  font-size: 6px;
+  letter-spacing: 1px;
+  opacity: 0.8;
 }
 
 .tile-cost,

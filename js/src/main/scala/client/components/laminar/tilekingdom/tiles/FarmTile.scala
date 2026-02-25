@@ -2,7 +2,6 @@ package client.components.laminar.tilekingdom.tiles
 
 import com.raquo.laminar.api.L.*
 import shared.TileKingdom.*
-import client.components.laminar.tilekingdom.{TileGridState, TileUtils}
 import TileComponents.*
 
 /** Farm tile component.
@@ -23,7 +22,7 @@ object FarmTile:
       div(
         cls := "tile-content",
         div(cls := "tile-icon", "🏠"),
-        div(cls := "tile-label", s"Lv$level"),
+        tierLabel(level),
         div(cls := "tile-production", s"+$boostPercent%"),
         upgradeRow(upgradeCost, "🌾", level, actions.onBulkLevelUp)
       ),
