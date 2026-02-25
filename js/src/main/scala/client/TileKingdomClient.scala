@@ -903,6 +903,7 @@ object TileKingdomClient:
     markDirty()
     updateProgressBars()
     renderResources()
+    renderAbdicationButton()
     updatePoliticianTimer()
 
     // Update build option cost colors when resources change
