@@ -6,7 +6,7 @@ import scala.util.Try
 import scala.util.chaining.*
 import shared.TileKingdom.*
 import shared.TileKingdom.AcademyMode.FasterPoliticians
-import client.components.laminar.{TileKingdomState, ResourcePanel, AbdicationButton, SailButton, SkillsButton, PoliticianTimer, NotificationSystem, PoliticianRoster, SkillTree}
+import client.components.laminar.{TileKingdomState, ResourcePanel, AbdicationButton, SailButton, SkillsButton, PoliticianTimer, NotificationSystem, PoliticianRoster, SkillTree, HelpPopup, DevToolsPopup, WelcomeBackModal}
 import com.raquo.laminar.api.L.render as laminarRender
 
 def initializeTileKingdom(): Unit =
@@ -228,6 +228,69 @@ object TileKingdomClient:
         onClose = () => toggleSkillTree()
       )
       laminarRender(container, SkillTree(actions))
+    getElementById("laminar-help-popup").foreach: container =>
+      laminarRender(container, HelpPopup(() => toggleHelpPopup()))
+    getElementById("laminar-dev-tools-popup").foreach: container =>
+      laminarRender(container, DevToolsPopup(() => toggleDevTools(), devToolsActions))
+    getElementById("laminar-welcome-modal").foreach: container =>
+      laminarRender(container, WelcomeBackModal())
+
+  /** Dev tools actions for the dev popup */
+  private def devToolsActions: Seq[DevToolsPopup.DevAction] = Seq(
+    DevToolsPopup.DevAction("💰 Gold x10", () => devAction { currentGame = currentGame.copy(gold = math.max(currentGame.gold * 10, 100)) }),
+    DevToolsPopup.DevAction("🌾 Wheat +1000", () => devAction { currentGame = currentGame.copy(wheat = currentGame.wheat + 1000) }),
+    DevToolsPopup.DevAction("🪵 Wood +1000", () => devAction { currentGame = currentGame.copy(wood = currentGame.wood + 1000) }),
+    DevToolsPopup.DevAction("🪨 Stone +1000", () => devAction { currentGame = currentGame.copy(stone = currentGame.stone + 1000) }),
+    DevToolsPopup.DevAction("✨ Faith +1000", () => devAction { currentGame = currentGame.copy(faith = currentGame.faith + 1000) }),
+    DevToolsPopup.DevAction("🌟 +1 Skill Point", () => devAction { currentGame = currentGame.copy(skillPoints = currentGame.skillPoints + 1, hasSailed = true) }),
+    DevToolsPopup.DevAction("🗺️ +100 Tiles", () => devAction { currentGame = TileKingdomLogic.unlockManyTiles(currentGame, 100) }),
+    DevToolsPopup.DevAction("👤 +Politician", () => devAction {
+      val p = TileKingdomLogic.generatePolitician(System.currentTimeMillis(), 0.0)
+      currentGame = currentGame.copy(politicianRoster = currentGame.politicianRoster :+ p)
+    }),
+    DevToolsPopup.DevAction("⭐ +Rare Politician", () => devAction {
+      val p = TileKingdomLogic.generatePolitician(System.currentTimeMillis(), 1.0)
+      currentGame = currentGame.copy(politicianRoster = currentGame.politicianRoster :+ p)
+    }),
+    DevToolsPopup.DevAction("🌟 +5 Skill Points", () => devAction { currentGame = currentGame.copy(skillPoints = currentGame.skillPoints + 5, hasSailed = true) }),
+    DevToolsPopup.DevAction("🪓 Fill Forests", () => devAction {
+      val filled = currentGame.unlockedTiles.filter(_.isEmpty).map(_.coord)
+      val newTiles = filled.foldLeft(currentGame.tiles): (tiles, coord) =>
+        tiles.updated(coord, tiles(coord).copy(tileType = TileType.Woodcutter(1)))
+      currentGame = currentGame.copy(tiles = newTiles)
+    }),
+    DevToolsPopup.DevAction("🧱 +50 Random Block", () => devAction {
+      val rng = new scala.util.Random(System.currentTimeMillis())
+      val existingCoords = currentGame.tiles.keySet
+      val maxRow = if existingCoords.isEmpty then 0 else existingCoords.map(_.row).max
+      val minCol = if existingCoords.isEmpty then 0 else existingCoords.map(_.col).min
+      val startRow = maxRow + 1
+      val startCol = minCol
+      def randomTileType(): TileType = rng.nextInt(8) match
+        case 0 => TileType.WheatField(1)
+        case 1 => TileType.Farm(1)
+        case 2 => TileType.Woodcutter(1)
+        case 3 => TileType.Bureau(1)
+        case 4 => TileType.Temple(1)
+        case 5 => TileType.Quarry(1)
+        case 6 => TileType.Academy(FasterPoliticians)
+        case _ => TileType.TownHall(None)
+      val blockTiles = for
+        r <- 0 until 10
+        c <- 0 until 5
+      yield
+        val coord = Coord(startRow + r, startCol + c)
+        coord -> Tile(coord = coord, tileType = randomTileType(), unlocked = true)
+      currentGame = currentGame.copy(tiles = currentGame.tiles ++ blockTiles.toMap)
+    })
+  )
+
+  /** Helper for dev actions - updates state, saves, and re-renders */
+  private def devAction(transform: => Unit): Unit =
+    transform
+    TileKingdomState.update(currentGame)
+    saveGame()
+    renderTiles()
 
   private def buildHeader(): HTMLElement =
     div(cls = "tile-kingdom-header")(
@@ -278,123 +341,13 @@ object TileKingdomClient:
     div(id = "laminar-notification")
 
   private def buildWelcomeBackModal(): HTMLElement =
-    div(id = "tile-kingdom-welcome-modal", cls = "welcome-modal")(
-      div(cls = "welcome-modal-content")(
-        div(cls = "welcome-modal-header")(
-          h3(content = "👑 Welcome Back!")
-        ),
-        div(id = "welcome-modal-body", cls = "welcome-modal-body"),
-        button(id = "welcome-modal-close", cls = "btn-primary welcome-modal-close", content = "Continue").tap: btn =>
-          btn.onclick = (_: MouseEvent) => hideWelcomeBackModal()
-      )
-    )
+    div(id = "laminar-welcome-modal")
 
   private def buildHelpPopup(): HTMLElement =
-    div(id = "tile-kingdom-help-popup", cls = "help-popup")(
-      div(cls = "help-popup-content")(
-        div(cls = "help-popup-header")(
-          h3(content = "How to Play"),
-          button(cls = "help-close-btn", content = "✕").tap: btn =>
-            btn.onclick = (_: MouseEvent) => toggleHelpPopup()
-        ),
-        div(cls = "help-popup-body")(
-          p(content = "🌾 Click empty tiles to build wheat fields"),
-          p(content = "⬆️ Click buildings to level them up"),
-          p(content = "🏠 After your first wheat field, you can build farms"),
-          p(content = "📈 Farms boost nearby wheat fields by 25% per level"),
-          p(content = "👑 Fill all unlocked tiles to abdicate"),
-          p(content = "💰 Abdication earns gold based on income rate"),
-          p(content = "🔓 Click adjacent tiles to expand your territory"),
-          p(content = "⛵ At 25 tiles, you can Sail for legacy points"),
-          p(content = "🏅 25 legacy points = 1 skill point"),
-          p(content = "🖱️ Drag to pan, scroll to zoom"),
-          p(content = "🗑️ Right-click a building to destroy it")
-        )
-      )
-    )
-
-  private def devAction(label: String, transform: => Unit, message: => String): HTMLElement =
-    button(cls = "btn-dev-action", content = label).tap: btn =>
-      btn.onclick = (_: MouseEvent) =>
-        transform
-        saveGame()
-        renderGame()
-        showNotification(message)
+    div(id = "laminar-help-popup")
 
   private def buildDevToolsPopup(): HTMLElement =
-    div(id = "tile-kingdom-dev-popup", cls = "help-popup")(
-      div(cls = "help-popup-content dev-tools-content")(
-        div(cls = "help-popup-header")(
-          h3(content = "🛠️ Dev Tools"),
-          button(cls = "help-close-btn", content = "✕").tap: btn =>
-            btn.onclick = (_: MouseEvent) => toggleDevTools()
-        ),
-        div(cls = "help-popup-body")(
-          devAction("💰 Gold x10",
-            { currentGame = currentGame.copy(gold = math.max(currentGame.gold * 10, 100)) },
-            s"Gold is now ${currentGame.gold}"),
-          devAction("🌾 Wheat +1000",
-            { currentGame = currentGame.copy(wheat = currentGame.wheat + 1000) },
-            "Added 1000 wheat"),
-          devAction("🪵 Wood +1000",
-            { currentGame = currentGame.copy(wood = currentGame.wood + 1000) },
-            "Added 1000 wood"),
-          devAction("🪨 Stone +1000",
-            { currentGame = currentGame.copy(stone = currentGame.stone + 1000) },
-            "Added 1000 stone"),
-          devAction("✨ Faith +1000",
-            { currentGame = currentGame.copy(faith = currentGame.faith + 1000) },
-            "Added 1000 faith"),
-          devAction("🌟 +1 Skill Point",
-            { currentGame = currentGame.copy(skillPoints = currentGame.skillPoints + 1, hasSailed = true) },
-            s"Added 1 skill point (${currentGame.skillPoints} total)"),
-          devAction("🗺️ +100 Tiles",
-            { currentGame = TileKingdomLogic.unlockManyTiles(currentGame, 100) },
-            "Added 100 tiles"),
-          devAction("👤 +Politician", {
-            val p = TileKingdomLogic.generatePolitician(System.currentTimeMillis(), 0.0)
-            currentGame = currentGame.copy(politicianRoster = currentGame.politicianRoster :+ p)
-          }, "Added politician"),
-          devAction("⭐ +Rare Politician", {
-            val p = TileKingdomLogic.generatePolitician(System.currentTimeMillis(), 1.0)
-            currentGame = currentGame.copy(politicianRoster = currentGame.politicianRoster :+ p)
-          }, "Added rare politician"),
-          devAction("🌟 +5 Skill Points",
-            { currentGame = currentGame.copy(skillPoints = currentGame.skillPoints + 5, hasSailed = true) },
-            s"Added 5 skill points (${currentGame.skillPoints} total)"),
-          devAction("🪓 Fill Forests", {
-            val filled = currentGame.unlockedTiles.filter(_.isEmpty).map(_.coord)
-            val newTiles = filled.foldLeft(currentGame.tiles): (tiles, coord) =>
-              tiles.updated(coord, tiles(coord).copy(tileType = TileType.Woodcutter(1)))
-            currentGame = currentGame.copy(tiles = newTiles)
-          }, s"Filled ${currentGame.unlockedTiles.count(_.isEmpty)} tiles with forests"),
-          devAction("🧱 +50 Random Block", {
-            val rng = new scala.util.Random(System.currentTimeMillis())
-            val existingCoords = currentGame.tiles.keySet
-            val maxRow = if existingCoords.isEmpty then 0 else existingCoords.map(_.row).max
-            val minCol = if existingCoords.isEmpty then 0 else existingCoords.map(_.col).min
-            val startRow = maxRow + 1
-            val startCol = minCol
-            def randomTileType(): TileType = rng.nextInt(8) match
-              case 0 => TileType.WheatField(1)
-              case 1 => TileType.Farm(1)
-              case 2 => TileType.Woodcutter(1)
-              case 3 => TileType.Bureau(1)
-              case 4 => TileType.Temple(1)
-              case 5 => TileType.Quarry(1)
-              case 6 => TileType.Academy(FasterPoliticians)
-              case _ => TileType.TownHall(None)
-            val blockTiles = for
-              r <- 0 until 10
-              c <- 0 until 5
-            yield
-              val coord = Coord(startRow + r, startCol + c)
-              coord -> Tile(coord = coord, tileType = randomTileType(), unlocked = true)
-            currentGame = currentGame.copy(tiles = currentGame.tiles ++ blockTiles.toMap)
-          }, "Added 50 random tiles in a 5x10 block")
-        )
-      )
-    )
+    div(id = "laminar-dev-tools-popup")
 
   private def toggleDevTools(): Unit =
     getElementById("tile-kingdom-dev-popup").foreach: popup =>
@@ -1887,42 +1840,7 @@ object TileKingdomClient:
     NotificationSystem.show(message)
 
   private def showWelcomeBackModal(wheatGain: Int, woodGain: Int, faithGain: Int, offlineSeconds: Double): Unit =
-    getElementById("welcome-modal-body").foreach: body =>
-      body.innerHTML = ""
-      val timeAway = if offlineSeconds >= 3600 then
-        f"${offlineSeconds / 3600}%.1f hours"
-      else if offlineSeconds >= 60 then
-        f"${offlineSeconds / 60}%.0f minutes"
-      else
-        f"${offlineSeconds}%.0f seconds"
-      
-      body.appendChild(p(cls = "welcome-time", content = s"You were away for $timeAway"))
-      body.appendChild(div(cls = "welcome-subtitle", content = "Your kingdom produced:"))
-      
-      val gainsContainer = div(cls = "welcome-gains")
-      if wheatGain > 0 then
-        gainsContainer.appendChild(div(cls = "welcome-gain-item")(
-          span(cls = "welcome-gain-icon", content = "🌾"),
-          span(cls = "welcome-gain-value", content = f"+$wheatGain%,d")
-        ))
-      if woodGain > 0 then
-        gainsContainer.appendChild(div(cls = "welcome-gain-item")(
-          span(cls = "welcome-gain-icon", content = "🪵"),
-          span(cls = "welcome-gain-value", content = f"+$woodGain%,d")
-        ))
-      if faithGain > 0 then
-        gainsContainer.appendChild(div(cls = "welcome-gain-item")(
-          span(cls = "welcome-gain-icon", content = "✨"),
-          span(cls = "welcome-gain-value", content = f"+$faithGain%,d")
-        ))
-      body.appendChild(gainsContainer)
-    
-    getElementById("tile-kingdom-welcome-modal").foreach: modal =>
-      modal.classList.add("show")
-
-  private def hideWelcomeBackModal(): Unit =
-    getElementById("tile-kingdom-welcome-modal").foreach: modal =>
-      modal.classList.remove("show")
+    WelcomeBackModal.show(wheatGain, woodGain, faithGain, offlineSeconds)
 
   private def updateProgressBars(): Unit =
     tileProgress.foreach: (coord, progress) =>
