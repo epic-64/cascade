@@ -331,7 +331,8 @@ case class TileKingdomGame(
     skillPoints: Int = 0, // Skill points (1 per 25 legacy points)
     unlockedSkills: Set[Skill] = Set.empty, // Skills unlocked via skill tree
     hasSailed: Boolean = false, // Whether player has sailed at least once (unlocks skill tree)
-    hasPlacedBuilding: Boolean = false // Whether any building has been placed since last abdication/sail
+    hasPlacedBuilding: Boolean = false, // Whether any building has been placed since last abdication/sail
+    tilePoints: Int = 0 // Tile points earned by destroying tiles, used for free tile unlocks
 ) derives ReadWriter:
 
   // Resource helpers
@@ -1288,6 +1289,21 @@ object TileKingdomLogic:
           tiles = game.tiles.updated(coord, updatedTile)
         ))
 
+  // Destroy a tile entirely (removes it from the map), awarding a tile point
+  def destroyTile(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
+    game.tiles.get(coord) match
+      case None => Left("Tile not found")
+      case Some(tile) if !tile.unlocked => Left("Tile is locked")
+      case Some(_) =>
+        // Must have at least 2 unlocked tiles to destroy one (can't destroy last tile)
+        if game.unlockedTiles.size <= 1 then
+          Left("Cannot destroy your last tile")
+        else
+          Right(game.copy(
+            tiles = game.tiles.removed(coord),
+            tilePoints = game.tilePoints + 1
+          ))
+
   // Abdicate: reset tiles, gain gold based on income rate
   def abdicate(game: TileKingdomGame, currentTimeMillis: Long): Either[String, TileKingdomGame] =
     if !game.allTilesFilled then
@@ -1355,22 +1371,29 @@ object TileKingdomLogic:
     val allAdjacentToUnlocked = unlockedCoords.flatMap(_.neighbors)
     allAdjacentToUnlocked.filterNot(game.tiles.contains)
 
-  // Unlock a specific tile with gold (must be adjacent to an unlocked tile)
+  // Unlock a specific tile (uses tile point if available, otherwise gold)
   def unlockTile(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     if game.tiles.contains(coord) then
       Left("Tile already exists")
     else if !unlockableCoords(game).contains(coord) then
       Left("Can only unlock tiles adjacent to your territory")
     else
-      val cost = tileUnlockCost(game.unlockedTiles.size)
-      if game.gold < cost then
-        Left(s"Not enough gold (need $cost)")
-      else
-        val newTile = Tile(coord = coord, tileType = TileType.Empty, unlocked = true)
+      val newTile = Tile(coord = coord, tileType = TileType.Empty, unlocked = true)
+      // Use tile point if available, otherwise use gold
+      if game.tilePoints > 0 then
         Right(game.copy(
           tiles = game.tiles.updated(coord, newTile),
-          gold = game.gold - cost
+          tilePoints = game.tilePoints - 1
         ))
+      else
+        val cost = tileUnlockCost(game.unlockedTiles.size)
+        if game.gold < cost then
+          Left(s"Not enough gold (need $cost)")
+        else
+          Right(game.copy(
+            tiles = game.tiles.updated(coord, newTile),
+            gold = game.gold - cost
+          ))
 
   // Simple Perlin-like noise for continent generation
   private def noise2D(x: Double, y: Double, seed: Long): Double =

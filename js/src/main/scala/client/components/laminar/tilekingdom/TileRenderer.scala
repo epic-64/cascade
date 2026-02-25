@@ -25,8 +25,9 @@ object TileRenderer:
     // Upgrade/level actions
     onLevelUp: Coord => Unit,
     onBulkLevelUp: (Coord, Int) => Unit,
-    // Destroy action
+    // Destroy actions
     onDestroy: Coord => Unit,
+    onDestroyTile: Coord => Unit, // Destroys the tile entirely (right-click)
     // Bureau mode
     onSetBureauMode: (Coord, BureauMode) => Unit,
     // Academy mode
@@ -56,7 +57,8 @@ object TileRenderer:
             onBuildAcademy = () => actions.onBuildAcademy(coord),
             onBuildTavern = () => actions.onBuildTavern(coord),
             onCancel = () => TileGridState.clearSelection()
-          )
+          ),
+          onDestroyTile = () => actions.onDestroyTile(coord)
         )
 
       case TileType.WheatField(_) =>
@@ -66,7 +68,7 @@ object TileRenderer:
           TileComponents.UpgradeActions(
             onLevelUp = () => actions.onLevelUp(coord),
             onBulkLevelUp = count => actions.onBulkLevelUp(coord, count),
-            onDestroy = () => actions.onDestroy(coord)
+            onDestroyTile = () => actions.onDestroyTile(coord)
           )
         )
 
@@ -77,7 +79,7 @@ object TileRenderer:
           TileComponents.UpgradeActions(
             onLevelUp = () => actions.onLevelUp(coord),
             onBulkLevelUp = count => actions.onBulkLevelUp(coord, count),
-            onDestroy = () => actions.onDestroy(coord)
+            onDestroyTile = () => actions.onDestroyTile(coord)
           )
         )
 
@@ -88,7 +90,7 @@ object TileRenderer:
           TileComponents.UpgradeActions(
             onLevelUp = () => actions.onLevelUp(coord),
             onBulkLevelUp = count => actions.onBulkLevelUp(coord, count),
-            onDestroy = () => actions.onDestroy(coord)
+            onDestroyTile = () => actions.onDestroyTile(coord)
           )
         )
 
@@ -99,7 +101,7 @@ object TileRenderer:
           TileComponents.UpgradeActions(
             onLevelUp = () => actions.onLevelUp(coord),
             onBulkLevelUp = count => actions.onBulkLevelUp(coord, count),
-            onDestroy = () => actions.onDestroy(coord)
+            onDestroyTile = () => actions.onDestroyTile(coord)
           )
         )
 
@@ -110,7 +112,7 @@ object TileRenderer:
           TileComponents.UpgradeActions(
             onLevelUp = () => actions.onLevelUp(coord),
             onBulkLevelUp = count => actions.onBulkLevelUp(coord, count),
-            onDestroy = () => actions.onDestroy(coord)
+            onDestroyTile = () => actions.onDestroyTile(coord)
           )
         )
 
@@ -120,7 +122,7 @@ object TileRenderer:
           level,
           BureauTile.Actions(
             onSetMode = mode => actions.onSetBureauMode(coord, mode),
-            onDestroy = () => actions.onDestroy(coord)
+            onDestroyTile = () => actions.onDestroyTile(coord)
           )
         )
 
@@ -132,7 +134,7 @@ object TileRenderer:
             onAssignPolitician = id => actions.onAssignPolitician(coord, id),
             onRemovePolitician = () => actions.onRemovePolitician(coord),
             onSwapPoliticians = fromCoord => actions.onSwapPoliticians(fromCoord, coord),
-            onDestroy = () => actions.onDestroy(coord)
+            onDestroyTile = () => actions.onDestroyTile(coord)
           )
         )
 
@@ -142,7 +144,7 @@ object TileRenderer:
           mode,
           AcademyTile.Actions(
             onToggleMode = () => actions.onToggleAcademyMode(coord),
-            onDestroy = () => actions.onDestroy(coord)
+            onDestroyTile = () => actions.onDestroyTile(coord)
           )
         )
 
@@ -150,7 +152,7 @@ object TileRenderer:
         TavernTile(
           coord,
           TileComponents.BasicActions(
-            onDestroy = () => actions.onDestroy(coord)
+            onDestroyTile = () => actions.onDestroyTile(coord)
           )
         )
 

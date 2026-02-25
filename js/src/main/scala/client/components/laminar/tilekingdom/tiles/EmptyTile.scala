@@ -8,12 +8,14 @@ import TileComponents.*
 /** Empty tile component.
   *
   * Shows a build hammer icon. When clicked, shows the build menu.
+  * Right-click destroys the tile entirely.
   */
 object EmptyTile:
 
   def apply(
     coord: Coord,
-    buildActions: BuildMenu.Actions
+    buildActions: BuildMenu.Actions,
+    onDestroyTile: () => Unit
   ): HtmlElement =
     val isSelectingSignal = TileGridState.selectingTileCoord.signal.map(_.contains(coord))
     val selectingCls = isSelectingSignal.map(sel => if sel then "selecting" else "")
@@ -35,5 +37,8 @@ object EmptyTile:
       div(
         display <-- isSelectingSignal.map(sel => if sel then "block" else "none"),
         BuildMenu(buildActions)
-      )
+      ),
+
+      // Right-click to destroy tile
+      destroyTileHandler(onDestroyTile)
     )

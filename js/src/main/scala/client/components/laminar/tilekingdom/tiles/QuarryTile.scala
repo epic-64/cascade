@@ -50,5 +50,5 @@ object QuarryTile:
       ),
       ProgressBar(progressSignal(coord), "quarry-progress"),
       clickToLevelUp(actions),
-      destroyHandler(actions)
+      destroyTileHandler(actions)
     )

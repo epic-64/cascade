@@ -90,6 +90,14 @@ object ResourcePanel:
       // Skill points
       resourceItem("⭐", skillPointsSignal.map(_.toString), extraClass = "prestige"),
 
+      // Tile points (only show if > 0)
+      div(
+        cls := "resource-item prestige",
+        display <-- tilePointsSignal.map(tp => if tp > 0 then "flex" else "none"),
+        span(cls := "resource-label", "🎫"),
+        span(cls := "resource-value", child.text <-- tilePointsSignal.map(_.toString))
+      ),
+
       // Total income rate
       div(
         cls := "resource-item income",

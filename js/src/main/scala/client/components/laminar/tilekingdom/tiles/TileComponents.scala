@@ -15,12 +15,12 @@ object TileComponents:
   case class UpgradeActions(
     onLevelUp: () => Unit,
     onBulkLevelUp: Int => Unit,
-    onDestroy: () => Unit
+    onDestroyTile: () => Unit
   )
 
   /** Common actions for non-upgradeable tiles */
   case class BasicActions(
-    onDestroy: () => Unit
+    onDestroyTile: () => Unit
   )
 
   /** Base tile wrapper with common structure */
@@ -47,15 +47,15 @@ object TileComponents:
     }
 
   /** Standard right-click destroy handler */
-  def destroyHandler(onDestroy: () => Unit): Modifier[HtmlElement] =
+  def destroyTileHandler(onDestroyTile: () => Unit): Modifier[HtmlElement] =
     onContextMenu --> { e =>
       e.preventDefault()
-      onDestroy()
+      onDestroyTile()
     }
 
   /** Destroy handler from UpgradeActions */
-  def destroyHandler(actions: UpgradeActions): Modifier[HtmlElement] =
-    destroyHandler(actions.onDestroy)
+  def destroyTileHandler(actions: UpgradeActions): Modifier[HtmlElement] =
+    destroyTileHandler(actions.onDestroyTile)
 
   /** Upgrade row with x10 button */
   def upgradeRow(

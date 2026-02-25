@@ -99,9 +99,12 @@ object TileKingdomState:
   /** Signal for next tile unlock cost */
   val nextTileUnlockCostSignal: Signal[Int] = gameSignal.map(_.nextTileUnlockCost)
 
-  /** Check if player can afford to unlock a tile */
+  /** Signal for tile points */
+  val tilePointsSignal: Signal[Int] = gameSignal.map(_.tilePoints)
+
+  /** Check if player can afford to unlock a tile (has tile points OR enough gold) */
   val canAffordUnlockSignal: Signal[Boolean] = gameSignal.map: game =>
-    game.gold >= game.nextTileUnlockCost
+    game.tilePoints > 0 || game.gold >= game.nextTileUnlockCost
 
   /** Signal for unlocked tile list */
   val unlockedTilesSignal: Signal[List[Tile]] = gameSignal.map(_.unlockedTiles)

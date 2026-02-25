@@ -27,5 +27,5 @@ object FarmTile:
         upgradeRow(upgradeCost, "🌾", level, actions.onBulkLevelUp)
       ),
       clickToLevelUp(actions),
-      destroyHandler(actions)
+      destroyTileHandler(actions)
     )

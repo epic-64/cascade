@@ -142,6 +142,7 @@ object TileKingdomClient:
     onLevelUp = handleLevelUp,
     onBulkLevelUp = handleBulkLevelUp,
     onDestroy = handleDestroyBuilding,
+    onDestroyTile = handleDestroyTile,
     onSetBureauMode = handleSetBureauMode,
     onToggleAcademyMode = handleToggleAcademyMode,
     onAssignPolitician = (coord, id) => handleAssignPolitician(id, coord),
@@ -198,7 +199,7 @@ object TileKingdomClient:
         coord -> Tile(coord = coord, tileType = randomTileType(), unlocked = true)
       currentGame = currentGame.copy(tiles = currentGame.tiles ++ blockTiles.toMap)
     }),
-    DevToolsPopup.DevAction("🧱 +105 Wide Block", () => devAction {
+    DevToolsPopup.DevAction("🧱 +180 Wide Block", () => devAction {
       val rng = new scala.util.Random(System.currentTimeMillis())
       val existingCoords = currentGame.tiles.keySet
       val maxRow = if existingCoords.isEmpty then 0 else existingCoords.map(_.row).max
@@ -215,8 +216,8 @@ object TileKingdomClient:
         case 6 => TileType.Academy(AcademyMode.RareChance)
         case _ => TileType.TownHall(None)
       val blockTiles = for
-        r <- 0 until 7
-        c <- 0 until 15
+        r <- 0 until 9
+        c <- 0 until 20
       yield
         val coord = Coord(startRow + r, startCol + c)
         coord -> Tile(coord = coord, tileType = randomTileType(), unlocked = true)
@@ -685,6 +686,17 @@ object TileKingdomClient:
       case Left(error) =>
         showNotification(error)
 
+  private def handleDestroyTile(coord: Coord): Unit =
+    TileKingdomLogic.destroyTile(currentGame, coord) match
+      case Right(newGame) =>
+        currentGame = newGame
+        tileProgress = tileProgress.removed(coord)
+        TileKingdomState.update(currentGame)
+        saveGame()
+        showNotification(s"Tile destroyed! +1 🎫")
+      case Left(error) =>
+        showNotification(error)
+
   private def handleDiscardPolitician(politicianId: String): Unit =
     val politician = currentGame.politicianRoster.find(_.id == politicianId)
     currentGame = TileKingdomLogic.discardPolitician(currentGame, politicianId)
@@ -726,13 +738,17 @@ object TileKingdomClient:
             showNotification(error)
 
   private def handleUnlockTile(coord: Coord): Unit =
-    val cost = currentGame.nextTileUnlockCost
+    val useTilePoint = currentGame.tilePoints > 0
+    val goldCost = currentGame.nextTileUnlockCost
     TileKingdomLogic.unlockTile(currentGame, coord) match
       case Right(newGame) =>
         currentGame = newGame
         TileKingdomState.update(currentGame)
         saveGame()
-        showFloatingReward(coord, cost, "💰", isSpend = true)
+        if useTilePoint then
+          showFloatingReward(coord, 1, "🎫", isSpend = true)
+        else
+          showFloatingReward(coord, goldCost, "💰", isSpend = true)
       case Left(error) =>
         showNotification(error)
 

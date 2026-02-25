@@ -15,7 +15,7 @@ object AcademyTile:
   /** Academy-specific actions (has toggle mode) */
   case class Actions(
     onToggleMode: () => Unit,
-    onDestroy: () => Unit
+    onDestroyTile: () => Unit
   )
 
   def apply(
@@ -60,6 +60,6 @@ object AcademyTile:
           }
         )
       ),
-      destroyHandler(actions.onDestroy)
+      destroyTileHandler(actions.onDestroyTile)
     )
 

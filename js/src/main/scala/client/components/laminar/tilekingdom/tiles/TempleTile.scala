@@ -47,5 +47,5 @@ object TempleTile:
       ),
       ProgressBar(progressSignal(coord), "temple-progress"),
       clickToLevelUp(actions),
-      destroyHandler(actions)
+      destroyTileHandler(actions)
     )
