@@ -31,7 +31,7 @@ object TempleTile:
       div(
         cls := "tile-content",
         div(cls := "tile-icon", "⛪"),
-        tierLabel(level),
+        levelLabel(level),
         div(
           cls := "tile-production temple-production",
           child.text <-- faithAmountSignal.map(f => s"+${TileUtils.formatNumber(f)}✨")

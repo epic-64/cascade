@@ -32,7 +32,7 @@ object QuarryTile:
       div(
         cls := "tile-content",
         div(cls := "tile-icon", "⛏️"),
-        tierLabel(level),
+        levelLabel(level),
         div(
           cls := "tile-production quarry-production",
           child.text <-- stoneAmountSignal.map(s => s"+${TileUtils.formatNumber(s)}🪨")

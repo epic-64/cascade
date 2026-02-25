@@ -803,26 +803,6 @@
   color: #1e293b;
 }
 
-/* Tier Label - shows T1, T2, etc with level squares */
-.tile-tier-label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-  line-height: 1;
-}
-
-.tile-tier-label .tier-text {
-  font-weight: 700;
-  font-size: var(--font-md);
-}
-
-.tile-tier-label .tier-squares {
-  font-size: 6px;
-  letter-spacing: 1px;
-  opacity: 0.8;
-}
-
 .tile-cost,
 .tile-upgrade {
   font-size: var(--font-sm);

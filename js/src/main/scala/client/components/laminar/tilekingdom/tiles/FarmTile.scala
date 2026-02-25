@@ -22,7 +22,7 @@ object FarmTile:
       div(
         cls := "tile-content",
         div(cls := "tile-icon", "🏠"),
-        tierLabel(level),
+        levelLabel(level),
         div(cls := "tile-production", s"+$boostPercent%"),
         upgradeRow(upgradeCost, "🌾", level, actions.onBulkLevelUp)
       ),
