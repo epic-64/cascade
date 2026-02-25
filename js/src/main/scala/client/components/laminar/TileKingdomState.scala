@@ -86,3 +86,36 @@ object TileKingdomState:
     val currentCount = game.unlockedTiles.size
     (0 until 3).map(i => TileKingdomLogic.tileUnlockCost(currentCount + i))
 
+  // ============================================================================
+  // Tile Grid Signals
+  // ============================================================================
+
+  /** Signal for all tiles in the game */
+  val tilesSignal: Signal[Map[Coord, Tile]] = gameSignal.map(_.tiles)
+
+  /** Signal for unlockable tile coordinates */
+  val unlockableCoordsSignal: Signal[Set[Coord]] = gameSignal.map(TileKingdomLogic.unlockableCoords)
+
+  /** Signal for next tile unlock cost */
+  val nextTileUnlockCostSignal: Signal[Int] = gameSignal.map(_.nextTileUnlockCost)
+
+  /** Check if player can afford to unlock a tile */
+  val canAffordUnlockSignal: Signal[Boolean] = gameSignal.map: game =>
+    game.gold >= game.nextTileUnlockCost
+
+  /** Signal for unlocked tile list */
+  val unlockedTilesSignal: Signal[List[Tile]] = gameSignal.map(_.unlockedTiles)
+
+  // Building unlock signals
+  val canBuildFarmSignal: Signal[Boolean] = gameSignal.map(_.canBuildFarm)
+  val canBuildWoodcutterSignal: Signal[Boolean] = gameSignal.map(_.canBuildWoodcutter)
+  val canBuildQuarrySignal: Signal[Boolean] = gameSignal.map(_.canBuildQuarry)
+  val canBuildBureauSignal: Signal[Boolean] = gameSignal.map(_.canBuildBureau)
+  val canBuildTempleSignal: Signal[Boolean] = gameSignal.map(_.canBuildTemple)
+  val canBuildTownHallSignal: Signal[Boolean] = gameSignal.map(_.canBuildTownHall)
+  val canBuildAcademySignal: Signal[Boolean] = gameSignal.map(_.canBuildAcademy)
+  val canBuildTavernSignal: Signal[Boolean] = gameSignal.map(_.canBuildTavern)
+
+  /** Get current game state (for imperative code during transition) */
+  def currentGame: TileKingdomGame = gameVar.now()
+
