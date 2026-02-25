@@ -6,7 +6,7 @@ import scala.util.Try
 import scala.util.chaining.*
 import shared.TileKingdom.*
 import shared.TileKingdom.AcademyMode.FasterPoliticians
-import client.components.laminar.{TileKingdomState, ResourcePanel, AbdicationButton, SailButton, SkillsButton}
+import client.components.laminar.{TileKingdomState, ResourcePanel, AbdicationButton, SailButton, SkillsButton, PoliticianTimer, NotificationSystem}
 import com.raquo.laminar.api.L.render as laminarRender
 
 def initializeTileKingdom(): Unit =
@@ -210,6 +210,12 @@ object TileKingdomClient:
       laminarRender(container, SailButton(() => handleSail()))
     getElementById("laminar-skills-btn").foreach: container =>
       laminarRender(container, SkillsButton(() => toggleSkillTree()))
+    getElementById("laminar-politician-timer").foreach: container =>
+      laminarRender(container, PoliticianTimer())
+    getElementById("laminar-politician-rare-chance").foreach: container =>
+      laminarRender(container, PoliticianTimer.rareChance())
+    getElementById("laminar-notification").foreach: container =>
+      laminarRender(container, NotificationSystem())
 
   private def buildHeader(): HTMLElement =
     div(cls = "tile-kingdom-header")(
@@ -279,8 +285,9 @@ object TileKingdomClient:
       div(cls = "roster-header")(
         span(cls = "roster-title", content = "🏛️ Politicians"),
         div(cls = "roster-stats")(
-          span(id = "politician-timer", cls = "roster-timer", content = ""),
-          span(id = "politician-rare-chance", cls = "roster-rare-chance", content = "")
+          // Laminar-managed timer elements (mounted later)
+          div(id = "laminar-politician-timer"),
+          div(id = "laminar-politician-rare-chance")
         )
       ),
       div(id = "politician-roster-list", cls = "roster-list"),
@@ -324,7 +331,7 @@ object TileKingdomClient:
     )
 
   private def buildNotification(): HTMLElement =
-    div(id = "tile-kingdom-notification", cls = "notification")
+    div(id = "laminar-notification")
 
   private def buildWelcomeBackModal(): HTMLElement =
     div(id = "tile-kingdom-welcome-modal", cls = "welcome-modal")(
@@ -921,7 +928,6 @@ object TileKingdomClient:
 
     markDirty()
     updateProgressBars()
-    updatePoliticianTimer()
 
     // Update build option cost colors when resources change
     if totalWheatHarvested > 0 || totalWoodHarvested > 0 || totalFaithHarvested > 0 || totalStoneHarvested > 0 then
@@ -1133,8 +1139,6 @@ object TileKingdomClient:
         if currentGame.politicianRoster.isEmpty then
           listElem.appendChild(div(cls = "roster-empty", content = "No politicians available"))
 
-    // Update timer for next politician
-    updatePoliticianTimer()
 
   // Update a single tile in place without re-rendering everything
   private def updateSingleTile(coord: Coord): Unit =
@@ -2175,18 +2179,7 @@ object TileKingdomClient:
     getElementById(id).foreach(_.textContent = text)
 
   private def showNotification(message: String): Unit =
-    println(s"[TileKingdom] showNotification called with: $message")
-    val elem = getElementById("tile-kingdom-notification")
-    println(s"[TileKingdom] notification element found: ${elem.isDefined}")
-    elem.foreach: notification =>
-      notification.textContent = message
-      notification.classList.add("show")
-      println(s"[TileKingdom] notification class list: ${notification.classList}")
-      window.setTimeout(
-        () =>
-          notification.classList.remove("show"),
-        3000
-      )
+    NotificationSystem.show(message)
 
   private def showWelcomeBackModal(wheatGain: Int, woodGain: Int, faithGain: Int, offlineSeconds: Double): Unit =
     getElementById("welcome-modal-body").foreach: body =>
