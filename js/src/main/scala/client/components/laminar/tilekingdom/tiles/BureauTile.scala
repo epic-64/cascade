@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L.*
 import shared.TileKingdom.*
 import client.components.laminar.tilekingdom.{TileGridState, TileUtils, ProgressBar}
 import client.components.laminar.TileKingdomState
+import TileComponents.*
 
 /** Bureau tile component.
   *
@@ -12,7 +13,7 @@ import client.components.laminar.TileKingdomState
   */
 object BureauTile:
 
-  /** Tile action callbacks */
+  /** Bureau-specific actions (has mode switching) */
   case class Actions(
     onSetMode: BureauMode => Unit,
     onDestroy: () => Unit
@@ -24,7 +25,6 @@ object BureauTile:
     actions: Actions
   ): HtmlElement =
     val gameSignal = TileKingdomState.gameSignal
-    val progressSignal = TileGridState.tileProgress.signal.map(_.getOrElse(coord, 0.0))
 
     // Computed values from game state
     val bureauModeSignal = gameSignal.map(g => TileKingdomLogic.getBureauMode(g, coord))
@@ -45,17 +45,13 @@ object BureauTile:
     val canAffordTurboSignal = gameSignal.combineWith(minFaithCostSignal).map:
       case (g, cost) => g.faith >= cost
 
-    div(
-      idAttr := TileUtils.tileId(coord),
-      cls := "tile-kingdom-tile unlocked bureau",
-      cls <-- TileGridState.zoomTierClass.combineWith(bureauModeSignal).map:
-        case (zoomCls, BureauMode.Turbo) => s"$zoomCls turbo".trim
-        case (zoomCls, BureauMode.Disabled) => s"$zoomCls disabled".trim
-        case (zoomCls, _) => zoomCls,
-      dataAttr("level") := level.toString,
-      styleAttr <-- TileGridState.tileStyle(coord),
+    // Mode-dependent extra CSS class
+    val modeClsSignal = bureauModeSignal.map:
+      case BureauMode.Turbo => "turbo"
+      case BureauMode.Disabled => "disabled"
+      case BureauMode.Slow => ""
 
-      // Content
+    tileWrapper(coord, "bureau", Some(level), modeClsSignal)(
       div(
         cls := "tile-content",
         div(cls := "tile-icon", "🏛️"),
@@ -79,6 +75,7 @@ object BureauTile:
         // Cost badge
         div(
           cls := "tile-badge badge-cost",
+          title := "Cost per auto-upgrade",
           child.text <-- bureauModeSignal.combineWith(effectiveWoodCostSignal).map:
             case (BureauMode.Turbo, woodCost) => s"${woodCost}🪵 Lv×10✨"
             case (BureauMode.Slow, woodCost) => s"${woodCost}🪵"
@@ -89,13 +86,12 @@ object BureauTile:
         div(
           cls := "bureau-mode-row",
 
-          // Slow mode button
           button(
             cls <-- bureauModeSignal.map(m =>
               if m == BureauMode.Slow then "btn-bureau-mode slow active"
               else "btn-bureau-mode slow"
             ),
-            title := "Slow mode (1x speed)",
+            title := "Slow mode: 1x speed, wood cost only",
             "🐢",
             onClick --> { e =>
               e.stopPropagation()
@@ -103,13 +99,12 @@ object BureauTile:
             }
           ),
 
-          // Turbo mode button
           button(
             cls <-- bureauModeSignal.combineWith(canAffordTurboSignal).map:
               case (BureauMode.Turbo, _) => "btn-bureau-mode turbo active"
               case (_, false) => "btn-bureau-mode turbo insufficient"
               case _ => "btn-bureau-mode turbo",
-            title <-- minFaithCostSignal.map(cost => s"Turbo mode (10x speed, ${cost}✨/upgrade)"),
+            title <-- minFaithCostSignal.map(cost => s"Turbo mode: 10x speed, costs ${cost}✨ per upgrade"),
             "⚡",
             onClick --> { e =>
               e.stopPropagation()
@@ -117,13 +112,12 @@ object BureauTile:
             }
           ),
 
-          // Disabled/pause button
           button(
             cls <-- bureauModeSignal.map(m =>
               if m == BureauMode.Disabled then "btn-bureau-mode pause active"
               else "btn-bureau-mode pause"
             ),
-            title := "Pause bureau",
+            title := "Pause: stop auto-upgrading",
             "⏸️",
             onClick --> { e =>
               e.stopPropagation()
@@ -135,15 +129,10 @@ object BureauTile:
 
       // Progress bar (hidden when disabled)
       ProgressBar.withVisibility(
-        progressSignal,
+        progressSignal(coord),
         bureauModeSignal.map(_ != BureauMode.Disabled),
         "bureau-progress"
       ),
 
-      // Right-click to destroy
-      onContextMenu --> { e =>
-        e.preventDefault()
-        actions.onDestroy()
-      }
+      destroyHandler(actions.onDestroy)
     )
-

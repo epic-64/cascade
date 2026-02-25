@@ -5,6 +5,7 @@ import org.scalajs.dom.{DragEvent, HTMLElement, DataTransferEffectAllowedKind}
 import shared.TileKingdom.*
 import client.components.laminar.tilekingdom.{TileGridState, TileUtils}
 import client.components.laminar.TileKingdomState
+import TileComponents.*
 
 /** Town Hall tile component.
   *
@@ -13,11 +14,11 @@ import client.components.laminar.TileKingdomState
   */
 object TownHallTile:
 
-  /** Tile action callbacks */
+  /** Town Hall-specific actions (politician management) */
   case class Actions(
-    onAssignPolitician: String => Unit,  // politician ID
+    onAssignPolitician: String => Unit,
     onRemovePolitician: () => Unit,
-    onSwapPoliticians: Coord => Unit,    // source coord
+    onSwapPoliticians: Coord => Unit,
     onDestroy: () => Unit
   )
 
@@ -56,25 +57,21 @@ object TownHallTile:
     // Whether we have a politician (for structure, doesn't change as often as lifespan)
     val hasPoliticianSignal = politicianSignal.map(_.isDefined).distinct
 
-    div(
-      idAttr := TileUtils.tileId(coord),
-      cls := "tile-kingdom-tile unlocked town-hall",
-      cls <-- TileGridState.zoomTierClass.combineWith(hasPoliticianSignal).map:
-        case (zoomCls, true) => s"$zoomCls has-politician".trim
-        case (zoomCls, false) => zoomCls,
-      cls <-- isDragOver.signal.map(over => if over then "drag-over" else ""),
-      styleAttr <-- TileGridState.tileStyle(coord),
+    // Combined extra classes for politician presence and drag-over state
+    val extraClsSignal = hasPoliticianSignal.combineWith(isDragOver.signal).map:
+      case (hasPol, dragOver) =>
+        val polCls = if hasPol then "has-politician" else ""
+        val dragCls = if dragOver then "drag-over" else ""
+        s"$polCls $dragCls".trim
 
-      // Content
+    tileWrapper(coord, "town-hall", extraCls = extraClsSignal)(
       div(
         cls := "tile-content town-hall-content",
         div(cls := "tile-icon", "🏛️"),
 
         // Politician slot - show filled or empty based on hasPolitician
-        // Use politician parameter for initial structure, signal for updates
         politician match
           case Some(pol) =>
-            // Lifespan signals read from live data
             val effectiveLifespanSignal = politicianSignal.combineWith(lifespanMultiplierSignal).map:
               case (Some(p), mult) => (p.remainingLifespanMs * mult).toLong
               case (None, _) => 0L
@@ -94,11 +91,16 @@ object TownHallTile:
               },
 
               div(cls := "politician-emoji-small", pol.emoji),
-              div(cls := "politician-effect-small", pol.effectDescription),
+              div(
+                cls := "politician-effect-small",
+                title := pol.effectDescription,
+                pol.effectDescription
+              ),
               div(
                 idAttr := s"politician-lifespan-${coord.row}-${coord.col}",
                 cls <-- effectiveLifespanSignal.combineWith(effectiveMaxLifespanSignal).map:
                   case (effective, max) => s"politician-lifespan ${lifespanClass(effective, max)}",
+                title := "Time remaining before politician retires",
                 child.text <-- effectiveLifespanSignal.combineWith(lifespanMultiplierSignal).map:
                   case (effectiveMs, mult) =>
                     val lifespanText = formatLifespan(effectiveMs)
@@ -148,20 +150,14 @@ object TownHallTile:
         isDragOver.set(false)
         val data = e.dataTransfer.getData("text/plain")
         if data.startsWith("townhall:") then
-          // Swap from another town hall
           val coords = data.stripPrefix("townhall:").split(",")
           if coords.length == 2 then
             val fromCoord = Coord(coords(0).toInt, coords(1).toInt)
             actions.onSwapPoliticians(fromCoord)
         else if data.nonEmpty then
-          // Assign from roster
           actions.onAssignPolitician(data)
       },
 
-      // Right-click to destroy
-      onContextMenu --> { e =>
-        e.preventDefault()
-        actions.onDestroy()
-      }
+      destroyHandler(actions.onDestroy)
     )
 
