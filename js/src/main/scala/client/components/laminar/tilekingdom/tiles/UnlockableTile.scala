@@ -21,6 +21,7 @@ object UnlockableTile:
     actions: Actions
   ): HtmlElement =
     val costSignal = TileKingdomState.nextTileUnlockCostSignal
+    val tilePointsSignal = TileKingdomState.tilePointsSignal
 
     // Note: Uses "locked" instead of "unlocked" - can't use tileWrapper directly
     div(
@@ -34,8 +35,12 @@ object UnlockableTile:
         div(cls := "tile-icon", "🔓"),
         div(
           cls := "tile-cost",
-          title := "Gold required to unlock this tile",
-          child.text <-- costSignal.map(c => s"${TileUtils.formatNumber(c)} 💰")
+          title <-- tilePointsSignal.map: tp =>
+            if tp > 0 then "Use a tile point to unlock this tile"
+            else "Gold required to unlock this tile",
+          child.text <-- tilePointsSignal.combineWith(costSignal).map:
+            case (tp, _) if tp > 0 => "1 🎫"
+            case (_, cost) => s"${TileUtils.formatNumber(cost)} 💰"
         )
       ),
 
