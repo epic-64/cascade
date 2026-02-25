@@ -57,6 +57,27 @@ object TileKingdomState:
   // Skills button state
   val hasSailedSignal: Signal[Boolean] = gameSignal.map(_.hasSailed)
 
+  // Politician timer signals
+  val politicianTimerSignal: Signal[Option[(Int, Boolean)]] = gameSignal.map: game =>
+    if !game.hasTownHall then None
+    else
+      val maxRosterSize = TileKingdomLogic.maxPoliticianRosterSize(game)
+      if game.politicianRoster.size >= maxRosterSize then None // Full
+      else
+        val speedMultiplier = TileKingdomLogic.politicianGenerationSpeedMultiplier(game)
+        val baseIntervalSeconds = TileKingdomLogic.PoliticianGenerationIntervalSeconds
+        val remainingProgress = 1.0 - game.politicianGenerationProgress
+        val remainingSeconds = ((remainingProgress * baseIntervalSeconds) / speedMultiplier).toInt
+        Some((remainingSeconds, speedMultiplier > 1.0))
+
+  val rosterFullSignal: Signal[Boolean] = gameSignal.map: game =>
+    game.hasTownHall && game.politicianRoster.size >= TileKingdomLogic.maxPoliticianRosterSize(game)
+
+  val hasTownHallSignal: Signal[Boolean] = gameSignal.map(_.hasTownHall)
+
+  val rareChanceSignal: Signal[Double] = gameSignal.map: game =>
+    if game.hasTownHall then TileKingdomLogic.rarePoliticianChance(game) else 0.0
+
   // Tile unlock costs
   val nextTileUnlockCostsSignal: Signal[Seq[Int]] = gameSignal.map: game =>
     val currentCount = game.unlockedTiles.size
