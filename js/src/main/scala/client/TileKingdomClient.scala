@@ -6,7 +6,7 @@ import scala.util.Try
 import scala.util.chaining.*
 import shared.TileKingdom.*
 import shared.TileKingdom.AcademyMode.FasterPoliticians
-import client.components.laminar.{TileKingdomState, ResourcePanel, AbdicationButton}
+import client.components.laminar.{TileKingdomState, ResourcePanel, AbdicationButton, SailButton, SkillsButton}
 import com.raquo.laminar.api.L.render as laminarRender
 
 def initializeTileKingdom(): Unit =
@@ -206,6 +206,10 @@ object TileKingdomClient:
       laminarRender(container, ResourcePanel())
     getElementById("laminar-abdicate-btn").foreach: container =>
       laminarRender(container, AbdicationButton(() => handleAbdicate()))
+    getElementById("laminar-sail-btn").foreach: container =>
+      laminarRender(container, SailButton(() => handleSail()))
+    getElementById("laminar-skills-btn").foreach: container =>
+      laminarRender(container, SkillsButton(() => toggleSkillTree()))
 
   private def buildHeader(): HTMLElement =
     div(cls = "tile-kingdom-header")(
@@ -306,15 +310,11 @@ object TileKingdomClient:
 
   private def buildActions(): HTMLElement =
     div(cls = "tile-kingdom-actions")(
-      // Container for Laminar AbdicationButton (mounted later in mountLaminarComponents)
+      // Laminar-managed buttons (mounted later in mountLaminarComponents)
       div(id = "laminar-abdicate-btn"),
-      button(id = "tile-kingdom-sail-btn", cls = "btn-sail disabled", content = "⛵ Sail").tap: btn =>
-        btn.disabled = true
-        btn.onclick = (_: MouseEvent) => handleSail()
-      ,
-      button(id = "tile-kingdom-skills-btn", cls = "btn-skills", content = "🌳 Skills").tap: btn =>
-        btn.onclick = (_: MouseEvent) => toggleSkillTree()
-      ,
+      div(id = "laminar-sail-btn"),
+      div(id = "laminar-skills-btn"),
+      // Regular buttons
       button(id = "tile-kingdom-center-btn", cls = "btn-secondary", content = "⌖ Center").tap: btn =>
         btn.onclick = (_: MouseEvent) => centerOnKingdom(animated = true),
       button(id = "tile-kingdom-reset-btn", cls = "btn-danger", content = "Reset").tap: btn =>
@@ -1047,15 +1047,11 @@ object TileKingdomClient:
     TileKingdomState.update(currentGame) // Sync Laminar state for reactive updates
     renderPoliticianRoster()
     renderTiles()
-    renderSailButton()
-    renderSkillsButton()
 
   /** Lightweight UI refresh — updates resources, buttons, and roster without rebuilding tiles. */
   private def refreshUI(): Unit =
     TileKingdomState.update(currentGame) // Sync Laminar state for reactive updates
     renderPoliticianRoster()
-    renderSailButton()
-    renderSkillsButton()
 
   private def renderResources(): Unit =
     setElementText("tile-kingdom-wheat", formatNumber(currentGame.wheat))
