@@ -6,7 +6,7 @@ import scala.util.Try
 import scala.util.chaining.*
 import shared.TileKingdom.*
 import shared.TileKingdom.AcademyMode.FasterPoliticians
-import client.components.laminar.{TileKingdomState, ResourcePanel, AbdicationButton, SailButton, SkillsButton, PoliticianTimer, NotificationSystem, PoliticianRoster, SkillTree, HelpPopup, DevToolsPopup, WelcomeBackModal}
+import client.components.laminar.{TileKingdomState, ResourcePanel, AbdicationButton, SailButton, SkillsButton, CenterButton, ResetButton, DevButton, ActionBar, PoliticianTimer, NotificationSystem, PoliticianRoster, SkillTree, HelpPopup, DevToolsPopup, WelcomeBackModal}
 import client.components.laminar.tilekingdom.{TileGrid, TileGridState, TileRenderer, FloatingEffects, TileUtils}
 import com.raquo.laminar.api.L.render as laminarRender
 
@@ -100,12 +100,15 @@ object TileKingdomClient:
 
     getElementById("laminar-resource-panel").foreach: container =>
       laminarRender(container, ResourcePanel())
-    getElementById("laminar-abdicate-btn").foreach: container =>
-      laminarRender(container, AbdicationButton(() => handleAbdicate()))
-    getElementById("laminar-sail-btn").foreach: container =>
-      laminarRender(container, SailButton(() => handleSail()))
-    getElementById("laminar-skills-btn").foreach: container =>
-      laminarRender(container, SkillsButton(() => toggleSkillTree()))
+    getElementById("laminar-action-bar").foreach: container =>
+      laminarRender(container, ActionBar(
+        currentGame = () => currentGame,
+        onAbdicate = () => handleAbdicate(),
+        onSail = () => handleSail(),
+        onToggleSkillTree = () => toggleSkillTree(),
+        onReset = () => handleResetGame(),
+        onToggleDevTools = () => toggleDevTools()
+      ))
     getElementById("laminar-politician-timer").foreach: container =>
       laminarRender(container, PoliticianTimer())
     getElementById("laminar-politician-rare-chance").foreach: container =>
@@ -239,19 +242,7 @@ object TileKingdomClient:
     )
 
   private def buildActions(): HTMLElement =
-    div(cls = "tile-kingdom-actions")(
-      // Laminar-managed buttons (mounted later in mountLaminarComponents)
-      div(id = "laminar-abdicate-btn"),
-      div(id = "laminar-sail-btn"),
-      div(id = "laminar-skills-btn"),
-      // Regular buttons
-      button(id = "tile-kingdom-center-btn", cls = "btn-secondary", content = "⌖ Center").tap: btn =>
-        btn.onclick = (_: MouseEvent) => TileGridState.centerOnKingdom(currentGame, animated = true),
-      button(id = "tile-kingdom-reset-btn", cls = "btn-danger", content = "Reset").tap: btn =>
-        btn.onclick = (_: MouseEvent) => handleResetGame(),
-      button(id = "tile-kingdom-dev-btn", cls = "btn-dev", content = "🛠️ Dev").tap: btn =>
-        btn.onclick = (_: MouseEvent) => toggleDevTools()
-    )
+    div(id = "laminar-action-bar")
 
   private def buildNotification(): HTMLElement =
     div(id = "laminar-notification")
