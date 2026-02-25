@@ -6,6 +6,8 @@ import scala.util.Try
 import scala.util.chaining.*
 import shared.TileKingdom.*
 import shared.TileKingdom.AcademyMode.FasterPoliticians
+import client.components.laminar.{TileKingdomState, ResourcePanel, AbdicationButton}
+import com.raquo.laminar.api.L.render as laminarRender
 
 def initializeTileKingdom(): Unit =
   TileKingdomClient.init()
@@ -18,6 +20,11 @@ object TileKingdomClient:
   private var gameTickerHandle: Option[Int] = None
   private var saveTimerHandle: Option[Int] = None
   private var isDirty: Boolean = false
+
+  /** Update the game state and sync with Laminar reactive state */
+  private def setGameState(game: TileKingdomGame): Unit =
+    currentGame = game
+    TileKingdomState.update(game)
 
   // Resource emoji mapping
   private def resourceEmoji(resource: Resource): String = resource match
@@ -187,8 +194,18 @@ object TileKingdomClient:
     container.appendChild(buildDevToolsPopup())
     container.appendChild(buildSkillTreeModal())
 
+    // Mount Laminar components AFTER elements are in the DOM
+    mountLaminarComponents()
+
     // Setup drag handlers
     setupDragHandlers(viewport)
+
+  /** Mount Laminar components into their containers (must be called after DOM is ready) */
+  private def mountLaminarComponents(): Unit =
+    getElementById("laminar-resource-panel").foreach: container =>
+      laminarRender(container, ResourcePanel())
+    getElementById("laminar-abdicate-btn").foreach: container =>
+      laminarRender(container, AbdicationButton(() => handleAbdicate()))
 
   private def buildHeader(): HTMLElement =
     div(cls = "tile-kingdom-header")(
@@ -198,10 +215,12 @@ object TileKingdomClient:
     )
 
   private def buildLeftSidebar(): HTMLElement =
-    div(cls = "tile-kingdom-left-sidebar")(
-      buildResources(),
-      buildPoliticianRoster()
-    )
+    val sidebar = div(cls = "tile-kingdom-left-sidebar")
+    // Create container for Laminar ResourcePanel (will be mounted later)
+    sidebar.appendChild(div(id = "laminar-resource-panel"))
+    // Add politician roster (still using old approach for now)
+    sidebar.appendChild(buildPoliticianRoster())
+    sidebar
 
   private def buildResources(): HTMLElement =
     div(cls = "tile-kingdom-resources")(
@@ -287,25 +306,34 @@ object TileKingdomClient:
     rosterDiv
 
   private def buildActions(): HTMLElement =
-    div(cls = "tile-kingdom-actions")(
-      button(id = "tile-kingdom-abdicate-btn", cls = "btn-primary disabled", content = "Abdicate").tap: btn =>
-        btn.disabled = true
-        btn.onclick = (_: MouseEvent) => handleAbdicate()
-      ,
+    val actionsDiv = div(cls = "tile-kingdom-actions")
+    
+    // Create container for Laminar AbdicationButton (will be mounted later)
+    actionsDiv.appendChild(div(id = "laminar-abdicate-btn"))
+    
+    // Add remaining buttons (still using old approach for now)
+    actionsDiv.appendChild(
       button(id = "tile-kingdom-sail-btn", cls = "btn-sail disabled", content = "⛵ Sail").tap: btn =>
         btn.disabled = true
         btn.onclick = (_: MouseEvent) => handleSail()
-      ,
+    )
+    actionsDiv.appendChild(
       button(id = "tile-kingdom-skills-btn", cls = "btn-skills", content = "🌳 Skills").tap: btn =>
         btn.onclick = (_: MouseEvent) => toggleSkillTree()
-      ,
+    )
+    actionsDiv.appendChild(
       button(id = "tile-kingdom-center-btn", cls = "btn-secondary", content = "⌖ Center").tap: btn =>
-        btn.onclick = (_: MouseEvent) => centerOnKingdom(animated = true),
+        btn.onclick = (_: MouseEvent) => centerOnKingdom(animated = true)
+    )
+    actionsDiv.appendChild(
       button(id = "tile-kingdom-reset-btn", cls = "btn-danger", content = "Reset").tap: btn =>
-        btn.onclick = (_: MouseEvent) => handleResetGame(),
+        btn.onclick = (_: MouseEvent) => handleResetGame()
+    )
+    actionsDiv.appendChild(
       button(id = "tile-kingdom-dev-btn", cls = "btn-dev", content = "🛠️ Dev").tap: btn =>
         btn.onclick = (_: MouseEvent) => toggleDevTools()
     )
+    actionsDiv
 
   private def buildNotification(): HTMLElement =
     div(id = "tile-kingdom-notification", cls = "notification")
@@ -900,10 +928,11 @@ object TileKingdomClient:
     currentGame = TileKingdomLogic.generateNewPoliticians(currentGame, currentTime)
     val newPoliticianGenerated = currentGame.politicianRoster.size > previousRosterSize
 
+    // Sync with Laminar reactive state - this triggers automatic UI updates
+    TileKingdomState.update(currentGame)
+
     markDirty()
     updateProgressBars()
-    renderResources()
-    renderAbdicationButton()
     updatePoliticianTimer()
 
     // Update build option cost colors when resources change
@@ -1000,6 +1029,7 @@ object TileKingdomClient:
           // Calculate offline progress
           val currentTime = System.currentTimeMillis()
           currentGame = TileKingdomLogic.tick(loadedGame, currentTime)
+          TileKingdomState.update(currentGame) // Sync Laminar state
 
           val offlineSeconds = (currentTime - loadedGame.lastTickTime) / 1000.0
           if offlineSeconds > 5 then
@@ -1013,29 +1043,29 @@ object TileKingdomClient:
         case None =>
           println(s"[TileKingdom] No saved game found, starting new game")
           currentGame = TileKingdomLogic.newGame(System.currentTimeMillis())
+          TileKingdomState.update(currentGame) // Sync Laminar state
           saveGame()
     .recover:
       case ex =>
         println(s"[TileKingdom] Failed to load game: ${ex.getMessage}")
         currentGame = TileKingdomLogic.newGame(System.currentTimeMillis())
+        TileKingdomState.update(currentGame) // Sync Laminar state
 
   // ============================================================================
   // UI Rendering
   // ============================================================================
 
   private def renderGame(): Unit =
-    renderResources()
+    TileKingdomState.update(currentGame) // Sync Laminar state for reactive updates
     renderPoliticianRoster()
     renderTiles()
-    renderAbdicationButton()
     renderSailButton()
     renderSkillsButton()
 
   /** Lightweight UI refresh — updates resources, buttons, and roster without rebuilding tiles. */
   private def refreshUI(): Unit =
-    renderResources()
+    TileKingdomState.update(currentGame) // Sync Laminar state for reactive updates
     renderPoliticianRoster()
-    renderAbdicationButton()
     renderSailButton()
     renderSkillsButton()
 
@@ -1748,12 +1778,12 @@ object TileKingdomClient:
 
             // Make the politician slot draggable for swapping between town halls
             slot.setAttribute("draggable", "true")
-            slot.asInstanceOf[HTMLElement].ondragstart = (e: DragEvent) =>
+            slot.ondragstart = (e: DragEvent) =>
               // Use format "townhall:row,col" to identify source is a town hall
-              e.dataTransfer.effectAllowed = "move"
+              e.dataTransfer.effectAllowed = DataTransferEffectAllowedKind.move
               e.dataTransfer.setData("text/plain", s"townhall:${coord.row},${coord.col}")
               tileDiv.classList.add("dragging")
-            slot.asInstanceOf[HTMLElement].ondragend = (_: DragEvent) =>
+            slot.ondragend = (_: DragEvent) =>
               tileDiv.classList.remove("dragging")
 
             content.appendChild(slot)
