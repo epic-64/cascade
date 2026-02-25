@@ -3,6 +3,7 @@ package client.components.laminar.tilekingdom.tiles
 import com.raquo.laminar.api.L.*
 import shared.TileKingdom.*
 import client.components.laminar.tilekingdom.{TileGridState, TileUtils, BuildMenu}
+import TileComponents.*
 
 /** Empty tile component.
   *
@@ -15,15 +16,9 @@ object EmptyTile:
     buildActions: BuildMenu.Actions
   ): HtmlElement =
     val isSelectingSignal = TileGridState.selectingTileCoord.signal.map(_.contains(coord))
+    val selectingCls = isSelectingSignal.map(sel => if sel then "selecting" else "")
 
-    div(
-      idAttr := TileUtils.tileId(coord),
-      cls := "tile-kingdom-tile unlocked empty",
-      cls <-- TileGridState.zoomTierClass.combineWith(isSelectingSignal).map:
-        case (zoomCls, true) => s"$zoomCls selecting".trim
-        case (zoomCls, false) => zoomCls,
-      styleAttr <-- TileGridState.tileStyle(coord),
-
+    tileWrapper(coord, "empty", extraCls = selectingCls)(
       // Build icon container (shown when not selecting)
       div(
         cls := "tile-build-icon-container",
@@ -32,7 +27,6 @@ object EmptyTile:
         div(cls := "build-label", "Build"),
         onClick --> { e =>
           e.stopPropagation()
-          // Clear any other selecting tiles
           TileGridState.selectTile(coord)
         }
       ),
@@ -43,4 +37,3 @@ object EmptyTile:
         BuildMenu(buildActions)
       )
     )
-

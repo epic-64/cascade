@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L.*
 import shared.TileKingdom.*
 import client.components.laminar.tilekingdom.{TileGridState, TileUtils, ProgressBar}
 import client.components.laminar.TileKingdomState
+import TileComponents.*
 
 /** Woodcutter (forest) tile component.
   *
@@ -12,21 +13,13 @@ import client.components.laminar.TileKingdomState
   */
 object WoodcutterTile:
 
-  /** Tile action callbacks */
-  case class Actions(
-    onLevelUp: () => Unit,
-    onBulkLevelUp: Int => Unit,
-    onDestroy: () => Unit
-  )
-
   def apply(
     coord: Coord,
     tile: Tile,
-    actions: Actions
+    actions: UpgradeActions
   ): HtmlElement =
     val level = tile.level
     val gameSignal = TileKingdomState.gameSignal
-    val progressSignal = TileGridState.tileProgress.signal.map(_.getOrElse(coord, 0.0))
     val upgradeCost = TileKingdomLogic.woodcutterLevelUpCost(level)
 
     // Computed values from game state
@@ -35,79 +28,28 @@ object WoodcutterTile:
     val farmBoostSignal = gameSignal.map(g => TileKingdomLogic.agriculture2BFarmBonusMultiplier(g, coord))
     val forestBonusSignal = gameSignal.map(g => TileKingdomLogic.forestGroupBonusMultiplier(g, coord))
 
-    div(
-      idAttr := TileUtils.tileId(coord),
-      cls := "tile-kingdom-tile unlocked woodcutter",
-      cls <-- TileGridState.zoomTierClass,
-      dataAttr("level") := level.toString,
-      styleAttr <-- TileGridState.tileStyle(coord),
-
-      // Content
+    tileWrapper(coord, "woodcutter", Some(level))(
       div(
         cls := "tile-content",
         div(cls := "tile-icon", "🪓"),
         div(cls := "tile-label", s"Lv$level"),
-
-        // Production amount
         div(
           cls := "tile-production",
           child.text <-- harvestAmountSignal.map(h => s"+${TileUtils.formatNumber(h)}🪵")
         ),
-
-        // Modifier badges
         div(
           cls := "tile-modifiers",
-
-          // Farm boost badge (from Agriculture 2B skill)
-          child.maybe <-- farmBoostSignal.map: bonus =>
-            Option.when(bonus > 1.0):
-              val boostPercent = ((bonus - 1) * 100).toInt
-              span(
-                cls := "tile-badge badge-farm",
-                title := "Agriculture skill: Farms boost forests at half strength",
-                s"🏠+$boostPercent%"
-              ),
-
-          // Forest group bonus badge
-          child.maybe <-- forestBonusSignal.map: bonus =>
-            Option.when(bonus > 1.0):
-              val bonusPercent = ((bonus - 1) * 100).toInt
-              span(cls := "tile-badge badge-forest", s"🌲+$bonusPercent%"),
-
-          // Town hall bonus badge
-          child.maybe <-- townHallMultiplierSignal.map: mult =>
-            Option.when(mult > 1.0):
-              val multiplierText = if mult % 1.0 == 0 then s"x${mult.toInt}" else f"x$mult%.1f"
-              span(cls := "tile-badge badge-townhall", s"🏛️$multiplierText")
+          percentBadge(farmBoostSignal, "🏠", "badge-farm",
+            "Agriculture skill: farms boost forests at half strength"),
+          percentBadge(forestBonusSignal, "🌲", "badge-forest",
+            "Forest synergy: bonus from adjacent forests"),
+          multiplierBadge(townHallMultiplierSignal, "🏛️", "badge-townhall",
+            "Town Hall bonus: politician multiplier")
         ),
-
-        // Upgrade row
-        div(
-          cls := "tile-upgrade-row",
-          span(cls := "tile-upgrade", s"⬆${TileUtils.formatNumber(upgradeCost)}🌾"),
-          button(
-            cls := "btn-x10",
-            "x10",
-            onClick --> { e =>
-              e.stopPropagation()
-              actions.onBulkLevelUp(TileUtils.levelsToNextTen(level))
-            }
-          )
-        )
+        upgradeRow(upgradeCost, "🌾", level, actions.onBulkLevelUp)
       ),
-
-      // Progress bar
-      ProgressBar(progressSignal, "woodcutter-progress"),
-
-      // Click to level up
-      onClick --> { _ =>
-        if !TileGridState.wasDragging then actions.onLevelUp()
-      },
-
-      // Right-click to destroy
-      onContextMenu --> { e =>
-        e.preventDefault()
-        actions.onDestroy()
-      }
+      ProgressBar(progressSignal(coord), "woodcutter-progress"),
+      clickToLevelUp(actions),
+      destroyHandler(actions)
     )
 

@@ -63,7 +63,7 @@ object TileRenderer:
         WheatFieldTile(
           coord,
           tile,
-          WheatFieldTile.Actions(
+          TileComponents.UpgradeActions(
             onLevelUp = () => actions.onLevelUp(coord),
             onBulkLevelUp = count => actions.onBulkLevelUp(coord, count),
             onDestroy = () => actions.onDestroy(coord)
@@ -74,7 +74,7 @@ object TileRenderer:
         FarmTile(
           coord,
           level,
-          FarmTile.Actions(
+          TileComponents.UpgradeActions(
             onLevelUp = () => actions.onLevelUp(coord),
             onBulkLevelUp = count => actions.onBulkLevelUp(coord, count),
             onDestroy = () => actions.onDestroy(coord)
@@ -85,7 +85,7 @@ object TileRenderer:
         WoodcutterTile(
           coord,
           tile,
-          WoodcutterTile.Actions(
+          TileComponents.UpgradeActions(
             onLevelUp = () => actions.onLevelUp(coord),
             onBulkLevelUp = count => actions.onBulkLevelUp(coord, count),
             onDestroy = () => actions.onDestroy(coord)
@@ -96,7 +96,7 @@ object TileRenderer:
         TempleTile(
           coord,
           tile,
-          TempleTile.Actions(
+          TileComponents.UpgradeActions(
             onLevelUp = () => actions.onLevelUp(coord),
             onBulkLevelUp = count => actions.onBulkLevelUp(coord, count),
             onDestroy = () => actions.onDestroy(coord)
@@ -107,7 +107,7 @@ object TileRenderer:
         QuarryTile(
           coord,
           tile,
-          QuarryTile.Actions(
+          TileComponents.UpgradeActions(
             onLevelUp = () => actions.onLevelUp(coord),
             onBulkLevelUp = count => actions.onBulkLevelUp(coord, count),
             onDestroy = () => actions.onDestroy(coord)
@@ -149,7 +149,7 @@ object TileRenderer:
       case TileType.Tavern =>
         TavernTile(
           coord,
-          TavernTile.Actions(
+          TileComponents.BasicActions(
             onDestroy = () => actions.onDestroy(coord)
           )
         )

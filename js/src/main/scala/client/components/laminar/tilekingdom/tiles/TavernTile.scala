@@ -2,7 +2,8 @@ package client.components.laminar.tilekingdom.tiles
 
 import com.raquo.laminar.api.L.*
 import shared.TileKingdom.*
-import client.components.laminar.tilekingdom.{TileGridState, TileUtils}
+import client.components.laminar.tilekingdom.TileGridState
+import TileComponents.*
 
 /** Tavern tile component.
   *
@@ -11,33 +12,20 @@ import client.components.laminar.tilekingdom.{TileGridState, TileUtils}
   */
 object TavernTile:
 
-  /** Tile action callbacks */
-  case class Actions(
-    onDestroy: () => Unit
-  )
-
   def apply(
     coord: Coord,
-    actions: Actions
+    actions: BasicActions
   ): HtmlElement =
-    div(
-      idAttr := TileUtils.tileId(coord),
-      cls := "tile-kingdom-tile unlocked tavern",
-      cls <-- TileGridState.zoomTierClass,
-      styleAttr <-- TileGridState.tileStyle(coord),
-
-      // Content
+    tileWrapper(coord, "tavern")(
       div(
         cls := "tile-content tavern-content",
         div(cls := "tile-icon", "🍺"),
         div(cls := "tile-label", "Tavern"),
-        span(cls := "tile-badge badge-tavern", s"${TileKingdomLogic.TavernLifespanMultiplier.toInt}x Lifespan")
+        span(
+          cls := "tile-badge badge-tavern",
+          title := "Politicians in nearby Town Halls live longer",
+          s"${TileKingdomLogic.TavernLifespanMultiplier.toInt}x Lifespan"
+        )
       ),
-
-      // Right-click to destroy
-      onContextMenu --> { e =>
-        e.preventDefault()
-        actions.onDestroy()
-      }
+      destroyHandler(actions.onDestroy)
     )
-

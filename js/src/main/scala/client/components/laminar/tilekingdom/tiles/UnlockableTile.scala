@@ -22,25 +22,24 @@ object UnlockableTile:
   ): HtmlElement =
     val costSignal = TileKingdomState.nextTileUnlockCostSignal
 
+    // Note: Uses "locked" instead of "unlocked" - can't use tileWrapper directly
     div(
       idAttr := TileUtils.tileId(coord),
       cls := "tile-kingdom-tile locked unlockable",
       cls <-- TileGridState.zoomTierClass,
       styleAttr <-- TileGridState.tileStyle(coord),
 
-      // Content
       div(
         cls := "tile-content",
         div(cls := "tile-icon", "🔓"),
         div(
           cls := "tile-cost",
+          title := "Gold required to unlock this tile",
           child.text <-- costSignal.map(c => s"${TileUtils.formatNumber(c)} 💰")
         )
       ),
 
-      // Click to unlock
       onClick --> { _ =>
         if !TileGridState.wasDragging then actions.onUnlock()
       }
     )
-
