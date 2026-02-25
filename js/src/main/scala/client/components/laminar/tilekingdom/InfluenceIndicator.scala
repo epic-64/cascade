@@ -53,3 +53,22 @@ object InfluenceIndicator:
       else None
     .toList
 
+  /** Create influence indicators from a list of tiles (more efficient - avoids full game traversal) */
+  def renderAllFromTiles(tiles: List[Tile], bounds: (Int, Int, Int, Int)): List[HtmlElement] =
+    val (minRow, maxRow, minCol, maxCol) = bounds
+    val extendedBounds = (minRow - 3, maxRow + 3, minCol - 3, maxCol + 3)
+
+    tiles.flatMap: tile =>
+      val coord = tile.coord
+      if coord.row >= extendedBounds._1 && coord.row <= extendedBounds._2 &&
+         coord.col >= extendedBounds._3 && coord.col <= extendedBounds._4 then
+        tile.tileType match
+          case TileType.Farm(_) =>
+            Some(apply(coord, 1, "farm-influence"))
+          case TileType.Bureau(_) =>
+            Some(apply(coord, TileKingdomLogic.BureauRadius, "bureau-influence"))
+          case TileType.TownHall(Some(_)) =>
+            Some(apply(coord, TileKingdomLogic.TownHallInfluenceRadius, "town-hall-influence"))
+          case _ => None
+      else None
+

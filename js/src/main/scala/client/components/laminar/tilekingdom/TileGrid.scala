@@ -12,6 +12,9 @@ import client.components.laminar.TileKingdomState
   */
 object TileGrid:
 
+  /** Represents a tile slot that can be rendered */
+  private case class TileSlot(coord: Coord, isUnlockable: Boolean)
+
   /** Create the tile grid component */
   def apply(actions: TileRenderer.Actions, onNotification: String => Unit): HtmlElement =
     val gameSignal = TileKingdomState.gameSignal
@@ -19,6 +22,28 @@ object TileGrid:
     val unlockableCoordsSignal = TileKingdomState.unlockableCoordsSignal
     val canAffordUnlockSignal = TileKingdomState.canAffordUnlockSignal
     val visibleBoundsSignal = TileGridState.visibleBoundsSignal
+
+    // Signal of visible tile slots - only changes when coords or tile types change
+    // Use distinctBy to prevent re-renders when only resource amounts change
+    val visibleSlotsSignal: Signal[List[TileSlot]] = tilesSignal
+      .combineWith(unlockableCoordsSignal)
+      .combineWith(canAffordUnlockSignal)
+      .combineWith(visibleBoundsSignal)
+      .map { (tiles, unlockableCoords, canAffordUnlock, minRow, maxRow, minCol, maxCol) =>
+        val tileCoords = tiles.keySet
+        val unlockable = if canAffordUnlock then unlockableCoords else Set.empty[Coord]
+        val allCoords = tileCoords ++ unlockable
+
+        allCoords.flatMap { coord =>
+          if coord.row >= minRow && coord.row <= maxRow &&
+             coord.col >= minCol && coord.col <= maxCol then
+            val isUnlockable = !tileCoords.contains(coord) && unlockable.contains(coord)
+            Some(TileSlot(coord, isUnlockable))
+          else
+            None
+        }.toList.sortBy(s => (s.coord.row, s.coord.col))
+      }
+      .distinct // Only emit when the list of slots actually changes
 
     div(
       idAttr := "tile-kingdom-grid-viewport",
@@ -34,34 +59,41 @@ object TileGrid:
         },
 
         // Influence indicators (rendered behind tiles)
-        children <-- gameSignal.combineWith(visibleBoundsSignal).map { (game: TileKingdomGame, minRow: Int, maxRow: Int, minCol: Int, maxCol: Int) =>
-          InfluenceIndicator.renderAll(game, (minRow, maxRow, minCol, maxCol))
+        // Only re-render when tiles with influence change, not every tick
+        children <-- tilesSignal.combineWith(visibleBoundsSignal).map { (tiles, minRow, maxRow, minCol, maxCol) =>
+          // Extract only the info needed for influence indicators
+          val influenceTiles = tiles.values.filter { tile =>
+            tile.tileType match
+              case TileType.Farm(_) | TileType.Bureau(_) => true
+              case TileType.TownHall(Some(_)) => true
+              case _ => false
+          }.toList
+          (influenceTiles, (minRow, maxRow, minCol, maxCol))
+        }.distinct.map { (influenceTiles, bounds) =>
+          val (minRow, maxRow, minCol, maxCol) = bounds
+          InfluenceIndicator.renderAllFromTiles(influenceTiles, bounds)
         },
 
-        // Tiles
-        children <-- tilesSignal
-          .combineWith(unlockableCoordsSignal)
-          .combineWith(canAffordUnlockSignal)
-          .combineWith(visibleBoundsSignal)
-          .map { (tiles: Map[Coord, Tile], unlockableCoords: Set[Coord], canAffordUnlock: Boolean, minRow: Int, maxRow: Int, minCol: Int, maxCol: Int) =>
-            // Determine which coords to render
-            val coordsToRender = tiles.keySet ++ (if canAffordUnlock then unlockableCoords else Set.empty)
+        // Tiles - use split for efficient updates
+        children <-- visibleSlotsSignal.split(_.coord) { (coord, initialSlot, slotSignal) =>
+          // Each tile component reads its own data from the global signal
+          // Use distinct to only re-render when the tile actually changes
+          val tileSignal = tilesSignal.map(_.get(coord)).distinct
+          val isUnlockableSignal = slotSignal.map(_.isUnlockable).distinct
 
-            // Filter to visible range and render
-            coordsToRender.flatMap { coord =>
-              if coord.row >= minRow && coord.row <= maxRow &&
-                 coord.col >= minCol && coord.col <= maxCol then
-                tiles.get(coord) match
-                  case Some(tile) =>
-                    Some(TileRenderer(coord, tile, actions))
-                  case None if canAffordUnlock && unlockableCoords.contains(coord) =>
-                    Some(TileRenderer.renderUnlockable(coord, actions))
-                  case _ =>
-                    None
-              else
-                None
-            }.toList
-          }
+          div(
+            // This wrapper div is keyed by coord and stays stable
+            children <-- tileSignal.combineWith(isUnlockableSignal).map { (tileOpt, isUnlockable) =>
+              tileOpt match
+                case Some(tile) =>
+                  List(TileRenderer(coord, tile, actions))
+                case None if isUnlockable =>
+                  List(TileRenderer.renderUnlockable(coord, actions))
+                case _ =>
+                  Nil
+            }
+          )
+        }
       ),
 
       // Event handlers for pan/zoom
