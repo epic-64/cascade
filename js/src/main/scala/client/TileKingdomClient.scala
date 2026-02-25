@@ -7,7 +7,7 @@ import scala.util.chaining.*
 import shared.TileKingdom.*
 import shared.TileKingdom.AcademyMode.FasterPoliticians
 import client.components.laminar.{TileKingdomState, ResourcePanel, AbdicationButton, SailButton, SkillsButton, PoliticianTimer, NotificationSystem, PoliticianRoster, SkillTree, HelpPopup, DevToolsPopup, WelcomeBackModal}
-import client.components.laminar.tilekingdom.{TileGrid, TileGridState, TileRenderer, FloatingEffects}
+import client.components.laminar.tilekingdom.{TileGrid, TileGridState, TileRenderer, FloatingEffects, TileUtils}
 import com.raquo.laminar.api.L.render as laminarRender
 
 def initializeTileKingdom(): Unit =
@@ -15,22 +15,12 @@ def initializeTileKingdom(): Unit =
 
 object TileKingdomClient:
 
-  /** Feature flag: Set to true to use the new Laminar-based tile grid rendering.
-    * When false, uses the original imperative DOM manipulation.
-    */
-  private val UseLaminarGrid: Boolean = true
-
   private val StorageKey = "tile_kingdom_game_state"
   private val SaveIntervalMs: Int = 30_000 // Save to localStorage at most every 30 seconds
   private var currentGame: TileKingdomGame = TileKingdomLogic.newGame(System.currentTimeMillis())
   private var gameTickerHandle: Option[Int] = None
   private var saveTimerHandle: Option[Int] = None
   private var isDirty: Boolean = false
-
-  /** Update the game state and sync with Laminar reactive state */
-  private def setGameState(game: TileKingdomGame): Unit =
-    currentGame = game
-    TileKingdomState.update(game)
 
   // Resource emoji mapping
   private def resourceEmoji(resource: Resource): String = resource match
@@ -40,24 +30,11 @@ object TileKingdomClient:
     case Resource.Gold  => "💰"
     case Resource.Stone => "🪨"
 
-  // Track progress (0.0 to 1.0) for each wheat field tile
+  // Track progress (0.0 to 1.0) for each producing tile
   private var tileProgress: Map[Coord, Double] = Map.empty
-  // Cache progress bar DOM elements to avoid getElementById on every tick
-  private var progressBarCache: Map[Coord, HTMLElement] = Map.empty
 
-  /** Create a progress bar element and cache it for fast tick updates. */
-  private def createProgressBar(coord: Coord, extraCls: String = ""): HTMLElement =
-    val progress = tileProgress.getOrElse(coord, 0.0)
-    val progressContainer = div(cls = "tile-progress-container")
-    val cls = if extraCls.isEmpty then "tile-progress-bar" else s"tile-progress-bar $extraCls"
-    val progressBar = div(id = s"progress-bar-${coord.row}-${coord.col}", cls = cls)
-    progressBar.style.width = s"${(progress * 100).toInt}%"
-    progressBarCache = progressBarCache.updated(coord, progressBar)
-    progressContainer.appendChild(progressBar)
-    progressContainer
   private val ProductionIntervalMs: Double = TileKingdomLogic.ProductionIntervalSeconds * 1000.0
   private val BureauIntervalMs: Double = TileKingdomLogic.BureauIntervalSeconds * 1000.0
-  private val PoliticianGenerationIntervalMs: Double = TileKingdomLogic.PoliticianGenerationIntervalSeconds * 1000.0
 
   // Get or create an initial offset for a tile (0.0 to 1.0)
   private def getOrInitProgress(coord: Coord): Double =
@@ -67,93 +44,6 @@ object TileKingdomClient:
       offset
     })
 
-  // Panning state
-  private var panOffsetX: Double = 0.0
-  private var panOffsetY: Double = 0.0
-  private var isDragging: Boolean = false
-  private var wasDragging: Boolean = false // Track if we just finished a drag (to suppress click)
-  private var dragStartX: Double = 0.0
-  private var dragStartY: Double = 0.0
-  private var panStartX: Double = 0.0
-  private var panStartY: Double = 0.0
-
-  // Zoom state
-  private var zoomLevel: Double = 2.0
-  private val MinZoom: Double = 0.3
-  private val MaxZoom: Double = 2.0
-  private val ZoomStep: Double = 0.1
-
-  // Zoom tier thresholds (split 0.3–2.0 range into thirds)
-  private val ZoomTierIcons: Double = 1.4   // below this: icons only
-  private val ZoomTierMinimal: Double = 0.58  // below this: no content at all
-
-  /** Apply the appropriate zoom tier CSS class to a tile element. */
-  private def applyZoomTier(tileDiv: HTMLElement): Unit =
-    if zoomLevel < ZoomTierMinimal then tileDiv.classList.add("zoom-minimal")
-    else if zoomLevel < ZoomTierIcons then tileDiv.classList.add("zoom-icons")
-
-  // Grid rendering constants
-  private val BaseTileSize: Int = 74 // 70px tile + 4px gap
-  private def TileSize: Double = BaseTileSize * zoomLevel
-  private val VisiblePadding: Int = 2 // Extra tiles to render outside viewport
-
-  // Track which tile is currently in build-selection mode and which submenu is open
-  private var selectingTileCoord: Option[Coord] = None
-  private var activeSubmenu: Option[String] = None // "resources" or "management"
-
-  // Helper to wrap click handlers - only executes if we weren't just dragging
-  private def onClick(handler: => Unit): MouseEvent => Unit = (_: MouseEvent) =>
-    if !wasDragging then handler
-
-  // Helper that also stops event propagation
-  private def onClickStop(handler: => Unit): MouseEvent => Unit = (e: MouseEvent) =>
-    e.stopPropagation()
-    if !wasDragging then handler
-
-  // Calculate levels needed to reach next multiple of 10
-  // E.g. level 16 -> 4 (to reach 20), level 20 -> 10 (to reach 30)
-  private def levelsToNextTen(currentLevel: Int): Int =
-    val remainder = currentLevel % 10
-    if remainder == 0 then 10 else 10 - remainder
-
-  // Format large numbers compactly (e.g. 1.2k, 3.4M, 5.6B)
-  private def formatNumber(n: Double): String =
-    val absN = math.abs(n)
-    val sign = if n < 0 then "-" else ""
-    if absN >= 1_000_000_000 then
-      val v = absN / 1_000_000_000
-      f"$sign$v%.1fB"
-    else if absN >= 1_000_000 then
-      val v = absN / 1_000_000
-      f"$sign$v%.1fM"
-    else if absN >= 10_000 then
-      val v = absN / 1_000
-      f"$sign$v%.1fk"
-    else if absN >= 1 then s"$sign${absN.toInt}"
-    else if absN > 0 then f"$sign$absN%.1f"
-    else "0"
-
-  // Format number for integer values
-  private def formatNumber(n: Int): String = formatNumber(n.toDouble)
-
-  // Helper to create a build option with cost checking
-  private def buildOption(
-    icon: String,
-    name: String,
-    cost: Int,
-    resourceEmoji: String,
-    hasEnough: Boolean,
-    handler: => Unit
-  ): HTMLElement =
-    div(cls = "build-option").tap: opt =>
-      opt.appendChild(div(cls = "build-icon", content = icon))
-      opt.appendChild(div(cls = "build-name", content = name))
-      val costCls = if hasEnough then "build-cost" else "build-cost insufficient"
-      opt.appendChild(div(cls = costCls, content = s"${formatNumber(cost)}$resourceEmoji"))
-      opt.onclick = (e: MouseEvent) =>
-        e.stopPropagation()
-        handler
-
   // ============================================================================
   // Initialization
   // ============================================================================
@@ -162,8 +52,8 @@ object TileKingdomClient:
     println("[TileKingdom] Initializing Tile Kingdom game")
     buildUI()
     loadGame()
-    centerOnKingdom()
-    renderGame()
+    TileGridState.centerOnKingdom(currentGame)
+    TileKingdomState.update(currentGame)
     startGameTicker()
     startSaveTimer()
     registerLifecycleHooks()
@@ -185,15 +75,9 @@ object TileKingdomClient:
 
     container.innerHTML = ""
 
-    if UseLaminarGrid then
-      // New Laminar-based grid rendering
-      val viewportContainer = div(id = "laminar-tile-grid")
-      container.appendChild(viewportContainer)
-    else
-      // Legacy imperative grid rendering
-      val viewport = div(id = "tile-kingdom-grid-viewport", cls = "tile-kingdom-grid-viewport")
-      viewport.appendChild(div(id = "tile-kingdom-grid", cls = "tile-kingdom-grid"))
-      container.appendChild(viewport)
+    // Laminar-based grid rendering
+    val viewportContainer = div(id = "laminar-tile-grid")
+    container.appendChild(viewportContainer)
 
     // Overlay UI elements
     container.appendChild(buildHeader())
@@ -208,17 +92,11 @@ object TileKingdomClient:
     // Mount Laminar components AFTER elements are in the DOM
     mountLaminarComponents()
 
-    // Setup drag handlers only for imperative mode
-    if !UseLaminarGrid then
-      getElementById("tile-kingdom-grid-viewport").foreach: viewport =>
-        setupDragHandlers(viewport.asInstanceOf[HTMLElement])
-
   /** Mount Laminar components into their containers (must be called after DOM is ready) */
   private def mountLaminarComponents(): Unit =
-    // Mount Laminar TileGrid if enabled
-    if UseLaminarGrid then
-      getElementById("laminar-tile-grid").foreach: container =>
-        laminarRender(container, TileGrid(tileRendererActions, showNotification))
+    // Mount Laminar TileGrid
+    getElementById("laminar-tile-grid").foreach: container =>
+      laminarRender(container, TileGrid(tileRendererActions, showNotification))
 
     getElementById("laminar-resource-panel").foreach: container =>
       laminarRender(container, ResourcePanel())
@@ -325,12 +203,11 @@ object TileKingdomClient:
     })
   )
 
-  /** Helper for dev actions - updates state, saves, and re-renders */
+  /** Helper for dev actions - updates state and saves */
   private def devAction(transform: => Unit): Unit =
     transform
     TileKingdomState.update(currentGame)
     saveGame()
-    renderTiles()
 
   private def buildHeader(): HTMLElement =
     div(cls = "tile-kingdom-header")(
@@ -345,7 +222,6 @@ object TileKingdomClient:
       div(id = "laminar-resource-panel"),
       buildPoliticianRoster()
     )
-
 
   private def buildPoliticianRoster(): HTMLElement =
     div(id = "tile-kingdom-politician-roster", cls = "politician-roster")(
@@ -370,7 +246,7 @@ object TileKingdomClient:
       div(id = "laminar-skills-btn"),
       // Regular buttons
       button(id = "tile-kingdom-center-btn", cls = "btn-secondary", content = "⌖ Center").tap: btn =>
-        btn.onclick = (_: MouseEvent) => centerOnKingdom(animated = true),
+        btn.onclick = (_: MouseEvent) => TileGridState.centerOnKingdom(currentGame, animated = true),
       button(id = "tile-kingdom-reset-btn", cls = "btn-danger", content = "Reset").tap: btn =>
         btn.onclick = (_: MouseEvent) => handleResetGame(),
       button(id = "tile-kingdom-dev-btn", cls = "btn-dev", content = "🛠️ Dev").tap: btn =>
@@ -408,9 +284,8 @@ object TileKingdomClient:
     TileKingdomLogic.unlockSkill(currentGame, skill) match
       case Right(newGame) =>
         currentGame = newGame
-        TileKingdomState.update(currentGame) // Sync Laminar state for reactive updates
+        TileKingdomState.update(currentGame)
         saveGame()
-        renderTiles() // Re-render tiles in case skills affect them
         showNotification(s"Unlocked: ${Skill.description(skill)}")
       case Left(error) =>
         showNotification(error)
@@ -419,9 +294,8 @@ object TileKingdomClient:
     TileKingdomLogic.switchSkill(currentGame, skill) match
       case Right(newGame) =>
         currentGame = newGame
-        TileKingdomState.update(currentGame) // Sync Laminar state for reactive updates
+        TileKingdomState.update(currentGame)
         saveGame()
-        renderTiles() // Re-render tiles in case skills affect them
         showNotification(s"Switched to: ${Skill.description(skill)}")
       case Left(error) =>
         showNotification(error)
@@ -430,191 +304,13 @@ object TileKingdomClient:
     TileKingdomLogic.refundSkill(currentGame, skill) match
       case Right(newGame) =>
         currentGame = newGame
-        TileKingdomState.update(currentGame) // Sync Laminar state for reactive updates
+        TileKingdomState.update(currentGame)
         saveGame()
-        renderTiles() // Re-render tiles in case skills affect them
         val cost = Skill.cost(skill)
         val goldCost = cost * TileKingdomLogic.SkillRefundGoldCost
-        showNotification(s"Refunded ${Skill.description(skill)} (+${cost}⭐, -${formatNumber(goldCost)} 💰)")
+        showNotification(s"Refunded ${Skill.description(skill)} (+${cost}⭐, -${TileUtils.formatNumber(goldCost)} 💰)")
       case Left(error) =>
         showNotification(error)
-
-  // ============================================================================
-  // Drag/Pan Handling
-  // ============================================================================
-
-  private def setupDragHandlers(viewport: HTMLElement): Unit =
-    // Helper to check if element or any ancestor has draggable="true"
-    def hasDraggableAncestor(elem: Element): Boolean =
-      var current: org.scalajs.dom.Node = elem
-      while current != null && current.isInstanceOf[Element] do
-        val el = current.asInstanceOf[Element]
-        if el.getAttribute("draggable") == "true" then return true
-        current = el.parentNode
-      false
-
-    viewport.onmousedown = (e: MouseEvent) =>
-      if e.button == 0 then // Left mouse button
-        // Don't start panning if clicking on a draggable element (like politician slot)
-        val target = e.target.asInstanceOf[Element]
-        if !hasDraggableAncestor(target) then
-          isDragging = true
-          dragStartX = e.clientX
-          dragStartY = e.clientY
-          panStartX = panOffsetX
-          panStartY = panOffsetY
-          viewport.style.cursor = "grabbing"
-
-    document.onmousemove = (e: MouseEvent) =>
-      if isDragging then
-        val dx = e.clientX - dragStartX
-        val dy = e.clientY - dragStartY
-        // Mark as dragging if moved more than 5 pixels (to distinguish from clicks)
-        if math.abs(dx) > 5 || math.abs(dy) > 5 then
-          wasDragging = true
-        panOffsetX = panStartX + dx
-        panOffsetY = panStartY + dy
-        updateGridPosition()
-
-    document.onmouseup = (e: MouseEvent) =>
-      if isDragging then
-        isDragging = false
-        getElementById("tile-kingdom-grid-viewport").foreach(_.asInstanceOf[HTMLElement].style.cursor = "grab")
-        snapBackIfNeeded()
-        // Reset wasDragging after a brief delay to allow click event to check it
-        if wasDragging then
-          window.setTimeout(() => wasDragging = false, 10)
-
-    // Touch support
-    viewport.addEventListener(
-      "touchstart",
-      (e: TouchEvent) =>
-        if e.touches.length == 1 then
-          val touch = e.touches(0)
-          isDragging = true
-          dragStartX = touch.clientX
-          dragStartY = touch.clientY
-          panStartX = panOffsetX
-          panStartY = panOffsetY
-    )
-
-    viewport.addEventListener(
-      "touchmove",
-      (e: TouchEvent) =>
-        if isDragging && e.touches.length == 1 then
-          e.preventDefault()
-          val touch = e.touches(0)
-          val dx = touch.clientX - dragStartX
-          val dy = touch.clientY - dragStartY
-          panOffsetX = panStartX + dx
-          panOffsetY = panStartY + dy
-          updateGridPosition()
-    )
-
-    viewport.addEventListener(
-      "touchend",
-      (_: TouchEvent) =>
-        if isDragging then
-          isDragging = false
-          snapBackIfNeeded()
-    )
-
-    // Mouse wheel zoom
-    viewport.addEventListener(
-      "wheel",
-      (e: WheelEvent) =>
-        e.preventDefault()
-
-        val mouseX = e.clientX
-        val mouseY = e.clientY
-
-        // Calculate the world position under the mouse before zoom
-        val worldXBefore = (mouseX - panOffsetX) / TileSize
-        val worldYBefore = (mouseY - panOffsetY) / TileSize
-
-        // Apply zoom
-        val delta = if e.deltaY < 0 then ZoomStep else -ZoomStep
-        zoomLevel = math.max(MinZoom, math.min(MaxZoom, zoomLevel + delta))
-
-        // Adjust pan to keep the same world position under the mouse
-        panOffsetX = mouseX - worldXBefore * TileSize
-        panOffsetY = mouseY - worldYBefore * TileSize
-
-        updateGridPosition()
-        renderTiles()
-    )
-
-  private def updateGridPosition(): Unit =
-    getElementById("tile-kingdom-grid").foreach: grid =>
-      grid.asInstanceOf[HTMLElement].style.transform = s"translate(${panOffsetX}px, ${panOffsetY}px)"
-
-  private def centerOnKingdom(animated: Boolean = false): Unit =
-    if UseLaminarGrid then
-      TileGridState.centerOnKingdom(currentGame, animated)
-    else
-      val target = calculateCenterOffset()
-      if animated then
-        animateTo(target)
-      else
-        panOffsetX = target._1
-        panOffsetY = target._2
-        updateGridPosition()
-        renderTiles()
-
-  private def snapBackIfNeeded(): Unit =
-    val viewportWidth = window.innerWidth
-    val viewportHeight = window.innerHeight
-
-    // Check if any unlocked tile is sufficiently visible (at least 50% in viewport)
-    val unlockedCoords = currentGame.unlockedTiles.map(_.coord)
-    val margin = TileSize * 0.5 // Tile must be at least 50% visible
-    val anyVisible = unlockedCoords.exists: coord =>
-      val tileScreenX = coord.col * TileSize + panOffsetX
-      val tileScreenY = coord.row * TileSize + panOffsetY
-      tileScreenX > -TileSize + margin && tileScreenX < viewportWidth - margin &&
-      tileScreenY > -TileSize + margin && tileScreenY < viewportHeight - margin
-
-    if !anyVisible then
-      // Animate snap back to center
-      animateTo(calculateCenterOffset())
-      showNotification("Snapped back to kingdom")
-
-  private def calculateCenterOffset(): (Double, Double) =
-    val unlockedCoords = currentGame.unlockedTiles.map(_.coord)
-    if unlockedCoords.nonEmpty then
-      val centerRow = unlockedCoords.map(_.row).sum.toDouble / unlockedCoords.size
-      val centerCol = unlockedCoords.map(_.col).sum.toDouble / unlockedCoords.size
-      val viewportWidth = window.innerWidth
-      val viewportHeight = window.innerHeight
-      val targetX = viewportWidth / 2 - (centerCol + 0.5) * TileSize
-      val targetY = viewportHeight / 2 - (centerRow + 0.5) * TileSize
-      (targetX, targetY)
-    else
-      (panOffsetX, panOffsetY)
-
-  private def animateTo(target: (Double, Double)): Unit =
-    val (targetX, targetY) = target
-    val startX = panOffsetX
-    val startY = panOffsetY
-    val duration = 300.0 // milliseconds
-    val startTime = System.currentTimeMillis().toDouble
-
-    def animate(): Unit =
-      val elapsed = System.currentTimeMillis().toDouble - startTime
-      val progress = math.min(1.0, elapsed / duration)
-      // Ease-out cubic for smooth deceleration
-      val eased = 1.0 - math.pow(1.0 - progress, 3)
-
-      panOffsetX = startX + (targetX - startX) * eased
-      panOffsetY = startY + (targetY - startY) * eased
-      updateGridPosition()
-
-      if progress < 1.0 then
-        window.requestAnimationFrame((_: Double) => animate())
-      else
-        renderTiles() // Final render at destination
-
-    animate()
 
   // ============================================================================
   // Game Loop
@@ -679,12 +375,11 @@ object TileKingdomClient:
     )
 
     // Track upgrades to show floating text after render
-    var bureauUpgrades: List[(Coord, Int, Coord, Int, Resource, Boolean)] = List.empty // (upgradedCoord, newLevel, bureauCoord, cost, costResource, wasTurbo)
+    var bureauUpgrades: List[(Coord, Int, Coord, Int, Resource, Boolean)] = List.empty
 
     bureaus.foreach: tile =>
       val currentProgress = getOrInitProgress(tile.coord)
       val isTurbo = TileKingdomLogic.isBureauTurbo(currentGame, tile.coord)
-      // Check if turbo is affordable based on min level nearby tile
       val nearbyCoords = tile.coord.neighborsWithinRadius(TileKingdomLogic.BureauRadius)
       val minLevel = nearbyCoords
         .flatMap(c => currentGame.tiles.get(c))
@@ -700,12 +395,9 @@ object TileKingdomClient:
       val newProgress = currentProgress + progressIncrement
 
       if newProgress >= 1.0 then
-        // Bureau ready to attempt an upgrade
         TileKingdomLogic.bureauAutoUpgrade(updatedGame, tile.coord, currentTime) match
           case Some((newGame, upgradedCoord)) if upgradedCoord != tile.coord =>
-            // Actual upgrade happened
             updatedGame = newGame
-            // Collect upgrade info to show after render
             val upgradedTile = updatedGame.tiles.get(upgradedCoord)
             val previousTile = upgradedTile.map(t => t.copy(tileType = t.tileType match
               case TileType.WheatField(lvl) => TileType.WheatField(lvl - 1)
@@ -720,21 +412,18 @@ object TileKingdomClient:
             val costResource = upgradeCostOpt.map(_.resource).getOrElse(Resource.Wheat)
             val newLevel = upgradedTile.map(_.level).getOrElse(1)
             bureauUpgrades = bureauUpgrades :+ (upgradedCoord, newLevel, tile.coord, upgradeCost, costResource, effectivelyTurbo)
-            tileProgress = tileProgress.updated(tile.coord, newProgress - 1.0) // Keep excess progress
+            tileProgress = tileProgress.updated(tile.coord, newProgress - 1.0)
           case Some((newGame, _)) =>
-            // Only turbo mode was disabled, no actual upgrade
             updatedGame = newGame
-            updateSingleTile(tile.coord) // Update bureau tile to show slow mode
-            tileProgress = tileProgress.updated(tile.coord, 1.0) // Retry next tick
+            tileProgress = tileProgress.updated(tile.coord, 1.0)
           case None =>
-            // No upgrade possible, keep progress at 1.0 to retry next tick
             tileProgress = tileProgress.updated(tile.coord, 1.0)
       else
         tileProgress = tileProgress.updated(tile.coord, newProgress)
 
     currentGame = updatedGame
 
-    // Tick politician lifespans (only active politicians in Town Halls age)
+    // Tick politician lifespans
     val (gameAfterLifespan, destroyedPoliticians) = TileKingdomLogic.tickPoliticianLifespans(currentGame, elapsedMs.toLong)
     currentGame = gameAfterLifespan
 
@@ -743,54 +432,27 @@ object TileKingdomClient:
     currentGame = TileKingdomLogic.generateNewPoliticians(currentGame, currentTime)
     val newPoliticianGenerated = currentGame.politicianRoster.size > previousRosterSize
 
-    // Sync with Laminar reactive state - this triggers automatic UI updates
+    // Sync with Laminar reactive state
     TileKingdomState.update(currentGame)
-
-    // Sync progress to TileGridState for Laminar tiles
-    if UseLaminarGrid then
-      TileGridState.tileProgress.set(tileProgress)
+    TileGridState.tileProgress.set(tileProgress)
 
     markDirty()
-    updateProgressBars()
-
-    // Update build option cost colors when resources change
-    if totalWheatHarvested > 0 || totalWoodHarvested > 0 || totalFaithHarvested > 0 || totalStoneHarvested > 0 then
-      updateBuildCostColors()
 
     if newPoliticianGenerated then
       showNotification("A new politician has arrived!")
 
-    // Notify about destroyed politicians
     destroyedPoliticians.foreach: name =>
       showNotification(s"$name has reached the end of their term!")
-      renderTiles() // Re-render to show empty town halls
-
-    // Update Town Hall tiles to show lifespan countdown (if no politicians died)
-    if destroyedPoliticians.isEmpty then
-      val townHalls = currentGame.unlockedTiles.filter(_.isTownHall)
-      townHalls.foreach: tile =>
-        tile.tileType match
-          case TileType.TownHall(Some(_)) => updateTownHallLifespan(tile.coord)
-          case _ => ()
-
-    // Update all bureau tiles when faith changes to refresh turbo button states
-    if totalFaithHarvested > 0 then
-      bureaus.foreach: tile =>
-        updateSingleTile(tile.coord)
 
     // Show projectile and floating text for bureau upgrades
     bureauUpgrades.foreach: (upgradedCoord, newLevel, bureauCoord, cost, costResource, wasTurbo) =>
-      // Show cost deduction immediately at bureau
       showFloatingReward(bureauCoord, TileKingdomLogic.effectiveBureauWoodCost(currentGame), "🪵", isSpend = true, offsetIndex = 0)
       if wasTurbo then
-        // Faith cost is based on target tile's level before upgrade (newLevel - 1)
         val previousLevel = newLevel - 1
         val faithCost = TileKingdomLogic.effectiveBureauFaithCostForLevel(currentGame, previousLevel)
         showFloatingReward(bureauCoord, faithCost, "✨", isSpend = true, offsetIndex = 1)
 
-      // Fire projectile, then show upgrade effects when it arrives
       showBureauProjectile(bureauCoord, upgradedCoord, () =>
-        renderTiles()
         val costEmoji = resourceEmoji(costResource)
         showFloatingReward(upgradedCoord, cost, costEmoji, isSpend = true)
         showFloatingLevel(upgradedCoord, newLevel)
@@ -800,16 +462,12 @@ object TileKingdomClient:
   // Persistence
   // ============================================================================
 
-  /** Mark game state as changed — will be flushed on the next periodic save. */
   private def markDirty(): Unit =
     isDirty = true
 
-  /** Write to localStorage only when the state has actually changed. */
   private def saveIfDirty(): Unit =
-    if isDirty then
-      saveGame()
+    if isDirty then saveGame()
 
-  /** Immediately persist the current game to localStorage. */
   private def saveGame(): Unit =
     Try:
       import upickle.default.*
@@ -819,7 +477,6 @@ object TileKingdomClient:
     .recover:
       case ex => println(s"[TileKingdom] Failed to save game: ${ex.getMessage}")
 
-  /** Start a periodic timer that flushes dirty state to localStorage. */
   private def startSaveTimer(): Unit =
     stopSaveTimer()
     val id = window.setInterval(() => saveIfDirty(), SaveIntervalMs)
@@ -829,7 +486,6 @@ object TileKingdomClient:
     saveTimerHandle.foreach(window.clearInterval)
     saveTimerHandle = None
 
-  /** Register page-lifecycle handlers so we never lose progress. */
   private def registerLifecycleHooks(): Unit =
     window.addEventListener("beforeunload", (_: Event) => saveIfDirty())
     document.addEventListener("visibilitychange", (_: Event) =>
@@ -842,11 +498,9 @@ object TileKingdomClient:
         case Some(json) =>
           import upickle.default.*
           val loadedGame = read[TileKingdomGame](json)
-
-          // Calculate offline progress
           val currentTime = System.currentTimeMillis()
           currentGame = TileKingdomLogic.tick(loadedGame, currentTime)
-          TileKingdomState.update(currentGame) // Sync Laminar state
+          TileKingdomState.update(currentGame)
 
           val offlineSeconds = (currentTime - loadedGame.lastTickTime) / 1000.0
           if offlineSeconds > 5 then
@@ -860,787 +514,13 @@ object TileKingdomClient:
         case None =>
           println(s"[TileKingdom] No saved game found, starting new game")
           currentGame = TileKingdomLogic.newGame(System.currentTimeMillis())
-          TileKingdomState.update(currentGame) // Sync Laminar state
+          TileKingdomState.update(currentGame)
           saveGame()
     .recover:
       case ex =>
         println(s"[TileKingdom] Failed to load game: ${ex.getMessage}")
         currentGame = TileKingdomLogic.newGame(System.currentTimeMillis())
-        TileKingdomState.update(currentGame) // Sync Laminar state
-
-  // ============================================================================
-  // UI Rendering
-  // ============================================================================
-
-  private def renderGame(): Unit =
-    TileKingdomState.update(currentGame) // Sync Laminar state for reactive updates
-    if !UseLaminarGrid then renderTiles()
-
-  /** Lightweight UI refresh — updates buttons without rebuilding tiles. */
-  private def refreshUI(): Unit =
-    TileKingdomState.update(currentGame) // Sync Laminar state for reactive updates
-
-
-  // Update a single tile in place without re-rendering everything
-  private def updateSingleTile(coord: Coord): Unit =
-    if UseLaminarGrid then return // Laminar handles updates reactively
-    currentGame.tiles.get(coord).foreach: tile =>
-      Option(document.getElementById(s"tile-${coord.row}-${coord.col}")).foreach: oldElement =>
-        progressBarCache = progressBarCache.removed(coord)
-        val newElement = renderTile(tile)
-        oldElement.parentNode.replaceChild(newElement, oldElement)
-
-  // Update only the TownHall lifespan timer without replacing the entire tile
-  // This preserves drag-drop handlers during timer updates
-  private def updateTownHallLifespan(coord: Coord): Unit =
-    currentGame.tiles.get(coord).flatMap(_.tileType match
-      case TileType.TownHall(Some(pol)) => Some(pol)
-      case _ => None
-    ).foreach: pol =>
-      Option(document.getElementById(s"politician-lifespan-${coord.row}-${coord.col}")).foreach: lifespanElem =>
-        val elem = lifespanElem.asInstanceOf[HTMLElement]
-        val lifespanMultiplier = TileKingdomLogic.politicianLifespanMultiplier(currentGame, coord)
-        val effectiveLifespanMs = (pol.remainingLifespanMs * lifespanMultiplier).toLong
-        val lifespanSeconds = (effectiveLifespanMs / 1000).toInt
-        val minutes = lifespanSeconds / 60
-        val seconds = lifespanSeconds % 60
-        val lifespanText = f"$minutes:$seconds%02d"
-        val effectiveMaxLifespanMs = (TileKingdomLogic.PoliticianLifespanMs * lifespanMultiplier).toLong
-        val lifespanPercent = (effectiveLifespanMs.toDouble / effectiveMaxLifespanMs * 100).toInt
-        val lifespanClass = if lifespanPercent <= 20 then "lifespan-critical" else if lifespanPercent <= 50 then "lifespan-warning" else "lifespan-normal"
-        val multiplierText = if lifespanMultiplier > 1.0 then s" (${lifespanMultiplier.toInt}x)" else ""
-
-        elem.textContent = s"⏱️ $lifespanText$multiplierText"
-        elem.className = s"politician-lifespan $lifespanClass"
-
-  private def renderTiles(): Unit =
-    if UseLaminarGrid then return // Laminar handles tile rendering reactively
-    getElementById("tile-kingdom-grid").foreach: gridContainer =>
-      gridContainer.innerHTML = ""
-      progressBarCache = Map.empty
-      val grid = gridContainer.asInstanceOf[HTMLElement]
-
-      // Calculate visible tile range based on viewport and pan offset
-      val viewportWidth = window.innerWidth
-      val viewportHeight = window.innerHeight
-
-      val minCol = ((-panOffsetX - TileSize * VisiblePadding) / TileSize).floor.toInt
-      val maxCol = ((-panOffsetX + viewportWidth + TileSize * VisiblePadding) / TileSize).ceil.toInt
-      val minRow = ((-panOffsetY - TileSize * VisiblePadding) / TileSize).floor.toInt
-      val maxRow = ((-panOffsetY + viewportHeight + TileSize * VisiblePadding) / TileSize).ceil.toInt
-
-      // Render influence indicators first (so they appear behind tiles)
-      currentGame.unlockedTiles.foreach: tile =>
-        val coord = tile.coord
-        if coord.row >= minRow - 3 && coord.row <= maxRow + 3 && coord.col >= minCol - 3 && coord.col <= maxCol + 3 then
-          tile.tileType match
-            case TileType.Farm(_) =>
-              grid.appendChild(renderInfluenceIndicator(coord, 1, "farm-influence"))
-            case TileType.Bureau(_) =>
-              grid.appendChild(renderInfluenceIndicator(coord, TileKingdomLogic.BureauRadius, "bureau-influence"))
-            case TileType.TownHall(Some(_)) =>
-              grid.appendChild(renderInfluenceIndicator(coord, TileKingdomLogic.TownHallInfluenceRadius, "town-hall-influence"))
-            case _ => // No indicator
-      // Get all coords we need to render (existing tiles + unlockable if affordable)
-      val unlockableCoords = TileKingdomLogic.unlockableCoords(currentGame)
-      val canAffordUnlock = currentGame.gold >= currentGame.nextTileUnlockCost
-      val coordsToRender = currentGame.tiles.keySet ++ (if canAffordUnlock then unlockableCoords else Set.empty)
-
-      // Render tiles within visible range
-      coordsToRender.foreach: coord =>
-        if coord.row >= minRow && coord.row <= maxRow && coord.col >= minCol && coord.col <= maxCol then
-          currentGame.tiles.get(coord) match
-            case Some(tile) =>
-              grid.appendChild(renderTile(tile))
-            case None if canAffordUnlock && unlockableCoords.contains(coord) =>
-              grid.appendChild(renderUnlockableTile(coord))
-            case _ => // Don't render
-  private def renderInfluenceIndicator(center: Coord, radius: Int, cssClass: String): HTMLElement =
-    val indicator = div(cls = s"influence-indicator $cssClass")
-
-    // Calculate the rectangle bounds
-    val left = (center.col - radius) * TileSize
-    val top = (center.row - radius) * TileSize
-    val width = (radius * 2 + 1) * TileSize - 4 // -4 for gap
-    val height = (radius * 2 + 1) * TileSize - 4
-
-    indicator.style.cssText =
-      s"position: absolute; left: ${left}px; top: ${top}px; width: ${width}px; height: ${height}px;"
-
-    indicator
-
-  private def renderTile(tile: Tile): HTMLElement =
-    val coord = tile.coord
-    val tileDiv = div(id = s"tile-${coord.row}-${coord.col}", cls = "tile-kingdom-tile")
-    val tilePixelSize = (70 * zoomLevel).toInt
-    // Scale font size with zoom - allow it to go smaller when zoomed out
-    val fontScale = math.max(0.3, math.min(1.0, zoomLevel))
-
-    // Add zoom tier class: icons-only (middle third) or minimal (bottom third)
-    applyZoomTier(tileDiv)
-
-    // Position the tile absolutely with zoom-adjusted size
-    tileDiv.asInstanceOf[HTMLElement].style.cssText =
-      s"position: absolute; left: ${coord.col * TileSize}px; top: ${coord
-          .row * TileSize}px; width: ${tilePixelSize}px; height: ${tilePixelSize}px; font-size: ${fontScale}em;"
-
-    tileDiv.classList.add("unlocked")
-    tile.tileType match
-      case TileType.Empty =>
-        tileDiv.classList.add("empty")
-        val wheatCost = TileKingdomLogic.wheatFieldBuildCost
-        val farmCost = TileKingdomLogic.farmBuildCost
-        val woodcutterCost = TileKingdomLogic.woodcutterBuildCost
-        val bureauCost = TileKingdomLogic.bureauBuildCost
-        val templeCost = TileKingdomLogic.templeBuildCost
-        val townHallCost = TileKingdomLogic.townHallBuildCost(currentGame)
-        val quarryCost = TileKingdomLogic.quarryBuildCost
-        val academyCost = TileKingdomLogic.academyBuildCost(currentGame)
-
-        // Unlock progression checks
-        val canBuildFarm = currentGame.canBuildFarm
-        val canBuildWoodcutter = currentGame.canBuildWoodcutter
-        val canBuildQuarry = currentGame.canBuildQuarry
-        val canBuildBureau = currentGame.canBuildBureau
-        val canBuildTemple = currentGame.canBuildTemple
-        val canBuildTownHall = currentGame.canBuildTownHall
-        val canBuildAcademy = currentGame.canBuildAcademy
-        val canBuildTavern = currentGame.canBuildTavern
-
-        // Check if any resource or management buildings are available
-        val hasResourceBuildings = canBuildFarm || canBuildWoodcutter || canBuildQuarry
-        val hasManagementBuildings = canBuildBureau || canBuildTemple || canBuildTownHall || canBuildAcademy || canBuildTavern
-
-        // Build icon container (shown by default)
-        val buildIconContainer = div(cls = "tile-build-icon-container")
-        buildIconContainer.appendChild(el("i", cls = "fa-solid fa-hammer"))
-        buildIconContainer.appendChild(div(cls = "build-label", content = "Build"))
-        buildIconContainer.onclick = onClickStop:
-          // Clear any other selecting tiles first
-          document.querySelectorAll(".tile-kingdom-tile.selecting").foreach: elem =>
-            elem.asInstanceOf[HTMLElement].classList.remove("selecting")
-          selectingTileCoord = Some(coord)
-          tileDiv.classList.add("selecting")
-        tileDiv.appendChild(buildIconContainer)
-
-        // Restore selecting state if this tile was previously selected
-        if selectingTileCoord.contains(coord) then
-          tileDiv.classList.add("selecting")
-
-        // Build options container (hidden by default, shown when selecting)
-        val buildOptions = div(cls = "tile-build-options")
-
-        // Main menu container
-        val mainMenu = div(cls = "build-main-menu")
-
-        // Back/cancel button for main menu
-        mainMenu.appendChild(div(cls = "build-option build-back").tap: opt =>
-          opt.appendChild(el("i", cls = "fa-solid fa-arrow-left build-icon"))
-          opt.appendChild(div(cls = "build-name", content = "Back"))
-          opt.onclick = (e: MouseEvent) =>
-            e.stopPropagation()
-            selectingTileCoord = None
-            activeSubmenu = None
-            tileDiv.classList.remove("selecting")
-        )
-
-        // Resources category button (always show - at minimum wheat field is available)
-        mainMenu.appendChild(div(cls = "build-option build-category resources").tap: opt =>
-          opt.appendChild(div(cls = "build-icon", content = "🌾"))
-          opt.appendChild(div(cls = "build-name", content = "Resources"))
-          opt.onclick = (e: MouseEvent) =>
-            e.stopPropagation()
-            activeSubmenu = Some("resources")
-            buildOptions.classList.add("submenu-resources")
-        )
-
-        // Management category button (only show if any management buildings are unlocked)
-        if hasManagementBuildings then
-          mainMenu.appendChild(div(cls = "build-option build-category management").tap: opt =>
-            opt.appendChild(div(cls = "build-icon", content = "🏛️"))
-            opt.appendChild(div(cls = "build-name", content = "Management"))
-            opt.onclick = (e: MouseEvent) =>
-              e.stopPropagation()
-              activeSubmenu = Some("management")
-              buildOptions.classList.add("submenu-management")
-           )
-
-        buildOptions.appendChild(mainMenu)
-
-        // Resources submenu
-        val resourcesSubmenu = div(cls = "build-submenu resources")
-
-        resourcesSubmenu.appendChild(div(cls = "build-option build-back").tap: opt =>
-          opt.appendChild(el("i", cls = "fa-solid fa-arrow-left build-icon"))
-          opt.appendChild(div(cls = "build-name", content = "Back"))
-          opt.onclick = (e: MouseEvent) =>
-            e.stopPropagation()
-            activeSubmenu = None
-            buildOptions.classList.remove("submenu-resources")
-        )
-
-        resourcesSubmenu.appendChild(buildOption("🌾", "Field", wheatCost, "🌾", currentGame.wheat >= wheatCost, handleBuildWheatField(coord)))
-
-        if canBuildFarm then
-          resourcesSubmenu.appendChild(buildOption("🏠", "Farm", farmCost, "🌾", currentGame.wheat >= farmCost, handleBuildFarm(coord)))
-
-        if canBuildWoodcutter then
-          resourcesSubmenu.appendChild(buildOption("🪓", "Forest", woodcutterCost, "🌾", currentGame.wheat >= woodcutterCost, handleBuildWoodcutter(coord)))
-
-        if canBuildQuarry then
-          resourcesSubmenu.appendChild(buildOption("⛏️", "Quarry", quarryCost, "🪵", currentGame.wood >= quarryCost, handleBuildQuarry(coord)))
-
-        buildOptions.appendChild(resourcesSubmenu)
-
-        // Management submenu (only if any management buildings are unlocked)
-        if hasManagementBuildings then
-          val managementSubmenu = div(cls = "build-submenu management")
-
-          managementSubmenu.appendChild(div(cls = "build-option build-back").tap: opt =>
-            opt.appendChild(el("i", cls = "fa-solid fa-arrow-left build-icon"))
-            opt.appendChild(div(cls = "build-name", content = "Back"))
-            opt.onclick = (e: MouseEvent) =>
-              e.stopPropagation()
-              activeSubmenu = None
-              buildOptions.classList.remove("submenu-management")
-          )
-
-          if canBuildBureau then
-            managementSubmenu.appendChild(buildOption("🏛️", "Bureau", bureauCost, "🪵", currentGame.wood >= bureauCost, handleBuildBureau(coord)))
-
-          if canBuildTemple then
-            managementSubmenu.appendChild(buildOption("⛪", "Temple", templeCost, "🪵", currentGame.wood >= templeCost, handleBuildTemple(coord)))
-
-          if canBuildTownHall then
-            managementSubmenu.appendChild(buildOption("🏛️", "Town Hall", townHallCost, "🪨", currentGame.stone >= townHallCost, handleBuildTownHall(coord)))
-
-          if canBuildAcademy then
-            managementSubmenu.appendChild(buildOption("🎓", "Academy", academyCost, "🪨", currentGame.stone >= academyCost, handleBuildAcademy(coord)))
-
-          if canBuildTavern then
-            val tavernCost = TileKingdomLogic.TavernBuildCost
-            managementSubmenu.appendChild(buildOption("🍺", "Tavern", tavernCost, "🪵", currentGame.wood >= tavernCost, handleBuildTavern(coord)))
-
-          buildOptions.appendChild(managementSubmenu)
-
-        // Restore active submenu if this tile was previously selected
-        if selectingTileCoord.contains(coord) then
-          activeSubmenu.foreach:
-            case "resources" => buildOptions.classList.add("submenu-resources")
-            case "management" => buildOptions.classList.add("submenu-management")
-            case _ => ()
-
-        tileDiv.appendChild(buildOptions)
-
-      case TileType.WheatField(level) =>
-        tileDiv.classList.add("wheat-field")
-        tileDiv.setAttribute("data-level", level.toString)
-        val harvestAmount = TileKingdomLogic.productionPerHarvest(currentGame, tile)
-        val bonusMultiplier = TileKingdomLogic.farmBonusMultiplier(currentGame, coord)
-        val townHallMultiplier = TileKingdomLogic.townHallWheatMultiplier(currentGame, coord)
-        val hasBonus = bonusMultiplier > 1.0
-        val hasTownHallBonus = townHallMultiplier > 1.0
-        val hasSpeedBoost = currentGame.hasSkill(Skill.Agriculture1B)
-        val upgradeCost = TileKingdomLogic.effectiveUpgradeCost(currentGame, tile).map(_.amount).getOrElse(0)
-
-        val content = div(cls = "tile-content")(
-          div(cls = "tile-icon", content = "🌾"),
-          div(cls = "tile-label", content = s"Lv$level")
-        )
-
-        content.appendChild(div(cls = "tile-production", content = s"+${formatNumber(harvestAmount)}"))
-
-        val modifiers = div(cls = "tile-modifiers")
-        if currentGame.hasSkill(Skill.Agriculture3A) then
-          val badge = span(cls = "tile-badge badge-speed", content = "💰-90%")
-          badge.title = "Agriculture skill: Wheat field upgrades cost 90% less"
-          modifiers.appendChild(badge)
-        if hasSpeedBoost then
-          val badge = span(cls = "tile-badge badge-speed", content = "⚡+25%")
-          badge.title = "Agriculture skill: Fields produce 25% faster"
-          modifiers.appendChild(badge)
-        if hasBonus then
-          val bonusPercent = ((bonusMultiplier - 1) * 100).toInt
-          modifiers.appendChild(span(cls = "tile-badge badge-farm", content = s"🏠+$bonusPercent%"))
-        if hasTownHallBonus then
-          val multiplierText = if townHallMultiplier % 1.0 == 0 then s"x${townHallMultiplier.toInt}" else f"x$townHallMultiplier%.1f"
-          modifiers.appendChild(span(cls = "tile-badge badge-townhall", content = s"🏛️$multiplierText"))
-        if modifiers.childElementCount > 0 then content.appendChild(modifiers)
-
-        val upgradeRow = div(cls = "tile-upgrade-row")
-        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆${formatNumber(upgradeCost)}🌾"))
-        upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
-          btn.onclick = (e: MouseEvent) =>
-            e.stopPropagation()
-            handleBulkLevelUp(coord, levelsToNextTen(level))
-        )
-        content.appendChild(upgradeRow)
-
-        tileDiv.appendChild(content)
-
-        // Add progress bar
-        tileDiv.appendChild(createProgressBar(coord))
-
-        tileDiv.onclick = onClick(handleLevelUp(coord))
-        tileDiv.oncontextmenu = (e: MouseEvent) =>
-          e.preventDefault()
-          handleDestroyBuilding(coord)
-
-      case TileType.Farm(level) =>
-        tileDiv.classList.add("farm")
-        tileDiv.setAttribute("data-level", level.toString)
-        val boostPercent = (level * TileKingdomLogic.FarmBoostPerLevel * 100).toInt
-        val upgradeCost = TileKingdomLogic.farmLevelUpCost(level)
-
-        val content = div(cls = "tile-content")(
-          div(cls = "tile-icon", content = "🏠"),
-          div(cls = "tile-label", content = s"Lv$level"),
-          div(cls = "tile-production", content = s"+$boostPercent%")
-        )
-
-        val upgradeRow = div(cls = "tile-upgrade-row")
-        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆${formatNumber(upgradeCost)}🌾"))
-        upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
-          btn.onclick = (e: MouseEvent) =>
-            e.stopPropagation()
-            handleBulkLevelUp(coord, levelsToNextTen(level))
-        )
-        content.appendChild(upgradeRow)
-
-        tileDiv.appendChild(content)
-        tileDiv.onclick = onClick(handleLevelUp(coord))
-        tileDiv.oncontextmenu = (e: MouseEvent) =>
-          e.preventDefault()
-          handleDestroyBuilding(coord)
-
-      case TileType.Woodcutter(level) =>
-        tileDiv.classList.add("woodcutter")
-        tileDiv.setAttribute("data-level", level.toString)
-        val harvestAmount = TileKingdomLogic.woodProductionPerHarvest(currentGame, tile)
-        val upgradeCost = TileKingdomLogic.woodcutterLevelUpCost(level)
-        val townHallMultiplier = TileKingdomLogic.townHallWoodMultiplier(currentGame, coord)
-        val hasTownHallBonus = townHallMultiplier > 1.0
-        val agriculture2BBonus = TileKingdomLogic.agriculture2BFarmBonusMultiplier(currentGame, coord)
-        val hasFarmBoost = agriculture2BBonus > 1.0
-
-        val content = div(cls = "tile-content")(
-          div(cls = "tile-icon", content = "🪓"),
-          div(cls = "tile-label", content = s"Lv$level")
-        )
-
-        content.appendChild(div(cls = "tile-production", content = s"+${formatNumber(harvestAmount)}🪵"))
-
-        val modifiers = div(cls = "tile-modifiers")
-        if hasFarmBoost then
-          val boostPercent = ((agriculture2BBonus - 1) * 100).toInt
-          val badge = span(cls = "tile-badge badge-farm", content = s"🏠+$boostPercent%")
-          badge.title = "Agriculture skill: Farms boost forests at half strength"
-          modifiers.appendChild(badge)
-        val forestBonus = TileKingdomLogic.forestGroupBonusMultiplier(currentGame, coord)
-        if forestBonus > 1.0 then
-          val bonusPercent = ((forestBonus - 1) * 100).toInt
-          modifiers.appendChild(span(cls = "tile-badge badge-forest", content = s"🌲+$bonusPercent%"))
-        if hasTownHallBonus then
-          val multiplierText = if townHallMultiplier % 1.0 == 0 then s"x${townHallMultiplier.toInt}" else f"x$townHallMultiplier%.1f"
-          modifiers.appendChild(span(cls = "tile-badge badge-townhall", content = s"🏛️$multiplierText"))
-        if modifiers.childElementCount > 0 then content.appendChild(modifiers)
-
-        val upgradeRow = div(cls = "tile-upgrade-row")
-        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆${formatNumber(upgradeCost)}🌾"))
-        upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
-          btn.onclick = (e: MouseEvent) =>
-            e.stopPropagation()
-            handleBulkLevelUp(coord, levelsToNextTen(level))
-        )
-        content.appendChild(upgradeRow)
-
-        tileDiv.appendChild(content)
-
-        // Add progress bar
-        tileDiv.appendChild(createProgressBar(coord, "woodcutter-progress"))
-
-        tileDiv.onclick = onClick(handleLevelUp(coord))
-        tileDiv.oncontextmenu = (e: MouseEvent) =>
-          e.preventDefault()
-          handleDestroyBuilding(coord)
-
-      case TileType.Bureau(level) =>
-        tileDiv.classList.add("bureau")
-        tileDiv.setAttribute("data-level", level.toString)
-        val bureauMode = TileKingdomLogic.getBureauMode(currentGame, coord)
-        val isTurbo = bureauMode == BureauMode.Turbo
-        val isDisabled = bureauMode == BureauMode.Disabled
-        val speedMultiplier = TileKingdomLogic.bureauSpeedMultiplier(currentGame, coord)
-
-        // Find min level of nearby upgradeable tiles for faith cost display
-        val nearbyCoords = coord.neighborsWithinRadius(TileKingdomLogic.BureauRadius)
-        val minLevel = nearbyCoords
-          .flatMap(c => currentGame.tiles.get(c))
-          .filter(_.isUpgradeable)
-          .map(_.level)
-          .minOption
-          .getOrElse(1)
-        val minFaithCost = TileKingdomLogic.effectiveBureauFaithCostForLevel(currentGame, minLevel)
-        val canAffordTurbo = currentGame.faith >= minFaithCost
-
-        if isTurbo then tileDiv.classList.add("turbo")
-        if isDisabled then tileDiv.classList.add("disabled")
-
-        val modeLabel = bureauMode match
-          case BureauMode.Slow => "Bureau"
-          case BureauMode.Turbo => s"⚡x${speedMultiplier.toInt}"
-          case BureauMode.Disabled => "⏸️ Paused"
-
-        val content = div(cls = "tile-content")(
-          div(cls = "tile-icon", content = "🏛️"),
-          div(cls = "tile-label", content = modeLabel)
-        )
-
-        if !isDisabled then
-          content.appendChild(div(cls = "tile-production", content = s"Auto⬆"))
-        
-        // Show upgrade cost as badge
-        val effectiveWoodCost = TileKingdomLogic.effectiveBureauWoodCost(currentGame)
-        val costText = bureauMode match
-          case BureauMode.Turbo => s"${effectiveWoodCost}🪵 Lv×10✨"
-          case BureauMode.Slow => s"${effectiveWoodCost}🪵"
-          case BureauMode.Disabled => "—"
-        content.appendChild(div(cls = "tile-badge badge-cost", content = costText))
-
-        // Add mode toggle buttons side by side
-        val modeRow = div(cls = "bureau-mode-row")
-
-        // Slow mode button
-        modeRow.appendChild(button(cls = s"btn-bureau-mode slow${if bureauMode == BureauMode.Slow then " active" else ""}", content = "🐢").tap: btn =>
-          btn.title = "Slow mode (1x speed)"
-          btn.onclick = (e: MouseEvent) =>
-            e.stopPropagation()
-            if bureauMode != BureauMode.Slow then
-              // Cycle until we reach Slow
-              var game = currentGame
-              while TileKingdomLogic.getBureauMode(game, coord) != BureauMode.Slow do
-                TileKingdomLogic.cycleBureauMode(game, coord) match
-                  case Right(g) => game = g
-                  case Left(_) => ()
-              currentGame = game
-              saveGame()
-              updateSingleTile(coord)
-              refreshUI()
-              showNotification("Slow mode (1x speed)")
-        )
-
-        // Turbo mode button
-        val turboBtn = button(cls = s"btn-bureau-mode turbo${if isTurbo then " active" else ""}${if !canAffordTurbo && !isTurbo then " insufficient" else ""}", content = "⚡")
-        turboBtn.title = s"Turbo mode (10x speed, ${minFaithCost}✨/upgrade)"
-        turboBtn.onclick = (e: MouseEvent) =>
-          e.stopPropagation()
-          if bureauMode != BureauMode.Turbo then
-            if canAffordTurbo || bureauMode == BureauMode.Turbo then
-              // Cycle until we reach Turbo
-              var game = currentGame
-              while TileKingdomLogic.getBureauMode(game, coord) != BureauMode.Turbo do
-                TileKingdomLogic.cycleBureauMode(game, coord) match
-                  case Right(g) => game = g
-                  case Left(_) => ()
-              currentGame = game
-              saveGame()
-              updateSingleTile(coord)
-              refreshUI()
-              showNotification("Turbo mode (10x speed, +✨/upgrade)")
-            else
-              showNotification(s"Need ${minFaithCost}✨ for turbo mode (Lv$minLevel × 10)")
-        modeRow.appendChild(turboBtn)
-
-        // Disabled/pause button
-        modeRow.appendChild(button(cls = s"btn-bureau-mode pause${if isDisabled then " active" else ""}", content = "⏸️").tap: btn =>
-          btn.title = "Pause bureau"
-          btn.onclick = (e: MouseEvent) =>
-            e.stopPropagation()
-            if bureauMode != BureauMode.Disabled then
-              // Cycle until we reach Disabled
-              var game = currentGame
-              while TileKingdomLogic.getBureauMode(game, coord) != BureauMode.Disabled do
-                TileKingdomLogic.cycleBureauMode(game, coord) match
-                  case Right(g) => game = g
-                  case Left(_) => ()
-              currentGame = game
-              saveGame()
-              updateSingleTile(coord)
-              refreshUI()
-              showNotification("Bureau paused")
-        )
-
-        content.appendChild(modeRow)
-
-        tileDiv.appendChild(content)
-
-        // Add progress bar (hidden when disabled)
-        if !isDisabled then
-          tileDiv.appendChild(createProgressBar(coord, "bureau-progress"))
-
-        tileDiv.oncontextmenu = (e: MouseEvent) =>
-          e.preventDefault()
-          handleDestroyBuilding(coord)
-
-      case TileType.Temple(level) =>
-        tileDiv.classList.add("temple")
-        tileDiv.setAttribute("data-level", level.toString)
-        val faithAmount = TileKingdomLogic.faithProductionPerHarvest(currentGame, tile)
-        val upgradeCost = TileKingdomLogic.templeLevelUpCost(level)
-        val townHallMultiplier = TileKingdomLogic.townHallFaithMultiplier(currentGame, coord)
-        val hasTownHallBonus = townHallMultiplier > 1.0
-        val wisdomMultiplier = TileKingdomLogic.templeWisdom2Multiplier(currentGame, coord)
-        val hasWisdomBonus = wisdomMultiplier > 1.0
-
-        val content = div(cls = "tile-content")(
-          div(cls = "tile-icon", content = "⛪"),
-          div(cls = "tile-label", content = s"Lv$level")
-        )
-
-        content.appendChild(div(cls = "tile-production temple-production", content = s"+${formatNumber(faithAmount)}✨"))
-
-        val modifiers = div(cls = "tile-modifiers")
-        if hasTownHallBonus then
-          val multiplierText = if townHallMultiplier % 1.0 == 0 then s"x${townHallMultiplier.toInt}" else f"x$townHallMultiplier%.1f"
-          modifiers.appendChild(span(cls = "tile-badge badge-townhall", content = s"🏛️$multiplierText"))
-        if hasWisdomBonus then
-          val multiplierText = if wisdomMultiplier % 1.0 == 0 then s"x${wisdomMultiplier.toInt}" else f"x$wisdomMultiplier%.1f"
-          modifiers.appendChild(span(cls = "tile-badge badge-wisdom", content = s"🌲$multiplierText"))
-        if modifiers.childElementCount > 0 then content.appendChild(modifiers)
-
-        val upgradeRow = div(cls = "tile-upgrade-row")
-        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆${formatNumber(upgradeCost)}🪵"))
-        upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
-          btn.onclick = (e: MouseEvent) =>
-            e.stopPropagation()
-            handleBulkLevelUp(coord, levelsToNextTen(level))
-        )
-        content.appendChild(upgradeRow)
-
-        tileDiv.appendChild(content)
-
-        // Add progress bar
-        tileDiv.appendChild(createProgressBar(coord, "temple-progress"))
-
-        tileDiv.onclick = onClick(handleLevelUp(coord))
-        tileDiv.oncontextmenu = (e: MouseEvent) =>
-          e.preventDefault()
-          handleDestroyBuilding(coord)
-
-      case TileType.Quarry(level) =>
-        tileDiv.classList.add("quarry")
-        tileDiv.setAttribute("data-level", level.toString)
-        val stoneAmount = TileKingdomLogic.stoneProductionPerHarvest(currentGame, tile)
-        val upgradeCost = TileKingdomLogic.quarryLevelUpCost(level)
-        val townHallMultiplier = TileKingdomLogic.townHallStoneMultiplier(currentGame, coord)
-        val hasTownHallBonus = townHallMultiplier > 1.0
-        val wisdomMultiplier = TileKingdomLogic.quarryWisdom1Multiplier(currentGame, coord)
-        val hasWisdomBonus = wisdomMultiplier > 1.0
-        val agriculture3BBonus = TileKingdomLogic.agriculture3BFarmBonusMultiplier(currentGame, coord)
-        val hasFarmBoost = agriculture3BBonus > 1.0
-
-        val content = div(cls = "tile-content")(
-          div(cls = "tile-icon", content = "⛏️"),
-          div(cls = "tile-label", content = s"Lv$level")
-        )
-
-        content.appendChild(div(cls = "tile-production quarry-production", content = s"+${formatNumber(stoneAmount)}🪨"))
-
-        val modifiers = div(cls = "tile-modifiers")
-        if hasFarmBoost then
-          val boostPercent = ((agriculture3BBonus - 1) * 100).toInt
-          val badge = span(cls = "tile-badge badge-farm", content = s"🏠+$boostPercent%")
-          badge.title = "Agriculture skill: Farms boost quarries at half strength"
-          modifiers.appendChild(badge)
-        if hasTownHallBonus then
-          val multiplierText = if townHallMultiplier % 1.0 == 0 then s"x${townHallMultiplier.toInt}" else f"x$townHallMultiplier%.1f"
-          modifiers.appendChild(span(cls = "tile-badge badge-townhall", content = s"🏛️$multiplierText"))
-        if hasWisdomBonus then
-          val multiplierText = if wisdomMultiplier % 1.0 == 0 then s"x${wisdomMultiplier.toInt}" else f"x$wisdomMultiplier%.1f"
-          modifiers.appendChild(span(cls = "tile-badge badge-wisdom", content = s"🌲$multiplierText"))
-        if modifiers.childElementCount > 0 then content.appendChild(modifiers)
-
-        val upgradeRow = div(cls = "tile-upgrade-row")
-        upgradeRow.appendChild(span(cls = "tile-upgrade", content = s"⬆${formatNumber(upgradeCost)}🪵"))
-        upgradeRow.appendChild(button(cls = "btn-x10", content = "x10").tap: btn =>
-          btn.onclick = (e: MouseEvent) =>
-            e.stopPropagation()
-            handleBulkLevelUp(coord, levelsToNextTen(level))
-        )
-        content.appendChild(upgradeRow)
-
-        tileDiv.appendChild(content)
-
-        // Add progress bar
-        tileDiv.appendChild(createProgressBar(coord, "quarry-progress"))
-
-        tileDiv.onclick = onClick(handleLevelUp(coord))
-        tileDiv.oncontextmenu = (e: MouseEvent) =>
-          e.preventDefault()
-          handleDestroyBuilding(coord)
-
-      case TileType.TownHall(politician) =>
-        tileDiv.classList.add("town-hall")
-
-        val content = div(cls = "tile-content town-hall-content")(
-          div(cls = "tile-icon", content = "🏛️")
-        )
-
-        politician match
-          case Some(pol) =>
-            tileDiv.classList.add("has-politician")
-            // Calculate lifespan display with tavern multiplier
-            val lifespanMultiplier = TileKingdomLogic.politicianLifespanMultiplier(currentGame, coord)
-            val effectiveLifespanMs = (pol.remainingLifespanMs * lifespanMultiplier).toLong
-            val lifespanSeconds = (effectiveLifespanMs / 1000).toInt
-            val minutes = lifespanSeconds / 60
-            val seconds = lifespanSeconds % 60
-            val lifespanText = f"$minutes:$seconds%02d"
-            val effectiveMaxLifespanMs = (TileKingdomLogic.PoliticianLifespanMs * lifespanMultiplier).toLong
-            val lifespanPercent = (effectiveLifespanMs.toDouble / effectiveMaxLifespanMs * 100).toInt
-            val lifespanClass = if lifespanPercent <= 20 then "lifespan-critical" else if lifespanPercent <= 50 then "lifespan-warning" else "lifespan-normal"
-            val multiplierText = if lifespanMultiplier > 1.0 then s" (${lifespanMultiplier.toInt}x)" else ""
-
-            val slot = div(cls = "politician-slot filled")(
-              div(cls = "politician-emoji-small", content = pol.emoji),
-              div(cls = "politician-effect-small", content = pol.effectDescription),
-              div(id = s"politician-lifespan-${coord.row}-${coord.col}", cls = s"politician-lifespan $lifespanClass", content = s"⏱️ $lifespanText$multiplierText")
-            )
-
-            // Make the politician slot draggable for swapping between town halls
-            slot.setAttribute("draggable", "true")
-            slot.ondragstart = (e: DragEvent) =>
-              // Use format "townhall:row,col" to identify source is a town hall
-              e.dataTransfer.effectAllowed = DataTransferEffectAllowedKind.move
-              e.dataTransfer.setData("text/plain", s"townhall:${coord.row},${coord.col}")
-              tileDiv.classList.add("dragging")
-            slot.ondragend = (_: DragEvent) =>
-              tileDiv.classList.remove("dragging")
-
-            content.appendChild(slot)
-            // Click to remove politician
-            tileDiv.onclick = onClick(handleRemovePolitician(coord))
-          case None =>
-            content.appendChild(div(cls = "politician-slot empty")(
-              div(cls = "slot-label", content = "Drop politician")
-            ))
-
-        tileDiv.appendChild(content)
-
-        // Setup drag-drop for receiving politicians
-        // Use stopPropagation to prevent event bubbling issues
-        tileDiv.ondragover = (e: DragEvent) =>
-          e.preventDefault()
-          e.stopPropagation()
-          tileDiv.classList.add("drag-over")
-
-        tileDiv.ondragenter = (e: DragEvent) =>
-          e.preventDefault()
-          e.stopPropagation()
-          tileDiv.classList.add("drag-over")
-
-        // Only remove drag-over when actually leaving the tile, not when moving to children
-        tileDiv.ondragleave = (e: DragEvent) =>
-          e.stopPropagation()
-          val related = e.relatedTarget
-          // Check if we're leaving to an element outside this tile
-          val leavingTile = related == null || !tileDiv.contains(related.asInstanceOf[org.scalajs.dom.Node])
-          if leavingTile then
-            tileDiv.classList.remove("drag-over")
-
-        tileDiv.ondrop = (e: DragEvent) =>
-          e.preventDefault()
-          e.stopPropagation()
-          tileDiv.classList.remove("drag-over")
-          val data = e.dataTransfer.getData("text/plain")
-          // Check if drag is from another town hall or from roster
-          if data.startsWith("townhall:") then
-            // Parse source coord from "townhall:row,col"
-            val coords = data.stripPrefix("townhall:").split(",")
-            if coords.length == 2 then
-              val fromCoord = Coord(coords(0).toInt, coords(1).toInt)
-              handleSwapPoliticians(fromCoord, coord)
-          else
-            // Regular roster drag
-            handleAssignPolitician(data, coord)
-
-        tileDiv.oncontextmenu = (e: MouseEvent) =>
-          e.preventDefault()
-          handleDestroyBuilding(coord)
-
-      case TileType.Academy(mode) =>
-        tileDiv.classList.add("academy")
-        val hasEducation2 = currentGame.hasSkill(Skill.Education2)
-
-        val modeText = if hasEducation2 then
-          "⚡ 2x  ⭐ +10%"
-        else mode match
-          case AcademyMode.FasterPoliticians => "⚡ 2x Speed"
-          case AcademyMode.RareChance => "⭐ +10% Rare"
-
-        val content = div(cls = "tile-content academy-content")(
-          div(cls = "tile-icon", content = "🎓"),
-          div(cls = "tile-label", content = "Academy"),
-          span(cls = s"tile-badge badge-academy${if hasEducation2 then " badge-academy-dual" else ""}", content = modeText)
-        )
-
-        // Only show mode toggle if Education2 is not active
-        if !hasEducation2 then
-          content.appendChild(button(cls = "btn-toggle-mode", content = "⇄ Mode").tap: btn =>
-            btn.onclick = (e: MouseEvent) =>
-              e.stopPropagation()
-              handleToggleAcademyMode(coord)
-          )
-
-        tileDiv.appendChild(content)
-
-        tileDiv.oncontextmenu = (e: MouseEvent) =>
-          e.preventDefault()
-          handleDestroyBuilding(coord)
-
-      case TileType.Tavern =>
-        tileDiv.classList.add("tavern")
-
-        val content = div(cls = "tile-content tavern-content")(
-          div(cls = "tile-icon", content = "🍺"),
-          div(cls = "tile-label", content = "Tavern"),
-          span(cls = "tile-badge badge-tavern", content = s"${TileKingdomLogic.TavernLifespanMultiplier.toInt}x Lifespan")
-        )
-
-        tileDiv.appendChild(content)
-
-        tileDiv.oncontextmenu = (e: MouseEvent) =>
-          e.preventDefault()
-          handleDestroyBuilding(coord)
-
-    tileDiv
-
-  private def renderUnlockableTile(coord: Coord): HTMLElement =
-    val tileDiv = div(id = s"tile-${coord.row}-${coord.col}", cls = "tile-kingdom-tile locked unlockable")
-    val tilePixelSize = (70 * zoomLevel).toInt
-    val fontScale = math.max(0.3, math.min(1.0, zoomLevel))
-
-    // Add zoom tier class: icons-only (middle third) or minimal (bottom third)
-    applyZoomTier(tileDiv)
-
-    // Position the tile absolutely with zoom-adjusted size
-    tileDiv.style.cssText =
-      s"position: absolute; left: ${coord.col * TileSize}px; top: ${coord
-          .row * TileSize}px; width: ${tilePixelSize}px; height: ${tilePixelSize}px; font-size: ${fontScale}em;"
-
-    val cost = currentGame.nextTileUnlockCost
-
-    tileDiv.appendChild(
-      div(cls = "tile-content")(
-        div(cls = "tile-icon", content = "🔓"),
-        div(cls = "tile-cost", content = s"${formatNumber(cost)} 💰")
-      )
-    )
-
-    tileDiv.onclick = onClick(handleUnlockTile(coord))
-
-    tileDiv
-
+        TileKingdomState.update(currentGame)
 
   // ============================================================================
   // Event Handlers
@@ -1654,11 +534,10 @@ object TileKingdomClient:
   ): Unit =
     buildFn(currentGame, coord) match
       case Right(newGame) =>
-        selectingTileCoord = None
-        activeSubmenu = None
+        TileGridState.clearSelection()
         currentGame = newGame
+        TileKingdomState.update(currentGame)
         saveGame()
-        renderGame()
         showFloatingReward(coord, cost, costEmoji, isSpend = true)
       case Left(error) =>
         showNotification(error)
@@ -1694,9 +573,8 @@ object TileKingdomClient:
     TileKingdomLogic.toggleAcademyMode(currentGame, coord) match
       case Right(newGame) =>
         currentGame = newGame
+        TileKingdomState.update(currentGame)
         saveGame()
-        updateSingleTile(coord)
-        refreshUI()
         val modeText = newGame.tiles.get(coord).map(_.tileType) match
           case Some(TileType.Academy(AcademyMode.FasterPoliticians)) => "Faster Politicians (2x speed)"
           case Some(TileType.Academy(AcademyMode.RareChance)) => "Rare Chance (+10%)"
@@ -1706,7 +584,6 @@ object TileKingdomClient:
         showNotification(error)
 
   private def handleAssignPolitician(politicianId: String, townHallCoord: Coord): Unit =
-    // Check if there's already a politician (for swap message)
     val hadPolitician = currentGame.tiles.get(townHallCoord).exists: tile =>
       tile.tileType match
         case TileType.TownHall(Some(_)) => true
@@ -1715,9 +592,8 @@ object TileKingdomClient:
     TileKingdomLogic.assignPolitician(currentGame, politicianId, townHallCoord) match
       case Right(newGame) =>
         currentGame = newGame
+        TileKingdomState.update(currentGame)
         saveGame()
-        renderTiles()
-        refreshUI()
         showNotification(if hadPolitician then "Politician swapped!" else "Politician assigned!")
       case Left(error) =>
         showNotification(error)
@@ -1726,9 +602,8 @@ object TileKingdomClient:
     TileKingdomLogic.removePolitician(currentGame, townHallCoord) match
       case Right(newGame) =>
         currentGame = newGame
+        TileKingdomState.update(currentGame)
         saveGame()
-        renderTiles()
-        refreshUI()
         showNotification("Politician returned to roster")
       case Left(error) =>
         showNotification(error)
@@ -1737,9 +612,8 @@ object TileKingdomClient:
     TileKingdomLogic.swapPoliticians(currentGame, fromCoord, toCoord) match
       case Right(newGame) =>
         currentGame = newGame
+        TileKingdomState.update(currentGame)
         saveGame()
-        renderTiles()
-        refreshUI()
         showNotification("Politicians swapped!")
       case Left(error) =>
         showNotification(error)
@@ -1750,9 +624,8 @@ object TileKingdomClient:
         TileKingdomLogic.levelUp(currentGame, coord) match
           case Right(newGame) =>
             currentGame = newGame
+            TileKingdomState.update(currentGame)
             saveGame()
-            renderTiles()
-            refreshUI()
             showFloatingReward(coord, cost.amount, resourceEmoji(cost.resource), isSpend = true)
             showFloatingLevel(coord, tile.level + 1)
           case Left(error) =>
@@ -1776,38 +649,18 @@ object TileKingdomClient:
             currentLevel += 1
             successCount += 1
             game = newGame
-          case Left(_) => // Stop on first failure
+          case Left(_) => ()
 
       if successCount > 0 then
         currentGame = game
+        TileKingdomState.update(currentGame)
         saveGame()
-        renderTiles()
-        refreshUI()
         showFloatingReward(coord, totalCost, resourceEmoji(costResource), isSpend = true)
         showFloatingLevel(coord, currentLevel)
       else
         showNotification(s"Not enough resources")
 
-
-  private def handleCycleBureauMode(coord: Coord): Unit =
-    TileKingdomLogic.cycleBureauMode(currentGame, coord) match
-      case Right(newGame) =>
-        currentGame = newGame
-        saveGame()
-        updateSingleTile(coord)
-        refreshUI()
-        val mode = TileKingdomLogic.getBureauMode(newGame, coord)
-        val modeText = mode match
-          case BureauMode.Slow => "Slow mode (1x speed)"
-          case BureauMode.Turbo => "Turbo mode (10x speed, +✨/upgrade)"
-          case BureauMode.Disabled => "Bureau paused"
-        showNotification(modeText)
-      case Left(error) =>
-        showNotification(error)
-
-  /** Set bureau mode directly to a specific mode */
   private def handleSetBureauMode(coord: Coord, targetMode: BureauMode): Unit =
-    // Cycle until we reach the target mode
     var game = currentGame
     val currentMode = TileKingdomLogic.getBureauMode(game, coord)
     if currentMode != targetMode then
@@ -1821,9 +674,6 @@ object TileKingdomClient:
       currentGame = game
       TileKingdomState.update(currentGame)
       saveGame()
-      if !UseLaminarGrid then
-        updateSingleTile(coord)
-        refreshUI()
       val modeText = targetMode match
         case BureauMode.Slow => "Slow mode (1x speed)"
         case BureauMode.Turbo => "Turbo mode (10x speed, +✨/upgrade)"
@@ -1834,9 +684,9 @@ object TileKingdomClient:
     TileKingdomLogic.destroyBuilding(currentGame, coord) match
       case Right(newGame) =>
         currentGame = newGame
-        tileProgress = tileProgress.removed(coord) // Remove progress tracking for this tile
+        tileProgress = tileProgress.removed(coord)
+        TileKingdomState.update(currentGame)
         saveGame()
-        renderGame()
         showNotification("Building destroyed")
       case Left(error) =>
         showNotification(error)
@@ -1844,7 +694,7 @@ object TileKingdomClient:
   private def handleDiscardPolitician(politicianId: String): Unit =
     val politician = currentGame.politicianRoster.find(_.id == politicianId)
     currentGame = TileKingdomLogic.discardPolitician(currentGame, politicianId)
-    TileKingdomState.update(currentGame) // Sync Laminar state for reactive updates
+    TileKingdomState.update(currentGame)
     saveGame()
     politician.foreach(p => showNotification(s"${p.emoji} ${p.name} dismissed"))
 
@@ -1855,9 +705,9 @@ object TileKingdomClient:
         TileKingdomLogic.abdicate(currentGame, System.currentTimeMillis()) match
           case Right(newGame) =>
             currentGame = newGame
-            tileProgress = Map.empty // Reset progress tracking
+            tileProgress = Map.empty
+            TileKingdomState.update(currentGame)
             saveGame()
-            renderGame()
             showNotification(s"Abdicated! +$reward gold")
           case Left(error) =>
             showNotification(error)
@@ -1873,9 +723,9 @@ object TileKingdomClient:
           case Right(newGame) =>
             currentGame = newGame
             tileProgress = Map.empty
+            TileKingdomState.update(currentGame)
             saveGame()
-            centerOnKingdom()
-            renderGame()
+            TileGridState.centerOnKingdom(currentGame)
             val notification = if skillPointsEarned > 0 then s"Sailed! +$legacyReward 🏅, +$skillPointsEarned ⭐" else s"Sailed! +$legacyReward 🏅"
             showNotification(notification)
           case Left(error) =>
@@ -1886,8 +736,8 @@ object TileKingdomClient:
     TileKingdomLogic.unlockTile(currentGame, coord) match
       case Right(newGame) =>
         currentGame = newGame
+        TileKingdomState.update(currentGame)
         saveGame()
-        renderGame()
         showFloatingReward(coord, cost, "💰", isSpend = true)
       case Left(error) =>
         showNotification(error)
@@ -1898,17 +748,14 @@ object TileKingdomClient:
       isDirty = false
       currentGame = TileKingdomLogic.newGame(System.currentTimeMillis())
       tileProgress = Map.empty
+      TileKingdomState.update(currentGame)
       saveGame()
-      centerOnKingdom()
-      renderGame()
+      TileGridState.centerOnKingdom(currentGame)
       showNotification("Game reset!")
 
   // ============================================================================
   // Utilities
   // ============================================================================
-
-  private def setElementText(id: String, text: String): Unit =
-    getElementById(id).foreach(_.textContent = text)
 
   private def showNotification(message: String): Unit =
     NotificationSystem.show(message)
@@ -1916,116 +763,14 @@ object TileKingdomClient:
   private def showWelcomeBackModal(wheatGain: Int, woodGain: Int, faithGain: Int, offlineSeconds: Double): Unit =
     WelcomeBackModal.show(wheatGain, woodGain, faithGain, offlineSeconds)
 
-  private def updateProgressBars(): Unit =
-    tileProgress.foreach: (coord, progress) =>
-      progressBarCache.get(coord).foreach: bar =>
-        bar.style.width = s"${(progress * 100).toInt}%"
-
-  // Update build cost colors without re-rendering the tile
-  private def updateBuildCostColors(): Unit =
-    // Find all build-cost elements and update their classes based on current resources
-    document.querySelectorAll(".build-option").foreach: optElem =>
-      val opt = optElem.asInstanceOf[HTMLElement]
-      Option(opt.querySelector(".build-cost")).foreach: costElem =>
-        val cost = costElem.asInstanceOf[HTMLElement]
-        val text = cost.textContent
-        // Parse the cost and resource from the text (e.g., "100🌾" or "500🪵")
-        val hasEnough = text match
-          case t if t.contains("🌾") =>
-            val amount = t.replace("🌾", "").replace(",", "").trim
-            parseNumber(amount).exists(_ <= currentGame.wheat)
-          case t if t.contains("🪵") =>
-            val amount = t.replace("🪵", "").replace(",", "").trim
-            parseNumber(amount).exists(_ <= currentGame.wood)
-          case t if t.contains("🪨") =>
-            val amount = t.replace("🪨", "").replace(",", "").trim
-            parseNumber(amount).exists(_ <= currentGame.stone)
-          case t if t.contains("✨") =>
-            val amount = t.replace("✨", "").replace(",", "").trim
-            parseNumber(amount).exists(_ <= currentGame.faith)
-          case _ => true
-
-        if hasEnough then
-          cost.classList.remove("insufficient")
-        else
-          cost.classList.add("insufficient")
-
-  // Parse formatted numbers (handles k, M, B suffixes)
-  private def parseNumber(s: String): Option[Double] =
-    Try:
-      val trimmed = s.trim
-      if trimmed.endsWith("B") then trimmed.dropRight(1).toDouble * 1_000_000_000
-      else if trimmed.endsWith("M") then trimmed.dropRight(1).toDouble * 1_000_000
-      else if trimmed.endsWith("k") then trimmed.dropRight(1).toDouble * 1_000
-      else trimmed.toDouble
-    .toOption
-
   private def showFloatingReward(coord: Coord, amount: Int, emoji: String = "", isSpend: Boolean = false, offsetIndex: Int = 0): Unit =
-    if UseLaminarGrid then
-      getElementById("tile-kingdom-grid").foreach: grid =>
-        FloatingEffects.showFloatingReward(grid, coord, amount, emoji, isSpend, offsetIndex)
-    else
-      if isDragging then return // Skip animations while panning to reduce DOM churn
-      getElementById(s"tile-${coord.row}-${coord.col}").foreach: tileElem =>
-        val floater = div()
-        floater.className = if isSpend then "floating-reward floating-spend" else "floating-reward"
-        val sign = if isSpend then "-" else "+"
-        floater.textContent = s"$sign${formatNumber(amount)}$emoji"
-        // Apply vertical offset to prevent overlapping (each index shifts down)
-        if offsetIndex > 0 then
-          floater.style.top = s"calc(50% + ${offsetIndex * 18}px)"
-        tileElem.appendChild(floater)
-
-        // Remove after animation completes
-        window.setTimeout(() => floater.remove(), 1000)
+    getElementById("tile-kingdom-grid").foreach: grid =>
+      FloatingEffects.showFloatingReward(grid, coord, amount, emoji, isSpend, offsetIndex)
 
   private def showFloatingLevel(coord: Coord, level: Int): Unit =
-    if UseLaminarGrid then
-      getElementById("tile-kingdom-grid").foreach: grid =>
-        FloatingEffects.showFloatingLevel(grid, coord, level)
-    else
-      getElementById(s"tile-${coord.row}-${coord.col}").foreach: tileElem =>
-        val floater = div()
-        floater.className = "floating-reward floating-level"
-        floater.textContent = s"Level $level"
-        tileElem.appendChild(floater)
-
-        // Remove after animation completes
-        window.setTimeout(() => floater.remove(), 1000)
+    getElementById("tile-kingdom-grid").foreach: grid =>
+      FloatingEffects.showFloatingLevel(grid, coord, level)
 
   private def showBureauProjectile(fromCoord: Coord, toCoord: Coord, onComplete: () => Unit): Unit =
-    if UseLaminarGrid then
-      getElementById("tile-kingdom-grid").foreach: grid =>
-        FloatingEffects.showBureauProjectile(grid, fromCoord, toCoord, onComplete)
-    else
-      if isDragging then { onComplete(); return } // Skip animations while panning
-      getElementById("tile-kingdom-grid").foreach: grid =>
-        val projectile = div(cls = "bureau-projectile", content = "📜")
-
-        // Calculate pixel positions (center of tiles)
-        val tilePixelSize = 70 * zoomLevel
-        val fromX = fromCoord.col * TileSize + tilePixelSize / 2 - 12
-        val fromY = fromCoord.row * TileSize + tilePixelSize / 2 - 12
-        val toX = toCoord.col * TileSize + tilePixelSize / 2 - 12
-        val toY = toCoord.row * TileSize + tilePixelSize / 2 - 12
-
-        // Set initial position
-        projectile.style.left = s"${fromX}px"
-        projectile.style.top = s"${fromY}px"
-
-        grid.appendChild(projectile)
-
-        // Trigger animation to target after a brief delay (to allow initial render)
-        window.setTimeout(() =>
-          projectile.style.left = s"${toX}px"
-          projectile.style.top = s"${toY}px"
-        , 20)
-
-        // When animation completes, trigger effects and remove projectile
-        window.setTimeout(() =>
-          projectile.classList.add("arrived")
-          onComplete()
-          window.setTimeout(() => projectile.remove(), 200)
-        , 420)
-
-
+    getElementById("tile-kingdom-grid").foreach: grid =>
+      FloatingEffects.showBureauProjectile(grid, fromCoord, toCoord, onComplete)
