@@ -10,11 +10,11 @@ import shared.TileKingdom.*
   */
 object TileKingdomState:
 
-  /** The main game state signal. Components read from this. */
+  /** The main game state Var (private - use update/modify to change) */
   private val gameVar: Var[TileKingdomGame] = Var(TileKingdomLogic.newGame(System.currentTimeMillis()))
 
-  /** Read-only signal for components to observe */
-  private val gameSignal: Signal[TileKingdomGame] = gameVar.signal
+  /** Read-only signal for components that need full game state access */
+  val gameSignal: Signal[TileKingdomGame] = gameVar.signal
 
   /** Update the game state - this triggers all reactive updates automatically */
   def update(game: TileKingdomGame): Unit =
