@@ -105,6 +105,9 @@ object ResourcePanel:
         span(cls := "resource-value", child.text <-- totalIncomeSignal.map(i => s"${formatNumber(i)}/s"))
       ),
 
+      // Unlocked tiles count
+      resourceItem("🗺️", tileCountSignal.map(_.toString)),
+
       // Next tile unlock costs
       div(
         cls := "resource-item unlock-costs",
