@@ -78,6 +78,9 @@ object TileKingdomState:
   val rareChanceSignal: Signal[Double] = gameSignal.map: game =>
     if game.hasTownHall then TileKingdomLogic.rarePoliticianChance(game) else 0.0
 
+  // Politician roster
+  val politicianRosterSignal: Signal[List[Politician]] = gameSignal.map(_.politicianRoster)
+
   // Tile unlock costs
   val nextTileUnlockCostsSignal: Signal[Seq[Int]] = gameSignal.map: game =>
     val currentCount = game.unlockedTiles.size

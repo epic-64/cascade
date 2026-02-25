@@ -6,7 +6,7 @@ import scala.util.Try
 import scala.util.chaining.*
 import shared.TileKingdom.*
 import shared.TileKingdom.AcademyMode.FasterPoliticians
-import client.components.laminar.{TileKingdomState, ResourcePanel, AbdicationButton, SailButton, SkillsButton, PoliticianTimer, NotificationSystem}
+import client.components.laminar.{TileKingdomState, ResourcePanel, AbdicationButton, SailButton, SkillsButton, PoliticianTimer, NotificationSystem, PoliticianRoster}
 import com.raquo.laminar.api.L.render as laminarRender
 
 def initializeTileKingdom(): Unit =
@@ -214,6 +214,10 @@ object TileKingdomClient:
       laminarRender(container, PoliticianTimer())
     getElementById("laminar-politician-rare-chance").foreach: container =>
       laminarRender(container, PoliticianTimer.rareChance())
+    getElementById("laminar-politician-roster-list").foreach: container =>
+      laminarRender(container, PoliticianRoster())
+    getElementById("laminar-politician-trash").foreach: container =>
+      laminarRender(container, PoliticianRoster.trashZone(handleDiscardPolitician))
     getElementById("laminar-notification").foreach: container =>
       laminarRender(container, NotificationSystem())
 
@@ -281,7 +285,7 @@ object TileKingdomClient:
     )
 
   private def buildPoliticianRoster(): HTMLElement =
-    val rosterDiv = div(id = "tile-kingdom-politician-roster", cls = "politician-roster")(
+    div(id = "tile-kingdom-politician-roster", cls = "politician-roster")(
       div(cls = "roster-header")(
         span(cls = "roster-title", content = "🏛️ Politicians"),
         div(cls = "roster-stats")(
@@ -290,30 +294,10 @@ object TileKingdomClient:
           div(id = "laminar-politician-rare-chance")
         )
       ),
-      div(id = "politician-roster-list", cls = "roster-list"),
-      div(id = "politician-trash", cls = "politician-trash")(
-        el("i", cls = "fa-solid fa-trash"),
-        span(content = "Discard")
-      )
+      // Laminar-managed roster list and trash zone (mounted later)
+      div(id = "laminar-politician-roster-list"),
+      div(id = "laminar-politician-trash")
     )
-
-    // Setup trash drop zone
-    val trashZone = rosterDiv.querySelector("#politician-trash").asInstanceOf[HTMLElement]
-    trashZone.ondragover = (e: DragEvent) =>
-      e.preventDefault()
-      trashZone.classList.add("drag-over")
-
-    trashZone.ondragleave = (_: DragEvent) =>
-      trashZone.classList.remove("drag-over")
-
-    trashZone.ondrop = (e: DragEvent) =>
-      e.preventDefault()
-      trashZone.classList.remove("drag-over")
-      val politicianId = e.dataTransfer.getData("text/plain")
-      if politicianId.nonEmpty then
-        handleDiscardPolitician(politicianId)
-
-    rosterDiv
 
   private def buildActions(): HTMLElement =
     div(cls = "tile-kingdom-actions")(
@@ -934,7 +918,6 @@ object TileKingdomClient:
       updateBuildCostColors()
 
     if newPoliticianGenerated then
-      renderPoliticianRoster()
       showNotification("A new politician has arrived!")
 
     // Notify about destroyed politicians
@@ -1051,13 +1034,11 @@ object TileKingdomClient:
 
   private def renderGame(): Unit =
     TileKingdomState.update(currentGame) // Sync Laminar state for reactive updates
-    renderPoliticianRoster()
     renderTiles()
 
-  /** Lightweight UI refresh — updates resources, buttons, and roster without rebuilding tiles. */
+  /** Lightweight UI refresh — updates buttons without rebuilding tiles. */
   private def refreshUI(): Unit =
     TileKingdomState.update(currentGame) // Sync Laminar state for reactive updates
-    renderPoliticianRoster()
 
   private def renderResources(): Unit =
     setElementText("tile-kingdom-wheat", formatNumber(currentGame.wheat))
@@ -2112,8 +2093,8 @@ object TileKingdomClient:
   private def handleDiscardPolitician(politicianId: String): Unit =
     val politician = currentGame.politicianRoster.find(_.id == politicianId)
     currentGame = TileKingdomLogic.discardPolitician(currentGame, politicianId)
+    TileKingdomState.update(currentGame) // Sync Laminar state for reactive updates
     saveGame()
-    renderPoliticianRoster()
     politician.foreach(p => showNotification(s"${p.emoji} ${p.name} dismissed"))
 
   private def handleAbdicate(): Unit =
