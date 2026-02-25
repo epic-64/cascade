@@ -859,7 +859,7 @@
 }
 
 .tile-kingdom-actions button {
-  padding: 0.75rem 1.5rem;
+  padding: 0.5rem 1rem;
   font-size: var(--font-md);
   font-weight: 700;
   border-radius: var(--radius-md);
@@ -923,8 +923,6 @@
 .btn-danger {
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   color: white;
-  padding: 0.5rem 1rem;
-  font-size: var(--font-md);
 }
 
 .btn-danger:hover {
@@ -936,8 +934,6 @@
 .btn-dev {
   background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
   color: white;
-  padding: 0.5rem 1rem;
-  font-size: var(--font-md);
 }
 
 .btn-dev:hover {
@@ -2055,8 +2051,7 @@
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
   border: none;
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
