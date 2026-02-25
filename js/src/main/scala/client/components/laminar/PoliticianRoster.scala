@@ -28,33 +28,32 @@ object PoliticianRoster:
     else if percent <= 50 then "lifespan-warning"
     else "lifespan-normal"
 
-  /** Render a single politician card */
-  private def renderCard(politician: Politician): HtmlElement =
-    val cardCls = if politician.isRare then "politician-card rare" else "politician-card"
-    val lifespanCls = lifespanClass(politician.remainingLifespanMs)
+  /** Render a single politician card - reads lifespan from signal for live updates */
+  private def renderCard(politicianId: String, initialPolitician: Politician, politicianSignal: Signal[Politician]): HtmlElement =
+    val cardCls = if initialPolitician.isRare then "politician-card rare" else "politician-card"
 
     div(
       cls := cardCls,
       draggable := true,
-      dataAttr("politician-id") := politician.id,
+      dataAttr("politician-id") := politicianId,
       // Drag events
       onDragStart --> { e =>
-        e.dataTransfer.setData("text/plain", politician.id)
+        e.dataTransfer.setData("text/plain", politicianId)
         e.target.asInstanceOf[HTMLElement].classList.add("dragging")
       },
       onDragEnd --> { e =>
         e.target.asInstanceOf[HTMLElement].classList.remove("dragging")
       },
-      // Card content
-      div(cls := "politician-emoji", politician.emoji),
+      // Card content - static parts use initial values, dynamic parts use signals
+      div(cls := "politician-emoji", initialPolitician.emoji),
       div(
         cls := "politician-info",
-        div(cls := "politician-name", politician.name),
-        div(cls := "politician-title", politician.title),
-        div(cls := "politician-effect", politician.effectDescription),
+        div(cls := "politician-name", initialPolitician.name),
+        div(cls := "politician-title", initialPolitician.title),
+        div(cls := "politician-effect", initialPolitician.effectDescription),
         div(
-          cls := s"politician-roster-lifespan $lifespanCls",
-          s"⏱️ ${formatLifespan(politician.remainingLifespanMs)} remaining"
+          cls <-- politicianSignal.map(p => s"politician-roster-lifespan ${lifespanClass(p.remainingLifespanMs)}"),
+          child.text <-- politicianSignal.map(p => s"⏱️ ${formatLifespan(p.remainingLifespanMs)} remaining")
         )
       )
     )
@@ -63,16 +62,29 @@ object PoliticianRoster:
   def apply(): HtmlElement =
     import TileKingdomState.*
 
+    // Signal for just the politician IDs (for structure changes)
+    val rosterIdsSignal = politicianRosterSignal.map(_.map(_.id)).distinct
+
+    // Whether we have a town hall - use distinct to prevent flicker
+    val hasTownHallDistinct = hasTownHallSignal.distinct
+
+    // Whether roster is empty - use distinct
+    val isEmptySignal = politicianRosterSignal.map(_.isEmpty).distinct
+
     div(
       idAttr := "politician-roster-list",
       cls := "roster-list",
-      children <-- hasTownHallSignal.combineWith(politicianRosterSignal).map:
-        case (false, _) =>
-          List(div(cls := "roster-empty", "🏛️ Build Town Hall"))
-        case (true, roster) if roster.isEmpty =>
-          List(div(cls := "roster-empty", "No politicians available"))
-        case (true, roster) =>
-          roster.map(renderCard)
+
+      // Empty state messages
+      child.maybe <-- hasTownHallDistinct.combineWith(isEmptySignal).map:
+        case (false, _) => Some(div(cls := "roster-empty", "🏛️ Build Town Hall"))
+        case (true, true) => Some(div(cls := "roster-empty", "No politicians available"))
+        case _ => None,
+
+      // Politician cards - use split to keep cards stable
+      children <-- politicianRosterSignal.split(_.id) { (id, initial, polSignal) =>
+        renderCard(id, initial, polSignal)
+      }
     )
 
   /** The trash zone element for discarding politicians */
