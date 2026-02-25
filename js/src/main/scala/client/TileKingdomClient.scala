@@ -6,7 +6,7 @@ import scala.util.Try
 import scala.util.chaining.*
 import shared.TileKingdom.*
 import shared.TileKingdom.AcademyMode.FasterPoliticians
-import client.components.laminar.{TileKingdomState, ResourcePanel, AbdicationButton, SailButton, SkillsButton, CenterButton, ResetButton, DevButton, ActionBar, PoliticianTimer, NotificationSystem, PoliticianRoster, SkillTree, HelpPopup, DevToolsPopup, WelcomeBackModal}
+import client.components.laminar.{TileKingdomState, ResourcePanel, ActionBar, NotificationSystem, PoliticianRosterPanel, SkillTree, HelpPopup, DevToolsPopup, WelcomeBackModal}
 import client.components.laminar.tilekingdom.{TileGrid, TileGridState, TileRenderer, FloatingEffects, TileUtils}
 import com.raquo.laminar.api.L.render as laminarRender
 
@@ -109,14 +109,8 @@ object TileKingdomClient:
         onReset = () => handleResetGame(),
         onToggleDevTools = () => toggleDevTools()
       ))
-    getElementById("laminar-politician-timer").foreach: container =>
-      laminarRender(container, PoliticianTimer())
-    getElementById("laminar-politician-rare-chance").foreach: container =>
-      laminarRender(container, PoliticianTimer.rareChance())
-    getElementById("laminar-politician-roster-list").foreach: container =>
-      laminarRender(container, PoliticianRoster())
-    getElementById("laminar-politician-trash").foreach: container =>
-      laminarRender(container, PoliticianRoster.trashZone(handleDiscardPolitician))
+    getElementById("laminar-politician-roster-panel").foreach: container =>
+      laminarRender(container, PoliticianRosterPanel(handleDiscardPolitician))
     getElementById("laminar-notification").foreach: container =>
       laminarRender(container, NotificationSystem())
     getElementById("laminar-skill-tree-modal").foreach: container =>
@@ -223,22 +217,7 @@ object TileKingdomClient:
     div(cls = "tile-kingdom-left-sidebar")(
       // Container for Laminar ResourcePanel (mounted later in mountLaminarComponents)
       div(id = "laminar-resource-panel"),
-      buildPoliticianRoster()
-    )
-
-  private def buildPoliticianRoster(): HTMLElement =
-    div(id = "tile-kingdom-politician-roster", cls = "politician-roster")(
-      div(cls = "roster-header")(
-        span(cls = "roster-title", content = "🏛️ Politicians"),
-        div(cls = "roster-stats")(
-          // Laminar-managed timer elements (mounted later)
-          div(id = "laminar-politician-timer"),
-          div(id = "laminar-politician-rare-chance")
-        )
-      ),
-      // Laminar-managed roster list and trash zone (mounted later)
-      div(id = "laminar-politician-roster-list"),
-      div(id = "laminar-politician-trash")
+      div(id = "laminar-politician-roster-panel")
     )
 
   private def buildActions(): HTMLElement =
