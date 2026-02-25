@@ -68,6 +68,7 @@ lazy val cascade = crossProject(JSPlatform, JVMPlatform)
     // JS-specific dependencies
     // scalafmt: { align.preset = most, danglingParentheses.preset = false }
     libraryDependencies ++= Seq(
-      "org.scala-js" %%% "scalajs-dom" % "2.2.0"
+      "org.scala-js"  %%% "scalajs-dom" % "2.2.0",
+      "com.raquo"     %%% "laminar"     % "17.2.0"
     )
   )
