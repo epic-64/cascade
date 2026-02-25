@@ -6,7 +6,7 @@ import scala.util.Try
 import scala.util.chaining.*
 import shared.TileKingdom.*
 import shared.TileKingdom.AcademyMode.FasterPoliticians
-import client.components.laminar.{TileKingdomState, ResourcePanel, AbdicationButton, SailButton, SkillsButton, PoliticianTimer, NotificationSystem, PoliticianRoster}
+import client.components.laminar.{TileKingdomState, ResourcePanel, AbdicationButton, SailButton, SkillsButton, PoliticianTimer, NotificationSystem, PoliticianRoster, SkillTree}
 import com.raquo.laminar.api.L.render as laminarRender
 
 def initializeTileKingdom(): Unit =
@@ -220,6 +220,14 @@ object TileKingdomClient:
       laminarRender(container, PoliticianRoster.trashZone(handleDiscardPolitician))
     getElementById("laminar-notification").foreach: container =>
       laminarRender(container, NotificationSystem())
+    getElementById("laminar-skill-tree-modal").foreach: container =>
+      val actions = SkillTree.Actions(
+        onUnlock = handleUnlockSkill,
+        onSwitch = handleSwitchSkill,
+        onRefund = handleRefundSkill,
+        onClose = () => toggleSkillTree()
+      )
+      laminarRender(container, SkillTree(actions))
 
   private def buildHeader(): HTMLElement =
     div(cls = "tile-kingdom-header")(
@@ -398,138 +406,18 @@ object TileKingdomClient:
 
   private def toggleSkillTree(): Unit =
     getElementById("tile-kingdom-skill-tree-modal").foreach: modal =>
-      if modal.classList.contains("show") then
-        modal.classList.remove("show")
-      else
-        renderSkillTreeContent()
-        modal.classList.add("show")
+      modal.classList.toggle("show")
 
   private def buildSkillTreeModal(): HTMLElement =
-    div(id = "tile-kingdom-skill-tree-modal", cls = "skill-tree-modal")(
-      div(cls = "skill-tree-modal-content")(
-        div(cls = "skill-tree-header")(
-          h3(content = "🌳 Skill Tree"),
-          div(id = "skill-tree-points", cls = "skill-tree-points", content = ""),
-          button(cls = "skill-tree-close-btn", content = "✕").tap: btn =>
-            btn.onclick = (_: MouseEvent) => toggleSkillTree()
-        ),
-        div(id = "skill-tree-body", cls = "skill-tree-body")
-      )
-    )
-
-  private def renderSkillTreeContent(): Unit =
-    getElementById("skill-tree-points").foreach: elem =>
-      elem.textContent = s"⭐ ${currentGame.skillPoints} skill points"
-
-    getElementById("skill-tree-body").foreach: body =>
-      body.innerHTML = ""
-
-      if !currentGame.hasSailed then
-        body.appendChild(div(cls = "skill-tree-locked")(
-          div(cls = "locked-icon", content = "🔒"),
-          div(cls = "locked-text", content = "Sail at least once to unlock the skill tree"),
-          div(cls = "locked-hint", content = "Reach 25 tiles and click ⛵ Sail")
-        ))
-      else
-        // Render each branch
-        Skill.allBranches.foreach: branchName =>
-          val branchDiv = div(cls = "skill-branch")(
-            div(cls = "skill-branch-header")(
-              span(cls = "branch-emoji", content = Skill.branchEmoji(branchName)),
-              span(cls = "branch-name", content = branchName)
-            ),
-            div(cls = "skill-branch-nodes")
-          )
-
-          val nodesContainer = branchDiv.querySelector(".skill-branch-nodes").asInstanceOf[HTMLElement]
-          val skills = Skill.branchSkills(branchName)
-
-          // Group skills by cost level, then render with OR between alternatives
-          val skillsByCost = skills.groupBy(Skill.cost).toList.sortBy(_._1)
-
-          skillsByCost.foreach: (cost, skillsAtLevel) =>
-            // Check if this is a dual track level (has mutually exclusive skills)
-            val isDualTrack = skillsAtLevel.exists(s => Skill.mutuallyExclusive(s).isDefined)
-
-            if isDualTrack then
-              // Render dual track with OR separator
-              val dualTrackContainer = div(cls = "skill-dual-track")
-              skillsAtLevel.zipWithIndex.foreach: (skill, idx) =>
-                if idx > 0 then
-                  dualTrackContainer.appendChild(div(cls = "skill-or-separator", content = "OR"))
-                dualTrackContainer.appendChild(renderSkillNode(skill))
-              nodesContainer.appendChild(dualTrackContainer)
-            else
-              // Render single skill normally
-              skillsAtLevel.foreach: skill =>
-                nodesContainer.appendChild(renderSkillNode(skill))
-
-          body.appendChild(branchDiv)
-
-  private def renderSkillNode(skill: Skill): HTMLElement =
-    val isUnlocked = currentGame.hasSkill(skill)
-    val canUnlock = currentGame.canUnlockSkill(skill)
-    val isExcluded = Skill.mutuallyExclusive(skill).exists(currentGame.hasSkill)
-    val canSwitch = TileKingdomLogic.canSwitchSkill(currentGame, skill)
-    val canRefund = currentGame.canRefundSkill(skill)
-    val cost = Skill.cost(skill)
-    val description = Skill.description(skill)
-    val goldCost = cost * TileKingdomLogic.SkillRefundGoldCost
-
-    val nodeCls =
-      if isUnlocked then "skill-node unlocked"
-      else if isExcluded && canSwitch then "skill-node switchable"
-      else if isExcluded then "skill-node excluded"
-      else if canUnlock then "skill-node available"
-      else "skill-node locked"
-
-    div(cls = nodeCls)(
-      div(cls = "skill-node-cost", content = s"${cost}⭐"),
-      div(cls = "skill-node-desc", content = description),
-      if isUnlocked && currentGame.hasSailed then
-        val refundReason =
-          if !currentGame.isFreshAbdication then Some("Abdicate first")
-          else if currentGame.gold < goldCost then Some(s"Need ${formatNumber(goldCost)} 💰")
-          else if !canRefund then Some("Has dependents")
-          else None
-        div(cls = "skill-node-actions")(
-          div(cls = "skill-node-status", content = "✓ Unlocked"),
-          refundReason match
-            case None =>
-              button(cls = "skill-node-btn refund-btn", content = s"Refund (${formatNumber(goldCost)} 💰)").tap: btn =>
-                btn.onclick = (e: MouseEvent) =>
-                  e.stopPropagation()
-                  handleRefundSkill(skill)
-            case Some(reason) =>
-              button(cls = "skill-node-btn refund-btn disabled", content = s"Refund (${formatNumber(goldCost)} 💰)").tap: btn =>
-                btn.disabled = true
-                btn.title = reason
-        )
-      else if isUnlocked then
-        div(cls = "skill-node-status", content = "✓ Unlocked")
-      else if isExcluded && canSwitch then
-        button(cls = "skill-node-btn switch-btn", content = "Switch").tap: btn =>
-          btn.onclick = (e: MouseEvent) =>
-            e.stopPropagation()
-            handleSwitchSkill(skill)
-      else if isExcluded then
-        div(cls = "skill-node-status", content = "✗ Excluded")
-      else if canUnlock then
-        button(cls = "skill-node-btn", content = "Unlock").tap: btn =>
-          btn.onclick = (e: MouseEvent) =>
-            e.stopPropagation()
-            handleUnlockSkill(skill)
-      else
-        div(cls = "skill-node-status", content = "🔒")
-    )
+    div(id = "laminar-skill-tree-modal")
 
   private def handleUnlockSkill(skill: Skill): Unit =
     TileKingdomLogic.unlockSkill(currentGame, skill) match
       case Right(newGame) =>
         currentGame = newGame
+        TileKingdomState.update(currentGame) // Sync Laminar state for reactive updates
         saveGame()
-        renderGame()
-        renderSkillTreeContent()
+        renderTiles() // Re-render tiles in case skills affect them
         showNotification(s"Unlocked: ${Skill.description(skill)}")
       case Left(error) =>
         showNotification(error)
@@ -538,9 +426,9 @@ object TileKingdomClient:
     TileKingdomLogic.switchSkill(currentGame, skill) match
       case Right(newGame) =>
         currentGame = newGame
+        TileKingdomState.update(currentGame) // Sync Laminar state for reactive updates
         saveGame()
-        renderGame()
-        renderSkillTreeContent()
+        renderTiles() // Re-render tiles in case skills affect them
         showNotification(s"Switched to: ${Skill.description(skill)}")
       case Left(error) =>
         showNotification(error)
@@ -549,9 +437,9 @@ object TileKingdomClient:
     TileKingdomLogic.refundSkill(currentGame, skill) match
       case Right(newGame) =>
         currentGame = newGame
+        TileKingdomState.update(currentGame) // Sync Laminar state for reactive updates
         saveGame()
-        renderGame()
-        renderSkillTreeContent()
+        renderTiles() // Re-render tiles in case skills affect them
         val cost = Skill.cost(skill)
         val goldCost = cost * TileKingdomLogic.SkillRefundGoldCost
         showNotification(s"Refunded ${Skill.description(skill)} (+${cost}⭐, -${formatNumber(goldCost)} 💰)")
