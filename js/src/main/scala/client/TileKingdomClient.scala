@@ -7,12 +7,18 @@ import scala.util.chaining.*
 import shared.TileKingdom.*
 import shared.TileKingdom.AcademyMode.FasterPoliticians
 import client.components.laminar.{TileKingdomState, ResourcePanel, AbdicationButton, SailButton, SkillsButton, PoliticianTimer, NotificationSystem, PoliticianRoster, SkillTree, HelpPopup, DevToolsPopup, WelcomeBackModal}
+import client.components.laminar.tilekingdom.{TileGrid, TileGridState, TileRenderer, FloatingEffects}
 import com.raquo.laminar.api.L.render as laminarRender
 
 def initializeTileKingdom(): Unit =
   TileKingdomClient.init()
 
 object TileKingdomClient:
+
+  /** Feature flag: Set to true to use the new Laminar-based tile grid rendering.
+    * When false, uses the original imperative DOM manipulation.
+    */
+  private val UseLaminarGrid: Boolean = true
 
   private val StorageKey = "tile_kingdom_game_state"
   private val SaveIntervalMs: Int = 30_000 // Save to localStorage at most every 30 seconds
@@ -179,10 +185,15 @@ object TileKingdomClient:
 
     container.innerHTML = ""
 
-    // Grid viewport (draggable area)
-    val viewport = div(id = "tile-kingdom-grid-viewport", cls = "tile-kingdom-grid-viewport")
-    viewport.appendChild(div(id = "tile-kingdom-grid", cls = "tile-kingdom-grid"))
-    container.appendChild(viewport)
+    if UseLaminarGrid then
+      // New Laminar-based grid rendering
+      val viewportContainer = div(id = "laminar-tile-grid")
+      container.appendChild(viewportContainer)
+    else
+      // Legacy imperative grid rendering
+      val viewport = div(id = "tile-kingdom-grid-viewport", cls = "tile-kingdom-grid-viewport")
+      viewport.appendChild(div(id = "tile-kingdom-grid", cls = "tile-kingdom-grid"))
+      container.appendChild(viewport)
 
     // Overlay UI elements
     container.appendChild(buildHeader())
@@ -197,11 +208,18 @@ object TileKingdomClient:
     // Mount Laminar components AFTER elements are in the DOM
     mountLaminarComponents()
 
-    // Setup drag handlers
-    setupDragHandlers(viewport)
+    // Setup drag handlers only for imperative mode
+    if !UseLaminarGrid then
+      getElementById("tile-kingdom-grid-viewport").foreach: viewport =>
+        setupDragHandlers(viewport.asInstanceOf[HTMLElement])
 
   /** Mount Laminar components into their containers (must be called after DOM is ready) */
   private def mountLaminarComponents(): Unit =
+    // Mount Laminar TileGrid if enabled
+    if UseLaminarGrid then
+      getElementById("laminar-tile-grid").foreach: container =>
+        laminarRender(container, TileGrid(tileRendererActions, showNotification))
+
     getElementById("laminar-resource-panel").foreach: container =>
       laminarRender(container, ResourcePanel())
     getElementById("laminar-abdicate-btn").foreach: container =>
@@ -234,6 +252,28 @@ object TileKingdomClient:
       laminarRender(container, DevToolsPopup(() => toggleDevTools(), devToolsActions))
     getElementById("laminar-welcome-modal").foreach: container =>
       laminarRender(container, WelcomeBackModal())
+
+  /** Create TileRenderer.Actions from the existing handlers */
+  private def tileRendererActions: TileRenderer.Actions = TileRenderer.Actions(
+    onBuildWheatField = handleBuildWheatField,
+    onBuildFarm = handleBuildFarm,
+    onBuildWoodcutter = handleBuildWoodcutter,
+    onBuildQuarry = handleBuildQuarry,
+    onBuildBureau = handleBuildBureau,
+    onBuildTemple = handleBuildTemple,
+    onBuildTownHall = handleBuildTownHall,
+    onBuildAcademy = handleBuildAcademy,
+    onBuildTavern = handleBuildTavern,
+    onLevelUp = handleLevelUp,
+    onBulkLevelUp = handleBulkLevelUp,
+    onDestroy = handleDestroyBuilding,
+    onSetBureauMode = handleSetBureauMode,
+    onToggleAcademyMode = handleToggleAcademyMode,
+    onAssignPolitician = (coord, id) => handleAssignPolitician(id, coord),
+    onRemovePolitician = handleRemovePolitician,
+    onSwapPoliticians = handleSwapPoliticians,
+    onUnlockTile = handleUnlockTile
+  )
 
   /** Dev tools actions for the dev popup */
   private def devToolsActions: Seq[DevToolsPopup.DevAction] = Seq(
@@ -509,14 +549,17 @@ object TileKingdomClient:
       grid.asInstanceOf[HTMLElement].style.transform = s"translate(${panOffsetX}px, ${panOffsetY}px)"
 
   private def centerOnKingdom(animated: Boolean = false): Unit =
-    val target = calculateCenterOffset()
-    if animated then
-      animateTo(target)
+    if UseLaminarGrid then
+      TileGridState.centerOnKingdom(currentGame, animated)
     else
-      panOffsetX = target._1
-      panOffsetY = target._2
-      updateGridPosition()
-      renderTiles()
+      val target = calculateCenterOffset()
+      if animated then
+        animateTo(target)
+      else
+        panOffsetX = target._1
+        panOffsetY = target._2
+        updateGridPosition()
+        renderTiles()
 
   private def snapBackIfNeeded(): Unit =
     val viewportWidth = window.innerWidth
@@ -827,7 +870,7 @@ object TileKingdomClient:
 
   private def renderGame(): Unit =
     TileKingdomState.update(currentGame) // Sync Laminar state for reactive updates
-    renderTiles()
+    if !UseLaminarGrid then renderTiles()
 
   /** Lightweight UI refresh — updates buttons without rebuilding tiles. */
   private def refreshUI(): Unit =
@@ -836,6 +879,7 @@ object TileKingdomClient:
 
   // Update a single tile in place without re-rendering everything
   private def updateSingleTile(coord: Coord): Unit =
+    if UseLaminarGrid then return // Laminar handles updates reactively
     currentGame.tiles.get(coord).foreach: tile =>
       Option(document.getElementById(s"tile-${coord.row}-${coord.col}")).foreach: oldElement =>
         progressBarCache = progressBarCache.removed(coord)
@@ -866,6 +910,7 @@ object TileKingdomClient:
         elem.className = s"politician-lifespan $lifespanClass"
 
   private def renderTiles(): Unit =
+    if UseLaminarGrid then return // Laminar handles tile rendering reactively
     getElementById("tile-kingdom-grid").foreach: gridContainer =>
       gridContainer.innerHTML = ""
       progressBarCache = Map.empty
@@ -1756,6 +1801,31 @@ object TileKingdomClient:
       case Left(error) =>
         showNotification(error)
 
+  /** Set bureau mode directly to a specific mode */
+  private def handleSetBureauMode(coord: Coord, targetMode: BureauMode): Unit =
+    // Cycle until we reach the target mode
+    var game = currentGame
+    val currentMode = TileKingdomLogic.getBureauMode(game, coord)
+    if currentMode != targetMode then
+      var attempts = 0
+      while TileKingdomLogic.getBureauMode(game, coord) != targetMode && attempts < 3 do
+        TileKingdomLogic.cycleBureauMode(game, coord) match
+          case Right(g) => game = g
+          case Left(_) => ()
+        attempts += 1
+
+      currentGame = game
+      TileKingdomState.update(currentGame)
+      saveGame()
+      if !UseLaminarGrid then
+        updateSingleTile(coord)
+        refreshUI()
+      val modeText = targetMode match
+        case BureauMode.Slow => "Slow mode (1x speed)"
+        case BureauMode.Turbo => "Turbo mode (10x speed, +✨/upgrade)"
+        case BureauMode.Disabled => "Bureau paused"
+      showNotification(modeText)
+
   private def handleDestroyBuilding(coord: Coord): Unit =
     TileKingdomLogic.destroyBuilding(currentGame, coord) match
       case Right(newGame) =>
@@ -1887,59 +1957,71 @@ object TileKingdomClient:
     .toOption
 
   private def showFloatingReward(coord: Coord, amount: Int, emoji: String = "", isSpend: Boolean = false, offsetIndex: Int = 0): Unit =
-    if isDragging then return // Skip animations while panning to reduce DOM churn
-    getElementById(s"tile-${coord.row}-${coord.col}").foreach: tileElem =>
-      val floater = div()
-      floater.className = if isSpend then "floating-reward floating-spend" else "floating-reward"
-      val sign = if isSpend then "-" else "+"
-      floater.textContent = s"$sign${formatNumber(amount)}$emoji"
-      // Apply vertical offset to prevent overlapping (each index shifts down)
-      if offsetIndex > 0 then
-        floater.style.top = s"calc(50% + ${offsetIndex * 18}px)"
-      tileElem.appendChild(floater)
+    if UseLaminarGrid then
+      getElementById("tile-kingdom-grid").foreach: grid =>
+        FloatingEffects.showFloatingReward(grid, coord, amount, emoji, isSpend, offsetIndex)
+    else
+      if isDragging then return // Skip animations while panning to reduce DOM churn
+      getElementById(s"tile-${coord.row}-${coord.col}").foreach: tileElem =>
+        val floater = div()
+        floater.className = if isSpend then "floating-reward floating-spend" else "floating-reward"
+        val sign = if isSpend then "-" else "+"
+        floater.textContent = s"$sign${formatNumber(amount)}$emoji"
+        // Apply vertical offset to prevent overlapping (each index shifts down)
+        if offsetIndex > 0 then
+          floater.style.top = s"calc(50% + ${offsetIndex * 18}px)"
+        tileElem.appendChild(floater)
 
-      // Remove after animation completes
-      window.setTimeout(() => floater.remove(), 1000)
+        // Remove after animation completes
+        window.setTimeout(() => floater.remove(), 1000)
 
   private def showFloatingLevel(coord: Coord, level: Int): Unit =
-    getElementById(s"tile-${coord.row}-${coord.col}").foreach: tileElem =>
-      val floater = div()
-      floater.className = "floating-reward floating-level"
-      floater.textContent = s"Level $level"
-      tileElem.appendChild(floater)
+    if UseLaminarGrid then
+      getElementById("tile-kingdom-grid").foreach: grid =>
+        FloatingEffects.showFloatingLevel(grid, coord, level)
+    else
+      getElementById(s"tile-${coord.row}-${coord.col}").foreach: tileElem =>
+        val floater = div()
+        floater.className = "floating-reward floating-level"
+        floater.textContent = s"Level $level"
+        tileElem.appendChild(floater)
 
-      // Remove after animation completes
-      window.setTimeout(() => floater.remove(), 1000)
+        // Remove after animation completes
+        window.setTimeout(() => floater.remove(), 1000)
 
   private def showBureauProjectile(fromCoord: Coord, toCoord: Coord, onComplete: () => Unit): Unit =
-    if isDragging then { onComplete(); return } // Skip animations while panning
-    getElementById("tile-kingdom-grid").foreach: grid =>
-      val projectile = div(cls = "bureau-projectile", content = "📜")
+    if UseLaminarGrid then
+      getElementById("tile-kingdom-grid").foreach: grid =>
+        FloatingEffects.showBureauProjectile(grid, fromCoord, toCoord, onComplete)
+    else
+      if isDragging then { onComplete(); return } // Skip animations while panning
+      getElementById("tile-kingdom-grid").foreach: grid =>
+        val projectile = div(cls = "bureau-projectile", content = "📜")
 
-      // Calculate pixel positions (center of tiles)
-      val tilePixelSize = 70 * zoomLevel
-      val fromX = fromCoord.col * TileSize + tilePixelSize / 2 - 12
-      val fromY = fromCoord.row * TileSize + tilePixelSize / 2 - 12
-      val toX = toCoord.col * TileSize + tilePixelSize / 2 - 12
-      val toY = toCoord.row * TileSize + tilePixelSize / 2 - 12
+        // Calculate pixel positions (center of tiles)
+        val tilePixelSize = 70 * zoomLevel
+        val fromX = fromCoord.col * TileSize + tilePixelSize / 2 - 12
+        val fromY = fromCoord.row * TileSize + tilePixelSize / 2 - 12
+        val toX = toCoord.col * TileSize + tilePixelSize / 2 - 12
+        val toY = toCoord.row * TileSize + tilePixelSize / 2 - 12
 
-      // Set initial position
-      projectile.style.left = s"${fromX}px"
-      projectile.style.top = s"${fromY}px"
+        // Set initial position
+        projectile.style.left = s"${fromX}px"
+        projectile.style.top = s"${fromY}px"
 
-      grid.appendChild(projectile)
+        grid.appendChild(projectile)
 
-      // Trigger animation to target after a brief delay (to allow initial render)
-      window.setTimeout(() =>
-        projectile.style.left = s"${toX}px"
-        projectile.style.top = s"${toY}px"
-      , 20)
+        // Trigger animation to target after a brief delay (to allow initial render)
+        window.setTimeout(() =>
+          projectile.style.left = s"${toX}px"
+          projectile.style.top = s"${toY}px"
+        , 20)
 
-      // When animation completes, trigger effects and remove projectile
-      window.setTimeout(() =>
-        projectile.classList.add("arrived")
-        onComplete()
-        window.setTimeout(() => projectile.remove(), 200)
-      , 420)
+        // When animation completes, trigger effects and remove projectile
+        window.setTimeout(() =>
+          projectile.classList.add("arrived")
+          onComplete()
+          window.setTimeout(() => projectile.remove(), 200)
+        , 420)
 
 

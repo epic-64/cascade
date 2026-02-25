@@ -336,18 +336,66 @@ Keep the imperative code until migration is stable:
 
 ## Estimated Effort
 
-| Phase | Effort | Description |
-|-------|--------|-------------|
-| Phase 1 | 2-3 hours | Foundation setup |
-| Phase 2 | 2-3 hours | Simple tiles |
-| Phase 3 | 3-4 hours | Production tiles |
-| Phase 4 | 4-5 hours | Complex tiles (Bureau, TownHall) |
-| Phase 5 | 3-4 hours | Build system |
-| Phase 6 | 4-6 hours | Grid container (most complex) |
-| Phase 7 | 2-3 hours | Animations |
-| Phase 8 | 1-2 hours | Cleanup |
+| Phase | Effort | Description | Status |
+|-------|--------|-------------|--------|
+| Phase 1 | 2-3 hours | Foundation setup | ✅ Complete |
+| Phase 2 | 2-3 hours | Simple tiles | ✅ Complete |
+| Phase 3 | 3-4 hours | Production tiles | ✅ Complete |
+| Phase 4 | 4-5 hours | Complex tiles (Bureau, TownHall) | ✅ Complete |
+| Phase 5 | 3-4 hours | Build system | ✅ Complete |
+| Phase 6 | 4-6 hours | Grid container (most complex) | ✅ Complete |
+| Phase 7 | 2-3 hours | Animations | ✅ Complete (integrated) |
+| Phase 8 | 1-2 hours | Cleanup | 🔲 Pending |
 
 **Total: ~21-30 hours**
+
+---
+
+## Current Status
+
+**Migration Status: Phase 6 Complete** ✅
+
+All component files have been created and the `TileGrid` Laminar component is now mounted
+via the `UseLaminarGrid` feature flag in `TileKingdomClient.scala`.
+
+### Feature Flag
+
+The migration uses a feature flag to enable the new Laminar grid:
+
+```scala
+object TileKingdomClient:
+  /** Feature flag: Set to true to use the new Laminar-based tile grid rendering. */
+  private val UseLaminarGrid: Boolean = true
+```
+
+### Files Created
+
+| Component | File |
+|-----------|------|
+| TileGridState | `tilekingdom/TileGridState.scala` |
+| TileUtils | `tilekingdom/TileUtils.scala` |
+| ProgressBar | `tilekingdom/ProgressBar.scala` |
+| InfluenceIndicator | `tilekingdom/InfluenceIndicator.scala` |
+| TileRenderer | `tilekingdom/TileRenderer.scala` |
+| TileGrid | `tilekingdom/TileGrid.scala` |
+| FloatingEffects | `tilekingdom/FloatingEffects.scala` |
+| EmptyTile | `tilekingdom/tiles/EmptyTile.scala` |
+| UnlockableTile | `tilekingdom/tiles/UnlockableTile.scala` |
+| BuildMenu | `tilekingdom/tiles/BuildMenu.scala` |
+| WheatFieldTile | `tilekingdom/tiles/WheatFieldTile.scala` |
+| FarmTile | `tilekingdom/tiles/FarmTile.scala` |
+| WoodcutterTile | `tilekingdom/tiles/WoodcutterTile.scala` |
+| TempleTile | `tilekingdom/tiles/TempleTile.scala` |
+| QuarryTile | `tilekingdom/tiles/QuarryTile.scala` |
+| BureauTile | `tilekingdom/tiles/BureauTile.scala` |
+| TownHallTile | `tilekingdom/tiles/TownHallTile.scala` |
+| AcademyTile | `tilekingdom/tiles/AcademyTile.scala` |
+| TavernTile | `tilekingdom/tiles/TavernTile.scala` |
+
+### Remaining Work
+
+1. **Validate functionality** - Test all tile interactions work correctly
+2. **Phase 8: Cleanup** - Once validated, remove the dead imperative code
 
 ---
 
