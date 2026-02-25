@@ -139,3 +139,19 @@ object TileComponents:
   def progressSignal(coord: Coord): Signal[Double] =
     TileGridState.tileProgress.signal.map(_.getOrElse(coord, 0.0))
 
+  /** Calculate tier from level (T1 = 1-9, T2 = 10-19, etc) */
+  private def tierFromLevel(level: Int): Int = (level - 1) / 10 + 1
+
+  /** Calculate squares within tier (0-9) */
+  private def squaresInTier(level: Int): Int = (level - 1) % 10
+
+  /** Tier label element showing "T1", "T2", etc with level squares */
+  def tierLabel(level: Int): HtmlElement =
+    val tier = tierFromLevel(level)
+    val squares = squaresInTier(level)
+    div(
+      cls := "tile-tier-label",
+      span(cls := "tier-text", s"T$tier"),
+      span(cls := "tier-squares", "■" * squares)
+    )
+
