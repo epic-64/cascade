@@ -2,7 +2,7 @@ package client.components.laminar.tilekingdom.tiles
 
 import com.raquo.laminar.api.L.*
 import shared.TileKingdom.*
-import client.components.laminar.tilekingdom.{TileGridState, BuildMenu}
+import client.components.laminar.tilekingdom.{TileGridState, TileUtils, BuildMenu}
 
 /** Empty tile component.
   *
@@ -17,6 +17,7 @@ object EmptyTile:
     val isSelectingSignal = TileGridState.selectingTileCoord.signal.map(_.contains(coord))
 
     div(
+      idAttr := TileUtils.tileId(coord),
       cls := "tile-kingdom-tile unlocked empty",
       cls <-- TileGridState.zoomTierClass.combineWith(isSelectingSignal).map:
         case (zoomCls, true) => s"$zoomCls selecting".trim

@@ -25,6 +25,7 @@ object AcademyTile:
     val hasEducation2Signal = TileKingdomState.gameSignal.map(_.hasSkill(Skill.Education2))
 
     div(
+      idAttr := TileUtils.tileId(coord),
       cls := "tile-kingdom-tile unlocked academy",
       cls <-- TileGridState.zoomTierClass,
       styleAttr <-- TileGridState.tileStyle(coord),

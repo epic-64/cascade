@@ -31,7 +31,7 @@ object FloatingEffects:
   ): Unit =
     if TileGridState.isDragging then return // Skip during pan
 
-    val tileId = s"tile-${coord.row}-${coord.col}"
+    val tileId = TileUtils.tileId(coord)
     Option(gridElement.querySelector(s"#$tileId")).foreach: tileElem =>
       val floater = dom.document.createElement("div").asInstanceOf[HTMLElement]
       floater.className = if isSpend then "floating-reward floating-spend" else "floating-reward"
@@ -50,7 +50,7 @@ object FloatingEffects:
     coord: Coord,
     level: Int
   ): Unit =
-    val tileId = s"tile-${coord.row}-${coord.col}"
+    val tileId = TileUtils.tileId(coord)
     Option(gridElement.querySelector(s"#$tileId")).foreach: tileElem =>
       val floater = dom.document.createElement("div").asInstanceOf[HTMLElement]
       floater.className = "floating-reward floating-level"

@@ -46,6 +46,7 @@ object BureauTile:
       case (g, cost) => g.faith >= cost
 
     div(
+      idAttr := TileUtils.tileId(coord),
       cls := "tile-kingdom-tile unlocked bureau",
       cls <-- TileGridState.zoomTierClass.combineWith(bureauModeSignal).map:
         case (zoomCls, BureauMode.Turbo) => s"$zoomCls turbo".trim

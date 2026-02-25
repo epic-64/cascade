@@ -37,6 +37,7 @@ object WheatFieldTile:
     val upgradeCostSignal = gameSignal.map(g => TileKingdomLogic.effectiveUpgradeCost(g, tile).map(_.amount).getOrElse(0))
 
     div(
+      idAttr := TileUtils.tileId(coord),
       cls := "tile-kingdom-tile unlocked wheat-field",
       cls <-- TileGridState.zoomTierClass,
       dataAttr("level") := level.toString,

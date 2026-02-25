@@ -47,6 +47,7 @@ object TownHallTile:
     val lifespanMultiplierSignal = gameSignal.map(g => TileKingdomLogic.politicianLifespanMultiplier(g, coord))
 
     div(
+      idAttr := TileUtils.tileId(coord),
       cls := "tile-kingdom-tile unlocked town-hall",
       cls <-- TileGridState.zoomTierClass.combineWith(Val(politician.isDefined)).map:
         case (zoomCls, true) => s"$zoomCls has-politician".trim

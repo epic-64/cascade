@@ -746,6 +746,10 @@ object TileKingdomClient:
     // Sync with Laminar reactive state - this triggers automatic UI updates
     TileKingdomState.update(currentGame)
 
+    // Sync progress to TileGridState for Laminar tiles
+    if UseLaminarGrid then
+      TileGridState.tileProgress.set(tileProgress)
+
     markDirty()
     updateProgressBars()
 

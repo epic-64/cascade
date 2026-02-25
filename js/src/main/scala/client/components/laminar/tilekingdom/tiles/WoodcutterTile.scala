@@ -36,6 +36,7 @@ object WoodcutterTile:
     val forestBonusSignal = gameSignal.map(g => TileKingdomLogic.forestGroupBonusMultiplier(g, coord))
 
     div(
+      idAttr := TileUtils.tileId(coord),
       cls := "tile-kingdom-tile unlocked woodcutter",
       cls <-- TileGridState.zoomTierClass,
       dataAttr("level") := level.toString,
