@@ -28,14 +28,16 @@ object ResourcePanel:
       emoji: String,
       valueSignal: Signal[String],
       incomeSignal: Option[Signal[String]] = None,
-      extraClass: String = ""
+      extraClass: String = "",
+      label: String = ""
   ): HtmlElement =
     val baseCls = if extraClass.isEmpty then "resource-item" else s"resource-item $extraClass"
     div(
       cls := baseCls,
       span(cls := "resource-label", emoji),
       span(cls := "resource-value", child.text <-- valueSignal),
-      incomeSignal.map(sig => span(cls := "resource-income", child.text <-- sig))
+      incomeSignal.map(sig => span(cls := "resource-income", child.text <-- sig)),
+      if label.nonEmpty then span(cls := "resource-name", label.toUpperCase) else emptyNode
     )
 
   /** The main resource panel element */
@@ -49,64 +51,71 @@ object ResourcePanel:
       resourceItem(
         "🌾",
         wheatSignal.map(w => formatNumber(w)),
-        Some(wheatIncomeSignal.map(formatIncome))
+        Some(wheatIncomeSignal.map(formatIncome)),
+        label = "wheat"
       ),
 
       // Wood with income
       resourceItem(
         "🪵",
         woodSignal.map(w => formatNumber(w)),
-        Some(woodIncomeSignal.map(formatIncome))
+        Some(woodIncomeSignal.map(formatIncome)),
+        label = "wood"
       ),
 
       // Stone with income
       resourceItem(
         "🪨",
         stoneSignal.map(s => formatNumber(s)),
-        Some(stoneIncomeSignal.map(formatIncome))
+        Some(stoneIncomeSignal.map(formatIncome)),
+        label = "stone"
       ),
 
       // Faith with income
       resourceItem(
         "✨",
         faithSignal.map(f => formatNumber(f)),
-        Some(faithIncomeSignal.map(formatIncome))
+        Some(faithIncomeSignal.map(formatIncome)),
+        label = "faith"
       ),
 
       // Gold (no income rate)
-      resourceItem("💰", goldSignal.map(g => formatNumber(g.toDouble))),
+      resourceItem("💰", goldSignal.map(g => formatNumber(g.toDouble)), label = "gold"),
 
       // Abdications
-      resourceItem("👑", totalAbdicationsSignal.map(_.toString)),
+      resourceItem("👑", totalAbdicationsSignal.map(_.toString), label = "reigns"),
 
       // Legacy points with /25 label
       div(
         cls := "resource-item prestige",
         span(cls := "resource-label", "🏅"),
         span(cls := "resource-value", child.text <-- legacyPointsSignal.map(_.toString)),
-        span(cls := "resource-label-small", "/25")
+        span(cls := "resource-label-small", "/25"),
+        span(cls := "resource-name", "LEGACY")
       ),
 
       // Skill points
-      resourceItem("⭐", skillPointsSignal.map(_.toString), extraClass = "prestige"),
+      resourceItem("⭐", skillPointsSignal.map(_.toString), extraClass = "prestige", label = "skills"),
 
       // Tile points (only show if > 0)
       div(
         cls := "resource-item prestige",
         display <-- tilePointsSignal.map(tp => if tp > 0 then "flex" else "none"),
         span(cls := "resource-label", "🎫"),
-        span(cls := "resource-value", child.text <-- tilePointsSignal.map(_.toString))
+        span(cls := "resource-value", child.text <-- tilePointsSignal.map(_.toString)),
+        span(cls := "resource-name", "TILES")
       ),
 
       // Total income rate
       div(
         cls := "resource-item income",
         span(cls := "resource-label", "📈"),
-        span(cls := "resource-value", child.text <-- totalIncomeSignal.map(i => s"${formatNumber(i)}/s"))
+        span(cls := "resource-value", child.text <-- totalIncomeSignal.map(i => s"${formatNumber(i)}/s")),
+        span(cls := "resource-name", "INCOME")
       ),
 
       // Unlocked tiles count
-      resourceItem("🗺️", tileCountSignal.map(_.toString)),
+      resourceItem("🗺️", tileCountSignal.map(_.toString), label = "tiles"),
 
       // Next tile unlock costs
       div(

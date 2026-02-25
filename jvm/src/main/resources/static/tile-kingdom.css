@@ -107,6 +107,15 @@
   margin-left: 0.25rem;
 }
 
+.resource-name {
+  margin-left: auto;
+  font-size: var(--font-xs);
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .resource-item.income {
   background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(22, 163, 74, 0.15) 100%);
   border: 1px solid rgba(34, 197, 94, 0.3);
