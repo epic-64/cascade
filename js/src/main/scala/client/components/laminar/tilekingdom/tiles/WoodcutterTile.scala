@@ -50,6 +50,6 @@ object WoodcutterTile:
       ),
       ProgressBar(progressSignal(coord), "woodcutter-progress"),
       clickToLevelUp(actions),
-      destroyHandler(actions)
+      destroyTileHandler(actions)
     )
 

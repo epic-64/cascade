@@ -53,6 +53,6 @@ object WheatFieldTile:
       ),
       ProgressBar(progressSignal(coord)),
       clickToLevelUp(actions),
-      destroyHandler(actions)
+      destroyTileHandler(actions)
     )
 

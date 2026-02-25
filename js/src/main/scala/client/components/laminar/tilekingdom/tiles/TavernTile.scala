@@ -27,5 +27,5 @@ object TavernTile:
           s"${TileKingdomLogic.TavernLifespanMultiplier.toInt}x Lifespan"
         )
       ),
-      destroyHandler(actions.onDestroy)
+      destroyTileHandler(actions.onDestroyTile)
     )
