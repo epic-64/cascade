@@ -197,6 +197,30 @@ object TileKingdomClient:
         val coord = Coord(startRow + r, startCol + c)
         coord -> Tile(coord = coord, tileType = randomTileType(), unlocked = true)
       currentGame = currentGame.copy(tiles = currentGame.tiles ++ blockTiles.toMap)
+    }),
+    DevToolsPopup.DevAction("🧱 +105 Wide Block", () => devAction {
+      val rng = new scala.util.Random(System.currentTimeMillis())
+      val existingCoords = currentGame.tiles.keySet
+      val maxRow = if existingCoords.isEmpty then 0 else existingCoords.map(_.row).max
+      val minCol = if existingCoords.isEmpty then 0 else existingCoords.map(_.col).min
+      val startRow = maxRow + 1
+      val startCol = minCol
+      def randomTileType(): TileType = rng.nextInt(8) match
+        case 0 => TileType.WheatField(1)
+        case 1 => TileType.Farm(1)
+        case 2 => TileType.Woodcutter(1)
+        case 3 => TileType.Bureau(1)
+        case 4 => TileType.Temple(1)
+        case 5 => TileType.Quarry(1)
+        case 6 => TileType.Academy(AcademyMode.RareChance)
+        case _ => TileType.TownHall(None)
+      val blockTiles = for
+        r <- 0 until 7
+        c <- 0 until 15
+      yield
+        val coord = Coord(startRow + r, startCol + c)
+        coord -> Tile(coord = coord, tileType = randomTileType(), unlocked = true)
+      currentGame = currentGame.copy(tiles = currentGame.tiles ++ blockTiles.toMap)
     })
   )
 
