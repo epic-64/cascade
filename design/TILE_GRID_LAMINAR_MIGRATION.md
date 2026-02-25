@@ -345,7 +345,7 @@ Keep the imperative code until migration is stable:
 | Phase 5 | 3-4 hours | Build system | ✅ Complete |
 | Phase 6 | 4-6 hours | Grid container (most complex) | ✅ Complete |
 | Phase 7 | 2-3 hours | Animations | ✅ Complete (integrated) |
-| Phase 8 | 1-2 hours | Cleanup | 🔲 Pending |
+| Phase 8 | 1-2 hours | Cleanup | ✅ Complete |
 
 **Total: ~21-30 hours**
 
@@ -353,20 +353,23 @@ Keep the imperative code until migration is stable:
 
 ## Current Status
 
-**Migration Status: Phase 6 Complete** ✅
+**Migration Status: COMPLETE** ✅
 
-All component files have been created and the `TileGrid` Laminar component is now mounted
-via the `UseLaminarGrid` feature flag in `TileKingdomClient.scala`.
+All phases of the tile grid Laminar migration have been completed. The feature flag has been removed
+and the obsolete imperative code has been cleaned up.
 
-### Feature Flag
+### Code Reduction
 
-The migration uses a feature flag to enable the new Laminar grid:
-
-```scala
-object TileKingdomClient:
-  /** Feature flag: Set to true to use the new Laminar-based tile grid rendering. */
-  private val UseLaminarGrid: Boolean = true
-```
+The cleanup removed approximately **1,000+ lines** of obsolete code from `TileKingdomClient.scala`:
+- Removed pan/zoom state variables (panOffsetX, panOffsetY, isDragging, etc.)
+- Removed progress bar cache (progressBarCache)
+- Removed tile selection state (selectingTileCoord, activeSubmenu)
+- Removed click handler helpers (onClick, onClickStop)
+- Removed buildOption helper function
+- Removed legacy drag handlers (setupDragHandlers, ~120 lines)
+- Removed legacy rendering functions (renderTile, renderTiles, renderInfluenceIndicator, renderUnlockableTile, ~600 lines)
+- Removed legacy utility functions (updateProgressBars, updateBuildCostColors, updateSingleTile, updateTownHallLifespan, etc.)
+- Removed feature flag conditionals
 
 ### Files Created
 
@@ -381,7 +384,7 @@ object TileKingdomClient:
 | FloatingEffects | `tilekingdom/FloatingEffects.scala` |
 | EmptyTile | `tilekingdom/tiles/EmptyTile.scala` |
 | UnlockableTile | `tilekingdom/tiles/UnlockableTile.scala` |
-| BuildMenu | `tilekingdom/tiles/BuildMenu.scala` |
+| BuildMenu | `tilekingdom/BuildMenu.scala` |
 | WheatFieldTile | `tilekingdom/tiles/WheatFieldTile.scala` |
 | FarmTile | `tilekingdom/tiles/FarmTile.scala` |
 | WoodcutterTile | `tilekingdom/tiles/WoodcutterTile.scala` |
@@ -392,10 +395,14 @@ object TileKingdomClient:
 | AcademyTile | `tilekingdom/tiles/AcademyTile.scala` |
 | TavernTile | `tilekingdom/tiles/TavernTile.scala` |
 
-### Remaining Work
+### Performance Optimizations Applied
 
-1. **Validate functionality** - Test all tile interactions work correctly
-2. **Phase 8: Cleanup** - Once validated, remove the dead imperative code
+During the migration, several performance optimizations were added to prevent UI flickering:
+
+1. **`.distinct` on signals** - Prevents re-renders when signal values haven't actually changed
+2. **`.distinctByFn` for tiles** - Custom equality that ignores politician lifespan changes
+3. **`split` operator** - Efficiently updates collections by key, only adding/removing changed items
+4. **Separate signals for structure vs. content** - Tiles read content updates from signals instead of being recreated
 
 ---
 
