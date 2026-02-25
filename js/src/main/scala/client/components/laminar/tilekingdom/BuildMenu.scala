@@ -84,21 +84,21 @@ object BuildMenu:
     val templeCost = TileKingdomLogic.templeBuildCost
     val quarryCost = TileKingdomLogic.quarryBuildCost
 
-    // Dynamic costs
-    val townHallCostSignal = gameSignal.map(TileKingdomLogic.townHallBuildCost)
-    val academyCostSignal = gameSignal.map(TileKingdomLogic.academyBuildCost)
+    // Dynamic costs - use distinct to prevent re-renders
+    val townHallCostSignal = gameSignal.map(TileKingdomLogic.townHallBuildCost).distinct
+    val academyCostSignal = gameSignal.map(TileKingdomLogic.academyBuildCost).distinct
     val tavernCost = TileKingdomLogic.TavernBuildCost
 
-    // Can afford checks
-    val canAffordWheatSignal = gameSignal.map(_.wheat >= wheatCost)
-    val canAffordFarmSignal = gameSignal.map(_.wheat >= farmCost)
-    val canAffordWoodcutterSignal = gameSignal.map(_.wheat >= woodcutterCost)
-    val canAffordBureauSignal = gameSignal.map(_.wood >= bureauCost)
-    val canAffordTempleSignal = gameSignal.map(_.wood >= templeCost)
-    val canAffordQuarrySignal = gameSignal.map(_.wood >= quarryCost)
-    val canAffordTownHallSignal = gameSignal.combineWith(townHallCostSignal).map { case (g, c) => g.stone >= c }
-    val canAffordAcademySignal = gameSignal.combineWith(academyCostSignal).map { case (g, c) => g.stone >= c }
-    val canAffordTavernSignal = gameSignal.map(_.wood >= tavernCost)
+    // Can afford checks - use distinct to only emit when affordability changes
+    val canAffordWheatSignal = gameSignal.map(_.wheat >= wheatCost).distinct
+    val canAffordFarmSignal = gameSignal.map(_.wheat >= farmCost).distinct
+    val canAffordWoodcutterSignal = gameSignal.map(_.wheat >= woodcutterCost).distinct
+    val canAffordBureauSignal = gameSignal.map(_.wood >= bureauCost).distinct
+    val canAffordTempleSignal = gameSignal.map(_.wood >= templeCost).distinct
+    val canAffordQuarrySignal = gameSignal.map(_.wood >= quarryCost).distinct
+    val canAffordTownHallSignal = gameSignal.combineWith(townHallCostSignal).map { case (g, c) => g.stone >= c }.distinct
+    val canAffordAcademySignal = gameSignal.combineWith(academyCostSignal).map { case (g, c) => g.stone >= c }.distinct
+    val canAffordTavernSignal = gameSignal.map(_.wood >= tavernCost).distinct
 
     // Building unlock checks
     val canBuildFarmSignal = TileKingdomState.canBuildFarmSignal
