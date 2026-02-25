@@ -235,54 +235,6 @@ object TileKingdomClient:
       buildPoliticianRoster()
     )
 
-  private def buildResources(): HTMLElement =
-    div(cls = "tile-kingdom-resources")(
-      div(cls = "resource-item")(
-        span(cls = "resource-label", content = "🌾"),
-        span(id = "tile-kingdom-wheat", cls = "resource-value", content = "0"),
-        span(id = "tile-kingdom-wheat-income", cls = "resource-income", content = "")
-      ),
-      div(cls = "resource-item")(
-        span(cls = "resource-label", content = "🪵"),
-        span(id = "tile-kingdom-wood", cls = "resource-value", content = "0"),
-        span(id = "tile-kingdom-wood-income", cls = "resource-income", content = "")
-      ),
-      div(cls = "resource-item")(
-        span(cls = "resource-label", content = "🪨"),
-        span(id = "tile-kingdom-stone", cls = "resource-value", content = "0"),
-        span(id = "tile-kingdom-stone-income", cls = "resource-income", content = "")
-      ),
-      div(cls = "resource-item")(
-        span(cls = "resource-label", content = "✨"),
-        span(id = "tile-kingdom-faith", cls = "resource-value", content = "0"),
-        span(id = "tile-kingdom-faith-income", cls = "resource-income", content = "")
-      ),
-      div(cls = "resource-item")(
-        span(cls = "resource-label", content = "💰"),
-        span(id = "tile-kingdom-gold", cls = "resource-value", content = "0")
-      ),
-      div(cls = "resource-item")(
-        span(cls = "resource-label", content = "👑"),
-        span(id = "tile-kingdom-abdications", cls = "resource-value", content = "0")
-      ),
-      div(cls = "resource-item prestige")(
-        span(cls = "resource-label", content = "🏅"),
-        span(id = "tile-kingdom-legacy-points", cls = "resource-value", content = "0"),
-        span(cls = "resource-label-small", content = "/25")
-      ),
-      div(cls = "resource-item prestige")(
-        span(cls = "resource-label", content = "⭐"),
-        span(id = "tile-kingdom-skill-points", cls = "resource-value", content = "0")
-      ),
-      div(cls = "resource-item income")(
-        span(cls = "resource-label", content = "📈"),
-        span(id = "tile-kingdom-income", cls = "resource-value", content = "0/s")
-      ),
-      div(cls = "resource-item unlock-costs")(
-        span(cls = "resource-label", content = "🔓 Next tiles cost:"),
-        span(id = "tile-kingdom-unlock-costs", cls = "unlock-costs-value")
-      )
-    )
 
   private def buildPoliticianRoster(): HTMLElement =
     div(id = "tile-kingdom-politician-roster", cls = "politician-roster")(
@@ -1039,86 +991,6 @@ object TileKingdomClient:
   /** Lightweight UI refresh — updates buttons without rebuilding tiles. */
   private def refreshUI(): Unit =
     TileKingdomState.update(currentGame) // Sync Laminar state for reactive updates
-
-  private def renderResources(): Unit =
-    setElementText("tile-kingdom-wheat", formatNumber(currentGame.wheat))
-    setElementText("tile-kingdom-wood", formatNumber(currentGame.wood))
-    setElementText("tile-kingdom-stone", formatNumber(currentGame.stone))
-    setElementText("tile-kingdom-faith", formatNumber(currentGame.faith))
-    setElementText("tile-kingdom-gold", formatNumber(currentGame.gold))
-    setElementText("tile-kingdom-abdications", currentGame.totalAbdications.toString)
-    setElementText("tile-kingdom-legacy-points", currentGame.legacyPoints.toString)
-    setElementText("tile-kingdom-skill-points", currentGame.skillPoints.toString)
-
-    // Individual income rates
-    val wheatIncome = TileKingdomLogic.totalWheatProductionRate(currentGame)
-    val woodIncome = TileKingdomLogic.totalWoodProductionRate(currentGame)
-    val stoneIncome = TileKingdomLogic.totalStoneProductionRate(currentGame)
-    val faithIncome = TileKingdomLogic.totalFaithProductionRate(currentGame)
-
-    setElementText("tile-kingdom-wheat-income", formatIncome(wheatIncome))
-    setElementText("tile-kingdom-wood-income", formatIncome(woodIncome))
-    setElementText("tile-kingdom-stone-income", formatIncome(stoneIncome))
-    setElementText("tile-kingdom-faith-income", formatIncome(faithIncome))
-
-    // Total income
-    val income = currentGame.totalIncomeRate
-    setElementText("tile-kingdom-income", s"${formatNumber(income)}/s")
-
-    // Next 3 tile unlock costs
-    val currentTileCount = currentGame.unlockedTiles.size
-    val nextCosts = (0 until 3).map: i =>
-      TileKingdomLogic.tileUnlockCost(currentTileCount + i)
-    val costsText = nextCosts.map(formatNumber).mkString(" → ")
-    setElementText("tile-kingdom-unlock-costs", costsText)
-
-  private def formatIncome(rate: Double): String =
-    if rate <= 0 then ""
-    else s"+${formatNumber(rate)}/s"
-
-  private def renderPoliticianRoster(): Unit =
-    getElementById("politician-roster-list").foreach: listElem =>
-      listElem.innerHTML = ""
-
-      // Check if there's a town hall - politicians only work with town halls
-      if !currentGame.hasTownHall then
-        listElem.appendChild(div(cls = "roster-empty", content = "🏛️ Build Town Hall"))
-      else
-        currentGame.politicianRoster.foreach: politician =>
-          val cardCls = if politician.isRare then "politician-card rare" else "politician-card"
-          val card = div(cls = cardCls)
-          card.setAttribute("draggable", "true")
-          card.setAttribute("data-politician-id", politician.id)
-
-          // Calculate lifespan display
-          val lifespanSeconds = (politician.remainingLifespanMs / 1000).toInt
-          val minutes = lifespanSeconds / 60
-          val seconds = lifespanSeconds % 60
-          val lifespanText = f"$minutes:$seconds%02d"
-          val lifespanPercent = (politician.remainingLifespanMs.toDouble / TileKingdomLogic.PoliticianLifespanMs * 100).toInt
-          val lifespanClass = if lifespanPercent <= 20 then "lifespan-critical" else if lifespanPercent <= 50 then "lifespan-warning" else "lifespan-normal"
-
-          card.appendChild(div(cls = "politician-emoji", content = politician.emoji))
-          card.appendChild(div(cls = "politician-info")(
-            div(cls = "politician-name", content = politician.name),
-            div(cls = "politician-title", content = politician.title),
-            div(cls = "politician-effect", content = politician.effectDescription),
-            div(cls = s"politician-roster-lifespan $lifespanClass", content = s"⏱️ $lifespanText remaining")
-          ))
-
-          // Setup drag events
-          card.ondragstart = (e: DragEvent) =>
-            e.dataTransfer.setData("text/plain", politician.id)
-            card.classList.add("dragging")
-
-          card.ondragend = (_: DragEvent) =>
-            card.classList.remove("dragging")
-
-          listElem.appendChild(card)
-
-        // If roster is empty, show placeholder
-        if currentGame.politicianRoster.isEmpty then
-          listElem.appendChild(div(cls = "roster-empty", content = "No politicians available"))
 
 
   // Update a single tile in place without re-rendering everything
@@ -1879,42 +1751,6 @@ object TileKingdomClient:
 
     tileDiv
 
-  private def renderAbdicationButton(): Unit =
-    getElementById("tile-kingdom-abdicate-btn").foreach: elem =>
-      val btn = elem.asInstanceOf[HTMLButtonElement]
-      if currentGame.allTilesFilled then
-        btn.disabled = false
-        btn.classList.remove("disabled")
-        val reward = currentGame.abdicationGoldReward
-        btn.textContent = s"Abdicate (+$reward 💰)"
-      else
-        btn.disabled = true
-        btn.classList.add("disabled")
-        btn.textContent = "Abdicate"
-
-  private def renderSailButton(): Unit =
-    getElementById("tile-kingdom-sail-btn").foreach: elem =>
-      val btn = elem.asInstanceOf[HTMLButtonElement]
-      val tileCount = currentGame.unlockedTiles.size
-      val minTiles = TileKingdomLogic.SailMinTiles
-      if currentGame.canSail then
-        btn.disabled = false
-        btn.classList.remove("disabled")
-        val legacyReward = currentGame.sailLegacyReward
-        btn.textContent = s"⛵ Sail (+$legacyReward 🏅)"
-      else
-        btn.disabled = true
-        btn.classList.add("disabled")
-        btn.textContent = s"⛵ Sail ($tileCount/$minTiles tiles)"
-
-  private def renderSkillsButton(): Unit =
-    getElementById("tile-kingdom-skills-btn").foreach: elem =>
-      val btn = elem.asInstanceOf[HTMLButtonElement]
-      // Add glow animation when player has skill points to spend and has sailed
-      if currentGame.hasSailed && currentGame.skillPoints > 0 then
-        btn.classList.add("has-points")
-      else
-        btn.classList.remove("has-points")
 
   // ============================================================================
   // Event Handlers
@@ -2300,33 +2136,4 @@ object TileKingdomClient:
         window.setTimeout(() => projectile.remove(), 200)
       , 420)
 
-  private def updatePoliticianTimer(): Unit =
-    // If no town hall, don't show timer or rare chance
-    if !currentGame.hasTownHall then
-      setElementText("politician-timer", "")
-      setElementText("politician-rare-chance", "")
-      return
-
-    // Update rare chance display
-    val rareChance = TileKingdomLogic.rarePoliticianChance(currentGame)
-    val rareChancePercent = (rareChance * 100).toInt
-    val rareText = s"⭐ $rareChancePercent%"
-    setElementText("politician-rare-chance", rareText)
-
-    // If roster is full, show "Full"
-    val maxRosterSize = TileKingdomLogic.maxPoliticianRosterSize(currentGame)
-    if currentGame.politicianRoster.size >= maxRosterSize then
-      setElementText("politician-timer", "Full")
-      return
-
-    val speedMultiplier = TileKingdomLogic.politicianGenerationSpeedMultiplier(currentGame)
-    val baseIntervalSeconds = TileKingdomLogic.PoliticianGenerationIntervalSeconds
-
-    // Calculate remaining time based on progress
-    val remainingProgress = 1.0 - currentGame.politicianGenerationProgress
-    val remainingSeconds = ((remainingProgress * baseIntervalSeconds) / speedMultiplier).toInt
-    val minutes = remainingSeconds / 60
-    val seconds = remainingSeconds % 60
-    val timerText = if speedMultiplier > 1.0 then f"Next: $minutes%d:$seconds%02d ⚡" else f"Next: $minutes%d:$seconds%02d"
-    setElementText("politician-timer", timerText)
 
