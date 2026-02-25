@@ -21,6 +21,7 @@ object TavernTile:
     actions: Actions
   ): HtmlElement =
     div(
+      idAttr := TileUtils.tileId(coord),
       cls := "tile-kingdom-tile unlocked tavern",
       cls <-- TileGridState.zoomTierClass,
       styleAttr <-- TileGridState.tileStyle(coord),

@@ -36,6 +36,7 @@ object QuarryTile:
     val farmBoostSignal = gameSignal.map(g => TileKingdomLogic.agriculture3BFarmBonusMultiplier(g, coord))
 
     div(
+      idAttr := TileUtils.tileId(coord),
       cls := "tile-kingdom-tile unlocked quarry",
       cls <-- TileGridState.zoomTierClass,
       dataAttr("level") := level.toString,

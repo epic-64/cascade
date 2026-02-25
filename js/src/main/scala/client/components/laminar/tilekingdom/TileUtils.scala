@@ -1,9 +1,12 @@
 package client.components.laminar.tilekingdom
 
-import shared.TileKingdom.Resource
+import shared.TileKingdom.{Coord, Resource}
 
 /** Shared utility functions for tile grid components. */
 object TileUtils:
+
+  /** Generate DOM ID for a tile at given coordinates */
+  def tileId(coord: Coord): String = s"tile-${coord.row}-${coord.col}"
 
   /** Format large numbers compactly (e.g. 1.2k, 3.4M, 5.6B) */
   def formatNumber(n: Double): String =

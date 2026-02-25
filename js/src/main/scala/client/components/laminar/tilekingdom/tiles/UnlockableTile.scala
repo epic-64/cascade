@@ -23,6 +23,7 @@ object UnlockableTile:
     val costSignal = TileKingdomState.nextTileUnlockCostSignal
 
     div(
+      idAttr := TileUtils.tileId(coord),
       cls := "tile-kingdom-tile locked unlockable",
       cls <-- TileGridState.zoomTierClass,
       styleAttr <-- TileGridState.tileStyle(coord),

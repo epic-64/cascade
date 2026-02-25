@@ -27,6 +27,7 @@ object FarmTile:
     val upgradeCost = TileKingdomLogic.farmLevelUpCost(level)
 
     div(
+      idAttr := TileUtils.tileId(coord),
       cls := "tile-kingdom-tile unlocked farm",
       cls <-- TileGridState.zoomTierClass,
       dataAttr("level") := level.toString,

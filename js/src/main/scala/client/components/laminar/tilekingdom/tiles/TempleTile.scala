@@ -35,6 +35,7 @@ object TempleTile:
     val wisdomMultiplierSignal = gameSignal.map(g => TileKingdomLogic.templeWisdom2Multiplier(g, coord))
 
     div(
+      idAttr := TileUtils.tileId(coord),
       cls := "tile-kingdom-tile unlocked temple",
       cls <-- TileGridState.zoomTierClass,
       dataAttr("level") := level.toString,
