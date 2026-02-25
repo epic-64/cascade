@@ -215,12 +215,11 @@ object TileKingdomClient:
     )
 
   private def buildLeftSidebar(): HTMLElement =
-    val sidebar = div(cls = "tile-kingdom-left-sidebar")
-    // Create container for Laminar ResourcePanel (will be mounted later)
-    sidebar.appendChild(div(id = "laminar-resource-panel"))
-    // Add politician roster (still using old approach for now)
-    sidebar.appendChild(buildPoliticianRoster())
-    sidebar
+    div(cls = "tile-kingdom-left-sidebar")(
+      // Container for Laminar ResourcePanel (mounted later in mountLaminarComponents)
+      div(id = "laminar-resource-panel"),
+      buildPoliticianRoster()
+    )
 
   private def buildResources(): HTMLElement =
     div(cls = "tile-kingdom-resources")(
@@ -306,34 +305,23 @@ object TileKingdomClient:
     rosterDiv
 
   private def buildActions(): HTMLElement =
-    val actionsDiv = div(cls = "tile-kingdom-actions")
-    
-    // Create container for Laminar AbdicationButton (will be mounted later)
-    actionsDiv.appendChild(div(id = "laminar-abdicate-btn"))
-    
-    // Add remaining buttons (still using old approach for now)
-    actionsDiv.appendChild(
+    div(cls = "tile-kingdom-actions")(
+      // Container for Laminar AbdicationButton (mounted later in mountLaminarComponents)
+      div(id = "laminar-abdicate-btn"),
       button(id = "tile-kingdom-sail-btn", cls = "btn-sail disabled", content = "⛵ Sail").tap: btn =>
         btn.disabled = true
         btn.onclick = (_: MouseEvent) => handleSail()
-    )
-    actionsDiv.appendChild(
+      ,
       button(id = "tile-kingdom-skills-btn", cls = "btn-skills", content = "🌳 Skills").tap: btn =>
         btn.onclick = (_: MouseEvent) => toggleSkillTree()
-    )
-    actionsDiv.appendChild(
+      ,
       button(id = "tile-kingdom-center-btn", cls = "btn-secondary", content = "⌖ Center").tap: btn =>
-        btn.onclick = (_: MouseEvent) => centerOnKingdom(animated = true)
-    )
-    actionsDiv.appendChild(
+        btn.onclick = (_: MouseEvent) => centerOnKingdom(animated = true),
       button(id = "tile-kingdom-reset-btn", cls = "btn-danger", content = "Reset").tap: btn =>
-        btn.onclick = (_: MouseEvent) => handleResetGame()
-    )
-    actionsDiv.appendChild(
+        btn.onclick = (_: MouseEvent) => handleResetGame(),
       button(id = "tile-kingdom-dev-btn", cls = "btn-dev", content = "🛠️ Dev").tap: btn =>
         btn.onclick = (_: MouseEvent) => toggleDevTools()
     )
-    actionsDiv
 
   private def buildNotification(): HTMLElement =
     div(id = "tile-kingdom-notification", cls = "notification")
