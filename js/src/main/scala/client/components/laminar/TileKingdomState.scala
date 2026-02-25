@@ -106,15 +106,15 @@ object TileKingdomState:
   /** Signal for unlocked tile list */
   val unlockedTilesSignal: Signal[List[Tile]] = gameSignal.map(_.unlockedTiles)
 
-  // Building unlock signals
-  val canBuildFarmSignal: Signal[Boolean] = gameSignal.map(_.canBuildFarm)
-  val canBuildWoodcutterSignal: Signal[Boolean] = gameSignal.map(_.canBuildWoodcutter)
-  val canBuildQuarrySignal: Signal[Boolean] = gameSignal.map(_.canBuildQuarry)
-  val canBuildBureauSignal: Signal[Boolean] = gameSignal.map(_.canBuildBureau)
-  val canBuildTempleSignal: Signal[Boolean] = gameSignal.map(_.canBuildTemple)
-  val canBuildTownHallSignal: Signal[Boolean] = gameSignal.map(_.canBuildTownHall)
-  val canBuildAcademySignal: Signal[Boolean] = gameSignal.map(_.canBuildAcademy)
-  val canBuildTavernSignal: Signal[Boolean] = gameSignal.map(_.canBuildTavern)
+  // Building unlock signals - use distinct to only emit when value changes
+  val canBuildFarmSignal: Signal[Boolean] = gameSignal.map(_.canBuildFarm).distinct
+  val canBuildWoodcutterSignal: Signal[Boolean] = gameSignal.map(_.canBuildWoodcutter).distinct
+  val canBuildQuarrySignal: Signal[Boolean] = gameSignal.map(_.canBuildQuarry).distinct
+  val canBuildBureauSignal: Signal[Boolean] = gameSignal.map(_.canBuildBureau).distinct
+  val canBuildTempleSignal: Signal[Boolean] = gameSignal.map(_.canBuildTemple).distinct
+  val canBuildTownHallSignal: Signal[Boolean] = gameSignal.map(_.canBuildTownHall).distinct
+  val canBuildAcademySignal: Signal[Boolean] = gameSignal.map(_.canBuildAcademy).distinct
+  val canBuildTavernSignal: Signal[Boolean] = gameSignal.map(_.canBuildTavern).distinct
 
   /** Get current game state (for imperative code during transition) */
   def currentGame: TileKingdomGame = gameVar.now()

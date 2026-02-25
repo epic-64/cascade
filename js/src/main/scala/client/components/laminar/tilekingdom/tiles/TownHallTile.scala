@@ -43,13 +43,23 @@ object TownHallTile:
     val gameSignal = TileKingdomState.gameSignal
     val isDragOver = Var(false)
 
-    // Compute lifespan with tavern multiplier
-    val lifespanMultiplierSignal = gameSignal.map(g => TileKingdomLogic.politicianLifespanMultiplier(g, coord))
+    // Read politician data from signal for live lifespan updates
+    val politicianSignal: Signal[Option[Politician]] = gameSignal
+      .map(_.tiles.get(coord).flatMap(_.tileType match
+        case TileType.TownHall(p) => p
+        case _ => None
+      ))
+
+    // Compute lifespan with tavern multiplier - use distinct to prevent flickering
+    val lifespanMultiplierSignal = gameSignal.map(g => TileKingdomLogic.politicianLifespanMultiplier(g, coord)).distinct
+
+    // Whether we have a politician (for structure, doesn't change as often as lifespan)
+    val hasPoliticianSignal = politicianSignal.map(_.isDefined).distinct
 
     div(
       idAttr := TileUtils.tileId(coord),
       cls := "tile-kingdom-tile unlocked town-hall",
-      cls <-- TileGridState.zoomTierClass.combineWith(Val(politician.isDefined)).map:
+      cls <-- TileGridState.zoomTierClass.combineWith(hasPoliticianSignal).map:
         case (zoomCls, true) => s"$zoomCls has-politician".trim
         case (zoomCls, false) => zoomCls,
       cls <-- isDragOver.signal.map(over => if over then "drag-over" else ""),
@@ -60,11 +70,14 @@ object TownHallTile:
         cls := "tile-content town-hall-content",
         div(cls := "tile-icon", "🏛️"),
 
-        // Politician slot
+        // Politician slot - show filled or empty based on hasPolitician
+        // Use politician parameter for initial structure, signal for updates
         politician match
           case Some(pol) =>
-            val effectiveLifespanSignal = lifespanMultiplierSignal.map: mult =>
-              (pol.remainingLifespanMs * mult).toLong
+            // Lifespan signals read from live data
+            val effectiveLifespanSignal = politicianSignal.combineWith(lifespanMultiplierSignal).map:
+              case (Some(p), mult) => (p.remainingLifespanMs * mult).toLong
+              case (None, _) => 0L
             val effectiveMaxLifespanSignal = lifespanMultiplierSignal.map: mult =>
               (TileKingdomLogic.PoliticianLifespanMs * mult).toLong
 
