@@ -33,7 +33,7 @@ object WheatFieldTile:
       div(
         cls := "tile-content",
         div(cls := "tile-icon", "🌾"),
-        tierLabel(level),
+        levelLabel(level),
         div(
           cls := "tile-production",
           child.text <-- harvestAmountSignal.map(h => s"+${TileUtils.formatNumber(h)}")
