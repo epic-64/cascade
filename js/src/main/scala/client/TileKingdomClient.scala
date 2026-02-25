@@ -82,6 +82,7 @@ object TileKingdomClient:
     // Overlay UI elements
     container.appendChild(buildHeader())
     container.appendChild(buildLeftSidebar())
+    container.appendChild(buildMetaPanel())
     container.appendChild(buildActions())
     container.appendChild(buildNotification())
     container.appendChild(buildWelcomeBackModal())
@@ -100,6 +101,8 @@ object TileKingdomClient:
 
     getElementById("laminar-resource-panel").foreach: container =>
       laminarRender(container, ResourcePanel())
+    getElementById("laminar-meta-panel").foreach: container =>
+      laminarRender(container, ResourcePanel.metaPanel())
     getElementById("laminar-action-bar").foreach: container =>
       laminarRender(container, ActionBar(
         currentGame = () => currentGame,
@@ -244,6 +247,9 @@ object TileKingdomClient:
       div(id = "laminar-resource-panel"),
       div(id = "laminar-politician-roster-panel")
     )
+
+  private def buildMetaPanel(): HTMLElement =
+    div(id = "laminar-meta-panel")
 
   private def buildActions(): HTMLElement =
     div(id = "laminar-action-bar")

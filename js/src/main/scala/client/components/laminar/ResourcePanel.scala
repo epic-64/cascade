@@ -79,8 +79,44 @@ object ResourcePanel:
         label = "faith"
       ),
 
+      // Total income rate (moved here, below faith)
+      div(
+        cls := "resource-item income",
+        span(cls := "resource-label", "📈"),
+        span(cls := "resource-value", child.text <-- totalIncomeSignal.map(i => s"${formatNumber(i)}/s")),
+        span(cls := "resource-name", "INCOME")
+      ),
+
       // Gold (no income rate)
-      resourceItem("💰", goldSignal.map(g => formatNumber(g.toDouble)), label = "gold"),
+      resourceItem("💰", goldSignal.map(g => formatNumber(g.toDouble)), label = "gold")
+    )
+
+  /** Draggable meta panel with prestige stats and tile info */
+  def metaPanel(): HtmlElement =
+    import TileKingdomState.*
+
+    val isDragging = Var(false)
+    val position = Var((0.0, 0.0))
+    val dragStart = Var((0.0, 0.0))
+    val posStart = Var((0.0, 0.0))
+
+    div(
+      cls := "tile-kingdom-meta-panel",
+      styleAttr <-- position.signal.map { case (x, y) =>
+        s"transform: translate(${x}px, ${y}px);"
+      },
+
+      // Drag handle
+      div(
+        cls := "meta-panel-handle",
+        "⋮⋮",
+        onMouseDown --> { e =>
+          e.preventDefault()
+          isDragging.set(true)
+          dragStart.set((e.clientX, e.clientY))
+          posStart.set(position.now())
+        }
+      ),
 
       // Abdications
       resourceItem("👑", totalAbdicationsSignal.map(_.toString), label = "reigns"),
@@ -106,14 +142,6 @@ object ResourcePanel:
         span(cls := "resource-name", "TILES")
       ),
 
-      // Total income rate
-      div(
-        cls := "resource-item income",
-        span(cls := "resource-label", "📈"),
-        span(cls := "resource-value", child.text <-- totalIncomeSignal.map(i => s"${formatNumber(i)}/s")),
-        span(cls := "resource-name", "INCOME")
-      ),
-
       // Unlocked tiles count
       resourceItem("🗺️", tileCountSignal.map(_.toString), label = "tiles"),
 
@@ -125,6 +153,22 @@ object ResourcePanel:
           cls := "resource-value",
           child.text <-- nextTileUnlockCostsSignal.map(costs => costs.map(c => formatNumber(c.toDouble)).mkString(" → "))
         )
-      )
+      ),
+
+      // Global mouse move/up handlers for dragging
+      onMountCallback { ctx =>
+        val Doc = org.scalajs.dom.document
+        Doc.addEventListener("mousemove", (e: org.scalajs.dom.MouseEvent) => {
+          if isDragging.now() then
+            val (startX, startY) = dragStart.now()
+            val (posX, posY) = posStart.now()
+            val dx = e.clientX - startX
+            val dy = e.clientY - startY
+            position.set((posX + dx, posY + dy))
+        })
+        Doc.addEventListener("mouseup", (_: org.scalajs.dom.MouseEvent) => {
+          isDragging.set(false)
+        })
+      }
     )
 
