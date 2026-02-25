@@ -16,7 +16,7 @@ object AbdicationButton:
 
     button(
       idAttr := "tile-kingdom-abdicate-btn",
-      cls := "abdicate-btn",
+      cls := "btn-primary",
       cls <-- allTilesFilledSignal.map(enabled => if enabled then "" else "disabled"),
       disabled <-- allTilesFilledSignal.map(!_),
       child.text <-- allTilesFilledSignal.combineWith(abdicationRewardSignal).map:
