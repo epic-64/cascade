@@ -1,6 +1,5 @@
 package client.components.laminar.tilekingdom
 
-import com.raquo.laminar.api.L.*
 import org.scalajs.dom
 import org.scalajs.dom.{window, HTMLElement}
 import shared.TileKingdom.*
@@ -11,6 +10,38 @@ import shared.TileKingdom.*
   * These are imperative effects that need to be triggered from the game loop.
   */
 object FloatingEffects:
+
+  /** Calculate tile center position in pixels */
+  private def tileCenterPosition(coord: Coord, yOffset: Double = 0): (Double, Double) =
+    val zoom = TileGridState.zoomLevel.now()
+    val tileSize = TileGridState.BaseTileSize * zoom
+    val tilePixelSize = 70 * zoom
+    val centerX = coord.col * tileSize + tilePixelSize / 2
+    val centerY = coord.row * tileSize + tilePixelSize / 2 + yOffset
+    (centerX, centerY)
+
+  /** Position an element at the given pixel coordinates */
+  extension (element: HTMLElement)
+    private def positionAt(x: Double, y: Double): Unit =
+      element.style.left = s"${x}px"
+      element.style.top = s"${y}px"
+
+  /** Create and show a centered floating element at a tile position */
+  private def showCenteredFloater(
+    gridElement: dom.Element,
+    coord: Coord,
+    className: String,
+    text: String,
+    yOffset: Double = 0
+  ): Unit =
+    val (centerX, centerY) = tileCenterPosition(coord, yOffset)
+    val floater = dom.document.createElement("div").asInstanceOf[HTMLElement]
+    floater.className = className
+    floater.textContent = text
+    floater.positionAt(centerX, centerY)
+    floater.style.transform = "translate(-50%, -50%)"
+    gridElement.appendChild(floater)
+    window.setTimeout(() => floater.remove(), 1000)
 
   /** Show a floating reward/cost number above a tile
     *
@@ -31,27 +62,10 @@ object FloatingEffects:
   ): Unit =
     if TileGridState.isDragging then return // Skip during pan
 
-    // Calculate tile position in the grid
-    val zoom = TileGridState.zoomLevel.now()
-    val tileSize = TileGridState.BaseTileSize * zoom
-    val tilePixelSize = 70 * zoom
-
-    // Position at center of tile
-    val centerX = coord.col * tileSize + tilePixelSize / 2
-    val centerY = coord.row * tileSize + tilePixelSize / 2 + (offsetIndex * 18)
-
-    val floater = dom.document.createElement("div").asInstanceOf[HTMLElement]
-    floater.className = if isSpend then "floating-reward floating-spend" else "floating-reward"
+    val className = if isSpend then "floating-reward floating-spend" else "floating-reward"
     val sign = if isSpend then "-" else "+"
-    floater.textContent = s"$sign${TileUtils.formatNumber(amount)}$emoji"
-
-    // Position absolutely within the grid
-    floater.style.left = s"${centerX}px"
-    floater.style.top = s"${centerY}px"
-    floater.style.transform = "translate(-50%, -50%)"
-
-    gridElement.appendChild(floater)
-    window.setTimeout(() => floater.remove(), 1000)
+    val text = s"$sign${TileUtils.formatNumber(amount)}$emoji"
+    showCenteredFloater(gridElement, coord, className, text, offsetIndex * 18)
 
   /** Show a floating level number above a tile */
   def showFloatingLevel(
@@ -59,26 +73,7 @@ object FloatingEffects:
     coord: Coord,
     level: Int
   ): Unit =
-    // Calculate tile position in the grid
-    val zoom = TileGridState.zoomLevel.now()
-    val tileSize = TileGridState.BaseTileSize * zoom
-    val tilePixelSize = 70 * zoom
-
-    // Position at center of tile
-    val centerX = coord.col * tileSize + tilePixelSize / 2
-    val centerY = coord.row * tileSize + tilePixelSize / 2
-
-    val floater = dom.document.createElement("div").asInstanceOf[HTMLElement]
-    floater.className = "floating-reward floating-level"
-    floater.textContent = s"Level $level"
-
-    // Position absolutely within the grid
-    floater.style.left = s"${centerX}px"
-    floater.style.top = s"${centerY}px"
-    floater.style.transform = "translate(-50%, -50%)"
-
-    gridElement.appendChild(floater)
-    window.setTimeout(() => floater.remove(), 1000)
+    showCenteredFloater(gridElement, coord, "floating-reward floating-level", s"Level $level")
 
   /** Show a bureau projectile animation from one tile to another */
   def showBureauProjectile(
@@ -91,30 +86,19 @@ object FloatingEffects:
       onComplete()
       return
 
-    val zoom = TileGridState.zoomLevel.now()
-    val tileSize = TileGridState.BaseTileSize * zoom
-    val tilePixelSize = 70 * zoom
-
-    // Calculate pixel positions (center of tiles)
-    val fromX = fromCoord.col * tileSize + tilePixelSize / 2 - 12
-    val fromY = fromCoord.row * tileSize + tilePixelSize / 2 - 12
-    val toX = toCoord.col * tileSize + tilePixelSize / 2 - 12
-    val toY = toCoord.row * tileSize + tilePixelSize / 2 - 12
+    val (fromX, fromY) = tileCenterPosition(fromCoord)
+    val (toX, toY) = tileCenterPosition(toCoord)
+    val offset = 12 // Center the projectile element
 
     val projectile = dom.document.createElement("div").asInstanceOf[HTMLElement]
     projectile.className = "bureau-projectile"
     projectile.textContent = "📜"
 
-    projectile.style.left = s"${fromX}px"
-    projectile.style.top = s"${fromY}px"
-
+    projectile.positionAt(fromX - offset, fromY - offset)
     gridElement.appendChild(projectile)
 
     // Animate to target after brief delay
-    window.setTimeout(() =>
-      projectile.style.left = s"${toX}px"
-      projectile.style.top = s"${toY}px"
-    , 20)
+    window.setTimeout(() => projectile.positionAt(toX - offset, toY - offset), 20)
 
     // Complete animation
     window.setTimeout(() =>
