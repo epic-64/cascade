@@ -12,7 +12,7 @@ import shared.TileKingdom.*
 object FloatingEffects:
 
   /** Calculate tile center position in pixels */
-  private def tileCenterPosition(coord: Coord, yOffset: Double = 0): (Double, Double) =
+  private def tileCenterPosition(coord: Coord, yOffset: Double): (Double, Double) =
     val zoom = TileGridState.zoomLevel.now()
     val tileSize = TileGridState.BaseTileSize * zoom
     val tilePixelSize = 70 * zoom
@@ -32,7 +32,7 @@ object FloatingEffects:
     coord: Coord,
     className: String,
     text: String,
-    yOffset: Double = 0
+    yOffset: Double
   ): Unit =
     val (centerX, centerY) = tileCenterPosition(coord, yOffset)
     val floater = dom.document.createElement("div").asInstanceOf[HTMLElement]
@@ -56,9 +56,9 @@ object FloatingEffects:
     gridElement: dom.Element,
     coord: Coord,
     amount: Int,
-    emoji: String = "",
-    isSpend: Boolean = false,
-    offsetIndex: Int = 0
+    emoji: String,
+    isSpend: Boolean,
+    offsetIndex: Int
   ): Unit =
     if TileGridState.isDragging then return // Skip during pan
 
@@ -73,7 +73,7 @@ object FloatingEffects:
     coord: Coord,
     level: Int
   ): Unit =
-    showCenteredFloater(gridElement, coord, "floating-reward floating-level", s"Level $level")
+    showCenteredFloater(gridElement, coord, "floating-reward floating-level", s"Level $level", 0)
 
   /** Show a bureau projectile animation from one tile to another */
   def showBureauProjectile(
@@ -86,8 +86,8 @@ object FloatingEffects:
       onComplete()
       return
 
-    val (fromX, fromY) = tileCenterPosition(fromCoord)
-    val (toX, toY) = tileCenterPosition(toCoord)
+    val (fromX, fromY) = tileCenterPosition(fromCoord, 0)
+    val (toX, toY) = tileCenterPosition(toCoord, 0)
     val offset = 12 // Center the projectile element
 
     val projectile = dom.document.createElement("div").asInstanceOf[HTMLElement]

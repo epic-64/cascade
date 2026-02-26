@@ -15,7 +15,7 @@ import scala.util.chaining.*
 // Session key for DrawingGame
 private val DrawingSessionKey = "drawing"
 
-def initializeDrawing(lobbyIdFromUrl: Option[String] = None): Unit =
+def initializeDrawing(lobbyIdFromUrl: Option[String]): Unit =
   println("[Drawing] Starting AI Drawing game client...")
   buildDrawingUI()
 

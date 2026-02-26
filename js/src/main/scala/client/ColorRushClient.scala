@@ -15,7 +15,7 @@ import scala.util.chaining.scalaUtilChainingOps
 // Session key for ColorRush
 private val ColorRushSessionKey = "colorRush"
 
-def initializeColorRush(lobbyIdFromUrl: Option[String] = None): Unit =
+def initializeColorRush(lobbyIdFromUrl: Option[String]): Unit =
   println("[ColorRush] Starting Color Rush client...")
   buildGameUI()
   setupEnterKeyHandler()

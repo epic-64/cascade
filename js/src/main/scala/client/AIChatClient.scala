@@ -310,7 +310,7 @@ object AIChatClient:
           showStopButton()
           addMessageToUI(message, isStreaming = true)
         else
-          addMessageToUI(message)
+          addMessageToUI(message, isStreaming = false)
         scrollToBottom()
         saveToLocalStorage()
 
@@ -442,7 +442,7 @@ object AIChatClient:
     // Add user message to local state and UI immediately (don't wait for server echo)
     chatMessages += userMessage
     hideEmptyState()
-    addMessageToUI(userMessage)
+    addMessageToUI(userMessage, isStreaming = false)
     scrollToBottom()
     saveToLocalStorage()
 
@@ -586,12 +586,12 @@ object AIChatClient:
       container.innerHTML = ""
       container.classList.add("hidden")
 
-  private def addMessageToUI(message: ChatMessage, isStreaming: Boolean = false): Unit =
+  private def addMessageToUI(message: ChatMessage, isStreaming: Boolean): Unit =
     getElementById("messagesContainer").foreach: container =>
       val messageEl = createMessageElement(message, isStreaming)
       container.appendChild(messageEl)
 
-  private def createMessageElement(message: ChatMessage, isStreaming: Boolean = false): HTMLElement =
+  private def createMessageElement(message: ChatMessage, isStreaming: Boolean): HTMLElement =
     val roleClass = message.role match
       case MessageRole.System => "message-system"
       case MessageRole.User => "message-user"
@@ -1028,7 +1028,7 @@ object AIChatClient:
       hideEmptyState()
       // Only show non-system messages in UI
       chatMessages.filter(_.role != MessageRole.System).foreach: msg =>
-        addMessageToUI(msg)
+        addMessageToUI(msg, isStreaming = false)
       scrollToBottom()
     else
       showEmptyState()

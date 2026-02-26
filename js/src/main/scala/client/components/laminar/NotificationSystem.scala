@@ -13,7 +13,7 @@ object NotificationSystem:
   private var hideTimeoutHandle: Option[Int] = None
 
   /** Show a notification message */
-  def show(message: String, durationMs: Int = 2000): Unit =
+  def show(message: String, durationMs: Int): Unit =
     // Clear any existing timeout
     hideTimeoutHandle.foreach(dom.window.clearTimeout)
 

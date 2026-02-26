@@ -38,7 +38,7 @@ def safeInitialize(init: => Unit): Unit =
     document.addEventListener("DOMContentLoaded", (e: Event) => init)
   else init
 
-def clientMain(pathnameOverride: Option[String] = None): Unit =
+def clientMain(pathnameOverride: Option[String]): Unit =
   println("[client] Starting Cascade client...")
 
   // Determine which app to initialize based on the current page
@@ -73,4 +73,4 @@ def clientMain(pathnameOverride: Option[String] = None): Unit =
     case AppRoute.Landing =>
       println("[client] Landing page - no app initialization needed")
 
-@main def main(): Unit = clientMain()
+@main def main(): Unit = clientMain(None)

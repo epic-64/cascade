@@ -130,7 +130,7 @@ object TileGridState:
     () // Position is managed by the panOffset signal - components react automatically
 
   /** Center the view on the kingdom */
-  def centerOnKingdom(game: TileKingdomGame, animated: Boolean = false): Unit =
+  def centerOnKingdom(game: TileKingdomGame, animated: Boolean): Unit =
     val target = calculateCenterOffset(game)
     if animated then
       animateTo(target)

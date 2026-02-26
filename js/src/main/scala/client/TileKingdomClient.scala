@@ -52,7 +52,7 @@ object TileKingdomClient:
     println("[TileKingdom] Initializing Tile Kingdom game")
     buildUI()
     loadGame()
-    TileGridState.centerOnKingdom(currentGame)
+    TileGridState.centerOnKingdom(currentGame, animated = false)
     TileKingdomState.update(currentGame)
     startGameTicker()
     startSaveTimer()
@@ -334,7 +334,7 @@ object TileKingdomClient:
         val production = productionFn(tile)
         totalHarvested += production * harvests
         tileProgress = tileProgress.updated(tile.coord, newProgress - harvests)
-        showFloatingReward(tile.coord, (production * harvests).toInt, emoji)
+        showFloatingReward(tile.coord, (production * harvests).toInt, emoji, isSpend = false, offsetIndex = 0)
       else
         tileProgress = tileProgress.updated(tile.coord, newProgress)
     totalHarvested
@@ -447,7 +447,7 @@ object TileKingdomClient:
 
       showBureauProjectile(bureauCoord, upgradedCoord, () =>
         val costEmoji = resourceEmoji(costResource)
-        showFloatingReward(upgradedCoord, cost, costEmoji, isSpend = true)
+        showFloatingReward(upgradedCoord, cost, costEmoji, isSpend = true, offsetIndex = 0)
         showFloatingLevel(upgradedCoord, newLevel)
       )
 
@@ -531,7 +531,7 @@ object TileKingdomClient:
         currentGame = newGame
         TileKingdomState.update(currentGame)
         saveGame()
-        showFloatingReward(coord, cost, costEmoji, isSpend = true)
+        showFloatingReward(coord, cost, costEmoji, isSpend = true, offsetIndex = 0)
       case Left(error) =>
         showNotification(error)
 
@@ -619,7 +619,7 @@ object TileKingdomClient:
             currentGame = newGame
             TileKingdomState.update(currentGame)
             saveGame()
-            showFloatingReward(coord, cost.amount, resourceEmoji(cost.resource), isSpend = true)
+            showFloatingReward(coord, cost.amount, resourceEmoji(cost.resource), isSpend = true, offsetIndex = 0)
             showFloatingLevel(coord, tile.level + 1)
           case Left(error) =>
             showNotification(error)
@@ -648,7 +648,7 @@ object TileKingdomClient:
         currentGame = game
         TileKingdomState.update(currentGame)
         saveGame()
-        showFloatingReward(coord, totalCost, resourceEmoji(costResource), isSpend = true)
+        showFloatingReward(coord, totalCost, resourceEmoji(costResource), isSpend = true, offsetIndex = 0)
         showFloatingLevel(coord, currentLevel)
       else
         showNotification(s"Not enough resources")
@@ -729,7 +729,7 @@ object TileKingdomClient:
             tileProgress = Map.empty
             TileKingdomState.update(currentGame)
             saveGame()
-            TileGridState.centerOnKingdom(currentGame)
+            TileGridState.centerOnKingdom(currentGame, animated = false)
             val notification = if skillPointsEarned > 0 then s"Sailed! +$legacyReward 🏅, +$skillPointsEarned ⭐" else s"Sailed! +$legacyReward 🏅"
             showNotification(notification)
           case Left(error) =>
@@ -744,9 +744,9 @@ object TileKingdomClient:
         TileKingdomState.update(currentGame)
         saveGame()
         if useTilePoint then
-          showFloatingReward(coord, 1, "🎫", isSpend = true)
+          showFloatingReward(coord, 1, "🎫", isSpend = true, offsetIndex = 0)
         else
-          showFloatingReward(coord, goldCost, "💰", isSpend = true)
+          showFloatingReward(coord, goldCost, "💰", isSpend = true, offsetIndex = 0)
       case Left(error) =>
         showNotification(error)
 
@@ -758,7 +758,7 @@ object TileKingdomClient:
       tileProgress = Map.empty
       TileKingdomState.update(currentGame)
       saveGame()
-      TileGridState.centerOnKingdom(currentGame)
+      TileGridState.centerOnKingdom(currentGame, animated = false)
       showNotification("Game reset!")
 
   // ============================================================================
@@ -766,12 +766,12 @@ object TileKingdomClient:
   // ============================================================================
 
   private def showNotification(message: String): Unit =
-    NotificationSystem.show(message)
+    NotificationSystem.show(message, 2000)
 
   private def showWelcomeBackModal(wheatGain: Int, woodGain: Int, faithGain: Int, offlineSeconds: Double): Unit =
     WelcomeBackModal.show(wheatGain, woodGain, faithGain, offlineSeconds)
 
-  private def showFloatingReward(coord: Coord, amount: Int, emoji: String = "", isSpend: Boolean = false, offsetIndex: Int = 0): Unit =
+  private def showFloatingReward(coord: Coord, amount: Int, emoji: String, isSpend: Boolean, offsetIndex: Int): Unit =
     getElementById("tile-kingdom-grid").foreach: grid =>
       FloatingEffects.showFloatingReward(grid, coord, amount, emoji, isSpend, offsetIndex)
 
