@@ -853,6 +853,13 @@
   cursor: help;
 }
 
+/* Upgrade cost discount badge (Agriculture3A on wheat fields) */
+.tile-badge.badge-discount {
+  color: #166534;
+  background: rgba(22, 163, 74, 0.18);
+  cursor: help;
+}
+
 /* Farm adjacency badge (farm bonus on wheat fields, Agriculture2B on woodcutters) */
 .tile-badge.badge-farm {
   color: #1d4ed8;
