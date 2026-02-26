@@ -81,3 +81,4 @@
 - improve the visibility of influence areas. On hover, draw lines to all tiles affected by the tile that is hovered.
   also add a toggle to always show the influence lines.
 - by default, each academy should also grant 1 extra slot in the politician roster.
+- implement a skill that adds direction to the town hall. Exactly how it was done for the bureau.
