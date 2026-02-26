@@ -13,9 +13,10 @@ import TileComponents.*
   */
 object BureauTile:
 
-  /** Bureau-specific actions (has mode switching) */
+  /** Bureau-specific actions (has mode switching and direction) */
   case class Actions(
     onSetMode: BureauMode => Unit,
+    onSetDirection: BureauDirection => Unit,
     onDestroy: () => Unit
   )
 
@@ -33,7 +34,7 @@ object BureauTile:
 
     // Calculate min level of nearby upgradeable tiles for faith cost
     val minFaithCostSignal = gameSignal.map: g =>
-      val nearbyCoords = coord.neighborsWithinRadius(TileKingdomLogic.BureauRadius)
+      val nearbyCoords = TileKingdomLogic.bureauAffectedCoords(g, coord)
       val minLevel = nearbyCoords
         .flatMap(c => g.tiles.get(c))
         .filter(_.isUpgradeable)
@@ -44,6 +45,10 @@ object BureauTile:
 
     val canAffordTurboSignal = gameSignal.combineWith(minFaithCostSignal).map:
       case (g, cost) => g.faith >= cost
+
+    // Direction signal (only relevant with Management3)
+    val hasDirectionSkillSignal = gameSignal.map(_.hasSkill(Skill.Management3))
+    val directionSignal = gameSignal.map(g => TileKingdomLogic.getBureauDirection(g, coord))
 
     // Mode-dependent extra CSS class
     val modeClsSignal = bureauModeSignal.map:
@@ -124,6 +129,18 @@ object BureauTile:
               actions.onSetMode(BureauMode.Disabled)
             }
           )
+        ),
+
+        // Direction toggle buttons (only shown with Management3 skill)
+        div(
+          cls := "bureau-direction-row",
+          display <-- hasDirectionSkillSignal.map(has => if has then "flex" else "none"),
+
+          directionButton(BureauDirection.Left, "⬅️", "Direct left (3×5)", directionSignal, actions),
+          directionButton(BureauDirection.Up, "⬆️", "Direct up (5×3)", directionSignal, actions),
+          directionButton(BureauDirection.Center, "⊙", "Centered (2-tile radius)", directionSignal, actions),
+          directionButton(BureauDirection.Down, "⬇️", "Direct down (5×3)", directionSignal, actions),
+          directionButton(BureauDirection.Right, "➡️", "Direct right (3×5)", directionSignal, actions)
         )
       ),
 
@@ -136,3 +153,23 @@ object BureauTile:
 
       destroyTileHandler(actions.onDestroy)
     )
+
+  private def directionButton(
+    dir: BureauDirection,
+    label: String,
+    titleText: String,
+    directionSignal: Signal[BureauDirection],
+    actions: Actions
+  ): HtmlElement =
+    button(
+      cls <-- directionSignal.map(d =>
+        if d == dir then "btn-bureau-dir active" else "btn-bureau-dir"
+      ),
+      title := titleText,
+      label,
+      onClick --> { e =>
+        e.stopPropagation()
+        actions.onSetDirection(dir)
+      }
+    )
+

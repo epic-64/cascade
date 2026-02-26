@@ -30,6 +30,7 @@ object TileRenderer:
     onDestroyTile: Coord => Unit, // Destroys the tile entirely (right-click)
     // Bureau mode
     onSetBureauMode: (Coord, BureauMode) => Unit,
+    onSetBureauDirection: (Coord, BureauDirection) => Unit,
     // Academy mode
     onToggleAcademyMode: Coord => Unit,
     // Town hall actions
@@ -122,6 +123,7 @@ object TileRenderer:
           level,
           BureauTile.Actions(
             onSetMode = mode => actions.onSetBureauMode(coord, mode),
+            onSetDirection = dir => actions.onSetBureauDirection(coord, dir),
             onDestroy = () => actions.onDestroy(coord)
           )
         )

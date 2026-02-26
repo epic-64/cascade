@@ -510,6 +510,40 @@
   cursor: not-allowed;
 }
 
+/* Bureau direction row */
+.bureau-direction-row {
+  display: flex;
+  gap: 2px;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.btn-bureau-dir {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 3px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+  opacity: 0.4;
+  background: #e2e8f0;
+  color: #475569;
+  min-width: 18px;
+}
+
+.btn-bureau-dir:hover {
+  transform: scale(1.1);
+  opacity: 0.7;
+}
+
+.btn-bureau-dir.active {
+  opacity: 1;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: white;
+}
+
 /* Disabled bureau state */
 .tile-kingdom-tile.bureau.disabled {
   opacity: 0.7;

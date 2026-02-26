@@ -81,7 +81,7 @@ object TileGrid:
 
         // Influence indicators (rendered behind tiles)
         // Only re-render when tiles with influence change, not every tick
-        children <-- tilesSignal.combineWith(visibleBoundsSignal).map { (tiles, minRow, maxRow, minCol, maxCol) =>
+        children <-- gameSignal.combineWith(tilesSignal).combineWith(visibleBoundsSignal).map { (game, tiles, minRow, maxRow, minCol, maxCol) =>
           // Extract only the info needed for influence indicators
           val influenceTiles = tiles.values.filter { tile =>
             tile.tileType match
@@ -89,10 +89,15 @@ object TileGrid:
               case TileType.TownHall(Some(_)) => true
               case _ => false
           }.toList
-          (influenceTiles, (minRow, maxRow, minCol, maxCol))
-        }.distinct.map { (influenceTiles, bounds) =>
-          val (minRow, maxRow, minCol, maxCol) = bounds
-          InfluenceIndicator.renderAllFromTiles(influenceTiles, bounds)
+          // Include bureau directions in the distinct key so direction changes trigger re-render
+          val bureauDirections = influenceTiles.collect {
+            case tile if tile.isBureau => tile.coord -> TileKingdomLogic.getBureauDirection(game, tile.coord)
+          }
+          val hasDirectionSkill = game.hasSkill(Skill.Management3)
+          (influenceTiles, (minRow, maxRow, minCol, maxCol), bureauDirections, hasDirectionSkill)
+        }.distinct.map { (influenceTiles, bounds, _, _) =>
+          val game = TileKingdomState.currentGame
+          InfluenceIndicator.renderAllFromTiles(influenceTiles, game, bounds)
         },
 
         // Tiles - use split for efficient updates

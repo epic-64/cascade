@@ -148,6 +148,7 @@ object TileKingdomClient:
     onDestroy = handleDestroyBuilding,
     onDestroyTile = handleDestroyTile,
     onSetBureauMode = handleSetBureauMode,
+    onSetBureauDirection = handleSetBureauDirection,
     onToggleAcademyMode = handleToggleAcademyMode,
     onAssignPolitician = (coord, id) => handleAssignPolitician(id, coord),
     onRemovePolitician = handleRemovePolitician,
@@ -375,7 +376,7 @@ object TileKingdomClient:
     bureaus.foreach: tile =>
       val currentProgress = getOrInitProgress(tile.coord)
       val isTurbo = TileKingdomLogic.isBureauTurbo(currentGame, tile.coord)
-      val nearbyCoords = tile.coord.neighborsWithinRadius(TileKingdomLogic.BureauRadius)
+      val nearbyCoords = TileKingdomLogic.bureauAffectedCoords(currentGame, tile.coord)
       val minLevel = nearbyCoords
         .flatMap(c => currentGame.tiles.get(c))
         .filter(_.isUpgradeable)
@@ -674,6 +675,22 @@ object TileKingdomClient:
         case BureauMode.Turbo => "Turbo mode (10x speed, +✨/upgrade)"
         case BureauMode.Disabled => "Bureau paused"
       showNotification(modeText)
+
+  private def handleSetBureauDirection(coord: Coord, direction: BureauDirection): Unit =
+    TileKingdomLogic.setBureauDirection(currentGame, coord, direction) match
+      case Right(newGame) =>
+        currentGame = newGame
+        TileKingdomState.update(currentGame)
+        saveGame()
+        val dirText = direction match
+          case BureauDirection.Center => "Centered (2-tile radius)"
+          case BureauDirection.Up => "Directed upward (5×3)"
+          case BureauDirection.Down => "Directed downward (5×3)"
+          case BureauDirection.Left => "Directed left (3×5)"
+          case BureauDirection.Right => "Directed right (3×5)"
+        showNotification(dirText)
+      case Left(error) =>
+        showNotification(error)
 
   private def handleDestroyBuilding(coord: Coord): Unit =
     TileKingdomLogic.destroyBuilding(currentGame, coord) match
