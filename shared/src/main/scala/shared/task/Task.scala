@@ -138,4 +138,6 @@ object Task:
   def fromTry[A](context: String)(t: => Try[A]): Task[A] = Task(t.toResult(context))
   def fromOption[A](context: String, ifNone: => Any = "not found")(o: => Option[A]): Task[A] =
     Task(o.toResult(context, ifNone))
+  def fromFuture[A](context: String, timeout: FiniteDuration = 30.seconds)(f: => Future[A]): Task[A] =
+    Task(Try(Await.result(f, timeout)).toResult(context))
 
