@@ -106,6 +106,17 @@ class Task[A](private val work: (Logger, Timer) ?=> Result[A], val name: Option[
         case Left(f) => Left(f)
     loop(attempts)
 
+  def timeout(duration: FiniteDuration)(using ExecutionContext): Task[A] = Task:
+    val logger = summon[Logger]
+    val timer = summon[Timer]
+    val future = Future(run(using logger, timer))
+    Try(Await.result(future, duration)) match
+      case scala.util.Success(result) => result
+      case scala.util.Failure(_: java.util.concurrent.TimeoutException) =>
+        Left(Fail(name.getOrElse("timeout"), s"timed out after $duration"))
+      case scala.util.Failure(err) =>
+        Left(Fail(name.getOrElse("timeout"), err.getMessage))
+
   def named(taskName: String): Task[A] = new Task(work, Some(taskName))
 
 object Task:

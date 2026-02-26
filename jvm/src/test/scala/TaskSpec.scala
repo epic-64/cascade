@@ -292,3 +292,27 @@ class TaskSpec extends AnyFunSuite:
     assert(summary.contains("fast"))
     assert(summary.contains("also-fast"))
 
+  test("timeout succeeds when task completes within limit"):
+    import scala.concurrent.duration.*
+
+    val result = Task.succeed(42).timeout(1.second).execute
+    assert(result == Right(42))
+
+  test("timeout fails when task exceeds limit"):
+    import scala.concurrent.duration.*
+
+    def slowOp: Task[String] = Task:
+      Thread.sleep(500)
+      Right("done")
+
+    val result = slowOp.named("slowOp").timeout(100.millis).execute
+    assert(result.isLeft)
+    assert(result.left.exists(_.context == "slowOp"))
+    assert(result.left.exists(_.cause.toString.contains("timed out")))
+
+  test("timeout preserves the failure when task fails before deadline"):
+    import scala.concurrent.duration.*
+
+    val result = Task.fail[Int]("inner", "broke").timeout(1.second).execute
+    assert(result == Left(Fail("inner", "broke")))
+
