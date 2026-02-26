@@ -116,19 +116,15 @@
   letter-spacing: 0.05em;
 }
 
-/* Draggable meta panel */
-.tile-kingdom-meta-panel {
+/* Generic draggable panel */
+.draggable-panel {
   position: fixed;
-  top: 1rem;
-  right: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
   background: var(--bg-card);
   backdrop-filter: blur(8px);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: 0.5rem;
   z-index: 50;
   min-width: 160px;
   box-shadow: var(--shadow-md);
@@ -136,25 +132,68 @@
   user-select: none;
 }
 
-.meta-panel-handle {
+.panel-handle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   cursor: grab;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: var(--font-sm);
-  letter-spacing: 0.2em;
-  padding: 0.25rem;
-  margin: -0.25rem -0.25rem 0.25rem -0.25rem;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-subtle);
   transition: background 0.15s ease;
 }
 
-.meta-panel-handle:hover {
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
+.panel-handle:hover {
+  background: var(--bg-secondary);
 }
 
-.meta-panel-handle:active {
+.panel-handle:active {
   cursor: grabbing;
+}
+
+.panel-title {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.panel-drag-icon {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  letter-spacing: 0.2em;
+}
+
+.panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem;
+}
+
+/* Resource panel positioning */
+.draggable-panel.resource-panel {
+  top: 4rem;
+  left: 1rem;
+}
+
+/* Meta panel positioning */
+.draggable-panel.meta-panel {
+  top: 1rem;
+  right: 1rem;
+}
+
+/* Politician panel positioning */
+.draggable-panel.politician-panel {
+  top: 18rem;
+  left: 1rem;
+  min-width: 200px;
+}
+
+.draggable-panel.politician-panel .panel-content {
+  gap: 0.5rem;
 }
 
 .resource-item.income {

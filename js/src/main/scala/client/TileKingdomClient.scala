@@ -81,8 +81,9 @@ object TileKingdomClient:
 
     // Overlay UI elements
     container.appendChild(buildHeader())
-    container.appendChild(buildLeftSidebar())
-    container.appendChild(buildMetaPanel())
+    container.appendChild(div(id = "laminar-resource-panel"))
+    container.appendChild(div(id = "laminar-politician-roster-panel"))
+    container.appendChild(div(id = "laminar-meta-panel"))
     container.appendChild(buildActions())
     container.appendChild(buildNotification())
     container.appendChild(buildWelcomeBackModal())
@@ -241,15 +242,6 @@ object TileKingdomClient:
         btn.onclick = (_: MouseEvent) => toggleHelpPopup()
     )
 
-  private def buildLeftSidebar(): HTMLElement =
-    div(cls = "tile-kingdom-left-sidebar")(
-      // Container for Laminar ResourcePanel (mounted later in mountLaminarComponents)
-      div(id = "laminar-resource-panel"),
-      div(id = "laminar-politician-roster-panel")
-    )
-
-  private def buildMetaPanel(): HTMLElement =
-    div(id = "laminar-meta-panel")
 
   private def buildActions(): HTMLElement =
     div(id = "laminar-action-bar")

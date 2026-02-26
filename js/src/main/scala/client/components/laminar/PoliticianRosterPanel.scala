@@ -6,12 +6,9 @@ import com.raquo.laminar.api.L.*
 object PoliticianRosterPanel:
 
   def apply(onDiscard: String => Unit): HtmlElement =
-    div(
-      idAttr := "tile-kingdom-politician-roster",
-      cls := "politician-roster",
+    DraggablePanel("politician-panel", "Politicians")(
       div(
         cls := "roster-header",
-        span(cls := "roster-title", "🏛️ Politicians"),
         div(
           cls := "roster-stats",
           PoliticianTimer(),
