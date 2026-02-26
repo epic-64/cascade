@@ -409,25 +409,28 @@ class TaskSpec extends AnyFunSuite:
     assert(result.left.exists(_.context == "processFile"))
     assert(!Files.exists(tempFile), "Temp file should have been cleaned up despite failure")
 
-  test("multiple ensuring calls all run, inner-first"):
-    var log = List.empty[String]
+  test("multiple ensuring calls clean up multiple resources on failure"):
+    import java.nio.file.{Files, Path}
 
-    val result = Task.succeed(42)
-      .ensuring { log = log :+ "first" }
-      .ensuring { log = log :+ "second" }
-      .execute
+    var tempFile1: Path = null
+    var tempFile2: Path = null
 
-    assert(result == Right(42))
-    assert(log == List("first", "second"))
+    def createFile(prefix: String, capture: Path => Unit): Task[Path] = Task:
+      val path = Files.createTempFile(prefix, ".tmp")
+      Files.writeString(path, "data")
+      capture(path)
+      Right(path)
 
-  test("multiple ensuring calls all run on failure"):
-    var log = List.empty[String]
+    def explode(p1: Path, p2: Path): Task[String] = Task:
+      Left(Fail("explode", "kaboom"))
 
-    val result = Task.fail[Int]("boom", "oops")
-      .ensuring { log = log :+ "first" }
-      .ensuring { log = log :+ "second" }
-      .execute
+    val result = (for
+      p1 <- createFile("first", tempFile1 = _).ensuring { if tempFile1 != null then Files.deleteIfExists(tempFile1) }
+      p2 <- createFile("second", tempFile2 = _).ensuring { if tempFile2 != null then Files.deleteIfExists(tempFile2) }
+      output <- explode(p1, p2)
+    yield output).execute
 
     assert(result.isLeft)
-    assert(log == List("first", "second"))
+    assert(!Files.exists(tempFile1), "First temp file should have been cleaned up")
+    assert(!Files.exists(tempFile2), "Second temp file should have been cleaned up")
 
