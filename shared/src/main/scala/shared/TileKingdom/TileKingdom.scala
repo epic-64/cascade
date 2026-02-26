@@ -971,9 +971,6 @@ object TileKingdomLogic:
       )
     .toMap
 
-    // Start with one politician in the roster
-    val initialPolitician = generatePolitician(currentTimeMillis)
-
     TileKingdomGame(
       tiles = initialTiles,
       wheat = 50.0, // Start with some wheat to build first field
@@ -982,7 +979,7 @@ object TileKingdomLogic:
       gold = 0,
       lastTickTime = currentTimeMillis,
       totalAbdications = 0,
-      politicianRoster = List(initialPolitician),
+      politicianRoster = List.empty,
       lastPoliticianGeneration = currentTimeMillis
     )
 
