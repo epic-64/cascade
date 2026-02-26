@@ -64,9 +64,13 @@
 ## Done 2026-02-27
 - Right clicking a tile converts it to an empty tile first. Only an empty tile is erased on right click.
 - When releasing the mouse after dragging, the click is mostly suppressed, as intended. But when landing on an empty tile, the click event still goes through and upgrades the tile. This is especially frustrating when trying to drag a politician from one town hall to another, and accidentally upgrading a tile in the process. We should make sure that releasing the mouse after dragging does not trigger a click event at all, even on empty tiles.
+- Update the Agriculture Tree:
+  T1: Fields start at level 10 OR Farms affect neighboring forests at 50% effectiveness
+  T2: Fields work 50% faster OR Farms affect neighboring quarries at 50% effectiveness
+  T3: Fields cost 99% less to upgrade OR Farms affect neighboring temples at 50% effectiveness
 
 ## Todos
-Update the Agriculture Tree:
-T1: Fields start at level 10 OR Farms affect neighboring forests at 50% effectiveness
-T2: Fields work 50% faster OR Farms affect neighboring quarries at 50% effectiveness
-T3: Fields cost 99% less to upgrade OR Farms affect neighboring temples at 50% effectiveness
+- elements in skill window are pulsing multiple times per second, it looks like the re-rendering is too coarse.
+- add a management skill that adds "direction" to the bureau. By default, it affects tiles in a 2 tile radius. 
+  With directions enabled, it can affect tiles in a 5x3 rectangle (3 wide, 5 long) to the top, bottom, left or right of the bureau.
+  There is one button for each direction (including centered on bureau)

@@ -33,6 +33,52 @@ object InfluenceIndicator:
         s"position: absolute; left: ${left}px; top: ${top}px; width: ${width}px; height: ${height}px;"
     )
 
+  /** Create a directional influence indicator for a bureau with direction skill */
+  def applyDirectional(
+    center: Coord,
+    direction: BureauDirection,
+    cssClass: String
+  ): HtmlElement =
+    div(
+      cls := s"influence-indicator $cssClass",
+      styleAttr <-- TileGridState.tileSizeSignal.map: tileSize =>
+        val (left, top, width, height) = direction match
+          case BureauDirection.Center =>
+            val r = TileKingdomLogic.BureauRadius
+            ((center.col - r) * tileSize, (center.row - r) * tileSize,
+              (r * 2 + 1) * tileSize - 4, (r * 2 + 1) * tileSize - 4)
+          case BureauDirection.Up =>
+            ((center.col - TileKingdomLogic.BureauDirectionHalfWidth) * tileSize,
+              (center.row - TileKingdomLogic.BureauDirectionLength) * tileSize,
+              (TileKingdomLogic.BureauDirectionHalfWidth * 2 + 1) * tileSize - 4,
+              TileKingdomLogic.BureauDirectionLength * tileSize - 4)
+          case BureauDirection.Down =>
+            ((center.col - TileKingdomLogic.BureauDirectionHalfWidth) * tileSize,
+              (center.row + 1) * tileSize,
+              (TileKingdomLogic.BureauDirectionHalfWidth * 2 + 1) * tileSize - 4,
+              TileKingdomLogic.BureauDirectionLength * tileSize - 4)
+          case BureauDirection.Left =>
+            ((center.col - TileKingdomLogic.BureauDirectionLength) * tileSize,
+              (center.row - TileKingdomLogic.BureauDirectionHalfWidth) * tileSize,
+              TileKingdomLogic.BureauDirectionLength * tileSize - 4,
+              (TileKingdomLogic.BureauDirectionHalfWidth * 2 + 1) * tileSize - 4)
+          case BureauDirection.Right =>
+            ((center.col + 1) * tileSize,
+              (center.row - TileKingdomLogic.BureauDirectionHalfWidth) * tileSize,
+              TileKingdomLogic.BureauDirectionLength * tileSize - 4,
+              (TileKingdomLogic.BureauDirectionHalfWidth * 2 + 1) * tileSize - 4)
+
+        s"position: absolute; left: ${left}px; top: ${top}px; width: ${width}px; height: ${height}px;"
+    )
+
+  /** Render bureau influence indicator based on game state (direction-aware) */
+  private def renderBureauInfluence(game: TileKingdomGame, coord: Coord): HtmlElement =
+    if game.hasSkill(Skill.Management3) then
+      val direction = TileKingdomLogic.getBureauDirection(game, coord)
+      applyDirectional(coord, direction, "bureau-influence")
+    else
+      apply(coord, TileKingdomLogic.BureauRadius, "bureau-influence")
+
   /** Create influence indicators for all relevant tiles in the game */
   def renderAll(game: TileKingdomGame, bounds: (Int, Int, Int, Int)): List[HtmlElement] =
     val (minRow, maxRow, minCol, maxCol) = bounds
@@ -46,7 +92,7 @@ object InfluenceIndicator:
           case TileType.Farm(_) =>
             Some(apply(coord, 1, "farm-influence"))
           case TileType.Bureau(_) =>
-            Some(apply(coord, TileKingdomLogic.BureauRadius, "bureau-influence"))
+            Some(renderBureauInfluence(game, coord))
           case TileType.TownHall(Some(_)) =>
             Some(apply(coord, TileKingdomLogic.TownHallInfluenceRadius, "town-hall-influence"))
           case _ => None
@@ -54,7 +100,7 @@ object InfluenceIndicator:
     .toList
 
   /** Create influence indicators from a list of tiles (more efficient - avoids full game traversal) */
-  def renderAllFromTiles(tiles: List[Tile], bounds: (Int, Int, Int, Int)): List[HtmlElement] =
+  def renderAllFromTiles(tiles: List[Tile], game: TileKingdomGame, bounds: (Int, Int, Int, Int)): List[HtmlElement] =
     val (minRow, maxRow, minCol, maxCol) = bounds
     val extendedBounds = (minRow - 3, maxRow + 3, minCol - 3, maxCol + 3)
 
@@ -66,7 +112,7 @@ object InfluenceIndicator:
           case TileType.Farm(_) =>
             Some(apply(coord, 1, "farm-influence"))
           case TileType.Bureau(_) =>
-            Some(apply(coord, TileKingdomLogic.BureauRadius, "bureau-influence"))
+            Some(renderBureauInfluence(game, coord))
           case TileType.TownHall(Some(_)) =>
             Some(apply(coord, TileKingdomLogic.TownHallInfluenceRadius, "town-hall-influence"))
           case _ => None

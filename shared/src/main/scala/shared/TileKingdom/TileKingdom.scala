@@ -59,6 +59,34 @@ case class Coord(row: Int, col: Int) derives ReadWriter:
       if !(rowOffset == 0 && colOffset == 0)
     yield Coord(row + rowOffset, col + colOffset)).toSet
 
+  /** Rectangle of coords in a direction from this coord (excluding self).
+    * length extends in the given direction, width extends perpendicular.
+    * For example, Up with length=5, halfWidth=1 gives a 3-wide, 5-tall rectangle above.
+    */
+  def rectangleInDirection(direction: BureauDirection, length: Int, halfWidth: Int): Set[Coord] =
+    direction match
+      case BureauDirection.Center => neighborsWithinRadius(2) // fallback to default radius
+      case BureauDirection.Up =>
+        (for
+          r <- -length to -1
+          c <- -halfWidth to halfWidth
+        yield Coord(row + r, col + c)).toSet
+      case BureauDirection.Down =>
+        (for
+          r <- 1 to length
+          c <- -halfWidth to halfWidth
+        yield Coord(row + r, col + c)).toSet
+      case BureauDirection.Left =>
+        (for
+          r <- -halfWidth to halfWidth
+          c <- -length to -1
+        yield Coord(row + r, col + c)).toSet
+      case BureauDirection.Right =>
+        (for
+          r <- -halfWidth to halfWidth
+          c <- 1 to length
+        yield Coord(row + r, col + c)).toSet
+
 // ============================================================================
 // Tile Types
 // ============================================================================
@@ -71,6 +99,13 @@ enum BureauMode derives ReadWriter:
   case Slow     // Normal speed, costs wood only
   case Turbo    // 10x speed, costs wood + faith
   case Disabled // Paused, no upgrades
+
+enum BureauDirection derives ReadWriter:
+  case Center // Default: 2-tile radius (circle)
+  case Up     // 5x3 rectangle extending upward
+  case Down   // 5x3 rectangle extending downward
+  case Left   // 3x5 rectangle extending left
+  case Right  // 3x5 rectangle extending right
 
 // ============================================================================
 // Skill Tree System
@@ -88,6 +123,7 @@ enum Skill derives ReadWriter:
   // Management branch
   case Management1 // Politician roster holds 2 additional politicians
   case Management2 // Town halls are 10x cheaper to build
+  case Management3 // Bureaus can be directed (5x3 rectangle instead of 2-tile radius)
   // Wisdom branch
   case Wisdom1 // Quarries produce 25% more stone for each neighboring forest
   case Wisdom2 // Each forest grants 50% increased faith production to neighboring temples
@@ -102,7 +138,7 @@ object Skill:
   // Get skill branch name
   def branchName(skill: Skill): String = skill match
     case Agriculture1A | Agriculture1B | Agriculture2A | Agriculture2B | Agriculture3A | Agriculture3B => "Agriculture"
-    case Management1 | Management2 => "Management"
+    case Management1 | Management2 | Management3 => "Management"
     case Wisdom1 | Wisdom2 => "Wisdom"
     case Education1 | Education2 => "Education"
     case Logistics1A | Logistics1B => "Logistics"
@@ -115,6 +151,7 @@ object Skill:
     case Agriculture2B => "Farms affect neighboring quarries at 50% effectiveness"
     case Management1 => "+2 politician roster slots"
     case Management2 => "Town halls cost 10x less stone to build"
+    case Management3 => "Bureaus can be directed (5×3 rectangle)"
     case Wisdom1 => "+25% quarry stone output per neighboring forest"
     case Wisdom2 => "+50% temple faith output per neighboring forest"
     case Education1 => "Academies cost 10x less stone to build"
@@ -128,7 +165,7 @@ object Skill:
   def cost(skill: Skill): Int = skill match
     case Agriculture1A | Agriculture1B | Management1 | Wisdom1 | Education1 | Logistics1A | Logistics1B => 1
     case Agriculture2A | Agriculture2B | Management2 | Wisdom2 | Education2 => 2
-    case Agriculture3A | Agriculture3B => 3
+    case Agriculture3A | Agriculture3B | Management3 => 3
 
   // Get prerequisite skill (if any)
   def prerequisite(skill: Skill): Option[Skill] = skill match
@@ -136,6 +173,7 @@ object Skill:
     case Agriculture2A | Agriculture2B => None // Either Agriculture1A or Agriculture1B, handled by alternativePrerequisites
     case Agriculture3A | Agriculture3B => None // Either Agriculture2A or Agriculture2B, handled by alternativePrerequisites
     case Management2 => Some(Management1)
+    case Management3 => Some(Management2)
     case Wisdom2 => Some(Wisdom1)
     case Education2 => Some(Education1)
 
@@ -161,7 +199,7 @@ object Skill:
   // Get all skills in a branch, in order (dual track alternatives grouped together)
   def branchSkills(branchName: String): List[Skill] = branchName match
     case "Agriculture" => List(Agriculture1A, Agriculture1B, Agriculture2A, Agriculture2B, Agriculture3A, Agriculture3B)
-    case "Management" => List(Management1, Management2)
+    case "Management" => List(Management1, Management2, Management3)
     case "Wisdom" => List(Wisdom1, Wisdom2)
     case "Education" => List(Education1, Education2)
     case "Logistics" => List(Logistics1A, Logistics1B)
@@ -323,6 +361,7 @@ case class TileKingdomGame(
     lastTickTime: Long, // Timestamp in milliseconds for offline progress
     totalAbdications: Int,
     bureauMode: Map[Coord, BureauMode] = Map.empty, // Bureau operation mode per bureau
+    bureauDirection: Map[Coord, BureauDirection] = Map.empty, // Bureau direction per bureau (requires Management3)
     upgradeCooldowns: Map[Coord, Long] = Map.empty, // Deprecated, kept for save compatibility
     politicianRoster: List[Politician] = List.empty, // Available politicians to assign
     lastPoliticianGeneration: Long = 0L, // Timestamp of last politician generation tick
@@ -1187,6 +1226,33 @@ object TileKingdomLogic:
   def isBureauDisabled(game: TileKingdomGame, bureauCoord: Coord): Boolean =
     getBureauMode(game, bureauCoord) == BureauMode.Disabled
 
+  // Bureau direction constants
+  val BureauDirectionLength: Int = 5 // 5 tiles long in the chosen direction
+  val BureauDirectionHalfWidth: Int = 1 // 1 tile on each side = 3 wide
+
+  // Get bureau direction (defaults to Center)
+  def getBureauDirection(game: TileKingdomGame, bureauCoord: Coord): BureauDirection =
+    game.bureauDirection.getOrElse(bureauCoord, BureauDirection.Center)
+
+  // Set bureau direction
+  def setBureauDirection(game: TileKingdomGame, coord: Coord, direction: BureauDirection): Either[String, TileKingdomGame] =
+    game.tiles.get(coord) match
+      case None => Left("Tile not found")
+      case Some(tile) if !tile.isBureau => Left("Tile is not a bureau")
+      case Some(_) if !game.hasSkill(Skill.Management3) => Left("Requires Management 3 skill")
+      case Some(_) =>
+        Right(game.copy(
+          bureauDirection = game.bureauDirection.updated(coord, direction)
+        ))
+
+  // Get the set of coords affected by a bureau, considering direction skill
+  def bureauAffectedCoords(game: TileKingdomGame, bureauCoord: Coord): Set[Coord] =
+    if game.hasSkill(Skill.Management3) then
+      val direction = getBureauDirection(game, bureauCoord)
+      bureauCoord.rectangleInDirection(direction, BureauDirectionLength, BureauDirectionHalfWidth)
+    else
+      bureauCoord.neighborsWithinRadius(BureauRadius)
+
   // Calculate turbo faith cost based on target tile level (level × 10)
   def bureauTurboFaithCostForLevel(level: Int): Int = level * 10
 
@@ -1222,8 +1288,8 @@ object TileKingdomLogic:
         val isTurbo = isBureauTurbo(game, bureauCoord)
         val woodCost = effectiveBureauWoodCost(game)
         
-        // Find upgradeable tiles within radius with their costs
-        val nearbyCoords = bureauCoord.neighborsWithinRadius(BureauRadius)
+        // Find upgradeable tiles within affected area with their costs
+        val nearbyCoords = bureauAffectedCoords(game, bureauCoord)
         val upgradeableTiles = nearbyCoords
           .flatMap(coord => game.tiles.get(coord).map(coord -> _))
           .filter((_, tile) => tile.isUpgradeable)
