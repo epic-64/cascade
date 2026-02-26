@@ -27,7 +27,7 @@ object InfluenceLines:
           .filter(c => game.tiles.get(c).exists(_.isUpgradeable)).toList
         (affected, "bureau")
       case Some(TileType.TownHall(pols)) if pols.nonEmpty =>
-        val affected = sourceCoord.neighborsWithinRadius(TileKingdomLogic.TownHallInfluenceRadius)
+        val affected = TileKingdomLogic.townHallAffectedCoords(game, sourceCoord)
           .filter(c => game.tiles.contains(c) && c != sourceCoord).toList
         (affected, "town-hall")
       case _ => (List.empty, "")

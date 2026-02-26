@@ -125,6 +125,7 @@ enum Skill derives ReadWriter:
   case Management2 // Town halls are 10x cheaper to build
   case Management3 // Bureaus can be directed (5x3 rectangle instead of 2-tile radius)
   case Management4 // Town halls can hold 2 politicians at the same time
+  case Management5 // Town halls can be directed (5x3 rectangle instead of 2-tile radius)
   // Wisdom branch
   case Wisdom1 // Quarries produce 25% more stone for each neighboring forest
   case Wisdom2 // Each forest grants 50% increased faith production to neighboring temples
@@ -139,7 +140,7 @@ object Skill:
   // Get skill branch name
   def branchName(skill: Skill): String = skill match
     case Agriculture1A | Agriculture1B | Agriculture2A | Agriculture2B | Agriculture3A | Agriculture3B => "Agriculture"
-    case Management1 | Management2 | Management3 | Management4 => "Management"
+    case Management1 | Management2 | Management3 | Management4 | Management5 => "Management"
     case Wisdom1 | Wisdom2 => "Wisdom"
     case Education1 | Education2 => "Education"
     case Logistics1A | Logistics1B => "Logistics"
@@ -154,6 +155,7 @@ object Skill:
     case Management2 => "Town halls cost 10x less stone to build"
     case Management3 => "Bureaus can be directed (5×3 rectangle)"
     case Management4 => "Town Halls hold 2 politicians at once"
+    case Management5 => "Town Halls can be directed (5×3 rectangle)"
     case Wisdom1 => "+25% quarry stone output per neighboring forest"
     case Wisdom2 => "+50% temple faith output per neighboring forest"
     case Education1 => "Academies cost 10x less stone to build"
@@ -169,6 +171,7 @@ object Skill:
     case Agriculture2A | Agriculture2B | Management2 | Wisdom2 | Education2 => 2
     case Agriculture3A | Agriculture3B | Management3 => 3
     case Management4 => 4
+    case Management5 => 5
 
   // Get prerequisite skill (if any)
   def prerequisite(skill: Skill): Option[Skill] = skill match
@@ -178,6 +181,7 @@ object Skill:
     case Management2 => Some(Management1)
     case Management3 => Some(Management2)
     case Management4 => Some(Management3)
+    case Management5 => Some(Management4)
     case Wisdom2 => Some(Wisdom1)
     case Education2 => Some(Education1)
 
@@ -203,7 +207,7 @@ object Skill:
   // Get all skills in a branch, in order (dual track alternatives grouped together)
   def branchSkills(branchName: String): List[Skill] = branchName match
     case "Agriculture" => List(Agriculture1A, Agriculture1B, Agriculture2A, Agriculture2B, Agriculture3A, Agriculture3B)
-    case "Management" => List(Management1, Management2, Management3, Management4)
+    case "Management" => List(Management1, Management2, Management3, Management4, Management5)
     case "Wisdom" => List(Wisdom1, Wisdom2)
     case "Education" => List(Education1, Education2)
     case "Logistics" => List(Logistics1A, Logistics1B)
@@ -415,6 +419,7 @@ case class TileKingdomGame(
     totalAbdications: Int,
     bureauMode: Map[Coord, BureauMode] = Map.empty, // Bureau operation mode per bureau
     bureauDirection: Map[Coord, BureauDirection] = Map.empty, // Bureau direction per bureau (requires Management3)
+    townHallDirection: Map[Coord, BureauDirection] = Map.empty, // Town Hall direction per town hall (requires Management5)
     upgradeCooldowns: Map[Coord, Long] = Map.empty, // Deprecated, kept for save compatibility
     politicianRoster: List[Politician] = List.empty, // Available politicians to assign
     lastPoliticianGeneration: Long = 0L, // Timestamp of last politician generation tick
@@ -558,6 +563,8 @@ object TileKingdomLogic:
   // Town Hall constants
   val TownHallBuildCost: Int = 1000 // Stone cost to build a town hall (first one)
   val TownHallInfluenceRadius: Int = 2 // Town Hall affects tiles within 2 tile radius
+  val TownHallDirectionLength: Int = 5 // 5 tiles long in the chosen direction
+  val TownHallDirectionHalfWidth: Int = 1 // 1 tile on each side = 3 wide
   val PoliticianGenerationIntervalSeconds: Int = 300 // 5 minutes = 300 seconds
   val MaxPoliticianRosterSize: Int = 3 // Maximum politicians in roster (base)
   val Management1RosterBonus: Int = 2 // Extra slots from Management1 skill
@@ -655,12 +662,35 @@ object TileKingdomLogic:
   def townHallCapacity(game: TileKingdomGame): Int =
     if game.hasSkill(Skill.Management4) then 2 else 1
 
-  // Find all Town Halls that affect a given coord (within their influence radius)
+  // Get town hall direction (defaults to Center)
+  def getTownHallDirection(game: TileKingdomGame, coord: Coord): BureauDirection =
+    game.townHallDirection.getOrElse(coord, BureauDirection.Center)
+
+  // Set town hall direction
+  def setTownHallDirection(game: TileKingdomGame, coord: Coord, direction: BureauDirection): Either[String, TileKingdomGame] =
+    game.tiles.get(coord) match
+      case None => Left("Tile not found")
+      case Some(tile) if !tile.isTownHall => Left("Tile is not a town hall")
+      case Some(_) if !game.hasSkill(Skill.Management5) => Left("Requires Management 5 skill")
+      case Some(_) =>
+        Right(game.copy(
+          townHallDirection = game.townHallDirection.updated(coord, direction)
+        ))
+
+  // Get the set of coords affected by a town hall, considering direction skill
+  def townHallAffectedCoords(game: TileKingdomGame, townHallCoord: Coord): Set[Coord] =
+    if game.hasSkill(Skill.Management5) then
+      val direction = getTownHallDirection(game, townHallCoord)
+      townHallCoord.rectangleInDirection(direction, TownHallDirectionLength, TownHallDirectionHalfWidth)
+    else
+      townHallCoord.neighborsWithinRadius(TownHallInfluenceRadius)
+
+  // Find all Town Halls that affect a given coord (within their influence radius/direction)
   def townHallsAffecting(game: TileKingdomGame, coord: Coord): List[(Coord, Politician)] =
     game.tiles.toList.flatMap:
       case (townHallCoord, tile) => tile.tileType match
         case TileType.TownHall(politicians) if politicians.nonEmpty
-          && townHallCoord.neighborsWithinRadius(TownHallInfluenceRadius).contains(coord) =>
+          && townHallAffectedCoords(game, townHallCoord).contains(coord) =>
           politicians.map(pol => (townHallCoord, pol))
         case _ => Nil
 
@@ -704,7 +734,7 @@ object TileKingdomLogic:
 
   // Count taverns within influence radius of a Town Hall
   def tavernsAffectingTownHall(game: TileKingdomGame, townHallCoord: Coord): Int =
-    townHallCoord.neighborsWithinRadius(TownHallInfluenceRadius).count: coord =>
+    townHallAffectedCoords(game, townHallCoord).count: coord =>
       game.tiles.get(coord).exists(_.isTavern)
 
   // Calculate lifespan multiplier for a politician in a Town Hall based on nearby taverns

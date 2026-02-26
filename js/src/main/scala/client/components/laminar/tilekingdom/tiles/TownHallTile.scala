@@ -14,11 +14,12 @@ import TileComponents.*
   */
 object TownHallTile:
 
-  /** Town Hall-specific actions (politician management) */
+  /** Town Hall-specific actions (politician management + direction) */
   case class Actions(
     onAssignPolitician: String => Unit,
     onRemovePolitician: () => Unit,
     onSwapPoliticians: Coord => Unit,
+    onSetDirection: BureauDirection => Unit,
     onDestroy: () => Unit
   )
 
@@ -60,6 +61,10 @@ object TownHallTile:
     // Whether Management4 is unlocked (dual politician slots)
     val capacitySignal = gameSignal.map(g => TileKingdomLogic.townHallCapacity(g)).distinct
 
+    // Direction signals (only relevant with Management5)
+    val hasDirectionSkillSignal = gameSignal.map(_.hasSkill(Skill.Management5)).distinct
+    val directionSignal = gameSignal.map(g => TileKingdomLogic.getTownHallDirection(g, coord))
+
     // Combined extra classes for politician presence and drag-over state
     val extraClsSignal = hasPoliticianSignal.combineWith(isDragOver.signal).map:
       case (hasPol, dragOver) =>
@@ -73,7 +78,19 @@ object TownHallTile:
         div(cls := "tile-icon", "🏛️"),
 
         // Politician slots — render based on initial snapshot, lifespan updates via signals
-        renderPoliticianSlots(coord, politicians, politiciansSignal, lifespanMultiplierSignal, capacitySignal, actions)
+        renderPoliticianSlots(coord, politicians, politiciansSignal, lifespanMultiplierSignal, capacitySignal, actions),
+
+        // Direction toggle buttons (only shown with Management5 skill)
+        div(
+          cls := "townhall-direction-row",
+          display <-- hasDirectionSkillSignal.map(has => if has then "flex" else "none"),
+
+          directionButton(BureauDirection.Left, "⬅️", "Direct left (3×5)", directionSignal, actions),
+          directionButton(BureauDirection.Up, "⬆️", "Direct up (5×3)", directionSignal, actions),
+          directionButton(BureauDirection.Center, "⊙", "Centered (2-tile radius)", directionSignal, actions),
+          directionButton(BureauDirection.Down, "⬇️", "Direct down (5×3)", directionSignal, actions),
+          directionButton(BureauDirection.Right, "➡️", "Direct right (3×5)", directionSignal, actions)
+        )
       ),
 
       // Click handler (remove first politician if present)
@@ -202,3 +219,21 @@ object TownHallTile:
       )
     )
 
+  private def directionButton(
+    dir: BureauDirection,
+    label: String,
+    titleText: String,
+    directionSignal: Signal[BureauDirection],
+    actions: Actions
+  ): HtmlElement =
+    button(
+      cls <-- directionSignal.map(d =>
+        if d == dir then "btn-bureau-dir active" else "btn-bureau-dir"
+      ),
+      title := titleText,
+      label,
+      onClick --> { e =>
+        e.stopPropagation()
+        actions.onSetDirection(dir)
+      }
+    )

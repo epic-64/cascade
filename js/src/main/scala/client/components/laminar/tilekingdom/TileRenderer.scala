@@ -37,6 +37,7 @@ object TileRenderer:
     onAssignPolitician: (Coord, String) => Unit,
     onRemovePolitician: Coord => Unit,
     onSwapPoliticians: (Coord, Coord) => Unit,
+    onSetTownHallDirection: (Coord, BureauDirection) => Unit,
     // Unlock
     onUnlockTile: Coord => Unit
   )
@@ -136,6 +137,7 @@ object TileRenderer:
             onAssignPolitician = id => actions.onAssignPolitician(coord, id),
             onRemovePolitician = () => actions.onRemovePolitician(coord),
             onSwapPoliticians = fromCoord => actions.onSwapPoliticians(fromCoord, coord),
+            onSetDirection = dir => actions.onSetTownHallDirection(coord, dir),
             onDestroy = () => actions.onDestroy(coord)
           )
         )

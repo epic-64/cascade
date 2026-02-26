@@ -1406,6 +1406,14 @@
   background: rgba(251, 191, 36, 0.08);
 }
 
+/* Town Hall direction row (Management5 skill) */
+.townhall-direction-row {
+  display: flex;
+  gap: 2px;
+  justify-content: center;
+  margin-top: 2px;
+}
+
 /* ============================================================================
    Academy Tile
    ============================================================================ */

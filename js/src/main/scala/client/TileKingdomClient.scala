@@ -153,6 +153,7 @@ object TileKingdomClient:
     onAssignPolitician = (coord, id) => handleAssignPolitician(id, coord),
     onRemovePolitician = handleRemovePolitician,
     onSwapPoliticians = handleSwapPoliticians,
+    onSetTownHallDirection = handleSetTownHallDirection,
     onUnlockTile = handleUnlockTile
   )
 
@@ -683,6 +684,22 @@ object TileKingdomClient:
 
   private def handleSetBureauDirection(coord: Coord, direction: BureauDirection): Unit =
     TileKingdomLogic.setBureauDirection(currentGame, coord, direction) match
+      case Right(newGame) =>
+        currentGame = newGame
+        TileKingdomState.update(currentGame)
+        saveGame()
+        val dirText = direction match
+          case BureauDirection.Center => "Centered (2-tile radius)"
+          case BureauDirection.Up => "Directed upward (5×3)"
+          case BureauDirection.Down => "Directed downward (5×3)"
+          case BureauDirection.Left => "Directed left (3×5)"
+          case BureauDirection.Right => "Directed right (3×5)"
+        showNotification(dirText)
+      case Left(error) =>
+        showNotification(error)
+
+  private def handleSetTownHallDirection(coord: Coord, direction: BureauDirection): Unit =
+    TileKingdomLogic.setTownHallDirection(currentGame, coord, direction) match
       case Right(newGame) =>
         currentGame = newGame
         TileKingdomState.update(currentGame)
