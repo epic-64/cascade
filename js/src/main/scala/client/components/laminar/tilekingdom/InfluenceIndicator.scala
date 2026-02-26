@@ -79,6 +79,14 @@ object InfluenceIndicator:
     else
       apply(coord, TileKingdomLogic.BureauRadius, "bureau-influence")
 
+  /** Render town hall influence indicator based on game state (direction-aware) */
+  private def renderTownHallInfluence(game: TileKingdomGame, coord: Coord): HtmlElement =
+    if game.hasSkill(Skill.Management5) then
+      val direction = TileKingdomLogic.getTownHallDirection(game, coord)
+      applyDirectional(coord, direction, "town-hall-influence")
+    else
+      apply(coord, TileKingdomLogic.TownHallInfluenceRadius, "town-hall-influence")
+
   /** Create influence indicators for all relevant tiles in the game */
   def renderAll(game: TileKingdomGame, bounds: (Int, Int, Int, Int)): List[HtmlElement] =
     val (minRow, maxRow, minCol, maxCol) = bounds
@@ -94,7 +102,7 @@ object InfluenceIndicator:
           case TileType.Bureau(_) =>
             Some(renderBureauInfluence(game, coord))
           case TileType.TownHall(pols) if pols.nonEmpty =>
-            Some(apply(coord, TileKingdomLogic.TownHallInfluenceRadius, "town-hall-influence"))
+            Some(renderTownHallInfluence(game, coord))
           case _ => None
       else None
     .toList
@@ -114,7 +122,7 @@ object InfluenceIndicator:
           case TileType.Bureau(_) =>
             Some(renderBureauInfluence(game, coord))
           case TileType.TownHall(pols) if pols.nonEmpty =>
-            Some(apply(coord, TileKingdomLogic.TownHallInfluenceRadius, "town-hall-influence"))
+            Some(renderTownHallInfluence(game, coord))
           case _ => None
       else None
 
