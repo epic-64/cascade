@@ -78,3 +78,4 @@
   Then inform the player that their save was lost due to a game update. Also tell them whether they skill points were recovered or not.
 - Add a skill that allows town halls to hold 2 politicians at the same time.
 - The cost reduction badge on the wheat field has white font. It is badly visible on the light background.
+- improve the visibility of influence areas. On hover, draw lines to all tiles affected by the tile that is hovered.
