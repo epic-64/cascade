@@ -173,23 +173,22 @@
   padding: 0.5rem;
 }
 
-/* Resource panel positioning - top left, below header */
+/* Resource panel positioning - top left corner */
 .draggable-panel.resource-panel {
-  top: 4.5rem;
+  top: 1rem;
   left: 1rem;
 }
 
-/* Meta panel positioning - top right */
+/* Meta panel positioning - top left, next to resources */
 .draggable-panel.meta-panel {
-  top: 4.5rem;
-  right: 1rem;
+  top: 1rem;
+  left: 13rem;
 }
 
-/* Politician panel positioning - bottom left, above action bar */
+/* Politician panel positioning - left side, below resources */
 .draggable-panel.politician-panel {
-  bottom: 5rem;
+  top: 19rem;
   left: 1rem;
-  top: auto;
   min-width: 220px;
 }
 
