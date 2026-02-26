@@ -51,8 +51,8 @@ lazy val cascade = crossProject(JSPlatform, JVMPlatform)
   )
   .jvmEnablePlugins(JavaAppPackaging)
   .jsSettings(
-    // Disable coverage for JS project (not supported in Scala 3)
-    coverageEnabled := enableCoverage,
+    // Disable coverage for JS project (need to remove all default parameters from methods first)
+    coverageEnabled := false,
     // Enable main module initializer so js/run works and main.js is generated
     scalaJSUseMainModuleInitializer := true,
 
