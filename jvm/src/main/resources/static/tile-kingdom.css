@@ -1031,6 +1031,17 @@
   box-shadow: var(--shadow-lg);
 }
 
+.btn-layout {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+}
+
+.btn-layout:hover {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
 .dev-tools-content {
   min-width: 200px;
 }

@@ -6,6 +6,13 @@ import org.scalajs.dom
 /** Reusable draggable panel wrapper component. */
 object DraggablePanel:
 
+  /** Registry of all panel position Vars for reset functionality */
+  private var panelPositions: List[Var[(Double, Double)]] = List.empty
+
+  /** Reset all panels to their default positions */
+  def resetAllPositions(): Unit =
+    panelPositions.foreach(_.set((0.0, 0.0)))
+
   /** Create a draggable panel with a handle and content.
     * @param panelCls CSS class for the panel
     * @param title Optional title shown in the handle
@@ -16,6 +23,9 @@ object DraggablePanel:
     val position = Var((0.0, 0.0))
     val dragStart = Var((0.0, 0.0))
     val posStart = Var((0.0, 0.0))
+
+    // Register this panel's position for reset
+    panelPositions = panelPositions :+ position
 
     div(
       cls := s"draggable-panel $panelCls",
