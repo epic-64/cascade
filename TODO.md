@@ -74,7 +74,7 @@
 
 ## Todos
 - elements in skill window are pulsing multiple times per second, it looks like the re-rendering is too coarse.
-- if a save fails to load, try to read at least the skill points and award them, and 5000 gold.
+- if a save fails to load, try to read at least the skill points from the save, and award them in the current game. Also award 5000 gold.
   Then inform the player that their save was lost due to a game update. Also tell them whether they skill points were recovered or not.
 - Add a skill that allows town halls to hold 2 politicians at the same time.
 - The cost reduction badge on the wheat field has white font. It is badly visible on the light background.
