@@ -195,7 +195,7 @@ object TileKingdomClient:
         case 4 => TileType.Temple(1)
         case 5 => TileType.Quarry(1)
         case 6 => TileType.Academy(FasterPoliticians)
-        case _ => TileType.TownHall(None)
+        case _ => TileType.TownHall(List.empty)
       val blockTiles = for
         r <- 0 until 10
         c <- 0 until 5
@@ -219,7 +219,7 @@ object TileKingdomClient:
         case 4 => TileType.Temple(1)
         case 5 => TileType.Quarry(1)
         case 6 => TileType.Academy(AcademyMode.RareChance)
-        case _ => TileType.TownHall(None)
+        case _ => TileType.TownHall(List.empty)
       val blockTiles = for
         r <- 0 until 9
         c <- 0 until 20
@@ -582,7 +582,12 @@ object TileKingdomClient:
   private def handleAssignPolitician(politicianId: String, townHallCoord: Coord): Unit =
     val hadPolitician = currentGame.tiles.get(townHallCoord).exists: tile =>
       tile.tileType match
-        case TileType.TownHall(Some(_)) => true
+        case TileType.TownHall(pols) if pols.nonEmpty => true
+        case _ => false
+
+    val wasFull = currentGame.tiles.get(townHallCoord).exists: tile =>
+      tile.tileType match
+        case TileType.TownHall(pols) => pols.size >= TileKingdomLogic.townHallCapacity(currentGame)
         case _ => false
 
     TileKingdomLogic.assignPolitician(currentGame, politicianId, townHallCoord) match
@@ -590,7 +595,7 @@ object TileKingdomClient:
         currentGame = newGame
         TileKingdomState.update(currentGame)
         saveGame()
-        showNotification(if hadPolitician then "Politician swapped!" else "Politician assigned!")
+        showNotification(if wasFull then "Politician swapped!" else "Politician assigned!")
       case Left(error) =>
         showNotification(error)
 

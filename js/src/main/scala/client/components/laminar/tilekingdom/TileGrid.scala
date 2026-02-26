@@ -29,11 +29,8 @@ object TileGrid:
   private def tileTypeStructurallyEqual(a: TileType, b: TileType): Boolean =
     (a, b) match
       case (TileType.TownHall(p1), TileType.TownHall(p2)) =>
-        // Compare politicians by ID only, ignore lifespan
-        (p1, p2) match
-          case (None, None) => true
-          case (Some(pol1), Some(pol2)) => pol1.id == pol2.id
-          case _ => false
+        // Compare politicians by IDs only, ignore lifespan changes
+        p1.map(_.id) == p2.map(_.id)
       case _ => a == b
 
   /** Create the tile grid component */
@@ -86,7 +83,7 @@ object TileGrid:
           val influenceTiles = tiles.values.filter { tile =>
             tile.tileType match
               case TileType.Farm(_) | TileType.Bureau(_) => true
-              case TileType.TownHall(Some(_)) => true
+              case TileType.TownHall(pols) if pols.nonEmpty => true
               case _ => false
           }.toList
           // Include bureau directions in the distinct key so direction changes trigger re-render

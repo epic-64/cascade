@@ -93,7 +93,7 @@ object InfluenceIndicator:
             Some(apply(coord, 1, "farm-influence"))
           case TileType.Bureau(_) =>
             Some(renderBureauInfluence(game, coord))
-          case TileType.TownHall(Some(_)) =>
+          case TileType.TownHall(pols) if pols.nonEmpty =>
             Some(apply(coord, TileKingdomLogic.TownHallInfluenceRadius, "town-hall-influence"))
           case _ => None
       else None
@@ -113,7 +113,7 @@ object InfluenceIndicator:
             Some(apply(coord, 1, "farm-influence"))
           case TileType.Bureau(_) =>
             Some(renderBureauInfluence(game, coord))
-          case TileType.TownHall(Some(_)) =>
+          case TileType.TownHall(pols) if pols.nonEmpty =>
             Some(apply(coord, TileKingdomLogic.TownHallInfluenceRadius, "town-hall-influence"))
           case _ => None
       else None

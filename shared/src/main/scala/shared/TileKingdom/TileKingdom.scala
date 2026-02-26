@@ -1,6 +1,6 @@
 package shared.TileKingdom
 
-import upickle.default.ReadWriter
+import upickle.default.{ReadWriter, readwriter, Reader, Writer}
 
 // ============================================================================
 // Resource System
@@ -124,6 +124,7 @@ enum Skill derives ReadWriter:
   case Management1 // Politician roster holds 2 additional politicians
   case Management2 // Town halls are 10x cheaper to build
   case Management3 // Bureaus can be directed (5x3 rectangle instead of 2-tile radius)
+  case Management4 // Town halls can hold 2 politicians at the same time
   // Wisdom branch
   case Wisdom1 // Quarries produce 25% more stone for each neighboring forest
   case Wisdom2 // Each forest grants 50% increased faith production to neighboring temples
@@ -138,7 +139,7 @@ object Skill:
   // Get skill branch name
   def branchName(skill: Skill): String = skill match
     case Agriculture1A | Agriculture1B | Agriculture2A | Agriculture2B | Agriculture3A | Agriculture3B => "Agriculture"
-    case Management1 | Management2 | Management3 => "Management"
+    case Management1 | Management2 | Management3 | Management4 => "Management"
     case Wisdom1 | Wisdom2 => "Wisdom"
     case Education1 | Education2 => "Education"
     case Logistics1A | Logistics1B => "Logistics"
@@ -152,6 +153,7 @@ object Skill:
     case Management1 => "+2 politician roster slots"
     case Management2 => "Town halls cost 10x less stone to build"
     case Management3 => "Bureaus can be directed (5×3 rectangle)"
+    case Management4 => "Town Halls hold 2 politicians at once"
     case Wisdom1 => "+25% quarry stone output per neighboring forest"
     case Wisdom2 => "+50% temple faith output per neighboring forest"
     case Education1 => "Academies cost 10x less stone to build"
@@ -166,6 +168,7 @@ object Skill:
     case Agriculture1A | Agriculture1B | Management1 | Wisdom1 | Education1 | Logistics1A | Logistics1B => 1
     case Agriculture2A | Agriculture2B | Management2 | Wisdom2 | Education2 => 2
     case Agriculture3A | Agriculture3B | Management3 => 3
+    case Management4 => 4
 
   // Get prerequisite skill (if any)
   def prerequisite(skill: Skill): Option[Skill] = skill match
@@ -174,6 +177,7 @@ object Skill:
     case Agriculture3A | Agriculture3B => None // Either Agriculture2A or Agriculture2B, handled by alternativePrerequisites
     case Management2 => Some(Management1)
     case Management3 => Some(Management2)
+    case Management4 => Some(Management3)
     case Wisdom2 => Some(Wisdom1)
     case Education2 => Some(Education1)
 
@@ -199,7 +203,7 @@ object Skill:
   // Get all skills in a branch, in order (dual track alternatives grouped together)
   def branchSkills(branchName: String): List[Skill] = branchName match
     case "Agriculture" => List(Agriculture1A, Agriculture1B, Agriculture2A, Agriculture2B, Agriculture3A, Agriculture3B)
-    case "Management" => List(Management1, Management2, Management3)
+    case "Management" => List(Management1, Management2, Management3, Management4)
     case "Wisdom" => List(Wisdom1, Wisdom2)
     case "Education" => List(Education1, Education2)
     case "Logistics" => List(Logistics1A, Logistics1B)
@@ -217,17 +221,66 @@ object Skill:
     case "Logistics" => "🏛️"
     case _ => "❓"
 
-enum TileType derives ReadWriter:
+enum TileType:
   case Empty
   case WheatField(level: Int) // level determines production rate
   case Farm(level: Int) // boosts nearby wheat fields
   case Woodcutter(level: Int) // produces wood
   case Bureau(level: Int) // auto-upgrades nearby buildings, costs wood
   case Temple(level: Int) // produces faith, costs wood
-  case TownHall(politician: Option[Politician]) // has a slot for a politician
+  case TownHall(politicians: List[Politician]) // holds politician(s) - Management4 allows 2
   case Quarry(level: Int) // produces stone
   case Academy(mode: AcademyMode) // boosts politician generation or rare chance
   case Tavern // extends politician lifespan in nearby Town Halls by 2x
+
+object TileType:
+  /** Custom ReadWriter that handles backward-compatible deserialization.
+    * Old saves stored TownHall as {"\$type":"TownHall","politician":<Option>}.
+    * New format stores TownHall as {"\$type":"TownHall","politicians":<List>}.
+    */
+  given ReadWriter[TileType] = readwriter[ujson.Value].bimap[TileType](
+    // Write: serialize to JSON
+    {
+      case Empty => ujson.Obj("$type" -> "Empty")
+      case WheatField(level) => ujson.Obj("$type" -> "WheatField", "level" -> level)
+      case Farm(level) => ujson.Obj("$type" -> "Farm", "level" -> level)
+      case Woodcutter(level) => ujson.Obj("$type" -> "Woodcutter", "level" -> level)
+      case Bureau(level) => ujson.Obj("$type" -> "Bureau", "level" -> level)
+      case Temple(level) => ujson.Obj("$type" -> "Temple", "level" -> level)
+      case TownHall(politicians) =>
+        val polJson = upickle.default.writeJs(politicians)
+        ujson.Obj("$type" -> "TownHall", "politicians" -> polJson)
+      case Quarry(level) => ujson.Obj("$type" -> "Quarry", "level" -> level)
+      case Academy(mode) =>
+        val modeJson = upickle.default.writeJs(mode)
+        ujson.Obj("$type" -> "Academy", "mode" -> modeJson)
+      case Tavern => ujson.Obj("$type" -> "Tavern")
+    },
+    // Read: deserialize from JSON, handling old Option format for TownHall
+    json =>
+      json("$type").str match
+        case "Empty" => Empty
+        case "WheatField" => WheatField(json("level").num.toInt)
+        case "Farm" => Farm(json("level").num.toInt)
+        case "Woodcutter" => Woodcutter(json("level").num.toInt)
+        case "Bureau" => Bureau(json("level").num.toInt)
+        case "Temple" => Temple(json("level").num.toInt)
+        case "TownHall" =>
+          // Backward compat: old format had "politician" (Option), new has "politicians" (List)
+          if json.obj.contains("politicians") then
+            val pols = upickle.default.read[List[Politician]](json("politicians"))
+            TownHall(pols)
+          else if json.obj.contains("politician") then
+            val polOpt = upickle.default.read[Option[Politician]](json("politician"))
+            TownHall(polOpt.toList)
+          else
+            TownHall(List.empty)
+        case "Quarry" => Quarry(json("level").num.toInt)
+        case "Academy" =>
+          val mode = upickle.default.read[AcademyMode](json("mode"))
+          Academy(mode)
+        case "Tavern" => Tavern
+  )
 
 // ============================================================================
 // Politician System
@@ -596,14 +649,18 @@ object TileKingdomLogic:
         game.tiles.get(neighborCoord).exists(_.isWoodcutter)
       1.0 + (neighboringForests * 0.50)
 
+  // Maximum number of politicians a single Town Hall can hold
+  def townHallCapacity(game: TileKingdomGame): Int =
+    if game.hasSkill(Skill.Management4) then 2 else 1
+
   // Find all Town Halls that affect a given coord (within their influence radius)
   def townHallsAffecting(game: TileKingdomGame, coord: Coord): List[(Coord, Politician)] =
     game.tiles.toList.flatMap:
       case (townHallCoord, tile) => tile.tileType match
-        case TileType.TownHall(Some(politician))
-          if townHallCoord.neighborsWithinRadius(TownHallInfluenceRadius).contains(coord) =>
-          Some((townHallCoord, politician))
-        case _ => None
+        case TileType.TownHall(politicians) if politicians.nonEmpty
+          && townHallCoord.neighborsWithinRadius(TownHallInfluenceRadius).contains(coord) =>
+          politicians.map(pol => (townHallCoord, pol))
+        case _ => Nil
 
   // Helper to apply a single effect to a multiplier for a specific resource type
   private def applyEffect(acc: Double, effect: PoliticianEffect, isWheat: Boolean = false, isWood: Boolean = false, isFaith: Boolean = false, isStone: Boolean = false): Double =
@@ -774,7 +831,7 @@ object TileKingdomLogic:
   def tickPoliticianLifespans(game: TileKingdomGame, elapsedMs: Long): (TileKingdomGame, List[String]) =
     val townHallCoords = game.tiles.toList.collect:
       case (coord, tile) if tile.tileType match
-        case TileType.TownHall(Some(_)) => true
+        case TileType.TownHall(pols) if pols.nonEmpty => true
         case _ => false
       => coord
 
@@ -784,21 +841,16 @@ object TileKingdomLogic:
     townHallCoords.foreach: coord =>
       updatedTiles.get(coord).foreach: tile =>
         tile.tileType match
-          case TileType.TownHall(Some(politician)) =>
-            // Calculate effective elapsed time based on tavern multiplier
+          case TileType.TownHall(politicians) if politicians.nonEmpty =>
             val lifespanMultiplier = politicianLifespanMultiplier(game, coord)
             val effectiveElapsedMs = (elapsedMs / lifespanMultiplier).toLong
-            val newLifespan = politician.remainingLifespanMs - effectiveElapsedMs
-            if newLifespan <= 0 then
-              // Politician dies - remove from Town Hall
-              val updatedTile = tile.copy(tileType = TileType.TownHall(None))
-              updatedTiles = updatedTiles.updated(coord, updatedTile)
-              destroyedPoliticians = destroyedPoliticians :+ politician.name
-            else
-              // Update politician's remaining lifespan
-              val updatedPolitician = politician.copy(remainingLifespanMs = newLifespan)
-              val updatedTile = tile.copy(tileType = TileType.TownHall(Some(updatedPolitician)))
-              updatedTiles = updatedTiles.updated(coord, updatedTile)
+            val (surviving, expired) = politicians.partitionMap: politician =>
+              val newLifespan = politician.remainingLifespanMs - effectiveElapsedMs
+              if newLifespan <= 0 then Right(politician.name)
+              else Left(politician.copy(remainingLifespanMs = newLifespan))
+            destroyedPoliticians = destroyedPoliticians ++ expired
+            val updatedTile = tile.copy(tileType = TileType.TownHall(surviving))
+            updatedTiles = updatedTiles.updated(coord, updatedTile)
           case _ => ()
 
     (game.copy(tiles = updatedTiles), destroyedPoliticians)
@@ -1092,7 +1144,7 @@ object TileKingdomLogic:
 
   def buildTownHall(game: TileKingdomGame, coord: Coord, currentTimeMillis: Long = System.currentTimeMillis()): Either[String, TileKingdomGame] =
     val cost = townHallBuildCost(game)
-    buildOnEmptyTile(game, coord, TileType.TownHall(None), Cost(cost, Resource.Stone),
+    buildOnEmptyTile(game, coord, TileType.TownHall(List.empty), Cost(cost, Resource.Stone),
       game.canBuildTownHall, "Build a forest first").map: baseGame =>
         // If roster is empty, generate a politician immediately
         if baseGame.politicianRoster.isEmpty then
@@ -1130,54 +1182,83 @@ object TileKingdomLogic:
           Right(game.copy(tiles = game.tiles.updated(coord, updatedTile)))
         case _ => Left("Tile is not an academy")
 
-  // Assign a politician from the roster to a town hall (allows swapping)
+  // Assign a politician from the roster to a town hall (adds to list, or replaces oldest if at capacity)
   def assignPolitician(game: TileKingdomGame, politicianId: String, townHallCoord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(townHallCoord) match
       case None => Left("Tile not found")
       case Some(tile) => tile.tileType match
-        case TileType.TownHall(existingPolitician) =>
+        case TileType.TownHall(existing) =>
           game.politicianRoster.find(_.id == politicianId) match
             case None => Left("Politician not found in roster")
             case Some(newPolitician) =>
-              val updatedTile = tile.copy(tileType = TileType.TownHall(Some(newPolitician)))
-              // Remove new politician from roster, add existing one back if present
-              val updatedRoster = game.politicianRoster.filterNot(_.id == politicianId) ++ existingPolitician.toList
+              val capacity = townHallCapacity(game)
+              val (updatedPols, returnedToRoster) =
+                if existing.size < capacity then
+                  (existing :+ newPolitician, List.empty)
+                else
+                  // At capacity — replace the first (oldest) politician
+                  (existing.tail :+ newPolitician, List(existing.head))
+              val updatedTile = tile.copy(tileType = TileType.TownHall(updatedPols))
+              val updatedRoster = game.politicianRoster.filterNot(_.id == politicianId) ++ returnedToRoster
               Right(game.copy(
                 tiles = game.tiles.updated(townHallCoord, updatedTile),
                 politicianRoster = updatedRoster
               ))
         case _ => Left("Tile is not a town hall")
 
-  // Remove a politician from a town hall back to the roster
-  def removePolitician(game: TileKingdomGame, townHallCoord: Coord): Either[String, TileKingdomGame] =
+  // Remove a politician from a town hall back to the roster (by ID, or the only one)
+  def removePolitician(game: TileKingdomGame, townHallCoord: Coord, politicianId: Option[String] = None): Either[String, TileKingdomGame] =
     game.tiles.get(townHallCoord) match
       case None => Left("Tile not found")
       case Some(tile) => tile.tileType match
-        case TileType.TownHall(Some(politician)) =>
-          val updatedTile = tile.copy(tileType = TileType.TownHall(None))
-          Right(game.copy(
-            tiles = game.tiles.updated(townHallCoord, updatedTile),
-            politicianRoster = game.politicianRoster :+ politician
-          ))
-        case TileType.TownHall(None) => Left("Town Hall has no politician")
+        case TileType.TownHall(politicians) if politicians.nonEmpty =>
+          val toRemove = politicianId match
+            case Some(id) => politicians.find(_.id == id)
+            case None => Some(politicians.head) // Default: remove first
+          toRemove match
+            case None => Left("Politician not found in this Town Hall")
+            case Some(politician) =>
+              val remaining = politicians.filterNot(_.id == politician.id)
+              val updatedTile = tile.copy(tileType = TileType.TownHall(remaining))
+              Right(game.copy(
+                tiles = game.tiles.updated(townHallCoord, updatedTile),
+                politicianRoster = game.politicianRoster :+ politician
+              ))
+        case TileType.TownHall(_) => Left("Town Hall has no politician")
         case _ => Left("Tile is not a town hall")
 
   // Swap politicians between two town halls (or move from one to an empty one)
+  // Moves the first politician from source to target; if target is full, swaps with target's first
   def swapPoliticians(game: TileKingdomGame, fromCoord: Coord, toCoord: Coord): Either[String, TileKingdomGame] =
     if fromCoord == toCoord then return Left("Cannot swap with self")
 
     (game.tiles.get(fromCoord), game.tiles.get(toCoord)) match
       case (Some(fromTile), Some(toTile)) =>
         (fromTile.tileType, toTile.tileType) match
-          case (TileType.TownHall(Some(fromPol)), TileType.TownHall(toPol)) =>
-            val updatedFromTile = fromTile.copy(tileType = TileType.TownHall(toPol))
-            val updatedToTile = toTile.copy(tileType = TileType.TownHall(Some(fromPol)))
-            Right(game.copy(
-              tiles = game.tiles
-                .updated(fromCoord, updatedFromTile)
-                .updated(toCoord, updatedToTile)
-            ))
-          case (TileType.TownHall(None), _) => Left("Source town hall has no politician")
+          case (TileType.TownHall(fromPols), TileType.TownHall(toPols)) if fromPols.nonEmpty =>
+            val capacity = townHallCapacity(game)
+            val movedPol = fromPols.head
+            val fromRemaining = fromPols.tail
+            if toPols.size < capacity then
+              // Target has room: just move
+              val updatedFrom = fromTile.copy(tileType = TileType.TownHall(fromRemaining))
+              val updatedTo = toTile.copy(tileType = TileType.TownHall(toPols :+ movedPol))
+              Right(game.copy(
+                tiles = game.tiles
+                  .updated(fromCoord, updatedFrom)
+                  .updated(toCoord, updatedTo)
+              ))
+            else
+              // Target full: swap first politician
+              val swappedPol = toPols.head
+              val updatedFrom = fromTile.copy(tileType = TileType.TownHall(fromRemaining :+ swappedPol))
+              val updatedTo = toTile.copy(tileType = TileType.TownHall(toPols.tail :+ movedPol))
+              Right(game.copy(
+                tiles = game.tiles
+                  .updated(fromCoord, updatedFrom)
+                  .updated(toCoord, updatedTo)
+              ))
+          case (TileType.TownHall(pols), _) if pols.isEmpty => Left("Source town hall has no politician")
           case (_, TileType.TownHall(_)) => Left("Source is not a town hall")
           case _ => Left("Target is not a town hall")
       case (None, _) => Left("Source tile not found")

@@ -128,10 +128,10 @@ object TileRenderer:
           )
         )
 
-      case TileType.TownHall(politician) =>
+      case TileType.TownHall(politicians) =>
         TownHallTile(
           coord,
-          politician,
+          politicians,
           TownHallTile.Actions(
             onAssignPolitician = id => actions.onAssignPolitician(coord, id),
             onRemovePolitician = () => actions.onRemovePolitician(coord),

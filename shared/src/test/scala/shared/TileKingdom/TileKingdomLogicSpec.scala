@@ -393,7 +393,7 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
         val coord = Coord(0, 0)
 
         val gameWithTownHall = game.copy(
-          tiles = game.tiles.updated(coord, Tile(coord, TileType.TownHall(None), unlocked = true)),
+          tiles = game.tiles.updated(coord, Tile(coord, TileType.TownHall(List.empty), unlocked = true)),
           politicianRoster = List(pol)
         )
 
@@ -402,7 +402,7 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
         result.isRight shouldBe true
         val newGame = result.value
         newGame.tiles(coord).tileType match
-          case TileType.TownHall(Some(assigned)) => assigned.id shouldBe pol.id
+          case TileType.TownHall(pols) => pols.map(_.id) should contain(pol.id)
           case _ => fail("Expected town hall with politician")
         newGame.politicianRoster should not contain pol
 
@@ -412,7 +412,7 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
         val coord = Coord(0, 0)
 
         val gameWithAssigned = game.copy(
-          tiles = game.tiles.updated(coord, Tile(coord, TileType.TownHall(Some(pol)), unlocked = true)),
+          tiles = game.tiles.updated(coord, Tile(coord, TileType.TownHall(List(pol)), unlocked = true)),
           politicianRoster = List.empty
         )
 
@@ -420,6 +420,68 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
 
         result.isRight shouldBe true
         val newGame = result.value
-        newGame.tiles(coord).tileType shouldBe TileType.TownHall(None)
+        newGame.tiles(coord).tileType shouldBe TileType.TownHall(List.empty)
         newGame.politicianRoster should contain(pol)
+
+      it("should hold 2 politicians when Management4 is unlocked"):
+        val pol1 = TileKingdomLogic.generatePolitician(1000L, 0.0)
+        val pol2 = TileKingdomLogic.generatePolitician(2000L, 0.0)
+        val game = TileKingdomLogic.newGame(1000L)
+        val coord = Coord(0, 0)
+
+        val gameWithSkill = game.copy(
+          tiles = game.tiles.updated(coord, Tile(coord, TileType.TownHall(List.empty), unlocked = true)),
+          politicianRoster = List(pol1, pol2),
+          hasSailed = true,
+          unlockedSkills = Set(Skill.Management1, Skill.Management2, Skill.Management3, Skill.Management4)
+        )
+
+        val afterFirst = TileKingdomLogic.assignPolitician(gameWithSkill, pol1.id, coord).value
+        val afterSecond = TileKingdomLogic.assignPolitician(afterFirst, pol2.id, coord).value
+
+        afterSecond.tiles(coord).tileType match
+          case TileType.TownHall(pols) =>
+            pols should have size 2
+            pols.map(_.id) should contain allOf (pol1.id, pol2.id)
+          case _ => fail("Expected town hall with 2 politicians")
+        afterSecond.politicianRoster shouldBe empty
+
+      it("should swap oldest politician when at capacity without Management4"):
+        val pol1 = TileKingdomLogic.generatePolitician(1000L, 0.0)
+        val pol2 = TileKingdomLogic.generatePolitician(2000L, 0.0)
+        val game = TileKingdomLogic.newGame(1000L)
+        val coord = Coord(0, 0)
+
+        val gameWithPol = game.copy(
+          tiles = game.tiles.updated(coord, Tile(coord, TileType.TownHall(List(pol1)), unlocked = true)),
+          politicianRoster = List(pol2)
+        )
+
+        val result = TileKingdomLogic.assignPolitician(gameWithPol, pol2.id, coord).value
+
+        result.tiles(coord).tileType match
+          case TileType.TownHall(pols) =>
+            pols should have size 1
+            pols.head.id shouldBe pol2.id
+          case _ => fail("Expected town hall with replaced politician")
+        result.politicianRoster.map(_.id) should contain(pol1.id)
+
+      it("should apply effects from both politicians in a dual-slot town hall"):
+        val pol1 = Politician("p1", "Test1", "Title1", PoliticianEffect.WheatProductionMultiplier(2.0), "🌾")
+        val pol2 = Politician("p2", "Test2", "Title2", PoliticianEffect.WheatProductionMultiplier(3.0), "🌾")
+        val game = TileKingdomLogic.newGame(1000L)
+        val townHallCoord = Coord(0, 0)
+        val wheatCoord = Coord(0, 1)
+
+        val gameWithDual = game.copy(
+          tiles = game.tiles
+            .updated(townHallCoord, Tile(townHallCoord, TileType.TownHall(List(pol1, pol2)), unlocked = true))
+            .updated(wheatCoord, Tile(wheatCoord, TileType.WheatField(1), unlocked = true)),
+          unlockedSkills = Set(Skill.Management1, Skill.Management2, Skill.Management3, Skill.Management4)
+        )
+
+        val affecting = TileKingdomLogic.townHallsAffecting(gameWithDual, wheatCoord)
+        affecting should have size 2
+        val multiplier = TileKingdomLogic.townHallWheatMultiplier(gameWithDual, wheatCoord)
+        multiplier shouldBe 6.0 // 2.0 * 3.0
 
