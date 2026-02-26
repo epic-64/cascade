@@ -79,3 +79,4 @@
 - Add a skill that allows town halls to hold 2 politicians at the same time.
 - The cost reduction badge on the wheat field has white font. It is badly visible on the light background.
 - improve the visibility of influence areas. On hover, draw lines to all tiles affected by the tile that is hovered.
+  also add a toggle to always show the influence lines.
