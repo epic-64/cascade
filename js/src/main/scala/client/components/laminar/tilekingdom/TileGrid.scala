@@ -116,7 +116,10 @@ object TileGrid:
                   Nil
             }
           )
-        }
+        },
+
+        // Influence lines (rendered above tiles)
+        InfluenceLines()
       ),
 
       // Event handlers for pan/zoom
