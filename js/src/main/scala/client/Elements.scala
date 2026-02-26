@@ -5,67 +5,89 @@ import org.scalajs.dom.{HTMLAnchorElement, HTMLButtonElement, HTMLElement, HTMLF
 import scala.scalajs.js
 import scala.util.chaining.*
 
-def el(tag: String, id: String = "", cls: String = "", content: String = ""): HTMLElement =
-  document.createElement(tag).asInstanceOf[HTMLElement].tap: element =>
-    if id.nonEmpty then element.id = id
-    if cls.nonEmpty then element.className = cls
-    if content.nonEmpty then element.textContent = content
+def el(tag: String): HTMLElement =
+  document.createElement(tag).asInstanceOf[HTMLElement]
 
-def div(id: String = "", cls: String = "", content: String = ""): HTMLElement = el("div", id, cls, content)
-def span(id: String = "", cls: String = "", content: String = ""): HTMLElement = el("span", id, cls, content)
-def p(id: String = "", cls: String = "", content: String = ""): HTMLElement = el("p", id, cls, content)
-def h1(id: String = "", cls: String = "", content: String = ""): HTMLElement = el("h1", id, cls, content)
-def h2(id: String = "", cls: String = "", content: String = ""): HTMLElement = el("h2", id, cls, content)
-def h3(id: String = "", cls: String = "", content: String = ""): HTMLElement = el("h3", id, cls, content)
-def h4(id: String = "", cls: String = "", content: String = ""): HTMLElement = el("h4", id, cls, content)
+def div: HTMLElement = el("div")
+def span: HTMLElement = el("span")
+def p: HTMLElement = el("p")
+def h1: HTMLElement = el("h1")
+def h2: HTMLElement = el("h2")
+def h3: HTMLElement = el("h3")
+def h4: HTMLElement = el("h4")
 
-def form(id: String = "", cls: String = ""): HTMLFormElement =
-  el("form", id, cls).asInstanceOf[HTMLFormElement]
+def form: HTMLFormElement =
+  el("form").asInstanceOf[HTMLFormElement]
 
-def input(input_type: String, id: String = "", cls: String = ""): HTMLInputElement =
-  el("input", id, cls).asInstanceOf[HTMLInputElement].tap: input =>
+def input(input_type: String): HTMLInputElement =
+  el("input").asInstanceOf[HTMLInputElement].tap: input =>
     input.`type` = input_type
 
 /** Creates a floating label input field */
-def floatingInput(input_type: String, id: String, label: String): HTMLElement =
-  div(cls = "floating-field")(
-    input(input_type, id = id, cls = "floating-input").tap: inp =>
+def floatingInput(input_type: String, elementId: String, labelText: String): HTMLElement =
+  div.cls("floating-field")(
+    input(input_type).idx(elementId).cls("floating-input").tap: inp =>
       inp.placeholder = " " // Required for :placeholder-shown CSS selector
     ,
-    el("label", cls = "floating-label", content = label).tap: lbl =>
-      lbl.setAttribute("for", id)
+    el("label").cls("floating-label").content(labelText).tap: lbl =>
+      lbl.setAttribute("for", elementId)
   )
 
-def button(button_type: String = "button", id: String = "", cls: String = "", content: String = ""): HTMLButtonElement =
-  el("button", id, cls, content).asInstanceOf[HTMLButtonElement].tap: button =>
-    button.`type` = button_type
+def button: HTMLButtonElement =
+  el("button").asInstanceOf[HTMLButtonElement].tap: btn =>
+    btn.`type` = "button"
 
-def a(href: String = "#", id: String = "", cls: String = ""): HTMLAnchorElement =
+def submitButton: HTMLButtonElement =
+  el("button").asInstanceOf[HTMLButtonElement].tap: btn =>
+    btn.`type` = "submit"
+
+def a: HTMLAnchorElement =
   document.createElement("a").asInstanceOf[HTMLAnchorElement].tap: anchor =>
-    anchor.href = href
-    if cls.nonEmpty then anchor.className = cls
-    if id.nonEmpty then anchor.id = id
+    anchor.href = "#"
 
-def textInput(id: String = "", cls: String = ""): HTMLInputElement =
-  input("text", id, cls)
+def textInput: HTMLInputElement =
+  input("text")
 
-def passwordInput(id: String = "", cls: String = ""): HTMLInputElement =
-  input("password", id, cls)
+def passwordInput: HTMLInputElement =
+  input("password")
 
-def textarea(id: String = "", cls: String = ""): HTMLTextAreaElement =
-  el("textarea", id, cls).asInstanceOf[HTMLTextAreaElement]
+def textarea: HTMLTextAreaElement =
+  el("textarea").asInstanceOf[HTMLTextAreaElement]
 
-def label(forId: String, content: String, id: String = "", cls: String = ""): HTMLLabelElement =
-  el("label", id, cls, content).asInstanceOf[HTMLLabelElement].tap: lbl =>
+def label(forId: String, labelContent: String): HTMLLabelElement =
+  el("label").asInstanceOf[HTMLLabelElement].tap: lbl =>
     lbl.setAttribute("for", forId)
+    lbl.textContent = labelContent
 
 extension [T <: HTMLElement](elem: T)
+  def idx(value: String): T =
+    elem.id = value
+    elem
+
+  def cls(value: String): T =
+    elem.className = value
+    elem
+
+  def content(value: String): T =
+    elem.textContent = value
+    elem
+
   def apply(children: HTMLElement*): T =
     children.foreach(elem.appendChild(_))
     elem
 
   def with_click(handler: js.Function1[org.scalajs.dom.MouseEvent, Unit]): T =
     elem.addEventListener("click", handler)
+    elem
+
+extension (elem: HTMLAnchorElement)
+  def hrefx(value: String): HTMLAnchorElement =
+    elem.href = value
+    elem
+
+extension (elem: HTMLButtonElement)
+  def buttonType(value: String): HTMLButtonElement =
+    elem.`type` = value
     elem
 
 // Helper functions for DOM manipulation

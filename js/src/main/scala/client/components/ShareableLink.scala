@@ -14,15 +14,15 @@ object ShareableLink:
   def render(gameType: String, lobbyId: String): HTMLElement =
     val fullUrl = s"${dom.window.location.origin}/$gameType/$lobbyId"
 
-    div(cls = "shareable-link")(
-      span(cls = "lobby-code", content = s"Code: $lobbyId"),
-      div(cls = "link-actions")(
-        input("text", cls = "share-link-input").tap: el =>
+    div.cls("shareable-link")(
+      span.cls("lobby-code").content(s"Code: $lobbyId"),
+      div.cls("link-actions")(
+        input("text").cls("share-link-input").tap: el =>
           el.value = fullUrl
           el.readOnly = true
           el.addEventListener("click", (e: Event) => el.select())
         ,
-        button(cls = "btn btn-secondary copy-btn", content = "📋 Copy").tap: btn =>
+        button.cls("btn btn-secondary copy-btn").content("📋 Copy").tap: btn =>
           btn.addEventListener("click", (e: Event) => copyToClipboard(fullUrl, btn))
       )
     )

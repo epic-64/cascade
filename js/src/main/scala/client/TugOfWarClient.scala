@@ -28,6 +28,7 @@ def initializeTugOfWar(lobbyIdFromUrl: Option[String] = None): Unit =
       towIsRejoining = true
       towGameId = Some(session.gameId)
       towPlayerId = Some(session.playerId)
+      towPlayerName = Some(session.playerName)
       attemptTugOfWarRejoin(session.gameId, session.playerId, session.playerName)
     case None =>
       lobbyIdFromUrl match
@@ -105,7 +106,7 @@ def buildTugOfWarUI(): Unit =
 
   document.body(
     NavigationBar.render("Tug of War"),
-    div(cls = "container")(
+    div.cls("container")(
       createTugOfWarLobby(),
       createTugOfWarGameArea(),
       createTugOfWarCountdown(),
@@ -115,7 +116,7 @@ def buildTugOfWarUI(): Unit =
   )
 
 def createTugOfWarLobby(): HTMLElement =
-  div(id = "towLobby")(
+  div.idx("towLobby")(
     createTugOfWarLobbySetup(),
     createTugOfWarWaitingArea()
   )
@@ -135,54 +136,54 @@ def switchTugOfWarTab(tab: String): Unit =
     case _ => ()
 
 def createTugOfWarLobbySetup(): HTMLElement =
-  div(id = "towLobbySetup", cls = "lobby-setup")(
-    h2(content = "🪢 Tug of War"),
-    p(cls = "subtitle", content = "Pull the rope to your side to win!"),
-    div(cls = "tabs")(
-      button(id = "towJoinTab", cls = "tab-btn active", content = "Join Game").tap: btn =>
+  div.idx("towLobbySetup").cls("lobby-setup")(
+    h2.content("🪢 Tug of War"),
+    p.cls("subtitle").content("Pull the rope to your side to win!"),
+    div.cls("tabs")(
+      button.idx("towJoinTab").cls("tab-btn active").content("Join Game").tap: btn =>
         btn.addEventListener("click", (e: Event) => switchTugOfWarTab("join")),
-      button(id = "towCreateTab", cls = "tab-btn", content = "Create Game").tap: btn =>
+      button.idx("towCreateTab").cls("tab-btn").content("Create Game").tap: btn =>
         btn.addEventListener("click", (e: Event) => switchTugOfWarTab("create"))
     ),
-    div(cls = "tab-content")(
-      div(id = "towJoinTabContent", cls = "tab-pane active")(
-        form(id = "towJoinForm").tap(_.addEventListener(
+    div.cls("tab-content")(
+      div.idx("towJoinTabContent").cls("tab-pane active")(
+        form.idx("towJoinForm").tap(_.addEventListener(
           "submit",
           (e: Event) =>
             e.preventDefault()
             joinTugOfWarGame()
         ))(
-          floatingInput("text", id = "towJoinGameId", label = "Game Code").tap: field =>
+          floatingInput("text", "towJoinGameId", "Game Code").tap: field =>
             val inp = field.querySelector("input").asInstanceOf[HTMLInputElement]
             inp.required = true
             inp.autocomplete = "off"
           ,
-          floatingInput("text", id = "towJoinPlayerName", label = "Your Name").tap: field =>
+          floatingInput("text", "towJoinPlayerName", "Your Name").tap: field =>
             val inp = field.querySelector("input").asInstanceOf[HTMLInputElement]
             inp.required = true
             inp.autocomplete = "off"
           ,
-          button("submit", content = "Join Game")
+          submitButton.content("Join Game")
         )
       ),
-      div(id = "towCreateTabContent", cls = "tab-pane")(
-        form(id = "towCreateForm").tap(_.addEventListener(
+      div.idx("towCreateTabContent").cls("tab-pane")(
+        form.idx("towCreateForm").tap(_.addEventListener(
           "submit",
           (e: Event) =>
             e.preventDefault()
             createTugOfWarGame()
         ))(
-          floatingInput("text", id = "towCreatePlayerName", label = "Your Name").tap: field =>
+          floatingInput("text", "towCreatePlayerName", "Your Name").tap: field =>
             val inp = field.querySelector("input").asInstanceOf[HTMLInputElement]
             inp.required = true
             inp.autocomplete = "off"
           ,
-          div(cls = "select-row")(
+          div.cls("select-row")(
             el("label").tap: lbl =>
               lbl.setAttribute("for", "towCreateRounds")
               lbl.textContent = "Rounds to Win:"
             ,
-            el("select", id = "towCreateRounds").tap: select =>
+            el("select").idx("towCreateRounds").tap: select =>
               Vector(1, 2, 3, 5, 7).foreach: rounds =>
                 val option = el("option").asInstanceOf[dom.HTMLOptionElement].tap: o =>
                   o.value = rounds.toString
@@ -190,12 +191,12 @@ def createTugOfWarLobbySetup(): HTMLElement =
                   if rounds == 3 then o.selected = true
                   select.appendChild(o)
           ),
-          div(cls = "select-row")(
+          div.cls("select-row")(
             el("label").tap: lbl =>
               lbl.setAttribute("for", "towCreateTimeLimit")
               lbl.textContent = "Time per Round:"
             ,
-            el("select", id = "towCreateTimeLimit").tap: select =>
+            el("select").idx("towCreateTimeLimit").tap: select =>
               Vector((0, "No Limit"), (10, "10 seconds"), (20, "20 seconds"), (30, "30 seconds"), (60, "60 seconds")).foreach:
                 (secs, label) =>
                   val option = el("option").asInstanceOf[dom.HTMLOptionElement].tap: o =>
@@ -204,162 +205,162 @@ def createTugOfWarLobbySetup(): HTMLElement =
                     if secs == 20 then o.selected = true
                     select.appendChild(o)
           ),
-          button("submit", content = "Create Game")
+          submitButton.content("Create Game")
         )
       )
     )
   )
 
 def createTugOfWarWaitingArea(): HTMLElement =
-  div(id = "towWaitingArea", cls = "waiting-area hidden")(
-    h4(content = "Tug of War Lobby"),
-    div(id = "towLobbyCode"),
+  div.idx("towWaitingArea").cls("waiting-area hidden")(
+    h4.content("Tug of War Lobby"),
+    div.idx("towLobbyCode"),
 
     // Game settings (readonly display)
-    div(id = "towLobbySettings", cls = "lobby-settings"),
+    div.idx("towLobbySettings").cls("lobby-settings"),
 
     // Unassigned players container (always visible to avoid layout shift)
-    div(id = "towUnassignedContainer", cls = "tow-unassigned-container")(
-      div(cls = "tow-unassigned-header", content = "⏳ Waiting to pick a team"),
-      div(id = "towUnassignedPlayers", cls = "players-container")
+    div.idx("towUnassignedContainer").cls("tow-unassigned-container")(
+      div.cls("tow-unassigned-header").content("⏳ Waiting to pick a team"),
+      div.idx("towUnassignedPlayers").cls("players-container")
     ),
 
     // Team lists (clickable to join)
-    div(cls = "tow-teams-container")(
-      div(id = "towRedTeamList", cls = "tow-team-list red clickable").tap: elem =>
+    div.cls("tow-teams-container")(
+      div.idx("towRedTeamList").cls("tow-team-list red clickable").tap: elem =>
         elem.addEventListener("click", (e: Event) => selectTeam(Team.Red))
       .pipe: elem =>
         elem(
-          div(id = "towRedHeader", cls = "tow-team-header red", content = "🔴 Red Team (0)"),
-          div(id = "towRedPlayers", cls = "players-container"),
-          div(cls = "tow-team-join-hint", content = "Click to join")
+          div.idx("towRedHeader").cls("tow-team-header red").content("🔴 Red Team (0)"),
+          div.idx("towRedPlayers").cls("players-container"),
+          div.cls("tow-team-join-hint").content("Click to join")
         ),
-      div(id = "towBlueTeamList", cls = "tow-team-list blue clickable").tap: elem =>
+      div.idx("towBlueTeamList").cls("tow-team-list blue clickable").tap: elem =>
         elem.addEventListener("click", (e: Event) => selectTeam(Team.Blue))
       .pipe: elem =>
         elem(
-          div(id = "towBlueHeader", cls = "tow-team-header blue", content = "🔵 Blue Team (0)"),
-          div(id = "towBluePlayers", cls = "players-container"),
-          div(cls = "tow-team-join-hint", content = "Click to join")
+          div.idx("towBlueHeader").cls("tow-team-header blue").content("🔵 Blue Team (0)"),
+          div.idx("towBluePlayers").cls("players-container"),
+          div.cls("tow-team-join-hint").content("Click to join")
         )
     ),
 
     // Start button and leave button
-    div(cls = "lobby-buttons")(
-      button(id = "towLeaveButton", cls = "btn btn-secondary").tap: btn =>
+    div.cls("lobby-buttons")(
+      button.idx("towLeaveButton").cls("btn btn-secondary").tap: btn =>
         btn.textContent = "Leave Lobby"
         btn.addEventListener("click", (e: Event) => leaveTugOfWarLobby())
       ,
-      button(id = "towStartButton", cls = "btn btn-success").tap: btn =>
+      button.idx("towStartButton").cls("btn btn-success").tap: btn =>
         btn.textContent = "Start Game"
         btn.addEventListener("click", (e: Event) => startTugOfWarGame())
     ),
-    div(id = "towStartHint", cls = "tow-waiting-message", content = "Need at least one player on each team to start")
+    div.idx("towStartHint").cls("tow-waiting-message").content("Need at least one player on each team to start")
   )
 
 def createTugOfWarGameArea(): HTMLElement =
-  div(id = "towGameArea", cls = "game-area hidden")(
+  div.idx("towGameArea").cls("game-area hidden")(
     // Game controls
-    div(cls = "game-controls")(
-      button(cls = "btn btn-secondary").tap: btn =>
+    div.cls("game-controls")(
+      button.cls("btn btn-secondary").tap: btn =>
         btn.textContent = "Return to Lobby"
         btn.addEventListener("click", (e: Event) => returnToTugOfWarLobby())
     ),
 
     // Scoreboard
-    div(id = "towScoreboard", cls = "tow-scoreboard")(
-      div(cls = "tow-team-score red")(
-        div(cls = "team-name", content = "RED"),
-        div(id = "towRedRounds", cls = "rounds-won", content = "0")
+    div.idx("towScoreboard").cls("tow-scoreboard")(
+      div.cls("tow-team-score red")(
+        div.cls("team-name").content("RED"),
+        div.idx("towRedRounds").cls("rounds-won").content("0")
       ),
-      div(cls = "tow-round-info")(
-        div(cls = "round-label", content = "Round"),
-        div(id = "towCurrentRound", cls = "round-number", content = "1"),
-        span(content = " of "),
-        span(id = "towTotalRounds", content = "3"),
-        div(id = "towTimer", cls = "timer hidden")
+      div.cls("tow-round-info")(
+        div.cls("round-label").content("Round"),
+        div.idx("towCurrentRound").cls("round-number").content("1"),
+        span.content(" of "),
+        span.idx("towTotalRounds").content("3"),
+        div.idx("towTimer").cls("timer hidden")
       ),
-      div(cls = "tow-team-score blue")(
-        div(cls = "team-name", content = "BLUE"),
-        div(id = "towBlueRounds", cls = "rounds-won", content = "0")
+      div.cls("tow-team-score blue")(
+        div.cls("team-name").content("BLUE"),
+        div.idx("towBlueRounds").cls("rounds-won").content("0")
       )
     ),
 
     // Rope visualization
-    div(id = "towRopeContainer", cls = "tow-rope-container")(
-      div(cls = "tow-goal tow-goal-red", content = "🏁"),
-      div(cls = "tow-rope-track")(
-        div(cls = "tow-rope-texture")
+    div.idx("towRopeContainer").cls("tow-rope-container")(
+      div.cls("tow-goal tow-goal-red").content("🏁"),
+      div.cls("tow-rope-track")(
+        div.cls("tow-rope-texture")
       ),
-      div(id = "towMarker", cls = "tow-marker"),
-      div(cls = "tow-goal tow-goal-blue", content = "🏁")
+      div.idx("towMarker").cls("tow-marker"),
+      div.cls("tow-goal tow-goal-blue").content("🏁")
     ),
 
     // Position indicator
-    div(id = "towPositionIndicator", cls = "tow-position-indicator")(
-      span(content = "Position: "),
-      span(id = "towPositionValue", cls = "position-value neutral", content = "0")
+    div.idx("towPositionIndicator").cls("tow-position-indicator")(
+      span.content("Position: "),
+      span.idx("towPositionValue").cls("position-value neutral").content("0")
     ),
 
     // Click area
-    div(cls = "tow-click-area")(
-      button(id = "towClickButton", cls = "tow-click-button").tap: btn =>
+    div.cls("tow-click-area")(
+      button.idx("towClickButton").cls("tow-click-button").tap: btn =>
         btn.addEventListener("click", (e: Event) => handleTugOfWarClick())
         btn.addEventListener("mousedown", (e: Event) => e.preventDefault()) // Prevent text selection
       ,
-      div(id = "towClickStats", cls = "tow-click-stats")(
-        div(cls = "tow-stat red")(
-          div(cls = "stat-label", content = "Red Clicks"),
-          div(id = "towRedClicks", cls = "stat-value", content = "0")
+      div.idx("towClickStats").cls("tow-click-stats")(
+        div.cls("tow-stat red")(
+          div.cls("stat-label").content("Red Clicks"),
+          div.idx("towRedClicks").cls("stat-value").content("0")
         ),
-        div(cls = "tow-stat")(
-          div(cls = "stat-label", content = "Your Clicks"),
-          div(id = "towYourClicks", cls = "stat-value", content = "0")
+        div.cls("tow-stat")(
+          div.cls("stat-label").content("Your Clicks"),
+          div.idx("towYourClicks").cls("stat-value").content("0")
         ),
-        div(cls = "tow-stat blue")(
-          div(cls = "stat-label", content = "Blue Clicks"),
-          div(id = "towBlueClicks", cls = "stat-value", content = "0")
+        div.cls("tow-stat blue")(
+          div.cls("stat-label").content("Blue Clicks"),
+          div.idx("towBlueClicks").cls("stat-value").content("0")
         )
       )
     )
   )
 
 def createTugOfWarCountdown(): HTMLElement =
-  div(id = "towCountdown", cls = "tow-countdown hidden")(
-    div(cls = "tow-countdown-content")(
-      div(cls = "tow-countdown-label", content = "Get Ready!"),
-      div(id = "towCountdownNumber", cls = "tow-countdown-number", content = "3"),
-      div(id = "towCountdownTeam", cls = "tow-countdown-team")
+  div.idx("towCountdown").cls("tow-countdown hidden")(
+    div.cls("tow-countdown-content")(
+      div.cls("tow-countdown-label").content("Get Ready!"),
+      div.idx("towCountdownNumber").cls("tow-countdown-number").content("3"),
+      div.idx("towCountdownTeam").cls("tow-countdown-team")
     )
   )
 
 def createTugOfWarRoundWinner(): HTMLElement =
-  div(id = "towRoundWinner", cls = "tow-round-winner hidden")(
-    div(id = "towRoundWinnerContent", cls = "tow-round-winner-content")(
-      div(cls = "tow-round-winner-title", content = "Round Winner!"),
-      div(id = "towRoundWinnerTeam", cls = "tow-round-winner-team"),
-      div(id = "towRoundStats", cls = "tow-round-stats")(
-        div(cls = "tow-stat red")(
-          div(cls = "stat-label", content = "Red Clicks"),
-          div(id = "towRoundRedClicks", cls = "stat-value", content = "0")
+  div.idx("towRoundWinner").cls("tow-round-winner hidden")(
+    div.idx("towRoundWinnerContent").cls("tow-round-winner-content")(
+      div.cls("tow-round-winner-title").content("Round Winner!"),
+      div.idx("towRoundWinnerTeam").cls("tow-round-winner-team"),
+      div.idx("towRoundStats").cls("tow-round-stats")(
+        div.cls("tow-stat red")(
+          div.cls("stat-label").content("Red Clicks"),
+          div.idx("towRoundRedClicks").cls("stat-value").content("0")
         ),
-        div(cls = "tow-stat blue")(
-          div(cls = "stat-label", content = "Blue Clicks"),
-          div(id = "towRoundBlueClicks", cls = "stat-value", content = "0")
+        div.cls("tow-stat blue")(
+          div.cls("stat-label").content("Blue Clicks"),
+          div.idx("towRoundBlueClicks").cls("stat-value").content("0")
         )
       ),
-      button(cls = "btn", content = "Next Round").tap: btn =>
+      button.cls("btn").content("Next Round").tap: btn =>
         btn.addEventListener("click", (e: Event) => requestNextRound())
     )
   )
 
 def createTugOfWarGameWinner(): HTMLElement =
-  val announcement = div(id = "towGameWinner", cls = "tow-game-winner hidden")(
-    div(id = "towGameWinnerContent", cls = "tow-game-winner-content")(
-      div(cls = "tow-game-winner-title", content = "🏆 Game Over! 🏆"),
-      div(id = "towGameWinnerTeam", cls = "tow-game-winner-team"),
-      div(id = "towFinalScore", cls = "tow-final-score"),
-      button(cls = "btn", content = "Close").tap: btn =>
+  val announcement = div.idx("towGameWinner").cls("tow-game-winner hidden")(
+    div.idx("towGameWinnerContent").cls("tow-game-winner-content")(
+      div.cls("tow-game-winner-title").content("🏆 Game Over! 🏆"),
+      div.idx("towGameWinnerTeam").cls("tow-game-winner-team"),
+      div.idx("towFinalScore").cls("tow-final-score"),
+      button.cls("btn").content("Close").tap: btn =>
         btn.addEventListener("click", (e: Event) => hideTugOfWarGameWinner())
     )
   )

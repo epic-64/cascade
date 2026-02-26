@@ -104,7 +104,7 @@ def buildGameUI(): Unit =
 
   document.body(
     NavigationBar.render("Color Rush"),
-    div(cls = "container")(
+    div.cls("container")(
       createLobby(),
       createGameArea(),
       createPlayersSidebar(),
@@ -114,7 +114,7 @@ def buildGameUI(): Unit =
   )
 
 def createLobby(): HTMLElement =
-  div(id = "lobby")(
+  div.idx("lobby")(
     createColorRushLobbySetup(),
     createWaitingArea()
   )
@@ -134,54 +134,54 @@ def switchColorRushTab(tab: String): Unit =
     case _ => ()
 
 def createColorRushLobbySetup(): HTMLElement =
-  div(id = "lobbySetup", cls = "lobby-setup")(
-    h2(content = "Color Rush"),
-    p(cls = "subtitle", content = "Race to click the matching color faster than your friends!"),
-    div(cls = "tabs")(
-      button(id = "joinTab", cls = "tab-btn active", content = "Join Game").tap: btn =>
+  div.idx("lobbySetup").cls("lobby-setup")(
+    h2.content("Color Rush"),
+    p.cls("subtitle").content("Race to click the matching color faster than your friends!"),
+    div.cls("tabs")(
+      button.idx("joinTab").cls("tab-btn active").content("Join Game").tap: btn =>
         btn.addEventListener("click", (e: Event) => switchColorRushTab("join")),
-      button(id = "createTab", cls = "tab-btn", content = "Create Game").tap: btn =>
+      button.idx("createTab").cls("tab-btn").content("Create Game").tap: btn =>
         btn.addEventListener("click", (e: Event) => switchColorRushTab("create"))
     ),
-    div(cls = "tab-content")(
-      div(id = "joinTabContent", cls = "tab-pane active")(
-        form(id = "joinForm").tap(_.addEventListener(
+    div.cls("tab-content")(
+      div.idx("joinTabContent").cls("tab-pane active")(
+        form.idx("joinForm").tap(_.addEventListener(
           "submit",
           (e: Event) =>
             e.preventDefault()
             joinGame()
         ))(
-          floatingInput("text", id = "joinGameId", label = "Game Code").tap: field =>
+          floatingInput("text", "joinGameId", "Game Code").tap: field =>
             val inp = field.querySelector("input").asInstanceOf[HTMLInputElement]
             inp.required = true
             inp.autocomplete = "off"
           ,
-          floatingInput("text", id = "joinPlayerName", label = "Your Name").tap: field =>
+          floatingInput("text", "joinPlayerName", "Your Name").tap: field =>
             val inp = field.querySelector("input").asInstanceOf[HTMLInputElement]
             inp.required = true
             inp.autocomplete = "off"
           ,
-          button("submit", content = "Join Game")
+          submitButton.content("Join Game")
         )
       ),
-      div(id = "createTabContent", cls = "tab-pane")(
-        form(id = "createForm").tap(_.addEventListener(
+      div.idx("createTabContent").cls("tab-pane")(
+        form.idx("createForm").tap(_.addEventListener(
           "submit",
           (e: Event) =>
             e.preventDefault()
             createColorRushGame()
         ))(
-          floatingInput("text", id = "createPlayerName", label = "Your Name").tap: field =>
+          floatingInput("text", "createPlayerName", "Your Name").tap: field =>
             val inp = field.querySelector("input").asInstanceOf[HTMLInputElement]
             inp.required = true
             inp.autocomplete = "off"
           ,
-          div(cls = "select-row")(
+          div.cls("select-row")(
             el("label").tap: lbl =>
               lbl.setAttribute("for", "roundsSelector")
               lbl.textContent = "Number of Rounds:"
             ,
-            el("select", id = "roundsSelector").tap: select =>
+            el("select").idx("roundsSelector").tap: select =>
               Vector(1, 3, 5, 10, 15).foreach: rounds =>
                 val option = el("option").asInstanceOf[dom.HTMLOptionElement].tap: o =>
                   o.value = rounds.toString
@@ -189,7 +189,7 @@ def createColorRushLobbySetup(): HTMLElement =
                   if rounds == 5 then o.selected = true
                   select.appendChild(o)
           ),
-          button("submit", content = "Create Game")
+          submitButton.content("Create Game")
         )
       )
     )
@@ -197,70 +197,70 @@ def createColorRushLobbySetup(): HTMLElement =
 
 def createWaitingArea(): HTMLElement =
   // Waiting area container
-  div(id = "waitingArea", cls = "waiting-area hidden")(
-    h4(content = "Color Rush Lobby"),
-    div(id = "lobbyCode"),
+  div.idx("waitingArea").cls("waiting-area hidden")(
+    h4.content("Color Rush Lobby"),
+    div.idx("lobbyCode"),
     // Game settings (readonly display)
-    div(id = "lobbySettings", cls = "lobby-settings"),
-    h4(id = "playersHeading", content = "Players (0)"),
-    div(id = "playersList", cls = "players-container"),
-    div(cls = "lobby-buttons")(
-      button(cls = "btn btn-secondary").tap: btn =>
+    div.idx("lobbySettings").cls("lobby-settings"),
+    h4.idx("playersHeading").content("Players (0)"),
+    div.idx("playersList").cls("players-container"),
+    div.cls("lobby-buttons")(
+      button.cls("btn btn-secondary").tap: btn =>
         btn.textContent = "Leave Lobby"
         btn.addEventListener("click", (e: Event) => leaveLobby())
       ,
-      button(id = "startButton", cls = "btn btn-success").tap: btn =>
+      button.idx("startButton").cls("btn btn-success").tap: btn =>
         btn.textContent = "Start Game"
         btn.addEventListener("click", (e: Event) => startGame())
     )
   )
 
 def createGameArea(): HTMLElement =
-  div(id = "gameArea", cls = "game-area hidden")(
+  div.idx("gameArea").cls("game-area hidden")(
     // Game controls at the top
-    div(cls = "game-controls")(
-      button(cls = "btn btn-secondary").tap: btn =>
+    div.cls("game-controls")(
+      button.cls("btn btn-secondary").tap: btn =>
         btn.textContent = "Return to Lobby"
         btn.addEventListener("click", (e: Event) => returnToLobby())
       ,
-      button(id = "showWinnerButton", cls = "btn btn-secondary hidden").tap: btn =>
+      button.idx("showWinnerButton").cls("btn btn-secondary hidden").tap: btn =>
         btn.textContent = "Show Results"
         btn.addEventListener("click", (e: Event) => reshowGameWinner())
     ),
     // Round info
-    div(cls = "round-info")(
-      div(cls = "round-number")(
-        span(content = "Round "),
-        span(id = "roundNumber", content = "1"),
-        span(content = " of "),
-        span(id = "totalRounds", content = "10")
+    div.cls("round-info")(
+      div.cls("round-number")(
+        span.content("Round "),
+        span.idx("roundNumber").content("1"),
+        span.content(" of "),
+        span.idx("totalRounds").content("10")
       ),
-      div(cls = "target-color-label", content = "Click this color:"),
-      div(id = "targetColor", cls = "target-color")
+      div.cls("target-color-label").content("Click this color:"),
+      div.idx("targetColor").cls("target-color")
     ),
     // Color grid
-    div(id = "colorGrid", cls = "color-grid")
+    div.idx("colorGrid").cls("color-grid")
   )
 
 def createPlayersSidebar(): HTMLElement =
-  div(id = "gamePlayers", cls = "players-container hidden")
+  div.idx("gamePlayers").cls("players-container hidden")
 
 def createRoundWinnerAnnouncement(): HTMLElement =
-  div(id = "winnerAnnouncement", cls = "winner-announcement hidden")(
-    el("h2", id = "winnerName"),
-    div(id = "winnerPoints", cls = "points")
+  div.idx("winnerAnnouncement").cls("winner-announcement hidden")(
+    el("h2").idx("winnerName"),
+    div.idx("winnerPoints").cls("points")
   )
 
 def createGameWinnerAnnouncement(): HTMLElement =
-  val announcement = div(id = "gameWinnerAnnouncement", cls = "game-winner-announcement hidden")(
-    div(cls = "game-winner-content")(
-      el("h1", id = "gameWinnerTitle"),
-      div(cls = "game-winner-details")(
-        div(id = "gameWinnerName", cls = "winner-name"),
-        div(id = "gameWinnerScore", cls = "winner-score"),
-        div(id = "gameWinnerRounds", cls = "winner-rounds")
+  val announcement = div.idx("gameWinnerAnnouncement").cls("game-winner-announcement hidden")(
+    div.cls("game-winner-content")(
+      el("h1").idx("gameWinnerTitle"),
+      div.cls("game-winner-details")(
+        div.idx("gameWinnerName").cls("winner-name"),
+        div.idx("gameWinnerScore").cls("winner-score"),
+        div.idx("gameWinnerRounds").cls("winner-rounds")
       ),
-      el("button", cls = "close-winner-button").tap: btn =>
+      el("button").cls("close-winner-button").tap: btn =>
         btn.textContent = "Close"
         btn.addEventListener("click", (e: Event) => hideGameWinner())
     )

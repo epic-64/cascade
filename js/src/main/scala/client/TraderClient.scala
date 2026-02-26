@@ -73,10 +73,10 @@ private def renderTraderUI(): Unit =
 
   traderGame match
     case Some(game) =>
-      val container = div(cls = "trader-container")(
+      val container = div.cls("trader-container")(
         renderHeader(game),
         renderMap(game),
-        div(cls = "trader-main")(
+        div.cls("trader-main")(
           renderCarriage(game),
           renderMarket(game)
         ),
@@ -99,20 +99,20 @@ private def renderTraderUI(): Unit =
           body.appendChild(renderEncounterModal(encounter, game))
       }
     case None =>
-      body.appendChild(div(content = "Loading..."))
+      body.appendChild(div.content("Loading..."))
 
 private def renderHeader(game: TraderGame): HTMLElement =
   val seasonClass = s"season-${game.season.toString.toLowerCase}"
-  div(cls = "trader-header")(
-    span(cls = "trader-title", content = "🏪 TRADER"),
-    div(cls = "trader-status")(
-      div(cls = "trader-turn")(
-        span(content = "Turn: "),
-        span(content = game.turn.toString)
+  div.cls("trader-header")(
+    span.cls("trader-title").content("🏪 TRADER"),
+    div.cls("trader-status")(
+      div.cls("trader-turn")(
+        span.content("Turn: "),
+        span.content(game.turn.toString)
       ),
-      div(cls = s"trader-season $seasonClass")(
-        span(content = "Season: "),
-        span(content = game.season.toString)
+      div.cls(s"trader-season $seasonClass")(
+        span.content("Season: "),
+        span.content(game.season.toString)
       )
     )
   )
@@ -120,9 +120,9 @@ private def renderHeader(game: TraderGame): HTMLElement =
 private def renderMap(game: TraderGame): HTMLElement =
   val travelOptions = TraderLogic.getTravelOptions(game).toMap
 
-  div(cls = "trader-map")(
-    h2(content = "City Map"),
-    div(cls = "city-grid")(
+  div.cls("trader-map")(
+    h2.content("City Map"),
+    div.cls("city-grid")(
       // Row 0
       renderCityNode(game, CityId.Northport, travelOptions.get(CityId.Northport)),
       renderCityNode(game, CityId.Ironforge, travelOptions.get(CityId.Ironforge)),
@@ -144,10 +144,10 @@ private def renderCityNode(game: TraderGame, cityId: CityId, travelCost: Option[
   val isVisited = game.isCityVisited(cityId)
   val cls = if isCurrent then "city-node current" else if isVisited then "city-node visited" else "city-node"
 
-  val node = div(cls = cls)(
-    div(cls = "city-name", content = city.name),
+  val node = div.cls(cls)(
+    div.cls("city-name").content(city.name),
     renderCityMarketInfo(game, city, isVisited),
-    travelCost.map(cost => div(cls = "city-travel-cost", content = s"${cost}g")).getOrElse(div())
+    travelCost.map(cost => div.cls("city-travel-cost").content(s"${cost}g")).getOrElse(div)
   )
 
   if !isCurrent then
@@ -161,11 +161,11 @@ private def renderCityNode(game: TraderGame, cityId: CityId, travelCost: Option[
 private def renderCityMarketInfo(game: TraderGame, city: City, isVisited: Boolean): HTMLElement =
   if !isVisited then
     // Unknown market - show placeholders
-    div(cls = "city-market-info unknown")(
-      div(cls = "market-hint", content = "Market unknown"),
-      div(cls = "market-items")(
-        span(cls = "cheap-item unknown", content = "?? "),
-        span(cls = "expensive-item unknown", content = "??")
+    div.cls("city-market-info unknown")(
+      div.cls("market-hint").content("Market unknown"),
+      div.cls("market-items")(
+        span.cls("cheap-item unknown").content("?? "),
+        span.cls("expensive-item unknown").content("??")
       )
     )
   else
@@ -173,26 +173,26 @@ private def renderCityMarketInfo(game: TraderGame, city: City, isVisited: Boolea
     val cheapItems = TraderLogic.getCheapestItems(city, game.season)
     val expensiveItems = TraderLogic.getMostExpensiveItems(city, game.season)
 
-    div(cls = "city-market-info")(
+    div.cls("city-market-info")(
       // Cheap items (good for buying)
-      div(cls = "market-row cheap")(
-        span(cls = "market-label", content = "Buy: "),
-        if cheapItems.isEmpty then span(cls = "market-none", content = "—")
+      div.cls("market-row cheap")(
+        span.cls("market-label").content("Buy: "),
+        if cheapItems.isEmpty then span.cls("market-none").content("—")
         else
           span()(
             cheapItems.map { case (item, price) =>
-              span(cls = "cheap-item", content = s"${item.toString.take(4)} ${price}g ")
+              span.cls("cheap-item").content(s"${item.toString.take(4)} ${price}g ")
             }*
           )
       ),
       // Expensive items (good for selling)
-      div(cls = "market-row expensive")(
-        span(cls = "market-label", content = "Sell: "),
-        if expensiveItems.isEmpty then span(cls = "market-none", content = "—")
+      div.cls("market-row expensive")(
+        span.cls("market-label").content("Sell: "),
+        if expensiveItems.isEmpty then span.cls("market-none").content("—")
         else
           span()(
             expensiveItems.map { case (item, price) =>
-              span(cls = "expensive-item", content = s"${item.toString.take(4)} ${price}g ")
+              span.cls("expensive-item").content(s"${item.toString.take(4)} ${price}g ")
             }*
           )
       )
@@ -214,37 +214,37 @@ private def renderCarriage(game: TraderGame): HTMLElement =
   val riskColor = TraderRisk.getRiskColor(risk)
   val riskPercent = (risk.encounterChance * 100).toInt
 
-  div(cls = "trader-carriage")(
-    h2(content = "🐴 Your Carriage"),
-    div(cls = "trader-gold")(
-      span(cls = "trader-gold-icon", content = "💰"),
-      span(content = s"${player.gold}g")
+  div.cls("trader-carriage")(
+    h2.content("🐴 Your Carriage"),
+    div.cls("trader-gold")(
+      span.cls("trader-gold-icon").content("💰"),
+      span.content(s"${player.gold}g")
     ),
-    div(cls = "trader-capacity")(
-      div(cls = "capacity-text", content = s"Capacity: ${used}kg / ${capacity}kg"),
-      div(cls = "capacity-bar")(
-        div(cls = fillClass).tap(_.style.width = s"$percentage%")
+    div.cls("trader-capacity")(
+      div.cls("capacity-text").content(s"Capacity: ${used}kg / ${capacity}kg"),
+      div.cls("capacity-bar")(
+        div.cls(fillClass).tap(_.style.width = s"$percentage%")
       )
     ),
     // Risk indicator moved here
-    div(cls = s"carriage-risk $riskColor")(
+    div.cls(s"carriage-risk $riskColor")(
       if risk.cargoWeight > 0 then
         div()(
-          div(cls = "risk-header")(
-            span(cls = "risk-label", content = "⚠️ Travel Risk: "),
-            span(cls = "risk-level", content = s"$riskLevel ($riskPercent%)")
+          div.cls("risk-header")(
+            span.cls("risk-label").content("⚠️ Travel Risk: "),
+            span.cls("risk-level").content(s"$riskLevel ($riskPercent%)")
           ),
-          div(cls = "risk-details")(
-            span(content = s"Value: ${risk.cargoValue}g @ ${f"${risk.valuePerKg}%.1f"} g/kg")
+          div.cls("risk-details")(
+            span.content(s"Value: ${risk.cargoValue}g @ ${f"${risk.valuePerKg}%.1f"} g/kg")
           )
         )
       else
-        div(cls = "risk-header")(
-          span(content = "✓ Empty cargo - safe travels!")
+        div.cls("risk-header")(
+          span.content("✓ Empty cargo - safe travels!")
         )
     ),
-    div(cls = "trader-inventory")(
-      h3(content = "Inventory"),
+    div.cls("trader-inventory")(
+      h3.content("Inventory"),
       renderInventory(player.inventory)
     ),
     renderUpgradeButton(game)
@@ -252,13 +252,13 @@ private def renderCarriage(game: TraderGame): HTMLElement =
 
 private def renderInventory(inventory: Inventory): HTMLElement =
   if inventory.items.isEmpty then
-    div(cls = "inventory-empty", content = "(empty)")
+    div.cls("inventory-empty").content("(empty)")
   else
     div()(
       inventory.items.toSeq.sortBy(_._1.toString).map { case (item, qty) =>
-        div(cls = "inventory-item")(
-          span(cls = "inventory-item-name", content = item.toString),
-          span(cls = "inventory-item-qty", content = s"×$qty (${Item.weight(item) * qty}kg)")
+        div.cls("inventory-item")(
+          span.cls("inventory-item-name").content(item.toString),
+          span.cls("inventory-item-qty").content(s"×$qty (${Item.weight(item) * qty}kg)")
         )
       }*
     )
@@ -266,35 +266,36 @@ private def renderInventory(inventory: Inventory): HTMLElement =
 private def renderUpgradeButton(game: TraderGame): HTMLElement =
   val player = game.player
   if player.carriageLevel >= 8 then
-    button(cls = "upgrade-btn", content = "Carriage Maxed Out").tap { btn =>
+    button.cls("upgrade-btn").content("Carriage Maxed Out").tap { btn =>
       btn.disabled = true
     }
   else
     val cost = player.upgradesCost
     val canAfford = player.gold >= cost
     val newCapacity = 200 + player.carriageLevel * 50
-    button(cls = "upgrade-btn", content = s"Upgrade to ${newCapacity}kg (${cost}g)").tap { btn =>
+    button.cls("upgrade-btn").content(s"Upgrade to ${newCapacity}kg (${cost}g)").tap { btn =>
       btn.disabled = !canAfford
       if canAfford then btn.with_click(_ => handleUpgrade())
     }
 
+
 private def renderMarket(game: TraderGame): HTMLElement =
   val city = game.currentCity
 
-  div(cls = "trader-market")(
+  div.cls("trader-market")(
     h2()(
-      span(content = "Market - "),
-      span(cls = "market-city-name", content = city.name)
+      span.content("Market - "),
+      span.cls("market-city-name").content(city.name)
     ),
-    el("table", cls = "market-table")(
+    el("table").cls("market-table")(
       el("thead")(
         el("tr")(
-          el("th", content = "Item"),
-          el("th", content = "Base"),
-          el("th", content = "Price"),
-          el("th", content = "Factors"),
-          el("th", content = "Stock"),
-          el("th", content = "Actions")
+          el("th").content("Item"),
+          el("th").content("Base"),
+          el("th").content("Price"),
+          el("th").content("Factors"),
+          el("th").content("Stock"),
+          el("th").content("Actions")
         )
       ),
       el("tbody")(
@@ -343,29 +344,29 @@ private def renderMarketRow(game: TraderGame, item: Item): HTMLElement =
 
   el("tr")(
     el("td")(
-      span(cls = "item-name", content = item.toString),
-      span(cls = "item-weight", content = s"(${weight}kg)")
+      span.cls("item-name").content(item.toString),
+      span.cls("item-weight").content(s"(${weight}kg)")
     ),
-    el("td", cls = "price-base", content = s"${basePrice}g"),
-    el("td", cls = s"price-current $priceClass", content = s"${currentPrice}g"),
-    el("td", cls = "price-factors")(
-      if factors.isEmpty then span(cls = "factor-none", content = "—")
+    el("td").cls("price-base").content(s"${basePrice}g"),
+    el("td").cls(s"price-current $priceClass").content(s"${currentPrice}g"),
+    el("td").cls("price-factors")(
+      if factors.isEmpty then span.cls("factor-none").content("—")
       else
-        div(cls = "factors-list")(
-          factors.map { case (cls, label) =>
-            span(cls = s"factor-tag $cls", content = label)
+        div.cls("factors-list")(
+          factors.map { case (factorCls, label) =>
+            span.cls(s"factor-tag $factorCls").content(label)
           }*
         )
     ),
-    el("td", content = if stock > 0 then stock.toString else "-"),
+    el("td").content(if stock > 0 then stock.toString else "-"),
     el("td")(
-      div(cls = "trade-actions")(
-        button(cls = "trade-btn buy", content = "Buy").tap { btn =>
+      div.cls("trade-actions")(
+        button.cls("trade-btn buy").content("Buy").tap { btn =>
           val canBuy = game.player.gold >= currentPrice && game.player.availableCapacity >= weight
           btn.disabled = !canBuy
           if canBuy then btn.with_click(_ => handleBuy(item, 1))
         },
-        button(cls = "trade-btn sell", content = "Sell").tap { btn =>
+        button.cls("trade-btn sell").content("Sell").tap { btn =>
           btn.disabled = stock <= 0
           if stock > 0 then btn.with_click(_ => handleSell(item, 1))
         }
@@ -374,10 +375,10 @@ private def renderMarketRow(game: TraderGame, item: Item): HTMLElement =
   )
 
 private def renderLog(game: TraderGame): HTMLElement =
-  div(cls = "trader-log")(
-    h2(content = "Log"),
-    div(cls = "log-entries")(
-      game.log.map(entry => div(cls = "log-entry", content = entry))*
+  div.cls("trader-log")(
+    h2.content("Log"),
+    div.cls("log-entries")(
+      game.log.map(entry => div.cls("log-entry").content(entry))*
     )
   )
 
@@ -398,71 +399,71 @@ private def renderCityModal(game: TraderGame, cityId: CityId): HTMLElement =
   val cheapItems = if isVisited then TraderLogic.getCheapestItems(city, game.season) else Nil
   val expensiveItems = if isVisited then TraderLogic.getMostExpensiveItems(city, game.season) else Nil
 
-  div(cls = "city-modal-overlay")(
-    div(cls = "city-modal")(
-      div(cls = "city-modal-header")(
-        h2(content = city.name),
-        div(cls = "city-modal-route", content = s"From ${fromCity.name}")
+  div.cls("city-modal-overlay")(
+    div.cls("city-modal")(
+      div.cls("city-modal-header")(
+        h2.content(city.name),
+        div.cls("city-modal-route").content(s"From ${fromCity.name}")
       ),
 
       // Travel cost
-      div(cls = "city-modal-section")(
-        div(cls = "section-label", content = "Travel Cost"),
-        div(cls = s"section-value ${if canAfford then "" else "unaffordable"}")(
-          span(cls = "cost-amount", content = s"${travelCost}g"),
-          if !canAfford then span(cls = "cost-warning", content = " (insufficient gold)") else span()
+      div.cls("city-modal-section")(
+        div.cls("section-label").content("Travel Cost"),
+        div.cls(s"section-value ${if canAfford then "" else "unaffordable"}")(
+          span.cls("cost-amount").content(s"${travelCost}g"),
+          if !canAfford then span.cls("cost-warning").content(" (insufficient gold)") else span
         )
       ),
 
       // Risk factor
-      div(cls = s"city-modal-section risk-section $riskColor")(
-        div(cls = "section-label", content = "Bandit Risk"),
+      div.cls(s"city-modal-section risk-section $riskColor")(
+        div.cls("section-label").content("Bandit Risk"),
         if risk.cargoWeight > 0 then
-          div(cls = "section-value")(
-            span(cls = "risk-level", content = s"$riskLevel ($riskPercent%)"),
-            div(cls = "risk-subtext", content = s"${risk.cargoValue}g cargo @ ${f"${risk.valuePerKg}%.1f"} g/kg")
+          div.cls("section-value")(
+            span.cls("risk-level").content(s"$riskLevel ($riskPercent%)"),
+            div.cls("risk-subtext").content(s"${risk.cargoValue}g cargo @ ${f"${risk.valuePerKg}%.1f"} g/kg")
           )
         else
-          div(cls = "section-value safe", content = "None (empty cargo)")
+          div.cls("section-value safe").content("None (empty cargo)")
       ),
 
       // Market info
-      div(cls = "city-modal-section market-section")(
-        div(cls = "section-label", content = "Market"),
+      div.cls("city-modal-section market-section")(
+        div.cls("section-label").content("Market"),
         if isVisited then
-          div(cls = "market-preview")(
-            div(cls = "market-preview-row")(
-              span(cls = "preview-label", content = "Buy cheap: "),
-              if cheapItems.isEmpty then span(cls = "preview-none", content = "Nothing special")
+          div.cls("market-preview")(
+            div.cls("market-preview-row")(
+              span.cls("preview-label").content("Buy cheap: "),
+              if cheapItems.isEmpty then span.cls("preview-none").content("Nothing special")
               else
                 span()(
                   cheapItems.map { case (item, price) =>
-                    span(cls = "preview-item cheap", content = s"${item.toString} ${price}g ")
+                    span.cls("preview-item cheap").content(s"${item.toString} ${price}g ")
                   }*
                 )
             ),
-            div(cls = "market-preview-row")(
-              span(cls = "preview-label", content = "Sell high: "),
-              if expensiveItems.isEmpty then span(cls = "preview-none", content = "Nothing special")
+            div.cls("market-preview-row")(
+              span.cls("preview-label").content("Sell high: "),
+              if expensiveItems.isEmpty then span.cls("preview-none").content("Nothing special")
               else
                 span()(
                   expensiveItems.map { case (item, price) =>
-                    span(cls = "preview-item expensive", content = s"${item.toString} ${price}g ")
+                    span.cls("preview-item expensive").content(s"${item.toString} ${price}g ")
                   }*
                 )
             )
           )
         else
-          div(cls = "market-unknown", content = "Market conditions unknown (not yet visited)")
+          div.cls("market-unknown").content("Market conditions unknown (not yet visited)")
       ),
 
       // Action buttons
-      div(cls = "city-modal-actions")(
-        button(cls = "modal-btn cancel", content = "Cancel").with_click { _ =>
+      div.cls("city-modal-actions")(
+        button.cls("modal-btn cancel").content("Cancel").with_click { _ =>
           selectedCity = None
           renderTraderUI()
         },
-        button(cls = "modal-btn travel", content = s"Travel (${travelCost}g)").tap { btn =>
+        button.cls("modal-btn travel").content(s"Travel (${travelCost}g)").tap { btn =>
           btn.disabled = !canAfford
           if canAfford then
             btn.with_click { _ =>
@@ -479,11 +480,11 @@ private def renderTravelAnimation(game: TraderGame): HTMLElement =
     .map(_.name).getOrElse("???")
   val toCity = game.currentCity.name
 
-  div(cls = "travel-animation-overlay")(
-    div(cls = "travel-animation")(
-      div(cls = "travel-icon", content = "🐴"),
-      div(cls = "travel-text", content = "Traveling..."),
-      div(cls = "travel-route", content = s"→ {toCity}")
+  div.cls("travel-animation-overlay")(
+    div.cls("travel-animation")(
+      div.cls("travel-icon").content("🐴"),
+      div.cls("travel-text").content("Traveling..."),
+      div.cls("travel-route").content(s"→ {toCity}")
     )
   )
 
@@ -567,31 +568,30 @@ private def renderEncounterModal(encounter: BanditEncounter, game: TraderGame): 
   val fromCityName = game.cities(encounter.fromCity).name
   val toCityName = game.cities(encounter.toCity).name
 
-  div(cls = "encounter-modal-overlay")(
-    div(cls = s"encounter-modal $outcomeClass")(
-      div(cls = "encounter-icon", content = icon),
-      h2(cls = "encounter-title", content = title),
-      div(cls = "encounter-route", content = s"$fromCityName → $toCityName"),
-      p(cls = "encounter-description", content = description),
+  div.cls("encounter-modal-overlay")(
+    div.cls(s"encounter-modal $outcomeClass")(
+      div.cls("encounter-icon").content(icon),
+      h2.cls("encounter-title").content(title),
+      div.cls("encounter-route").content(s"$fromCityName → $toCityName"),
+      p.cls("encounter-description").content(description),
       if losses.nonEmpty then
-        div(cls = "encounter-losses")(
-          h3(content = "Losses:"),
-          div(cls = "loss-list")(
+        div.cls("encounter-losses")(
+          h3.content("Losses:"),
+          div.cls("loss-list")(
             losses.map { (name, amount) =>
-              div(cls = "loss-item")(
-                span(cls = "loss-name", content = name),
-                span(cls = "loss-amount", content = amount)
+              div.cls("loss-item")(
+                span.cls("loss-name").content(name),
+                span.cls("loss-amount").content(amount)
               )
             }*
           )
         )
       else
-        div(
-          cls = "encounter-no-loss",
-          content = if encounter.outcome == EncounterOutcome.Unscathed then "" else "No losses!"
+        div.cls("encounter-no-loss").content(
+          if encounter.outcome == EncounterOutcome.Unscathed then "" else "No losses!"
         )
       ,
-      button(cls = "encounter-continue-btn", content = "Continue").with_click { _ =>
+      button.cls("encounter-continue-btn").content("Continue").with_click { _ =>
         dismissEncounter()
       }
     )
@@ -603,7 +603,7 @@ private def dismissEncounter(): Unit =
   renderTraderUI()
 
 private def renderNewGameButton(): HTMLElement =
-  button(cls = "new-game-btn", content = "New Game").with_click { _ =>
+  button.cls("new-game-btn").content("New Game").with_click { _ =>
     if dom.window.confirm("Start a new game? Your current progress will be lost.") then
       clearTraderGame()
       traderGame = Some(TraderLogic.newGame())
