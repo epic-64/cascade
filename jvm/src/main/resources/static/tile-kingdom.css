@@ -1294,6 +1294,11 @@
   pointer-events: auto;
 }
 
+/* Re-enable pointer events on direction buttons */
+.tile-kingdom-tile.town-hall .btn-bureau-dir {
+  pointer-events: auto;
+}
+
 .tile-kingdom-tile.town-hall:hover {
   background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
   transform: scale(1.08);
