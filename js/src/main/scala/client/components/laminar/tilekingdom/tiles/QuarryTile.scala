@@ -9,7 +9,7 @@ import TileComponents.*
 /** Quarry tile component.
   *
   * Produces stone over time. Has level, upgrade cost, and progress bar.
-  * Can be boosted by town halls, wisdom skills, and farms (via Agriculture 3B).
+  * Can be boosted by town halls, wisdom skills, and farms (via Agriculture 2B).
   */
 object QuarryTile:
 
@@ -26,7 +26,7 @@ object QuarryTile:
     val stoneAmountSignal = gameSignal.map(g => TileKingdomLogic.stoneProductionPerHarvest(g, tile))
     val townHallMultiplierSignal = gameSignal.map(g => TileKingdomLogic.townHallStoneMultiplier(g, coord))
     val wisdomMultiplierSignal = gameSignal.map(g => TileKingdomLogic.quarryWisdom1Multiplier(g, coord))
-    val farmBoostSignal = gameSignal.map(g => TileKingdomLogic.agriculture3BFarmBonusMultiplier(g, coord))
+    val farmBoostSignal = gameSignal.map(g => TileKingdomLogic.agriculture2BFarmBonusMultiplier(g, coord))
 
     tileWrapper(coord, "quarry", Some(level))(
       div(

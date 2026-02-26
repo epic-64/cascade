@@ -25,7 +25,7 @@ object WoodcutterTile:
     // Computed values from game state
     val harvestAmountSignal = gameSignal.map(g => TileKingdomLogic.woodProductionPerHarvest(g, tile))
     val townHallMultiplierSignal = gameSignal.map(g => TileKingdomLogic.townHallWoodMultiplier(g, coord))
-    val farmBoostSignal = gameSignal.map(g => TileKingdomLogic.agriculture2BFarmBonusMultiplier(g, coord))
+    val farmBoostSignal = gameSignal.map(g => TileKingdomLogic.agriculture1BFarmBonusMultiplier(g, coord))
     val forestBonusSignal = gameSignal.map(g => TileKingdomLogic.forestGroupBonusMultiplier(g, coord))
 
     tileWrapper(coord, "woodcutter", Some(level))(

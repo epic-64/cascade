@@ -80,11 +80,11 @@ enum BureauMode derives ReadWriter:
 enum Skill derives ReadWriter:
   // Agriculture branch (dual track at level 1, 2, and 3)
   case Agriculture1A // Fields start at level 10
-  case Agriculture1B // Fields produce 25% faster
-  case Agriculture2A // Farms start at level 10
-  case Agriculture2B // Farms bonus applies to forests at half strength
-  case Agriculture3A // Wheat field upgrade costs reduced by 90%
-  case Agriculture3B // Farm bonus applies to quarries at half strength
+  case Agriculture1B // Farms affect neighboring forests at 50% effectiveness
+  case Agriculture2A // Fields work 50% faster
+  case Agriculture2B // Farms affect neighboring quarries at 50% effectiveness
+  case Agriculture3A // Wheat field upgrade costs reduced by 99%
+  case Agriculture3B // Farms affect neighboring temples at 50% effectiveness
   // Management branch
   case Management1 // Politician roster holds 2 additional politicians
   case Management2 // Town halls are 10x cheaper to build
@@ -110,9 +110,9 @@ object Skill:
   // Get skill description
   def description(skill: Skill): String = skill match
     case Agriculture1A => "New wheat fields start at level 10"
-    case Agriculture1B => "Wheat fields produce 25% faster"
-    case Agriculture2A => "New farms start at level 10"
-    case Agriculture2B => "Farm bonus applies to neighboring forests at 50%"
+    case Agriculture1B => "Farms affect neighboring forests at 50% effectiveness"
+    case Agriculture2A => "Wheat fields produce twice as fast (50% shorter interval)"
+    case Agriculture2B => "Farms affect neighboring quarries at 50% effectiveness"
     case Management1 => "+2 politician roster slots"
     case Management2 => "Town halls cost 10x less stone to build"
     case Wisdom1 => "+25% quarry stone output per neighboring forest"
@@ -121,8 +121,8 @@ object Skill:
     case Education2 => "Academies run both modes simultaneously"
     case Logistics1A => "Bureaus spend 90% less wood per upgrade (100→10)"
     case Logistics1B => "Bureau turbo spends 90% less faith per upgrade"
-    case Agriculture3A => "Wheat field upgrade costs reduced by 90%"
-    case Agriculture3B => "Farm bonus applies to neighboring quarries at 50%"
+    case Agriculture3A => "Wheat field upgrade costs reduced by 99%"
+    case Agriculture3B => "Farms affect neighboring temples at 50% effectiveness"
 
   // Get skill cost (position in branch)
   def cost(skill: Skill): Int = skill match
@@ -800,11 +800,28 @@ object TileKingdomLogic:
     .sum
     1.0 + farmBonus
 
-  // Agriculture1B skill multiplier (25% faster = 1.25x production)
-  def agriculture1BMultiplier(game: TileKingdomGame): Double =
-    if game.hasSkill(Skill.Agriculture1B) then 1.25 else 1.0
+  // Agriculture2A: halves the wheat field production interval (2x faster harvests)
+  // Returns the interval multiplier: 0.5 means half the normal interval
+  def agriculture2AIntervalMultiplier(game: TileKingdomGame): Double =
+    if game.hasSkill(Skill.Agriculture2A) then 0.5 else 1.0
 
-  // Agriculture2B: Farm bonus applies to forests at half strength
+  // Agriculture1B: Farm bonus applies to forests at half strength
+  def agriculture1BFarmBonusMultiplier(game: TileKingdomGame, coord: Coord): Double =
+    if game.hasSkill(Skill.Agriculture1B) then
+      val farmBonus = coord.neighbors.toList.flatMap(game.tiles.get).collect:
+        case tile if tile.isFarm => tile.level * FarmBoostPerLevel * 0.5 // Half strength
+      .sum
+      1.0 + farmBonus
+    else 1.0
+
+  // Agriculture3A: Wheat field upgrade costs reduced by 99%
+  def effectiveUpgradeCost(game: TileKingdomGame, tile: Tile): Option[Cost] =
+    tile.upgradeCost.map: cost =>
+      if game.hasSkill(Skill.Agriculture3A) && tile.isWheatField then
+        cost.copy(amount = (cost.amount * 0.01).toInt.max(1))
+      else cost
+
+  // Agriculture2B: Farm bonus applies to quarries at half strength
   def agriculture2BFarmBonusMultiplier(game: TileKingdomGame, coord: Coord): Double =
     if game.hasSkill(Skill.Agriculture2B) then
       val farmBonus = coord.neighbors.toList.flatMap(game.tiles.get).collect:
@@ -813,14 +830,7 @@ object TileKingdomLogic:
       1.0 + farmBonus
     else 1.0
 
-  // Agriculture3A: Wheat field upgrade costs reduced by 90%
-  def effectiveUpgradeCost(game: TileKingdomGame, tile: Tile): Option[Cost] =
-    tile.upgradeCost.map: cost =>
-      if game.hasSkill(Skill.Agriculture3A) && tile.isWheatField then
-        cost.copy(amount = (cost.amount * 0.1).toInt.max(1))
-      else cost
-
-  // Agriculture3B: Farm bonus applies to quarries at half strength
+  // Agriculture3B: Farm bonus applies to temples at half strength
   def agriculture3BFarmBonusMultiplier(game: TileKingdomGame, coord: Coord): Double =
     if game.hasSkill(Skill.Agriculture3B) then
       val farmBonus = coord.neighbors.toList.flatMap(game.tiles.get).collect:
@@ -829,55 +839,56 @@ object TileKingdomLogic:
       1.0 + farmBonus
     else 1.0
 
-  // Production rate for a specific tile per second (with farm bonuses and town hall bonuses applied)
+  // Production rate for a specific tile per second (with farm bonuses, town hall bonuses, and Agriculture2A interval)
   def productionRate(game: TileKingdomGame, tile: Tile): Double =
     val base = productionPerSecond(tile)
-    if base > 0 then base * farmBonusMultiplier(game, tile.coord) * townHallWheatMultiplier(game, tile.coord) * agriculture1BMultiplier(game)
+    if base > 0 then base * farmBonusMultiplier(game, tile.coord) * townHallWheatMultiplier(game, tile.coord) / agriculture2AIntervalMultiplier(game)
     else 0.0
 
-  // Wood production rate for a specific tile per second (with forest group bonus, town hall bonuses, and Agriculture2B)
+  // Wood production rate for a specific tile per second (with forest group bonus, town hall bonuses, and Agriculture1B)
   def woodProductionRate(game: TileKingdomGame, tile: Tile): Double =
     val base = woodProductionPerSecond(tile)
-    if base > 0 then base * forestGroupBonusMultiplier(game, tile.coord) * townHallWoodMultiplier(game, tile.coord) * agriculture2BFarmBonusMultiplier(game, tile.coord)
+    if base > 0 then base * forestGroupBonusMultiplier(game, tile.coord) * townHallWoodMultiplier(game, tile.coord) * agriculture1BFarmBonusMultiplier(game, tile.coord)
     else 0.0
 
-  // Faith production rate for a specific tile per second (with town hall bonuses and Wisdom2)
+  // Faith production rate for a specific tile per second (with town hall bonuses, Wisdom2, and Agriculture3B)
   def faithProductionRate(game: TileKingdomGame, tile: Tile): Double =
     val base = faithProductionPerSecond(tile)
-    if base > 0 then base * townHallFaithMultiplier(game, tile.coord) * templeWisdom2Multiplier(game, tile.coord)
+    if base > 0 then base * townHallFaithMultiplier(game, tile.coord) * templeWisdom2Multiplier(game, tile.coord) * agriculture3BFarmBonusMultiplier(game, tile.coord)
     else 0.0
 
-  // Stone production rate for a specific tile per second (with town hall bonuses, Wisdom1, and Agriculture3B)
+  // Stone production rate for a specific tile per second (with town hall bonuses, Wisdom1, and Agriculture2B)
   def stoneProductionRate(game: TileKingdomGame, tile: Tile): Double =
     val base = stoneProductionPerSecond(tile)
-    if base > 0 then base * townHallStoneMultiplier(game, tile.coord) * quarryWisdom1Multiplier(game, tile.coord) * agriculture3BFarmBonusMultiplier(game, tile.coord)
+    if base > 0 then base * townHallStoneMultiplier(game, tile.coord) * quarryWisdom1Multiplier(game, tile.coord) * agriculture2BFarmBonusMultiplier(game, tile.coord)
     else 0.0
 
   // Legacy method for backwards compatibility
   def productionRate(tile: Tile): Double = productionPerSecond(tile)
 
   // Production per harvest for a specific tile (with farm bonuses and town hall bonuses applied)
+  // Note: Agriculture2A affects interval speed, not per-harvest amount
   def productionPerHarvest(game: TileKingdomGame, tile: Tile): Double =
     val base = baseWheatProductionRate(tile)
-    if base > 0 then base * farmBonusMultiplier(game, tile.coord) * townHallWheatMultiplier(game, tile.coord) * agriculture1BMultiplier(game)
+    if base > 0 then base * farmBonusMultiplier(game, tile.coord) * townHallWheatMultiplier(game, tile.coord)
     else 0.0
 
-  // Wood production per harvest for a specific tile (with forest group bonus, town hall bonuses, and Agriculture2B)
+  // Wood production per harvest for a specific tile (with forest group bonus, town hall bonuses, and Agriculture1B)
   def woodProductionPerHarvest(game: TileKingdomGame, tile: Tile): Double =
     val base = baseWoodProductionRate(tile)
-    if base > 0 then base * forestGroupBonusMultiplier(game, tile.coord) * townHallWoodMultiplier(game, tile.coord) * agriculture2BFarmBonusMultiplier(game, tile.coord)
+    if base > 0 then base * forestGroupBonusMultiplier(game, tile.coord) * townHallWoodMultiplier(game, tile.coord) * agriculture1BFarmBonusMultiplier(game, tile.coord)
     else 0.0
 
-  // Faith production per harvest for a specific tile (with town hall bonuses and Wisdom2)
+  // Faith production per harvest for a specific tile (with town hall bonuses, Wisdom2, and Agriculture3B)
   def faithProductionPerHarvest(game: TileKingdomGame, tile: Tile): Double =
     val base = baseFaithProductionRate(tile)
-    if base > 0 then base * townHallFaithMultiplier(game, tile.coord) * templeWisdom2Multiplier(game, tile.coord)
+    if base > 0 then base * townHallFaithMultiplier(game, tile.coord) * templeWisdom2Multiplier(game, tile.coord) * agriculture3BFarmBonusMultiplier(game, tile.coord)
     else 0.0
 
-  // Stone production per harvest for a specific tile (with town hall bonuses and Wisdom1)
+  // Stone production per harvest for a specific tile (with town hall bonuses, Wisdom1, and Agriculture2B)
   def stoneProductionPerHarvest(game: TileKingdomGame, tile: Tile): Double =
     val base = baseStoneProductionRate(tile)
-    if base > 0 then base * townHallStoneMultiplier(game, tile.coord) * quarryWisdom1Multiplier(game, tile.coord) * agriculture3BFarmBonusMultiplier(game, tile.coord)
+    if base > 0 then base * townHallStoneMultiplier(game, tile.coord) * quarryWisdom1Multiplier(game, tile.coord) * agriculture2BFarmBonusMultiplier(game, tile.coord)
     else 0.0
 
   // Total wheat production rate for the game (all wheat fields with bonuses)
@@ -1025,8 +1036,7 @@ object TileKingdomLogic:
     buildOnEmptyTile(game, coord, TileType.WheatField(startLevel), Cost(wheatFieldBuildCost, Resource.Wheat))
 
   def buildFarm(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
-    val startLevel = if game.hasSkill(Skill.Agriculture2A) then 10 else 1
-    buildOnEmptyTile(game, coord, TileType.Farm(startLevel), Cost(farmBuildCost, Resource.Wheat),
+    buildOnEmptyTile(game, coord, TileType.Farm(1), Cost(farmBuildCost, Resource.Wheat),
       game.canBuildFarm, "Build a wheat field first")
 
   def buildWoodcutter(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =

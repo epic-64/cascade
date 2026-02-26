@@ -329,15 +329,15 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
 
       it("should apply skill effects to production"):
         val game = TileKingdomLogic.newGame(1000L).copy(
-          unlockedSkills = Set(Skill.Agriculture1B)
+          unlockedSkills = Set(Skill.Agriculture2A)
         )
         val coord = Coord(0, 0)
         val tile = Tile(coord, TileType.WheatField(1), unlocked = true)
         val gameWithField = game.copy(tiles = game.tiles.updated(coord, tile))
 
-        val multiplier = TileKingdomLogic.agriculture1BMultiplier(gameWithField)
+        val multiplier = TileKingdomLogic.agriculture2AIntervalMultiplier(gameWithField)
 
-        multiplier shouldBe >(1.0)
+        multiplier shouldBe <(1.0)
 
     describe("Feature: Bureau auto-upgrade"):
 

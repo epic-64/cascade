@@ -323,12 +323,13 @@ object TileKingdomClient:
       tiles: List[Tile],
       elapsedMs: Double,
       productionFn: Tile => Double,
-      emoji: String
+      emoji: String,
+      intervalMultiplier: Double = 1.0
   ): Double =
     var totalHarvested = 0.0
     tiles.foreach: tile =>
       val currentProgress = getOrInitProgress(tile.coord)
-      val newProgress = currentProgress + elapsedMs / ProductionIntervalMs
+      val newProgress = currentProgress + elapsedMs / (ProductionIntervalMs * intervalMultiplier)
       if newProgress >= 1.0 then
         val harvests = newProgress.toInt
         val production = productionFn(tile)
@@ -346,7 +347,8 @@ object TileKingdomClient:
     // Update progress for each producing tile and collect harvests
     val totalWheatHarvested = harvestProducingTiles(
       currentGame.unlockedTiles.filter(_.isWheatField), elapsedMs,
-      TileKingdomLogic.productionPerHarvest(currentGame, _), "🌾")
+      TileKingdomLogic.productionPerHarvest(currentGame, _), "🌾",
+      TileKingdomLogic.agriculture2AIntervalMultiplier(currentGame))
     val totalWoodHarvested = harvestProducingTiles(
       currentGame.unlockedTiles.filter(_.isWoodcutter), elapsedMs,
       TileKingdomLogic.woodProductionPerHarvest(currentGame, _), "🪵")
