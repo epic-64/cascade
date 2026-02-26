@@ -6,6 +6,7 @@ import shared.TileKingdom.*
 /** Laminar-based skill tree modal for TileKingdom.
   *
   * Displays the skill tree with branches and allows unlocking/switching/refunding skills.
+  * Uses a dedicated SkillTreeState snapshot to avoid re-rendering on every game tick.
   */
 object SkillTree:
 
@@ -17,6 +18,26 @@ object SkillTree:
     onClose: () => Unit
   )
 
+  /** Snapshot of only the fields that matter for skill tree rendering.
+    * Using .distinct on this avoids re-rendering when unrelated game state changes. */
+  private case class SkillTreeState(
+    hasSailed: Boolean,
+    skillPoints: Int,
+    unlockedSkills: Set[Skill],
+    gold: Int,
+    isFreshAbdication: Boolean
+  )
+
+  private object SkillTreeState:
+    def from(game: TileKingdomGame): SkillTreeState =
+      SkillTreeState(
+        hasSailed = game.hasSailed,
+        skillPoints = game.skillPoints,
+        unlockedSkills = game.unlockedSkills,
+        gold = game.gold,
+        isFreshAbdication = game.isFreshAbdication
+      )
+
   /** Format number for display */
   private def formatNumber(n: Double): String =
     if n >= 1_000_000 then f"${n / 1_000_000}%.1fM"
@@ -24,10 +45,12 @@ object SkillTree:
     else if n == n.toInt then n.toInt.toString
     else f"$n%.1f"
 
+  /** Signal that only emits when skill-relevant state actually changes */
+  private val skillTreeStateSignal: Signal[SkillTreeState] =
+    TileKingdomState.gameSignal.map(SkillTreeState.from).distinct
+
   /** The skill tree modal element */
   def apply(actions: Actions): HtmlElement =
-    import TileKingdomState.*
-
     div(
       idAttr := "tile-kingdom-skill-tree-modal",
       cls := "skill-tree-modal",
@@ -40,7 +63,7 @@ object SkillTree:
           div(
             idAttr := "skill-tree-points",
             cls := "skill-tree-points",
-            child.text <-- skillPointsSignal.map(pts => s"⭐ $pts skill points")
+            child.text <-- skillTreeStateSignal.map(s => s"⭐ ${s.skillPoints} skill points")
           ),
           button(
             cls := "skill-tree-close-btn",
@@ -52,9 +75,9 @@ object SkillTree:
         div(
           idAttr := "skill-tree-body",
           cls := "skill-tree-body",
-          children <-- hasSailedSignal.combineWith(gameSignal).map:
-            case (false, _) => List(renderLockedMessage())
-            case (true, game) => renderBranches(game, actions)
+          children <-- skillTreeStateSignal.map: state =>
+            if !state.hasSailed then List(renderLockedMessage())
+            else renderBranches(state, actions)
         )
       )
     )
@@ -69,11 +92,11 @@ object SkillTree:
     )
 
   /** Render all skill branches */
-  private def renderBranches(game: TileKingdomGame, actions: Actions): List[HtmlElement] =
-    Skill.allBranches.map(branchName => renderBranch(branchName, game, actions)).toList
+  private def renderBranches(state: SkillTreeState, actions: Actions): List[HtmlElement] =
+    Skill.allBranches.map(branchName => renderBranch(branchName, state, actions)).toList
 
   /** Render a single skill branch */
-  private def renderBranch(branchName: String, game: TileKingdomGame, actions: Actions): HtmlElement =
+  private def renderBranch(branchName: String, state: SkillTreeState, actions: Actions): HtmlElement =
     val skills = Skill.branchSkills(branchName)
     val skillsByCost = skills.groupBy(Skill.cost).toList.sortBy(_._1)
 
@@ -89,28 +112,28 @@ object SkillTree:
         skillsByCost.flatMap: (cost, skillsAtLevel) =>
           val isDualTrack = skillsAtLevel.exists(s => Skill.mutuallyExclusive(s).isDefined)
           if isDualTrack then
-            List(renderDualTrack(skillsAtLevel, game, actions))
+            List(renderDualTrack(skillsAtLevel, state, actions))
           else
-            skillsAtLevel.map(skill => renderSkillNode(skill, game, actions)).toList
+            skillsAtLevel.map(skill => renderSkillNode(skill, state, actions)).toList
       )
     )
 
   /** Render a dual track (mutually exclusive skills) with OR separator */
-  private def renderDualTrack(skills: Seq[Skill], game: TileKingdomGame, actions: Actions): HtmlElement =
+  private def renderDualTrack(skills: Seq[Skill], state: SkillTreeState, actions: Actions): HtmlElement =
     div(
       cls := "skill-dual-track",
       skills.zipWithIndex.flatMap: (skill, idx) =>
         val separator = if idx > 0 then Some(div(cls := "skill-or-separator", "OR")) else None
-        separator.toList :+ renderSkillNode(skill, game, actions)
+        separator.toList :+ renderSkillNode(skill, state, actions)
     )
 
   /** Render a single skill node */
-  private def renderSkillNode(skill: Skill, game: TileKingdomGame, actions: Actions): HtmlElement =
-    val isUnlocked = game.hasSkill(skill)
-    val canUnlock = game.canUnlockSkill(skill)
-    val isExcluded = Skill.mutuallyExclusive(skill).exists(game.hasSkill)
-    val canSwitch = TileKingdomLogic.canSwitchSkill(game, skill)
-    val canRefund = game.canRefundSkill(skill)
+  private def renderSkillNode(skill: Skill, state: SkillTreeState, actions: Actions): HtmlElement =
+    val isUnlocked = state.unlockedSkills.contains(skill)
+    val canUnlock = canUnlockFromState(state, skill)
+    val isExcluded = Skill.mutuallyExclusive(skill).exists(state.unlockedSkills.contains)
+    val canSwitch = canSwitchFromState(state, skill)
+    val canRefund = canRefundFromState(state, skill)
     val cost = Skill.cost(skill)
     val description = Skill.description(skill)
     val goldCost = cost * TileKingdomLogic.SkillRefundGoldCost
@@ -126,13 +149,45 @@ object SkillTree:
       cls := nodeCls,
       div(cls := "skill-node-cost", s"${cost}⭐"),
       div(cls := "skill-node-desc", description),
-      renderSkillActions(skill, game, actions, isUnlocked, canUnlock, isExcluded, canSwitch, canRefund, goldCost)
+      renderSkillActions(skill, state, actions, isUnlocked, canUnlock, isExcluded, canSwitch, canRefund, goldCost)
     )
+
+  /** Check if a skill can be unlocked from the snapshot state */
+  private def canUnlockFromState(state: SkillTreeState, skill: Skill): Boolean =
+    if state.unlockedSkills.contains(skill) then false
+    else if state.skillPoints < Skill.cost(skill) then false
+    else if Skill.mutuallyExclusive(skill).exists(state.unlockedSkills.contains) then false
+    else
+      val standardPrereqMet = Skill.prerequisite(skill).forall(state.unlockedSkills.contains)
+      val alternativePrereqMet = Skill.alternativePrerequisites(skill) match
+        case Some(alternatives) => alternatives.exists(state.unlockedSkills.contains)
+        case None => true
+      standardPrereqMet && alternativePrereqMet
+
+  /** Check if a skill can be switched to from the snapshot state */
+  private def canSwitchFromState(state: SkillTreeState, toSkill: Skill): Boolean =
+    if !state.hasSailed then false
+    else if !state.isFreshAbdication then false
+    else if state.unlockedSkills.contains(toSkill) then false
+    else Skill.mutuallyExclusive(toSkill).exists(state.unlockedSkills.contains)
+
+  /** Check if a skill can be refunded from the snapshot state */
+  private def canRefundFromState(state: SkillTreeState, skill: Skill): Boolean =
+    if !state.hasSailed then false
+    else if !state.isFreshAbdication then false
+    else if !state.unlockedSkills.contains(skill) then false
+    else if state.gold < Skill.cost(skill) * TileKingdomLogic.SkillRefundGoldCost then false
+    else
+      // Check no other unlocked skill has this skill as a prerequisite
+      val dependents = state.unlockedSkills.filter: other =>
+        Skill.prerequisite(other).contains(skill) ||
+          Skill.mutuallyExclusive(other).flatMap(Skill.prerequisite).contains(skill)
+      dependents.isEmpty
 
   /** Render the action buttons/status for a skill node */
   private def renderSkillActions(
       skill: Skill,
-      game: TileKingdomGame,
+      state: SkillTreeState,
       actions: Actions,
       isUnlocked: Boolean,
       canUnlock: Boolean,
@@ -141,10 +196,10 @@ object SkillTree:
       canRefund: Boolean,
       goldCost: Int
   ): HtmlElement =
-    if isUnlocked && game.hasSailed then
+    if isUnlocked && state.hasSailed then
       val refundReason =
-        if !game.isFreshAbdication then Some("Abdicate first")
-        else if game.gold < goldCost then Some(s"Need ${formatNumber(goldCost)} 💰")
+        if !state.isFreshAbdication then Some("Abdicate first")
+        else if state.gold < goldCost then Some(s"Need ${formatNumber(goldCost)} 💰")
         else if !canRefund then Some("Has dependents")
         else None
 
