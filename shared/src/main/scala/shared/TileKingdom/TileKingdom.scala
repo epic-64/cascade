@@ -1434,6 +1434,7 @@ object TileKingdomLogic:
       case _ => None
 
   // Destroy a building on a tile (returns it to empty state, no refund)
+  // If destroying a Town Hall, its politicians are returned to the roster
   def destroyBuilding(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
       case None                         => Left("Tile not found")
@@ -1441,23 +1442,32 @@ object TileKingdomLogic:
       case Some(tile) if tile.isEmpty   => Left("Tile is already empty")
       case Some(tile) =>
         val updatedTile = tile.copy(tileType = TileType.Empty)
+        val returnedPoliticians = tile.tileType match
+          case TileType.TownHall(politicians) => politicians
+          case _ => List.empty
         Right(game.copy(
-          tiles = game.tiles.updated(coord, updatedTile)
+          tiles = game.tiles.updated(coord, updatedTile),
+          politicianRoster = game.politicianRoster ++ returnedPoliticians
         ))
 
   // Destroy a tile entirely (removes it from the map), awarding a tile point
+  // If destroying a Town Hall, its politicians are returned to the roster
   def destroyTile(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
       case None => Left("Tile not found")
       case Some(tile) if !tile.unlocked => Left("Tile is locked")
-      case Some(_) =>
+      case Some(tile) =>
         // Must have at least 2 unlocked tiles to destroy one (can't destroy last tile)
         if game.unlockedTiles.size <= 1 then
           Left("Cannot destroy your last tile")
         else
+          val returnedPoliticians = tile.tileType match
+            case TileType.TownHall(politicians) => politicians
+            case _ => List.empty
           Right(game.copy(
             tiles = game.tiles.removed(coord),
-            tilePoints = game.tilePoints + 1
+            tilePoints = game.tilePoints + 1,
+            politicianRoster = game.politicianRoster ++ returnedPoliticians
           ))
 
   // Abdicate: reset tiles, gain gold based on income rate
