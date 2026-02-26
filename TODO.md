@@ -68,9 +68,12 @@
   T1: Fields start at level 10 OR Farms affect neighboring forests at 50% effectiveness
   T2: Fields work 50% faster OR Farms affect neighboring quarries at 50% effectiveness
   T3: Fields cost 99% less to upgrade OR Farms affect neighboring temples at 50% effectiveness
+- add a management skill that adds "direction" to the bureau. By default, it affects tiles in a 2 tile radius.
+  With directions enabled, it can affect tiles in a 5x3 rectangle (3 wide, 5 long) to the top, bottom, left or right of the bureau.
+  There is one button for each direction (including centered on bureau)
 
 ## Todos
 - elements in skill window are pulsing multiple times per second, it looks like the re-rendering is too coarse.
-- add a management skill that adds "direction" to the bureau. By default, it affects tiles in a 2 tile radius. 
-  With directions enabled, it can affect tiles in a 5x3 rectangle (3 wide, 5 long) to the top, bottom, left or right of the bureau.
-  There is one button for each direction (including centered on bureau)
+- if a save fails to load, try to read at least the skill points and award them, and 5000 gold.
+  Then inform the player that their save was lost due to a game update. Also tell them whether they skill points were recovered or not.
+- Add a skill that allows town halls to hold 2 politicians at the same time.
