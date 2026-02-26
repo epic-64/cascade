@@ -147,8 +147,14 @@ object TileGrid:
             TileGridState.isDragging = false
             viewport.asInstanceOf[HTMLElement].style.cursor = "grab"
             TileGridState.snapBackIfNeeded(TileKingdomState.currentGame, () => onNotification("Snapped back to kingdom"))
-            if TileGridState.wasDragging then
-              window.setTimeout(() => TileGridState.wasDragging = false, 10)
+
+        // Suppress click events that follow a drag - using capture phase to intercept before any handler
+        dom.document.addEventListener("click", (e: dom.Event) =>
+          if TileGridState.wasDragging then
+            e.stopPropagation()
+            e.preventDefault()
+            TileGridState.wasDragging = false
+        , true) // true = capture phase
 
         // Touch handlers
         viewport.addEventListener("touchstart", (e: dom.Event) =>
