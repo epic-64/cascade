@@ -184,11 +184,10 @@ object TownHallTile:
         e.target.asInstanceOf[HTMLElement].parentElement.parentElement.classList.remove("dragging")
       },
 
-      div(cls := "politician-emoji-small", pol.emoji),
       div(
         cls := "politician-effect-small",
-        title := pol.effectDescription,
-        pol.effectDescription
+        title := s"${pol.name} — ${pol.effectDescription}",
+        s"${pol.emoji} ${pol.effectDescription}"
       ),
       div(
         idAttr := s"politician-lifespan-${coord.row}-${coord.col}-$slotIndex",
