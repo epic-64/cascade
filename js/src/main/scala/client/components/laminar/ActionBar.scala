@@ -21,6 +21,7 @@ object ActionBar:
       SailButton(onSail),
       SkillsButton(onToggleSkillTree),
       CenterButton(() => TileGridState.centerOnKingdom(currentGame(), animated = true)),
+      InfluenceLinesButton(),
       AutoLayoutButton(),
       ResetButton(onReset),
       DevButton(onToggleDevTools)

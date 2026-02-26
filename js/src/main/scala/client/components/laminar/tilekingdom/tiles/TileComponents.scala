@@ -37,6 +37,8 @@ object TileComponents:
         case (zoom, extra) => s"$zoom $extra".trim,
       level.map(l => dataAttr("level") := l.toString),
       styleAttr <-- TileGridState.tileStyle(coord),
+      onMouseEnter --> { _ => TileGridState.hoveredTileCoord.set(Some(coord)) },
+      onMouseLeave --> { _ => TileGridState.hoveredTileCoord.set(None) },
       content
     )
 

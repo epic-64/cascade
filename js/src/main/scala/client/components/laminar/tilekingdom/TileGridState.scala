@@ -48,6 +48,19 @@ object TileGridState:
   val activeSubmenu: Var[Option[String]] = Var(None) // "resources" or "management"
 
   // ============================================================================
+  // Influence Line State
+  // ============================================================================
+
+  /** Currently hovered tile coordinate (for influence line display) */
+  val hoveredTileCoord: Var[Option[Coord]] = Var(None)
+
+  /** Whether to always show influence lines (toggle) */
+  val showInfluenceLines: Var[Boolean] = Var(false)
+
+  def toggleInfluenceLines(): Unit =
+    showInfluenceLines.update(!_)
+
+  // ============================================================================
   // Progress Tracking
   // ============================================================================
 
