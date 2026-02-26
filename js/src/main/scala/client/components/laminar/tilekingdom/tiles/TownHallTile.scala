@@ -186,8 +186,8 @@ object TownHallTile:
 
       div(
         cls := "politician-effect-small",
-        title := s"${pol.name} — ${pol.effectDescription}",
-        s"${pol.emoji} ${pol.effectDescription}"
+        title := s"${pol.emoji} ${pol.name} — ${pol.effectDescription}",
+        pol.effectDescription
       ),
       div(
         idAttr := s"politician-lifespan-${coord.row}-${coord.col}-$slotIndex",

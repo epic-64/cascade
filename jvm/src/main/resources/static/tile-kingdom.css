@@ -1291,7 +1291,7 @@
 }
 
 .tile-kingdom-tile.town-hall .politician-effect-small {
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
   color: #78350f;
   font-weight: 600;
   text-align: center;
@@ -1299,7 +1299,7 @@
 }
 
 .tile-kingdom-tile.town-hall .politician-lifespan {
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
   font-weight: 600;
   padding: 1px 4px;
   border-radius: 3px;
