@@ -173,23 +173,24 @@
   padding: 0.5rem;
 }
 
-/* Resource panel positioning */
+/* Resource panel positioning - top left, below header */
 .draggable-panel.resource-panel {
-  top: 4rem;
+  top: 4.5rem;
   left: 1rem;
 }
 
-/* Meta panel positioning */
+/* Meta panel positioning - top right */
 .draggable-panel.meta-panel {
-  top: 1rem;
+  top: 4.5rem;
   right: 1rem;
 }
 
-/* Politician panel positioning */
+/* Politician panel positioning - bottom left, above action bar */
 .draggable-panel.politician-panel {
-  top: 18rem;
+  bottom: 5rem;
   left: 1rem;
-  min-width: 200px;
+  top: auto;
+  min-width: 220px;
 }
 
 .draggable-panel.politician-panel .panel-content {
