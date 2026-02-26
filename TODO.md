@@ -66,3 +66,7 @@
 - When releasing the mouse after dragging, the click is mostly suppressed, as intended. But when landing on an empty tile, the click event still goes through and upgrades the tile. This is especially frustrating when trying to drag a politician from one town hall to another, and accidentally upgrading a tile in the process. We should make sure that releasing the mouse after dragging does not trigger a click event at all, even on empty tiles.
 
 ## Todos
+Update the Agriculture Tree:
+T1: Fields start at level 10 OR Farms affect neighboring forests at 50% effectiveness
+T2: Fields work 50% faster OR Farms affect neighboring quarries at 50% effectiveness
+T3: Fields cost 99% less to upgrade OR Farms affect neighboring temples at 50% effectiveness
