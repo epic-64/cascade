@@ -563,9 +563,11 @@ object TileKingdomLogic:
   val Management1RosterBonus: Int = 2 // Extra slots from Management1 skill
   val PoliticianLifespanMs: Long = 600000L // 10 minutes = 600,000 ms
 
-  // Calculate actual max roster size including skill bonuses
+  // Calculate actual max roster size including skill bonuses and academies
   def maxPoliticianRosterSize(game: TileKingdomGame): Int =
-    MaxPoliticianRosterSize + (if game.hasSkill(Skill.Management1) then Management1RosterBonus else 0)
+    val skillBonus = if game.hasSkill(Skill.Management1) then Management1RosterBonus else 0
+    val academyBonus = game.tiles.values.count(_.isAcademy)
+    MaxPoliticianRosterSize + skillBonus + academyBonus
 
   // Quarry constants
   val QuarryBuildCost: Int = 500 // Wood cost to build a quarry
