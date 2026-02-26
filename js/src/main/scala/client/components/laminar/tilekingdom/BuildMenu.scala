@@ -44,7 +44,7 @@ object BuildMenu:
       ),
       onClick --> { e =>
         e.stopPropagation()
-        onClickHandler()
+        if !TileGridState.wasDragging then onClickHandler()
       }
     )
 
@@ -56,7 +56,7 @@ object BuildMenu:
       div(cls := "build-name", "Back"),
       onClick --> { e =>
         e.stopPropagation()
-        onClickHandler()
+        if !TileGridState.wasDragging then onClickHandler()
       }
     )
 
@@ -68,7 +68,7 @@ object BuildMenu:
       div(cls := "build-name", name),
       onClick --> { e =>
         e.stopPropagation()
-        onClickHandler()
+        if !TileGridState.wasDragging then onClickHandler()
       }
     )
 
