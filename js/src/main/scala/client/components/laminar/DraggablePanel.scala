@@ -18,7 +18,7 @@ object DraggablePanel:
     * @param title Optional title shown in the handle
     * @param content The panel content
     */
-  def apply(panelCls: String, title: String = "")(content: Modifier[HtmlElement]*): HtmlElement =
+  def apply(panelCls: String, title: String)(content: Modifier[HtmlElement]*): HtmlElement =
     val isDragging = Var(false)
     val position = Var((0.0, 0.0))
     val dragStart = Var((0.0, 0.0))

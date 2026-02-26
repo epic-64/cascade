@@ -15,7 +15,7 @@ import scala.util.chaining.scalaUtilChainingOps
 // Session key for TugOfWar
 private val TugOfWarSessionKey = "tugOfWar"
 
-def initializeTugOfWar(lobbyIdFromUrl: Option[String] = None): Unit =
+def initializeTugOfWar(lobbyIdFromUrl: Option[String]): Unit =
   println("[TugOfWar] Starting Tug of War client...")
   buildTugOfWarUI()
   setupTugOfWarEnterKeyHandler()
