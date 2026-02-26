@@ -9,7 +9,7 @@ import TileComponents.*
 /** Temple tile component.
   *
   * Produces faith over time. Has level, upgrade cost, and progress bar.
-  * Can be boosted by town halls and wisdom skills.
+  * Can be boosted by town halls, wisdom skills, and farms (via Agriculture 3B).
   */
 object TempleTile:
 
@@ -26,6 +26,7 @@ object TempleTile:
     val faithAmountSignal = gameSignal.map(g => TileKingdomLogic.faithProductionPerHarvest(g, tile))
     val townHallMultiplierSignal = gameSignal.map(g => TileKingdomLogic.townHallFaithMultiplier(g, coord))
     val wisdomMultiplierSignal = gameSignal.map(g => TileKingdomLogic.templeWisdom2Multiplier(g, coord))
+    val farmBoostSignal = gameSignal.map(g => TileKingdomLogic.agriculture3BFarmBonusMultiplier(g, coord))
 
     tileWrapper(coord, "temple", Some(level))(
       div(
@@ -38,6 +39,8 @@ object TempleTile:
         ),
         div(
           cls := "tile-modifiers",
+          percentBadge(farmBoostSignal, "🏠", "badge-farm",
+            "Agriculture skill: farms boost temples at half strength"),
           multiplierBadge(townHallMultiplierSignal, "🏛️", "badge-townhall",
             "Town Hall bonus: politician multiplier"),
           multiplierBadge(wisdomMultiplierSignal, "📚", "badge-wisdom",
