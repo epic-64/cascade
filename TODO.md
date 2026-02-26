@@ -73,11 +73,11 @@
   There is one button for each direction (including centered on bureau)
 - elements in skill window are pulsing multiple times per second, it looks like the re-rendering is too coarse.
 - Add a skill that allows town halls to hold 2 politicians at the same time.
+- The cost reduction badge on the wheat field has white font. It is badly visible on the light background.
 
 ## Todos
 - if a save fails to load, try to read at least the skill points from the save, and award them in the current game. Also award 5000 gold.
   Then inform the player that their save was lost due to a game update. Also tell them whether they skill points were recovered or not.
-- The cost reduction badge on the wheat field has white font. It is badly visible on the light background.
 - improve the visibility of influence areas. On hover, draw lines to all tiles affected by the tile that is hovered.
   also add a toggle to always show the influence lines.
 - by default, each academy should also grant 1 extra slot in the politician roster.
