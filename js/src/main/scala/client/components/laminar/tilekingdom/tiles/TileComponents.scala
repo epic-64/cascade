@@ -15,7 +15,7 @@ object TileComponents:
   case class UpgradeActions(
     onLevelUp: () => Unit,
     onBulkLevelUp: Int => Unit,
-    onDestroyTile: () => Unit
+    onDestroy: () => Unit // Converts building to empty tile
   )
 
   /** Common actions for non-upgradeable tiles */
@@ -53,9 +53,9 @@ object TileComponents:
       onDestroyTile()
     }
 
-  /** Destroy handler from UpgradeActions */
+  /** Destroy handler from UpgradeActions - converts building to empty tile */
   def destroyTileHandler(actions: UpgradeActions): Modifier[HtmlElement] =
-    destroyTileHandler(actions.onDestroyTile)
+    destroyTileHandler(actions.onDestroy)
 
   /** Upgrade row with x10 button */
   def upgradeRow(

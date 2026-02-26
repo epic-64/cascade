@@ -61,4 +61,8 @@
 - add Logistics skill branch (dual-track): reduce bureau wood cost by 90% OR reduce bureau turbo faith cost by 90%
 - add Agriculture tier 3 (dual-track): wheat field upgrade costs reduced by 90% OR farm bonus applies to quarries at 50%
 
+## Done 2026-02-27
+- Right clicking a tile converts it to an empty tile first. Only an empty tile is erased on right click.
+
 ## Todos
+- When releasing the mouse after dragging, the click is mostly suppressed, as intended. But when landing on an empty tile, the click event still goes through and upgrades the tile. This is especially frustrating when trying to drag a politician from one town hall to another, and accidentally upgrading a tile in the process. We should make sure that releasing the mouse after dragging does not trigger a click event at all, even on empty tiles.
