@@ -386,21 +386,48 @@ class TaskSpec extends AnyFunSuite:
     assert(result.left.exists(_.cause == "kaboom"))
     assert(cleaned)
 
-  test("ensuring in a pipeline cleans up even when a later step fails"):
-    var connectionOpen = false
+  test("ensuring cleans up a created resource when a later step fails"):
+    import java.nio.file.{Files, Path}
 
-    def openConnection: Task[String] = Task:
-      connectionOpen = true
-      Right("conn-1")
+    var tempFile: Path = null
 
-    def query(conn: String): Task[String] = Task:
-      Left(Fail("query", "table not found"))
+    def createTempFile: Task[Path] = Task:
+      val path = Files.createTempFile("task-test-", ".tmp")
+      Files.writeString(path, "important data")
+      tempFile = path
+      Right(path)
+
+    def processFile(path: Path): Task[String] = Task:
+      Left(Fail("processFile", "corrupted data"))
 
     val result = (for
-      conn   <- openConnection.ensuring{connectionOpen = false}
-      result <- query(conn)
-    yield result).execute
+      path   <- createTempFile.ensuring { if tempFile != null then Files.deleteIfExists(tempFile) }
+      output <- processFile(path)
+    yield output).execute
 
     assert(result.isLeft)
-    assert(!connectionOpen, "Connection should have been cleaned up")
+    assert(result.left.exists(_.context == "processFile"))
+    assert(!Files.exists(tempFile), "Temp file should have been cleaned up despite failure")
+
+  test("multiple ensuring calls all run, inner-first"):
+    var log = List.empty[String]
+
+    val result = Task.succeed(42)
+      .ensuring { log = log :+ "first" }
+      .ensuring { log = log :+ "second" }
+      .execute
+
+    assert(result == Right(42))
+    assert(log == List("first", "second"))
+
+  test("multiple ensuring calls all run on failure"):
+    var log = List.empty[String]
+
+    val result = Task.fail[Int]("boom", "oops")
+      .ensuring { log = log :+ "first" }
+      .ensuring { log = log :+ "second" }
+      .execute
+
+    assert(result.isLeft)
+    assert(log == List("first", "second"))
 
