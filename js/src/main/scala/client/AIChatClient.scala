@@ -58,42 +58,42 @@ object AIChatClient:
 
     document.body(
       NavigationBar.render("AI Chat"),
-      div(cls = "container chat-container")(
+      div.cls("container chat-container")(
         // Mobile tab bar
-        div(cls = "mobile-tabs")(
-          button(cls = "mobile-tab home-tab").tap: btn =>
+        div.cls("mobile-tabs")(
+          button.cls("mobile-tab home-tab").tap: btn =>
             btn.innerHTML = """<i class="fa-solid fa-house"></i>"""
             btn.title = "Home"
             btn.addEventListener("click", (e: Event) => dom.window.location.href = "/")
           ,
-          button(cls = "mobile-tab active", id = "tabChat").tap: btn =>
+          button.cls("mobile-tab active").idx("tabChat").tap: btn =>
             btn.innerHTML = """<i class="fa-solid fa-comment"></i> Chat"""
             btn.addEventListener("click", (e: Event) => switchTab("chat"))
           ,
-          button(cls = "mobile-tab", id = "tabSettings").tap: btn =>
+          button.cls("mobile-tab").idx("tabSettings").tap: btn =>
             btn.innerHTML = """<i class="fa-solid fa-gear"></i> Settings"""
             btn.addEventListener("click", (e: Event) => switchTab("settings"))
         ),
         // Sidebar for settings (hidden by default on mobile)
-        div(id = "chatSidebar", cls = "chat-sidebar mobile-hidden")(
+        div.idx("chatSidebar").cls("chat-sidebar mobile-hidden")(
           // Sub-tabs for Settings vs TTS
-          div(cls = "sidebar-tabs")(
-            button(id = "sidebarTabGeneral", cls = "sidebar-tab active", content = "General").tap: btn =>
+          div.cls("sidebar-tabs")(
+            button.idx("sidebarTabGeneral").cls("sidebar-tab active").content("General").tap: btn =>
               btn.addEventListener("click", (e: Event) => switchSidebarTab("general"))
             ,
-            button(id = "sidebarTabTTS", cls = "sidebar-tab", content = "TTS").tap: btn =>
+            button.idx("sidebarTabTTS").cls("sidebar-tab").content("TTS").tap: btn =>
               btn.addEventListener("click", (e: Event) => switchSidebarTab("tts"))
           ),
           // === General settings panel ===
-          div(id = "sidebarPanelGeneral", cls = "sidebar-panel")(
+          div.idx("sidebarPanelGeneral").cls("sidebar-panel")(
             // API Key input
-            div(cls = "sidebar-section")(
-              div(cls = "sidebar-label-row")(
-                el("label", cls = "sidebar-label", content = "OpenAI API Key"),
+            div.cls("sidebar-section")(
+              div.cls("sidebar-label-row")(
+                el("label").cls("sidebar-label").content("OpenAI API Key"),
                 savedIndicator("apiKeySaved")
               ),
-              div(cls = "api-key-input")(
-                input("text", id = "apiKeyInput", cls = "input-field api-key-masked").tap: inp =>
+              div.cls("api-key-input")(
+                input("text").idx("apiKeyInput").cls("input-field api-key-masked").tap: inp =>
                   inp.placeholder = "sk-..."
                   inp.autocomplete = "off"
                   inp.setAttribute("data-1p-ignore", "")
@@ -101,18 +101,18 @@ object AIChatClient:
                   inp.setAttribute("data-lpignore", "true")
                   inp.setAttribute("data-form-type", "other")
                 ,
-                button(cls = "btn btn-sm", content = "Set").tap: btn =>
+                button.cls("btn btn-sm").content("Set").tap: btn =>
                   btn.addEventListener("click", (e: Event) => setApiKey())
               )
             ),
             // Model selector
-            div(cls = "sidebar-section")(
-              div(cls = "sidebar-label-row")(
-                el("label", cls = "sidebar-label", content = "Model"),
-                span(id = "modelStatus", cls = "sidebar-label-hint"),
+            div.cls("sidebar-section")(
+              div.cls("sidebar-label-row")(
+                el("label").cls("sidebar-label").content("Model"),
+                span.idx("modelStatus").cls("sidebar-label-hint"),
                 savedIndicator("modelSaved")
               ),
-              el("select", id = "modelSelect", cls = "input-field").tap: sel =>
+              el("select").idx("modelSelect").cls("input-field").tap: sel =>
                 val defaultOpt = document.createElement("option").asInstanceOf[HTMLOptionElement]
                 defaultOpt.value = AIChat.defaultModel
                 defaultOpt.textContent = AIChat.defaultModel
@@ -124,26 +124,26 @@ object AIChatClient:
                 )
             ),
             // System prompt
-            div(cls = "sidebar-section")(
-              div(cls = "sidebar-label-row")(
-                label(forId = "systemPrompt", cls = "sidebar-label", content = "System Prompt"),
+            div.cls("sidebar-section")(
+              div.cls("sidebar-label-row")(
+                label("systemPrompt", "System Prompt").cls("sidebar-label"),
                 savedIndicator("systemPromptSaved")
               ),
-              textarea(id = "systemPrompt", cls = "textarea-field").tap: textarea =>
+              textarea.idx("systemPrompt").cls("textarea-field").tap: textarea =>
                 textarea.placeholder = AIChat.defaultSystemPrompt
                 textarea.rows = 4
                 textarea.addEventListener("blur", (e: Event) => updateSystemPrompt())
             )
           ),
           // === TTS settings panel ===
-          div(id = "sidebarPanelTTS", cls = "sidebar-panel hidden")(
+          div.idx("sidebarPanelTTS").cls("sidebar-panel hidden")(
             // TTS Voice selector
-            div(cls = "sidebar-section")(
-              div(cls = "sidebar-label-row")(
-                el("label", cls = "sidebar-label", content = "Voice"),
+            div.cls("sidebar-section")(
+              div.cls("sidebar-label-row")(
+                el("label").cls("sidebar-label").content("Voice"),
                 savedIndicator("voiceSaved")
               ),
-              el("select", id = "voiceSelect", cls = "input-field").tap: sel =>
+              el("select").idx("voiceSelect").cls("input-field").tap: sel =>
                 ttsVoices.foreach: voice =>
                   val opt = document.createElement("option").asInstanceOf[HTMLOptionElement]
                   opt.value = voice
@@ -163,12 +163,12 @@ object AIChatClient:
                 )
             ),
             // TTS Tone / Prompt
-            div(cls = "sidebar-section")(
-              div(cls = "sidebar-label-row")(
-                el("label", cls = "sidebar-label", content = "Tone"),
+            div.cls("sidebar-section")(
+              div.cls("sidebar-label-row")(
+                el("label").cls("sidebar-label").content("Tone"),
                 savedIndicator("toneSaved")
               ),
-              textarea(id = "ttsPromptInput", cls = "textarea-field").tap: ta =>
+              textarea.idx("ttsPromptInput").cls("textarea-field").tap: ta =>
                 ta.placeholder = "e.g. Speak cheerfully with warmth"
                 ta.rows = 3
                 // Restore saved prompt
@@ -185,47 +185,47 @@ object AIChatClient:
             )
           ),
           // Actions (always visible, outside tab panels)
-          div(cls = "sidebar-section sidebar-actions")(
-            button(cls = "btn btn-secondary btn-full", content = "Clear Chat").tap: btn =>
+          div.cls("sidebar-section sidebar-actions")(
+            button.cls("btn btn-secondary btn-full").content("Clear Chat").tap: btn =>
               btn.addEventListener("click", (e: Event) => clearChat())
             ,
-            div(cls = "export-import-row")(
-              button(cls = "btn btn-secondary btn-half", content = "Export").tap: btn =>
+            div.cls("export-import-row")(
+              button.cls("btn btn-secondary btn-half").content("Export").tap: btn =>
                 btn.title = "Export chat to file"
                 btn.addEventListener("click", (e: Event) => exportChat())
               ,
-              button(cls = "btn btn-secondary btn-half", content = "Import").tap: btn =>
+              button.cls("btn btn-secondary btn-half").content("Import").tap: btn =>
                 btn.title = "Import chat from file"
                 btn.addEventListener("click", (e: Event) => triggerImport())
             ),
             // Hidden file input for import
-            input("file", id = "importFileInput", cls = "hidden").tap: inp =>
+            input("file").idx("importFileInput").cls("hidden").tap: inp =>
               inp.accept = ".json"
               inp.addEventListener("change", (e: Event) => handleImport(e))
           )
         ),
         // Main chat area
-        div(id = "chatMain", cls = "chat-main")(
+        div.idx("chatMain").cls("chat-main")(
           // Connection status banner
-          div(id = "connectionStatus", cls = "connection-status disconnected")(
-            span(cls = "connection-dot"),
-            span(id = "connectionLabel", content = "Connecting…")
+          div.idx("connectionStatus").cls("connection-status disconnected")(
+            span.cls("connection-dot"),
+            span.idx("connectionLabel").content("Connecting…")
           ),
           // Messages container
-          div(id = "messagesContainer", cls = "messages-container")(
-            div(id = "emptyState", cls = "empty-state")(
-              h2(content = "Start a conversation"),
-              p(content = "Enter your API key and send a message to begin chatting with AI.")
+          div.idx("messagesContainer").cls("messages-container")(
+            div.idx("emptyState").cls("empty-state")(
+              h2.content("Start a conversation"),
+              p.content("Enter your API key and send a message to begin chatting with AI.")
             )
           ),
           // Input area
-          div(cls = "chat-input-area")(
-            div(cls = "input-container")(
+          div.cls("chat-input-area")(
+            div.cls("input-container")(
               // Image preview area
-              div(id = "imagePreview", cls = "image-preview hidden"),
+              div.idx("imagePreview").cls("image-preview hidden"),
               // Text input
-              div(cls = "input-row")(
-                textarea(id = "messageInput", cls = "message-input").tap: ta =>
+              div.cls("input-row")(
+                textarea.idx("messageInput").cls("message-input").tap: ta =>
                   ta.placeholder = "Type your message..."
                   ta.rows = 1
                   ta.addEventListener("keydown", (e: KeyboardEvent) =>
@@ -236,28 +236,28 @@ object AIChatClient:
                   ta.addEventListener("input", (e: Event) => autoResizeTextarea(ta))
                 ,
                 // Buttons stacked vertically
-                div(cls = "input-buttons")(
+                div.cls("input-buttons")(
                   // Image upload button
-                  button(cls = "btn btn-icon").tap: btn =>
+                  button.cls("btn btn-icon").tap: btn =>
                     btn.innerHTML = """<i class="fa-solid fa-camera"></i>"""
                     btn.title = "Add image"
                     btn.addEventListener("click", (e: Event) => triggerImageUpload())
                   ,
                   // Send button (hidden during streaming)
-                  button(id = "sendBtn", cls = "btn btn-primary btn-icon").tap: btn =>
+                  button.idx("sendBtn").cls("btn btn-primary btn-icon").tap: btn =>
                     btn.innerHTML = """<i class="fa-solid fa-paper-plane"></i>"""
                     btn.title = "Send message"
                     btn.addEventListener("click", (e: Event) => sendChatMessage())
                   ,
                   // Stop button (hidden by default, shown during streaming)
-                  button(id = "stopBtn", cls = "btn btn-danger btn-icon hidden").tap: btn =>
+                  button.idx("stopBtn").cls("btn btn-danger btn-icon hidden").tap: btn =>
                     btn.innerHTML = """<i class="fa-solid fa-stop"></i>"""
                     btn.title = "Stop generating"
                     btn.addEventListener("click", (e: Event) => stopStreaming())
                 )
               ),
               // Hidden file input for images
-              input("file", id = "imageFileInput", cls = "hidden").tap: inp =>
+              input("file").idx("imageFileInput").cls("hidden").tap: inp =>
                 inp.accept = "image/*"
                 inp.multiple = true
                 inp.addEventListener("change", (e: Event) => handleImageSelect(e))
@@ -379,8 +379,8 @@ object AIChatClient:
   private val swirlCheckSvg =
     """<svg viewBox="0 0 16 16"><circle class="swirl-circle" cx="8" cy="8" r="7.5"/><path class="check-path" d="M4.5 8.5 L7 11 L11.5 5.5"/></svg>"""
 
-  private def savedIndicator(id: String): HTMLElement =
-    span(id = id, cls = "saved-indicator").tap: el =>
+  private def savedIndicator(indicatorId: String): HTMLElement =
+    span.idx(indicatorId).cls("saved-indicator").tap: el =>
       el.innerHTML = swirlCheckSvg
 
   private def flashSaved(indicatorId: String): Unit =
@@ -565,11 +565,11 @@ object AIChatClient:
       container.classList.remove("hidden")
 
       pendingImages.zipWithIndex.foreach: (imgData, idx) =>
-        val preview = div(cls = "image-preview-item")(
+        val preview = div.cls("image-preview-item")(
           el("img").tap: img =>
             img.asInstanceOf[HTMLImageElement].src = imgData
           ,
-          button(cls = "remove-image", content = "×").tap: btn =>
+          button.cls("remove-image").content("×").tap: btn =>
             btn.addEventListener("click", (e: Event) =>
               pendingImages.remove(idx)
               updateImagePreview()
@@ -602,61 +602,61 @@ object AIChatClient:
       case MessageRole.User => "You"
       case MessageRole.Assistant => "Assistant"
 
-    div(id = s"message-${message.id}", cls = s"message $roleClass")(
-      div(cls = "message-header")(
-        div(cls = "message-header-left")(
-          span(cls = "message-role", content = roleName),
+    div.idx(s"message-${message.id}").cls(s"message $roleClass")(
+      div.cls("message-header")(
+        div.cls("message-header-left")(
+          span.cls("message-role").content(roleName),
           // Meta badges for assistant messages (model + tokens)
           if message.role == MessageRole.Assistant then
-            span(id = s"meta-${message.id}", cls = "message-meta").tap: metaEl =>
+            span.idx(s"meta-${message.id}").cls("message-meta").tap: metaEl =>
               // Render badges from stored metadata if available
               messageMeta.get(message.id).foreach: meta =>
                 renderMetaBadges(metaEl, meta)
           else
-            span(cls = "hidden")
+            span.cls("hidden")
         ),
-        div(cls = "message-actions")(
-          button(cls = "action-btn").tap: btn =>
+        div.cls("message-actions")(
+          button.cls("action-btn").tap: btn =>
             btn.innerHTML = """<i class="fa-solid fa-pen"></i>"""
             btn.title = "Edit"
             btn.addEventListener("click", (e: Event) => startEditMessage(message.id))
           ,
-          button(cls = "action-btn").tap: btn =>
+          button.cls("action-btn").tap: btn =>
             btn.innerHTML = """<i class="fa-solid fa-trash"></i>"""
             btn.title = "Delete"
             btn.addEventListener("click", (e: Event) => deleteMessage(message.id))
           ,
           // Regenerate button only for assistant messages
           if message.role == MessageRole.Assistant then
-            button(cls = "action-btn").tap: btn =>
+            button.cls("action-btn").tap: btn =>
               btn.innerHTML = """<i class="fa-solid fa-rotate"></i>"""
               btn.title = "Regenerate"
               btn.addEventListener("click", (e: Event) => regenerateMessage(message.id))
           else
-            span() // Empty placeholder
+            span // Empty placeholder
           ,
           // Speak button only for assistant messages
           if message.role == MessageRole.Assistant then
-            button(id = s"speak-${message.id}", cls = "action-btn").tap: btn =>
+            button.idx(s"speak-${message.id}").cls("action-btn").tap: btn =>
               btn.innerHTML = """<i class="fa-solid fa-volume-high"></i>"""
               btn.title = "Read aloud"
               btn.addEventListener("click", (e: Event) => toggleSpeakMessage(message.id))
           else
-            span() // Empty placeholder
+            span // Empty placeholder
         )
       ),
       // Images if any
       if message.images.nonEmpty then
         val imageElements = message.images.map: imgData =>
-          el("img", cls = "message-image").tap: img =>
+          el("img").cls("message-image").tap: img =>
             img.asInstanceOf[HTMLImageElement].src = imgData
-        div(cls = "message-images")(imageElements*)
+        div.cls("message-images")(imageElements*)
       else
-        span(cls = "hidden")
+        span.cls("hidden")
       ,
       // Content
       {
-        val contentDiv = div(id = s"content-${message.id}", cls = s"message-content${if isStreaming then " streaming" else ""}")()
+        val contentDiv = div.idx(s"content-${message.id}").cls(s"message-content${if isStreaming then " streaming" else ""}")()
         if isStreaming then
           contentDiv.innerHTML = """<span class="cursor">▌</span>"""
         else
@@ -665,15 +665,15 @@ object AIChatClient:
         contentDiv
       },
       // Edit form (hidden by default)
-      div(id = s"edit-${message.id}", cls = "message-edit hidden")(
-        el("textarea", cls = "edit-textarea").tap: ta =>
+      div.idx(s"edit-${message.id}").cls("message-edit hidden")(
+        el("textarea").cls("edit-textarea").tap: ta =>
           ta.asInstanceOf[HTMLTextAreaElement].value = message.content
         ,
-        div(cls = "edit-actions")(
-          button(cls = "btn btn-sm btn-success", content = "Save").tap: btn =>
+        div.cls("edit-actions")(
+          button.cls("btn btn-sm btn-success").content("Save").tap: btn =>
             btn.addEventListener("click", (e: Event) => saveEditMessage(message.id))
           ,
-          button(cls = "btn btn-sm btn-secondary", content = "Cancel").tap: btn =>
+          button.cls("btn btn-sm btn-secondary").content("Cancel").tap: btn =>
             btn.addEventListener("click", (e: Event) => cancelEditMessage(message.id))
         )
       )
@@ -704,10 +704,10 @@ object AIChatClient:
   private def renderMetaBadges(container: HTMLElement, meta: MessageMeta): Unit =
     container.innerHTML = ""
     if meta.model.nonEmpty then
-      container.appendChild(span(cls = "meta-badge meta-badge-model", content = meta.model))
+      container.appendChild(span.cls("meta-badge meta-badge-model").content(meta.model))
     val totalTokens = meta.promptTokens + meta.completionTokens
     if totalTokens > 0 then
-      container.appendChild(span(cls = "meta-badge meta-badge-tokens", content = s"${formatTokenCount(totalTokens)} tokens"))
+      container.appendChild(span.cls("meta-badge meta-badge-tokens").content(s"${formatTokenCount(totalTokens)} tokens"))
 
   private def updateMessageMetaBadges(messageId: String, meta: MessageMeta): Unit =
     getElementById(s"meta-$messageId").foreach: elem =>
@@ -871,9 +871,9 @@ object AIChatClient:
   private def showEmptyState(): Unit =
     getElementById("messagesContainer").foreach: container =>
       container.appendChild(
-        div(id = "emptyState", cls = "empty-state")(
-          h2(content = "Start a conversation"),
-          p(content = "Enter your API key and send a message to begin chatting with AI.")
+        div.idx("emptyState").cls("empty-state")(
+          h2.content("Start a conversation"),
+          p.content("Enter your API key and send a message to begin chatting with AI.")
         )
       )
 
@@ -917,9 +917,9 @@ object AIChatClient:
 
   private def showError(message: String): Unit =
     // Show error toast
-    val toast: HTMLElement = div(cls = "error-toast")(
-      span(content = message),
-      button(cls = "toast-close", content = "×")
+    val toast: HTMLElement = div.cls("error-toast")(
+      span.content(message),
+      button.cls("toast-close").content("×")
     )
 
     // Add close button handler
@@ -1061,7 +1061,7 @@ object AIChatClient:
     )
 
     val url = dom.URL.createObjectURL(blob)
-    val link = a().tap: link =>
+    val link = a.tap: link =>
       link.href = url
       link.setAttribute("download", s"ai-chat-export-${new scala.scalajs.js.Date().toISOString().take(10)}.json")
       link.click()
@@ -1112,9 +1112,9 @@ object AIChatClient:
     input.value = ""
 
   private def showSuccess(message: String): Unit =
-    val toast: HTMLElement = div(cls = "success-toast")(
-      span(content = message),
-      button(cls = "toast-close", content = "×")
+    val toast: HTMLElement = div.cls("success-toast")(
+      span.content(message),
+      button.cls("toast-close").content("×")
     )
 
     Option(toast.querySelector(".toast-close")).foreach: btn =>

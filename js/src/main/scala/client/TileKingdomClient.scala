@@ -70,20 +70,20 @@ object TileKingdomClient:
 
   private def buildUI(): Unit =
     val container = getElementById("tile-kingdom-container").getOrElse:
-      document.body.appendChild(div(id = "tile-kingdom-container", cls = "tile-kingdom-container"))
+      document.body.appendChild(div.idx("tile-kingdom-container").cls("tile-kingdom-container"))
       document.getElementById("tile-kingdom-container").asInstanceOf[HTMLElement]
 
     container.innerHTML = ""
 
     // Laminar-based grid rendering
-    val viewportContainer = div(id = "laminar-tile-grid")
+    val viewportContainer = div.idx("laminar-tile-grid")
     container.appendChild(viewportContainer)
 
     // Overlay UI elements
     container.appendChild(buildHeader())
-    container.appendChild(div(id = "laminar-resource-panel"))
-    container.appendChild(div(id = "laminar-politician-roster-panel"))
-    container.appendChild(div(id = "laminar-meta-panel"))
+    container.appendChild(div.idx("laminar-resource-panel"))
+    container.appendChild(div.idx("laminar-politician-roster-panel"))
+    container.appendChild(div.idx("laminar-meta-panel"))
     container.appendChild(buildActions())
     container.appendChild(buildNotification())
     container.appendChild(buildWelcomeBackModal())
@@ -236,27 +236,27 @@ object TileKingdomClient:
     saveGame()
 
   private def buildHeader(): HTMLElement =
-    div(cls = "tile-kingdom-header")(
-      h1(content = "🏰 Tile Kingdom"),
-      button(cls = "help-button", content = "?").tap: btn =>
+    div.cls("tile-kingdom-header")(
+      h1.content("🏰 Tile Kingdom"),
+      button.cls("help-button").content("?").tap: btn =>
         btn.onclick = (_: MouseEvent) => toggleHelpPopup()
     )
 
 
   private def buildActions(): HTMLElement =
-    div(id = "laminar-action-bar")
+    div.idx("laminar-action-bar")
 
   private def buildNotification(): HTMLElement =
-    div(id = "laminar-notification")
+    div.idx("laminar-notification")
 
   private def buildWelcomeBackModal(): HTMLElement =
-    div(id = "laminar-welcome-modal")
+    div.idx("laminar-welcome-modal")
 
   private def buildHelpPopup(): HTMLElement =
-    div(id = "laminar-help-popup")
+    div.idx("laminar-help-popup")
 
   private def buildDevToolsPopup(): HTMLElement =
-    div(id = "laminar-dev-tools-popup")
+    div.idx("laminar-dev-tools-popup")
 
   private def toggleDevTools(): Unit =
     getElementById("tile-kingdom-dev-popup").foreach: popup =>
@@ -271,7 +271,7 @@ object TileKingdomClient:
       modal.classList.toggle("show")
 
   private def buildSkillTreeModal(): HTMLElement =
-    div(id = "laminar-skill-tree-modal")
+    div.idx("laminar-skill-tree-modal")
 
   private def handleUnlockSkill(skill: Skill): Unit =
     TileKingdomLogic.unlockSkill(currentGame, skill) match

@@ -107,7 +107,7 @@ def buildDrawingUI(): Unit =
 
   document.body(
     NavigationBar.render("AI Drawing"),
-    div(cls = "container")(
+    div.cls("container")(
       createLobbySetup(),
       createWaitingRoom(),
       createLoadingArea(),
@@ -132,24 +132,24 @@ def switchTab(tab: String): Unit =
     case _ => ()
 
 def createLobbySetup(): HTMLElement =
-  div(id = "lobbySetup", cls = "lobby-setup")(
-    h2(content = "AI Drawing Challenge"),
-    p(cls = "subtitle", content = "Draw a prompt, let AI caption it, and compete for the best match!"),
-    div(cls = "tabs")(
-      button(id = "joinTab", cls = "tab-btn active", content = "Join Lobby").tap: btn =>
+  div.idx("lobbySetup").cls("lobby-setup")(
+    h2.content("AI Drawing Challenge"),
+    p.cls("subtitle").content("Draw a prompt, let AI caption it, and compete for the best match!"),
+    div.cls("tabs")(
+      button.idx("joinTab").cls("tab-btn active").content("Join Lobby").tap: btn =>
         btn.addEventListener("click", (e: Event) => switchTab("join")),
-      button(id = "createTab", cls = "tab-btn", content = "Create Lobby").tap: btn =>
+      button.idx("createTab").cls("tab-btn").content("Create Lobby").tap: btn =>
         btn.addEventListener("click", (e: Event) => switchTab("create"))
     ),
-    div(cls = "tab-content")(
-      div(id = "joinTabContent", cls = "tab-pane active")(
-        form(id = "joinForm").tap(_.addEventListener(
+    div.cls("tab-content")(
+      div.idx("joinTabContent").cls("tab-pane active")(
+        form.idx("joinForm").tap(_.addEventListener(
           "submit",
           (e: Event) =>
             e.preventDefault()
             joinDrawingLobby()
         ))(
-          floatingInput("text", id = "joinLobbyId", label = "Lobby Code").tap: field =>
+          floatingInput("text", "joinLobbyId", "Lobby Code").tap: field =>
             val inp = field.querySelector("input").asInstanceOf[HTMLInputElement]
             inp.required = true
             inp.maxLength = 6
@@ -161,37 +161,37 @@ def createLobbySetup(): HTMLElement =
                 input.value = input.value.toUpperCase
             )
           ,
-          floatingInput("text", id = "joinPlayerName", label = "Your Name").tap: field =>
+          floatingInput("text", "joinPlayerName", "Your Name").tap: field =>
             val inp = field.querySelector("input").asInstanceOf[HTMLInputElement]
             inp.required = true
             inp.autocomplete = "off"
           ,
-          button("submit", content = "Join Lobby")
+          submitButton.content("Join Lobby")
         )
       ),
-      div(id = "createTabContent", cls = "tab-pane")(
-        form(id = "createForm").tap(_.addEventListener(
+      div.idx("createTabContent").cls("tab-pane")(
+        form.idx("createForm").tap(_.addEventListener(
           "submit",
           (e: Event) =>
             e.preventDefault()
             createDrawingLobby()
         ))(
-          floatingInput("password", id = "apiKey", label = "OpenAI API Key").tap: field =>
+          floatingInput("password", "apiKey", "OpenAI API Key").tap: field =>
             val inp = field.querySelector("input").asInstanceOf[HTMLInputElement]
             inp.required = true
             inp.autocomplete = "off"
           ,
-          floatingInput("text", id = "createPlayerName", label = "Your Name").tap: field =>
+          floatingInput("text", "createPlayerName", "Your Name").tap: field =>
             val inp = field.querySelector("input").asInstanceOf[HTMLInputElement]
             inp.required = true
             inp.autocomplete = "off"
           ,
-          div(cls = "select-row")(
+          div.cls("select-row")(
             el("label").tap: lbl =>
               lbl.setAttribute("for", "gameMode")
               lbl.textContent = "Prompt Mode:"
             ,
-            el("select", id = "gameMode")(
+            el("select").idx("gameMode")(
               el("option").tap: opt =>
                 opt.setAttribute("value", "SingleWord")
                 opt.textContent = "Single Word"
@@ -201,106 +201,106 @@ def createLobbySetup(): HTMLElement =
                 opt.textContent = "2-Word Scene (AI-generated)"
             )
           ),
-          div(cls = "warning", content = "⚠️ You'll pay for OpenAI API usage (~$0.02-0.04 per round)"),
-          button("submit", content = "Create Lobby")
+          div.cls("warning").content("⚠️ You'll pay for OpenAI API usage (~$0.02-0.04 per round)"),
+          submitButton.content("Create Lobby")
         )
       )
     )
   )
 
 def createWaitingRoom(): HTMLElement =
-  div(id = "waitingRoom", cls = "waiting-area hidden")(
-    h4(content = "AI Drawing Lobby"),
-    div(id = "lobbyCode"),
-    div(id = "lobbySettings", cls = "lobby-settings"),
-    h4(id = "playersHeading", content = "Players (0)"),
-    div(id = "playersList", cls = "players-container"),
-    div(cls = "lobby-buttons")(
-      button(cls = "btn btn-secondary").tap: btn =>
+  div.idx("waitingRoom").cls("waiting-area hidden")(
+    h4.content("AI Drawing Lobby"),
+    div.idx("lobbyCode"),
+    div.idx("lobbySettings").cls("lobby-settings"),
+    h4.idx("playersHeading").content("Players (0)"),
+    div.idx("playersList").cls("players-container"),
+    div.cls("lobby-buttons")(
+      button.cls("btn btn-secondary").tap: btn =>
         btn.textContent = "Leave Lobby"
         btn.addEventListener("click", (e: Event) => leaveDrawingLobby())
       ,
-      button(id = "startGameBtn", cls = "btn btn-success").tap: btn =>
+      button.idx("startGameBtn").cls("btn btn-success").tap: btn =>
         btn.textContent = "Start Game"
         btn.addEventListener("click", (e: Event) => startDrawingGame())
     )
   )
 
 def createLoadingArea(): HTMLElement =
-  div(id = "loadingArea", cls = "loading-area hidden")(
-    div(cls = "loading-content")(
-      div(cls = "spinner"),
-      h2(id = "loadingMessage", content = "Generating prompt..."),
-      p(cls = "text-secondary", content = "AI is crafting something creative for you to draw")
+  div.idx("loadingArea").cls("loading-area hidden")(
+    div.cls("loading-content")(
+      div.cls("spinner"),
+      h2.idx("loadingMessage").content("Generating prompt..."),
+      p.cls("text-secondary").content("AI is crafting something creative for you to draw")
     )
   )
 
 def createDrawingArea(): HTMLElement =
-  div(id = "drawingArea", cls = "drawing-area hidden")(
-    div(cls = "game-controls")(
-      button(cls = "btn btn-secondary").tap: btn =>
+  div.idx("drawingArea").cls("drawing-area hidden")(
+    div.cls("game-controls")(
+      button.cls("btn btn-secondary").tap: btn =>
         btn.textContent = "Return to Lobby"
         btn.addEventListener("click", (e: Event) => returnToDrawingLobby())
     ),
-    div(cls = "drawing-header")(
-      h3(id = "drawingPrompt", content = "Draw: ???"),
-      div(id = "drawingTimer", cls = "timer", content = "60")
+    div.cls("drawing-header")(
+      h3.idx("drawingPrompt").content("Draw: ???"),
+      div.idx("drawingTimer").cls("timer").content("60")
     ),
-    div(cls = "canvas-container")(
-      el("canvas", id = "drawingCanvas").asInstanceOf[HTMLCanvasElement].tap: canvas =>
+    div.cls("canvas-container")(
+      el("canvas").idx("drawingCanvas").asInstanceOf[HTMLCanvasElement].tap: canvas =>
         canvas.width = 512
         canvas.height = 512
         drawingCanvas = Some(canvas)
         setupCanvas(canvas)
     ),
-    div(cls = "drawing-controls")(
-      div(cls = "color-picker")(
-        button(cls = "color-btn active").tap: btn =>
+    div.cls("drawing-controls")(
+      div.cls("color-picker")(
+        button.cls("color-btn active").tap: btn =>
           btn.style.background = "#000000"
           btn.addEventListener("click", (e: Event) => selectColor("#000000", btn))
         ,
-        button(cls = "color-btn").tap: btn =>
+        button.cls("color-btn").tap: btn =>
           btn.style.background = "#FF0000"
           btn.addEventListener("click", (e: Event) => selectColor("#FF0000", btn))
         ,
-        button(cls = "color-btn").tap: btn =>
+        button.cls("color-btn").tap: btn =>
           btn.style.background = "#0000FF"
           btn.addEventListener("click", (e: Event) => selectColor("#0000FF", btn))
         ,
-        button(cls = "color-btn").tap: btn =>
+        button.cls("color-btn").tap: btn =>
           btn.style.background = "#00FF00"
           btn.addEventListener("click", (e: Event) => selectColor("#00FF00", btn))
       ),
-      button(id = "clearBtn", cls = "btn btn-danger", content = "Clear").tap: btn =>
+      button.idx("clearBtn").cls("btn btn-danger").content("Clear").tap: btn =>
         btn.addEventListener("click", (e: Event) => clearCanvas()),
-      button(id = "submitDrawingBtn", cls = "btn btn-success", content = "Submit Drawing").tap: btn =>
+      button.idx("submitDrawingBtn").cls("btn btn-success").content("Submit Drawing").tap: btn =>
         btn.addEventListener("click", (e: Event) => submitDrawing())
     )
   )
 
 def createGalleryArea(): HTMLElement =
-  div(id = "galleryArea", cls = "gallery-area hidden")(
-    div(cls = "game-controls")(
-      button(cls = "btn btn-secondary").tap: btn =>
+  div.idx("galleryArea").cls("gallery-area hidden")(
+    div.cls("game-controls")(
+      button.cls("btn btn-secondary").tap: btn =>
         btn.textContent = "Return to Lobby"
         btn.addEventListener("click", (e: Event) => returnToDrawingLobby())
       ,
-      button(id = "nextRoundBtn", cls = "btn btn-primary hidden", content = "Next Round").tap: btn =>
+      button.idx("nextRoundBtn").cls("btn btn-primary hidden").content("Next Round").tap: btn =>
         btn.addEventListener("click", (e: Event) => nextRound())
     ),
     // Header with prompt and status
-    div(id = "galleryHeader", cls = "gallery-header")(
-      h2(id = "galleryPrompt", content = ""),
-      div(id = "galleryStatus", cls = "gallery-status"),
-      div(id = "galleryTimer", cls = "gallery-timer hidden")
+    div.idx("galleryHeader").cls("gallery-header")(
+      h2.idx("galleryPrompt").content(""),
+      div.idx("galleryStatus").cls("gallery-status"),
+      div.idx("galleryTimer").cls("gallery-timer hidden")
     ),
     // Grid of all drawings
-    div(id = "drawingsGallery", cls = "drawings-gallery")
+    div.idx("drawingsGallery").cls("drawings-gallery")
   )
 
 def createResultsArea(): HTMLElement =
   // Keep this for compatibility but it won't be used - everything stays in gallery
-  div(id = "resultsArea", cls = "results-area hidden")
+  div.idx("resultsArea").cls("results-area hidden")
 
 def setupCanvas(canvas: HTMLCanvasElement): Unit =
   val ctx = canvas.getContext("2d").asInstanceOf[CanvasRenderingContext2D]
@@ -602,10 +602,10 @@ def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
           case GameMode.TwoWordScene => "2-Word Scene"
         elem.innerHTML = ""
         elem.appendChild(
-          div(cls = "settings-display")(
-            span(cls = "setting-item")(
-              span(cls = "setting-label", content = "Prompt:"),
-              span(cls = "setting-value", content = promptModeText)
+          div.cls("settings-display")(
+            span.cls("setting-item")(
+              span.cls("setting-label").content("Prompt:"),
+              span.cls("setting-value").content(promptModeText)
             )
           )
         )
@@ -617,9 +617,9 @@ def updateDrawingLobbyUI(lobby: DrawingLobby): Unit =
 
         lobby.players.values.foreach: player =>
           val statusClass = if player.connected then "" else " disconnected"
-          val bean = span(cls = "player-bean")(
-            span(cls = s"status-dot$statusClass"),
-            span(content = player.playerName)
+          val bean = span.cls("player-bean")(
+            span.cls(s"status-dot$statusClass"),
+            span.content(player.playerName)
           )
           elem.appendChild(bean)
 
@@ -709,17 +709,17 @@ def showGalleryWithDrawings(drawings: Seq[DrawingSubmission], prompt: String): U
     elem.innerHTML = ""
 
     drawings.foreach: drawing =>
-      val card = div(cls = "drawing-card", id = s"card-${drawing.playerName}")(
+      val card = div.cls("drawing-card").idx(s"card-${drawing.playerName}")(
         el("img").tap: img =>
           img.asInstanceOf[HTMLImageElement].src = drawing.imageData
           img.asInstanceOf[HTMLImageElement].alt = drawing.playerName
         ,
-        div(cls = "drawing-info")(
-          h4(content = drawing.playerName),
-          p(id = s"caption-${drawing.playerName}", cls = "caption hidden", content = "...")
+        div.cls("drawing-info")(
+          h4.content(drawing.playerName),
+          p.idx(s"caption-${drawing.playerName}").cls("caption hidden").content("...")
         ),
-        div(id = s"badges-${drawing.playerName}", cls = "badges"),
-        button(id = s"vote-btn-${drawing.playerName}", cls = "vote-btn hidden", content = "Vote").tap: btn =>
+        div.idx(s"badges-${drawing.playerName}").cls("badges"),
+        button.idx(s"vote-btn-${drawing.playerName}").cls("vote-btn hidden").content("Vote").tap: btn =>
           btn.addEventListener(
             "click",
             (e: Event) =>
@@ -753,7 +753,7 @@ def revealAIVote(winnerName: String): Unit =
 
   // Add AI winner badge to the winning card
   getElementById(s"badges-${winnerName}").foreach: elem =>
-    elem.appendChild(span(cls = "badge badge-ai", content = "🤖 AI Pick"))
+    elem.appendChild(span.cls("badge badge-ai").content("🤖 AI Pick"))
 
   // Mark the card as AI winner
   getElementById(s"card-${winnerName}").foreach: card =>
@@ -807,7 +807,7 @@ def updateVoteDisplay(votes: Map[String, Int]): Unit =
       Option(document.getElementById(s"votes-${playerName}")).foreach(_.remove())
       // Add new vote count badge
       if count > 0 then
-        elem.appendChild(span(id = s"votes-${playerName}", cls = "badge badge-votes", content = s"👥 $count"))
+        elem.appendChild(span.idx(s"votes-${playerName}").cls("badge badge-votes").content(s"👥 $count"))
 
 // Final: Show round complete with all results visible
 def showRoundComplete(result: RoundResult): Unit =
@@ -831,7 +831,7 @@ def showRoundComplete(result: RoundResult): Unit =
   // Add player winner badge
   result.playerWinner.foreach: winnerName =>
     getElementById(s"badges-${winnerName}").foreach: elem =>
-      elem.appendChild(span(cls = "badge badge-player", content = "👥 Player Pick"))
+      elem.appendChild(span.cls("badge badge-player").content("👥 Player Pick"))
     getElementById(s"card-${winnerName}").foreach: elem =>
       elem.classList.add("player-winner")
 
