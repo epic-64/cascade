@@ -19,7 +19,7 @@ object TownHallTile:
     onAssignPolitician: String => Unit,
     onRemovePolitician: () => Unit,
     onSwapPoliticians: Coord => Unit,
-    onDestroyTile: () => Unit
+    onDestroy: () => Unit
   )
 
   /** Format lifespan for display */
@@ -158,6 +158,6 @@ object TownHallTile:
           actions.onAssignPolitician(data)
       },
 
-      destroyTileHandler(actions.onDestroyTile)
+      destroyTileHandler(actions.onDestroy)
     )
 

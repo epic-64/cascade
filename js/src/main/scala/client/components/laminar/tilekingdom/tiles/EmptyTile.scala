@@ -29,7 +29,7 @@ object EmptyTile:
         div(cls := "build-label", "Build"),
         onClick --> { e =>
           e.stopPropagation()
-          TileGridState.selectTile(coord)
+          if !TileGridState.wasDragging then TileGridState.selectTile(coord)
         }
       ),
 

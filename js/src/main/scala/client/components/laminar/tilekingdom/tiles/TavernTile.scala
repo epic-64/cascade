@@ -14,7 +14,7 @@ object TavernTile:
 
   def apply(
     coord: Coord,
-    actions: BasicActions
+    actions: TileComponents.UpgradeActions
   ): HtmlElement =
     tileWrapper(coord, "tavern")(
       div(
@@ -27,5 +27,5 @@ object TavernTile:
           s"${TileKingdomLogic.TavernLifespanMultiplier.toInt}x Lifespan"
         )
       ),
-      destroyTileHandler(actions.onDestroyTile)
+      destroyTileHandler(actions.onDestroy)
     )

@@ -16,7 +16,7 @@ object BureauTile:
   /** Bureau-specific actions (has mode switching) */
   case class Actions(
     onSetMode: BureauMode => Unit,
-    onDestroyTile: () => Unit
+    onDestroy: () => Unit
   )
 
   def apply(
@@ -134,5 +134,5 @@ object BureauTile:
         "bureau-progress"
       ),
 
-      destroyTileHandler(actions.onDestroyTile)
+      destroyTileHandler(actions.onDestroy)
     )
