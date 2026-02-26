@@ -93,11 +93,6 @@ object TownHallTile:
         )
       ),
 
-      // Click handler (remove first politician if present)
-      onClick --> { _ =>
-        if politicians.nonEmpty then
-          actions.onRemovePolitician()
-      },
 
       // Drag-drop handlers for receiving politicians
       onDragOver --> { e =>
@@ -192,6 +187,10 @@ object TownHallTile:
     div(
       cls := "politician-slot filled",
       draggable := true,
+      onClick --> { e =>
+        e.stopPropagation()
+        actions.onRemovePolitician()
+      },
       onDragStart --> { e =>
         e.dataTransfer.effectAllowed = DataTransferEffectAllowedKind.move
         e.dataTransfer.setData("text/plain", s"townhall:${coord.row},${coord.col}")
