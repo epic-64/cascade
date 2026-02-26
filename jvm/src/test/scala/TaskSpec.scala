@@ -316,3 +316,46 @@ class TaskSpec extends AnyFunSuite:
     val result = Task.fail[Int]("inner", "broke").timeout(1.second).execute
     assert(result == Left(Fail("inner", "broke")))
 
+  test("timeout per attempt — slow attempts retry until one finishes in time"):
+    import scala.concurrent.duration.*
+
+    var attempts = 0
+
+    def degradingOp: Task[String] = Task:
+      attempts += 1
+      // First two attempts are slow (will timeout), third is fast
+      val delay = if attempts <= 2 then 500 else 10
+      Thread.sleep(delay)
+      Right(s"done on attempt $attempts")
+
+    attempts = 0
+    val result = degradingOp
+      .named("degrading")
+      .timeout(100.millis)  // each attempt gets 100ms
+      .retry(5)             // retry the timed-out attempts
+      .execute
+
+    assert(result == Right("done on attempt 3"))
+    assert(attempts == 3)
+
+  test("timeout over entire retry — all attempts share one deadline"):
+    import scala.concurrent.duration.*
+
+    var attempts = 0
+
+    def alwaysSlow: Task[String] = Task:
+      attempts += 1
+      Thread.sleep(80)
+      Left(Fail("alwaysSlow", "not yet"))
+
+    attempts = 0
+    val result = alwaysSlow
+      .retry(100)             // would retry many times...
+      .timeout(200.millis)    // ...but the whole thing must finish in 200ms
+      .execute
+
+    assert(result.isLeft)
+    assert(result.left.exists(_.cause.toString.contains("timed out")))
+    // Only managed ~2 attempts in 200ms (each takes 80ms)
+    assert(attempts >= 1 && attempts <= 4, s"Expected few attempts but got $attempts")
+
