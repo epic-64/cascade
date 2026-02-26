@@ -43,7 +43,7 @@ object TileComponents:
   /** Standard click handler for upgradeable tiles (level up) */
   def clickToLevelUp(actions: UpgradeActions): Modifier[HtmlElement] =
     onClick --> { _ =>
-      if !TileGridState.wasDragging then actions.onLevelUp()
+      actions.onLevelUp()
     }
 
   /** Standard right-click destroy handler */

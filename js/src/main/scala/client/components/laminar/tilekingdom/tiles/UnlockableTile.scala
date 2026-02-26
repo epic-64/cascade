@@ -45,6 +45,6 @@ object UnlockableTile:
       ),
 
       onClick --> { _ =>
-        if !TileGridState.wasDragging then actions.onUnlock()
+        actions.onUnlock()
       }
     )

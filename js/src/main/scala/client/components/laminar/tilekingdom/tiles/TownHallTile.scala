@@ -118,7 +118,7 @@ object TownHallTile:
 
       // Click handler (remove politician if present)
       onClick --> { _ =>
-        if !TileGridState.wasDragging && politician.isDefined then
+        if politician.isDefined then
           actions.onRemovePolitician()
       },
 
