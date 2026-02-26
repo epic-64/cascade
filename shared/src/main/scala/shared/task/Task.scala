@@ -117,6 +117,17 @@ class Task[A](private val work: (Logger, Timer) ?=> Result[A], val name: Option[
       case scala.util.Failure(err) =>
         Left(Fail(name.getOrElse("timeout"), err.getMessage))
 
+  /** Guarantees that `cleanup` runs after this task, whether it succeeds or fails.
+    * Known as "bracket" in ZIO/Cats Effect. */
+  def ensuring(cleanup: => Unit): Task[A] = Task:
+    val result = Try(run) match
+      case scala.util.Success(r) => r
+      case scala.util.Failure(ex) =>
+        cleanup
+        Left(Fail(name.getOrElse("ensuring"), ex.getMessage))
+    cleanup
+    result
+
   def named(taskName: String): Task[A] = new Task(work, Some(taskName))
 
 object Task:

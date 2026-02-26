@@ -359,3 +359,48 @@ class TaskSpec extends AnyFunSuite:
     // Only managed ~2 attempts in 200ms (each takes 80ms)
     assert(attempts >= 1 && attempts <= 4, s"Expected few attempts but got $attempts")
 
+  test("ensuring runs cleanup after success"):
+    var cleaned = false
+
+    val result = Task.succeed(42).ensuring{cleaned = true}.execute
+
+    assert(result == Right(42))
+    assert(cleaned)
+
+  test("ensuring runs cleanup after failure"):
+    var cleaned = false
+
+    val result = Task.fail[Int]("boom", "oops").ensuring{cleaned = true}.execute
+
+    assert(result.isLeft)
+    assert(cleaned)
+
+  test("ensuring runs cleanup after exception"):
+    var cleaned = false
+
+    val result = Task[Int]:
+      throw RuntimeException("kaboom")
+    .ensuring{cleaned = true}.execute
+
+    assert(result.isLeft)
+    assert(result.left.exists(_.cause == "kaboom"))
+    assert(cleaned)
+
+  test("ensuring in a pipeline cleans up even when a later step fails"):
+    var connectionOpen = false
+
+    def openConnection: Task[String] = Task:
+      connectionOpen = true
+      Right("conn-1")
+
+    def query(conn: String): Task[String] = Task:
+      Left(Fail("query", "table not found"))
+
+    val result = (for
+      conn   <- openConnection.ensuring{connectionOpen = false}
+      result <- query(conn)
+    yield result).execute
+
+    assert(result.isLeft)
+    assert(!connectionOpen, "Connection should have been cleaned up")
+
