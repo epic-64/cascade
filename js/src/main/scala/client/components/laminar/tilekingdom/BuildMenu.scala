@@ -80,7 +80,7 @@ object BuildMenu:
     val wheatCost = TileKingdomLogic.wheatFieldBuildCost
     val farmCost = TileKingdomLogic.farmBuildCost
     val woodcutterCost = TileKingdomLogic.woodcutterBuildCost
-    val bureauCost = TileKingdomLogic.bureauBuildCost
+    val bureauCostSignal = gameSignal.map(TileKingdomLogic.bureauBuildCost).distinct
     val templeCost = TileKingdomLogic.templeBuildCost
     val quarryCost = TileKingdomLogic.quarryBuildCost
 
@@ -93,7 +93,7 @@ object BuildMenu:
     val canAffordWheatSignal = gameSignal.map(_.wheat >= wheatCost).distinct
     val canAffordFarmSignal = gameSignal.map(_.wheat >= farmCost).distinct
     val canAffordWoodcutterSignal = gameSignal.map(_.wheat >= woodcutterCost).distinct
-    val canAffordBureauSignal = gameSignal.map(_.wood >= bureauCost).distinct
+    val canAffordBureauSignal = gameSignal.combineWith(bureauCostSignal).map { case (g, c) => g.wood >= c }.distinct
     val canAffordTempleSignal = gameSignal.map(_.wood >= templeCost).distinct
     val canAffordQuarrySignal = gameSignal.map(_.wood >= quarryCost).distinct
     val canAffordTownHallSignal = gameSignal.combineWith(townHallCostSignal).map { case (g, c) => g.stone >= c }.distinct
@@ -162,9 +162,9 @@ object BuildMenu:
         cls := "build-submenu management",
         backButton(() => TileGridState.closeSubmenu()),
 
-        child.maybe <-- canBuildBureauSignal.map: can =>
+        child.maybe <-- canBuildBureauSignal.combineWith(bureauCostSignal).map: (can, cost) =>
           Option.when(can):
-            buildOption("🏛️", "Bureau", bureauCost, "🪵", canAffordBureauSignal, actions.onBuildBureau),
+            buildOption("🏛️", "Bureau", cost, "🪵", canAffordBureauSignal, actions.onBuildBureau),
 
         child.maybe <-- canBuildTempleSignal.map: can =>
           Option.when(can):

@@ -457,7 +457,9 @@ object TileKingdomClient:
 
     // Show projectile and floating text for bureau upgrades
     bureauUpgrades.foreach: (upgradedCoord, newLevel, bureauCoord, cost, costResource, wasTurbo) =>
-      showFloatingReward(bureauCoord, TileKingdomLogic.effectiveBureauWoodCost(currentGame), "🪵", isSpend = true, offsetIndex = 0)
+      val woodCost = TileKingdomLogic.effectiveBureauWoodCost(currentGame)
+      if woodCost > 0 then
+        showFloatingReward(bureauCoord, woodCost, "🪵", isSpend = true, offsetIndex = 0)
       if wasTurbo then
         val previousLevel = newLevel - 1
         val faithCost = TileKingdomLogic.effectiveBureauFaithCostForLevel(currentGame, previousLevel)
@@ -583,7 +585,7 @@ object TileKingdomClient:
     handleBuild(coord, TileKingdomLogic.buildWoodcutter, TileKingdomLogic.woodcutterBuildCost, "🌾")
 
   private def handleBuildBureau(coord: Coord): Unit =
-    handleBuild(coord, TileKingdomLogic.buildBureau, TileKingdomLogic.bureauBuildCost, "🪵")
+    handleBuild(coord, TileKingdomLogic.buildBureau, TileKingdomLogic.bureauBuildCost(currentGame), "🪵")
 
   private def handleBuildTemple(coord: Coord): Unit =
     handleBuild(coord, TileKingdomLogic.buildTemple, TileKingdomLogic.templeBuildCost, "🪵")

@@ -9,7 +9,7 @@ import TileComponents.*
 
 /** Town Hall tile component.
   *
-  * Can hold one or two politicians (Management4 skill enables the second slot).
+  * Can hold one or two politicians (Management3A skill enables the second slot).
   * Supports drag-drop for assigning/swapping politicians.
   */
 object TownHallTile:
@@ -58,11 +58,11 @@ object TownHallTile:
     // Whether we have any politician (for structure, doesn't change as often as lifespan)
     val hasPoliticianSignal = politiciansSignal.map(_.nonEmpty).distinct
 
-    // Whether Management4 is unlocked (dual politician slots)
+    // Whether Management3A is unlocked (dual politician slots)
     val capacitySignal = gameSignal.map(g => TileKingdomLogic.townHallCapacity(g)).distinct
 
-    // Direction signals (only relevant with Management5)
-    val hasDirectionSkillSignal = gameSignal.map(_.hasSkill(Skill.Management5)).distinct
+    // Direction signals (only relevant with Management2B)
+    val hasDirectionSkillSignal = gameSignal.map(_.hasSkill(Skill.Management2B)).distinct
     val directionSignal = gameSignal.map(g => TileKingdomLogic.getTownHallDirection(g, coord))
 
     // Combined extra classes for politician presence and drag-over state
@@ -80,7 +80,7 @@ object TownHallTile:
         // Politician slots — render based on initial snapshot, lifespan updates via signals
         renderPoliticianSlots(coord, politicians, politiciansSignal, lifespanMultiplierSignal, capacitySignal, actions),
 
-        // Direction toggle buttons (only shown with Management5 skill)
+        // Direction toggle buttons (only shown with Management2B skill)
         div(
           cls := "townhall-direction-row",
           display <-- hasDirectionSkillSignal.map(has => if has then "flex" else "none"),
@@ -152,7 +152,7 @@ object TownHallTile:
         div(cls := "slot-label", "Drop politician")
       )
 
-    // Show second empty slot when Management4 is unlocked and only 0 or 1 politicians
+    // Show second empty slot when Management3A is unlocked and only 0 or 1 politicians
     val secondSlot = capacitySignal.map: cap =>
       if cap >= 2 && politicians.size < 2 && politicians.nonEmpty then
         Some(div(

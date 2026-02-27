@@ -423,7 +423,7 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
         newGame.tiles(coord).tileType shouldBe TileType.TownHall(List.empty)
         newGame.politicianRoster should contain(pol)
 
-      it("should hold 2 politicians when Management4 is unlocked"):
+      it("should hold 2 politicians when Management3A is unlocked"):
         val pol1 = TileKingdomLogic.generatePolitician(1000L, 0.0)
         val pol2 = TileKingdomLogic.generatePolitician(2000L, 0.0)
         val game = TileKingdomLogic.newGame(1000L)
@@ -433,7 +433,7 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
           tiles = game.tiles.updated(coord, Tile(coord, TileType.TownHall(List.empty), unlocked = true)),
           politicianRoster = List(pol1, pol2),
           hasSailed = true,
-          unlockedSkills = Set(Skill.Management1, Skill.Management2, Skill.Management3, Skill.Management4)
+          unlockedSkills = Set(Skill.Management1A, Skill.Management2A, Skill.Management3A)
         )
 
         val afterFirst = TileKingdomLogic.assignPolitician(gameWithSkill, pol1.id, coord).value
@@ -446,7 +446,7 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
           case _ => fail("Expected town hall with 2 politicians")
         afterSecond.politicianRoster shouldBe empty
 
-      it("should swap oldest politician when at capacity without Management4"):
+      it("should swap oldest politician when at capacity without Management3A"):
         val pol1 = TileKingdomLogic.generatePolitician(1000L, 0.0)
         val pol2 = TileKingdomLogic.generatePolitician(2000L, 0.0)
         val game = TileKingdomLogic.newGame(1000L)
@@ -477,7 +477,7 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
           tiles = game.tiles
             .updated(townHallCoord, Tile(townHallCoord, TileType.TownHall(List(pol1, pol2)), unlocked = true))
             .updated(wheatCoord, Tile(wheatCoord, TileType.WheatField(1), unlocked = true)),
-          unlockedSkills = Set(Skill.Management1, Skill.Management2, Skill.Management3, Skill.Management4)
+          unlockedSkills = Set(Skill.Management1A, Skill.Management2A, Skill.Management3A)
         )
 
         val affecting = TileKingdomLogic.townHallsAffecting(gameWithDual, wheatCoord)
