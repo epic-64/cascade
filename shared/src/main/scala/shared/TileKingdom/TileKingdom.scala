@@ -825,7 +825,16 @@ object TileKingdomLogic:
 
   // Legacy method without rare chance (for backwards compatibility)
   def generatePolitician(seed: Long): Politician =
-    generatePolitician(seed, BaseRarePoliticianChance, hasExtraEffects = false)
+    generatePolitician(seed, BaseRarePoliticianChance, false)
+
+  // Generate a politician using game state to determine rare chance and extra effects
+  def generatePolitician(game: TileKingdomGame, seed: Long, forceRare: Boolean): Politician =
+    val rareChance = if forceRare then 1.0 else rarePoliticianChance(game)
+    val hasExtraEffects = game.hasSkill(Skill.Management3B)
+    generatePolitician(seed, rareChance, hasExtraEffects)
+
+  def generatePolitician(game: TileKingdomGame, seed: Long): Politician =
+    generatePolitician(game, seed, forceRare = false)
 
   // Check and generate new politicians based on elapsed time
   def generateNewPoliticians(game: TileKingdomGame, currentTimeMillis: Long): TileKingdomGame =
@@ -857,10 +866,8 @@ object TileKingdomLogic:
       // Only generate up to the remaining space in roster
       val availableSlots = maxRosterSize - game.politicianRoster.size
       val actualNewCount = math.min(politiciansToGenerate, availableSlots)
-      val rareChance = rarePoliticianChance(game)
-      val hasExtraEffects = game.hasSkill(Skill.Management3B)
       val newPoliticians = (0 until actualNewCount).map: i =>
-        generatePolitician(currentTimeMillis + i, rareChance, hasExtraEffects)
+        generatePolitician(game, currentTimeMillis + i)
       .toList
       
       // If we filled the roster, reset progress; otherwise keep remainder

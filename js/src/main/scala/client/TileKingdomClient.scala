@@ -171,11 +171,11 @@ object TileKingdomClient:
     DevToolsPopup.DevAction("🌟 +1 Skill Point", () => devAction { currentGame = currentGame.copy(skillPoints = currentGame.skillPoints + 1, totalSkillPointsEarned = currentGame.totalSkillPointsEarned + 1, hasSailed = true) }),
     DevToolsPopup.DevAction("🗺️ +100 Tiles", () => devAction { currentGame = TileKingdomLogic.unlockManyTiles(currentGame, 100) }),
     DevToolsPopup.DevAction("👤 +Politician", () => devAction {
-      val p = TileKingdomLogic.generatePolitician(System.currentTimeMillis(), 0.0)
+      val p = TileKingdomLogic.generatePolitician(currentGame, System.currentTimeMillis())
       currentGame = currentGame.copy(politicianRoster = currentGame.politicianRoster :+ p)
     }),
     DevToolsPopup.DevAction("⭐ +Rare Politician", () => devAction {
-      val p = TileKingdomLogic.generatePolitician(System.currentTimeMillis(), 1.0)
+      val p = TileKingdomLogic.generatePolitician(currentGame, System.currentTimeMillis(), forceRare = true)
       currentGame = currentGame.copy(politicianRoster = currentGame.politicianRoster :+ p)
     }),
     DevToolsPopup.DevAction("🌟 +5 Skill Points", () => devAction { currentGame = currentGame.copy(skillPoints = currentGame.skillPoints + 5, totalSkillPointsEarned = currentGame.totalSkillPointsEarned + 5, hasSailed = true) }),
