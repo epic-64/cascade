@@ -91,4 +91,4 @@
   - Management3: Town halls can hold 2 politicians at the same time. OR: Normal politicians have 2 effects, rare politicians have 3 effects.
 
 ## Todos
-- there are currently influence indicator lines (lines between tiles). Please make them not dotted, and brighter, but thinner.
+- there are currently influence indicator lines (lines between tiles). Please make them solid (not dotted), and brighter, but thinner.
