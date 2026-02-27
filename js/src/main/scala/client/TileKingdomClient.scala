@@ -6,7 +6,7 @@ import scala.util.Try
 import scala.util.chaining.*
 import shared.TileKingdom.*
 import shared.TileKingdom.AcademyMode.FasterPoliticians
-import client.components.laminar.{TileKingdomState, ResourcePanel, ActionBar, NotificationSystem, PoliticianRosterPanel, SkillTree, HelpPopup, DevToolsPopup, WelcomeBackModal}
+import client.components.laminar.{TileKingdomState, ResourcePanel, ActionBar, NotificationSystem, PoliticianRosterPanel, SkillTree, HelpPopup, DevToolsPopup, WelcomeBackModal, SaveRecoveryModal}
 import client.components.laminar.tilekingdom.{TileGrid, TileGridState, TileRenderer, FloatingEffects, TileUtils}
 import com.raquo.laminar.api.L.render as laminarRender
 
@@ -16,6 +16,7 @@ def initializeTileKingdom(): Unit =
 object TileKingdomClient:
 
   private val StorageKey = "tile_kingdom_game_state"
+  private val MetadataKey = "tile_kingdom_metadata"
   private val SaveIntervalMs: Int = 30_000 // Save to localStorage at most every 30 seconds
   private var currentGame: TileKingdomGame = TileKingdomLogic.newGame(System.currentTimeMillis())
   private var gameTickerHandle: Option[Int] = None
@@ -90,6 +91,7 @@ object TileKingdomClient:
     container.appendChild(buildHelpPopup())
     container.appendChild(buildDevToolsPopup())
     container.appendChild(buildSkillTreeModal())
+    container.appendChild(buildSaveRecoveryModal())
 
     // Mount Laminar components AFTER elements are in the DOM
     mountLaminarComponents()
@@ -131,6 +133,8 @@ object TileKingdomClient:
       laminarRender(container, DevToolsPopup(() => toggleDevTools(), devToolsActions))
     getElementById("laminar-welcome-modal").foreach: container =>
       laminarRender(container, WelcomeBackModal())
+    getElementById("laminar-save-recovery-modal").foreach: container =>
+      laminarRender(container, SaveRecoveryModal())
 
   /** Create TileRenderer.Actions from the existing handlers */
   private def tileRendererActions: TileRenderer.Actions = TileRenderer.Actions(
@@ -164,7 +168,7 @@ object TileKingdomClient:
     DevToolsPopup.DevAction("🪵 Wood +1000", () => devAction { currentGame = currentGame.copy(wood = currentGame.wood + 1000) }),
     DevToolsPopup.DevAction("🪨 Stone +1000", () => devAction { currentGame = currentGame.copy(stone = currentGame.stone + 1000) }),
     DevToolsPopup.DevAction("✨ Faith +1000", () => devAction { currentGame = currentGame.copy(faith = currentGame.faith + 1000) }),
-    DevToolsPopup.DevAction("🌟 +1 Skill Point", () => devAction { currentGame = currentGame.copy(skillPoints = currentGame.skillPoints + 1, hasSailed = true) }),
+    DevToolsPopup.DevAction("🌟 +1 Skill Point", () => devAction { currentGame = currentGame.copy(skillPoints = currentGame.skillPoints + 1, totalSkillPointsEarned = currentGame.totalSkillPointsEarned + 1, hasSailed = true) }),
     DevToolsPopup.DevAction("🗺️ +100 Tiles", () => devAction { currentGame = TileKingdomLogic.unlockManyTiles(currentGame, 100) }),
     DevToolsPopup.DevAction("👤 +Politician", () => devAction {
       val p = TileKingdomLogic.generatePolitician(System.currentTimeMillis(), 0.0)
@@ -174,7 +178,7 @@ object TileKingdomClient:
       val p = TileKingdomLogic.generatePolitician(System.currentTimeMillis(), 1.0)
       currentGame = currentGame.copy(politicianRoster = currentGame.politicianRoster :+ p)
     }),
-    DevToolsPopup.DevAction("🌟 +5 Skill Points", () => devAction { currentGame = currentGame.copy(skillPoints = currentGame.skillPoints + 5, hasSailed = true) }),
+    DevToolsPopup.DevAction("🌟 +5 Skill Points", () => devAction { currentGame = currentGame.copy(skillPoints = currentGame.skillPoints + 5, totalSkillPointsEarned = currentGame.totalSkillPointsEarned + 5, hasSailed = true) }),
     DevToolsPopup.DevAction("🪓 Fill Forests", () => devAction {
       val filled = currentGame.unlockedTiles.filter(_.isEmpty).map(_.coord)
       val newTiles = filled.foldLeft(currentGame.tiles): (tiles, coord) =>
@@ -228,6 +232,13 @@ object TileKingdomClient:
         val coord = Coord(startRow + r, startCol + c)
         coord -> Tile(coord = coord, tileType = randomTileType(), unlocked = true)
       currentGame = currentGame.copy(tiles = currentGame.tiles ++ blockTiles.toMap)
+    }),
+    DevToolsPopup.DevAction("💥 Corrupt Save", () => {
+      stopGameTicker()
+      stopSaveTimer()
+      isDirty = false
+      window.localStorage.setItem(StorageKey, "{corrupted}")
+      window.location.reload()
     })
   )
 
@@ -274,6 +285,9 @@ object TileKingdomClient:
 
   private def buildSkillTreeModal(): HTMLElement =
     div.idx("laminar-skill-tree-modal")
+
+  private def buildSaveRecoveryModal(): HTMLElement =
+    div.idx("laminar-save-recovery-modal")
 
   private def handleUnlockSkill(skill: Skill): Unit =
     TileKingdomLogic.unlockSkill(currentGame, skill) match
@@ -470,6 +484,9 @@ object TileKingdomClient:
       import upickle.default.*
       val json = write(currentGame)
       window.localStorage.setItem(StorageKey, json)
+      // Save metadata separately for recovery on failed deserialization
+      val metadata = ujson.Obj("totalSkillPointsEarned" -> currentGame.totalSkillPointsEarned)
+      window.localStorage.setItem(MetadataKey, ujson.write(metadata))
       isDirty = false
     .recover:
       case ex => println(s"[TileKingdom] Failed to save game: ${ex.getMessage}")
@@ -516,8 +533,25 @@ object TileKingdomClient:
     .recover:
       case ex =>
         println(s"[TileKingdom] Failed to load game: ${ex.getMessage}")
-        currentGame = TileKingdomLogic.newGame(System.currentTimeMillis())
+        val recoveredSkillPoints = loadMetadataSkillPoints()
+        currentGame = TileKingdomLogic.newGame(System.currentTimeMillis()).copy(
+          skillPoints = recoveredSkillPoints,
+          totalSkillPointsEarned = recoveredSkillPoints,
+          hasSailed = recoveredSkillPoints > 0,
+          gold = 5000
+        )
         TileKingdomState.update(currentGame)
+        saveGame()
+        SaveRecoveryModal.show(recoveredSkillPoints)
+
+  /** Load totalSkillPointsEarned from the separate metadata key, returning 0 if not found */
+  private def loadMetadataSkillPoints(): Int =
+    Try:
+      Option(window.localStorage.getItem(MetadataKey))
+        .map(ujson.read(_))
+        .flatMap(json => Try(json("totalSkillPointsEarned").num.toInt).toOption)
+        .getOrElse(0)
+    .getOrElse(0)
 
   // ============================================================================
   // Event Handlers
@@ -794,6 +828,7 @@ object TileKingdomClient:
   private def handleResetGame(): Unit =
     if window.confirm("Reset game? This will delete all progress!") then
       window.localStorage.removeItem(StorageKey)
+      window.localStorage.removeItem(MetadataKey)
       isDirty = false
       currentGame = TileKingdomLogic.newGame(System.currentTimeMillis())
       tileProgress = Map.empty

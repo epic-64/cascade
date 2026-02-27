@@ -429,7 +429,8 @@ case class TileKingdomGame(
     unlockedSkills: Set[Skill] = Set.empty, // Skills unlocked via skill tree
     hasSailed: Boolean = false, // Whether player has sailed at least once (unlocks skill tree)
     hasPlacedBuilding: Boolean = false, // Whether any building has been placed since last abdication/sail
-    tilePoints: Int = 0 // Tile points earned by destroying tiles, used for free tile unlocks
+    tilePoints: Int = 0, // Tile points earned by destroying tiles, used for free tile unlocks
+    totalSkillPointsEarned: Int = 0 // Cumulative skill points ever earned (for save recovery)
 ) derives ReadWriter:
 
   // Resource helpers
@@ -1543,6 +1544,9 @@ object TileKingdomLogic:
         coord -> Tile(coord = coord, tileType = TileType.Empty, unlocked = true)
       .toMap
 
+      val newTotalSkillPoints = game.skillPoints + skillPointsEarned
+      val newTotalEarned = game.totalSkillPointsEarned + skillPointsEarned
+
       Right(game.copy(
         tiles = initialTiles,
         wheat = 50.0, // Reset to starting amount
@@ -1556,9 +1560,10 @@ object TileKingdomLogic:
         politicianRoster = List.empty,
         politicianGenerationProgress = 0.0,
         legacyPoints = remainingLegacyPoints,
-        skillPoints = game.skillPoints + skillPointsEarned,
+        skillPoints = newTotalSkillPoints,
         hasSailed = true, // Mark that player has sailed at least once
-        hasPlacedBuilding = false // Fresh sail
+        hasPlacedBuilding = false, // Fresh sail
+        totalSkillPointsEarned = newTotalEarned
       ))
 
   // Get all coords that can be unlocked (coords adjacent to unlocked tiles that aren't already tiles)
