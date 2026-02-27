@@ -79,8 +79,11 @@
 - by default, each academy should also grant 1 extra slot in the politician roster.
 
 ## Done 2026-02-28
-
-## Todos
 - Currently, the game nukes the save completely if it fails to deserialize. Please change
   the save structure such that it keeps track of total skill points earned. Then, restore at least this number on failed deserialization.
   With this change we will still wipe saves on the next update, but at least afterwards it will be more stable.
+
+## Todos
+- when fully zoomed in, the text on the tiles is a bit blurry. Please make sure the zoom level and font size are chosen such that the text is always crisp and clear.
+- currently we visualize influence areas, as well as influence lines. The influence areas are sometimes shown on top of tiles which makes them harder to read.
+  Normally, the influence area should always be behind tiles. However on hover, it should be shown on top of tiles.
