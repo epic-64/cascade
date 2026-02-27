@@ -23,6 +23,9 @@ object InfluenceIndicator:
   ): HtmlElement =
     div(
       cls := s"influence-indicator $cssClass",
+      cls <-- TileGridState.hoveredTileCoord.signal.map:
+        case Some(coord) if coord == center => "influence-hovered"
+        case _ => "",
       styleAttr <-- TileGridState.tileSizeSignal.map: tileSize =>
         // Calculate the rectangle bounds
         val left = (center.col - radius) * tileSize
@@ -41,6 +44,9 @@ object InfluenceIndicator:
   ): HtmlElement =
     div(
       cls := s"influence-indicator $cssClass",
+      cls <-- TileGridState.hoveredTileCoord.signal.map:
+        case Some(coord) if coord == center => "influence-hovered"
+        case _ => "",
       styleAttr <-- TileGridState.tileSizeSignal.map: tileSize =>
         val (left, top, width, height) = direction match
           case BureauDirection.Center =>
