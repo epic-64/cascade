@@ -622,7 +622,10 @@
 .influence-indicator {
   pointer-events: none;
   border-radius: var(--radius-sm);
-  z-index: 1;
+}
+
+.influence-indicator.influence-hovered {
+  z-index: 12;
 }
 
 .influence-indicator.farm-influence {
@@ -630,9 +633,19 @@
   background: rgba(59, 130, 246, 0.05);
 }
 
+.influence-indicator.farm-influence.influence-hovered {
+  border: 2px dashed rgba(59, 130, 246, 0.8);
+  background: rgba(59, 130, 246, 0.12);
+}
+
 .influence-indicator.bureau-influence {
   border: 2px dashed rgba(124, 58, 237, 0.5);
   background: rgba(124, 58, 237, 0.05);
+}
+
+.influence-indicator.bureau-influence.influence-hovered {
+  border: 2px dashed rgba(124, 58, 237, 0.8);
+  background: rgba(124, 58, 237, 0.12);
 }
 
 /* Influence Lines (overlay) */
@@ -1409,6 +1422,11 @@
 .influence-indicator.town-hall-influence {
   border: 2px dashed rgba(217, 119, 6, 0.5);
   background: rgba(251, 191, 36, 0.08);
+}
+
+.influence-indicator.town-hall-influence.influence-hovered {
+  border: 2px dashed rgba(217, 119, 6, 0.8);
+  background: rgba(251, 191, 36, 0.15);
 }
 
 /* Town Hall direction row (Management5 skill) */
