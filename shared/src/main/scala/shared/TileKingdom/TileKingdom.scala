@@ -1,6 +1,8 @@
 package shared.TileKingdom
 
-import upickle.default.{ReadWriter, readwriter, Reader, Writer}
+import upickle.default.{ReadWriter, Reader, Writer, readwriter}
+
+import scala.annotation.tailrec
 
 // ============================================================================
 // Resource System
@@ -629,6 +631,58 @@ object TileKingdomLogic:
     Coord(1, 1)
   )
 
+  // ============================================================================
+  // Forest Group Cache
+  // ============================================================================
+
+  // Cache for forest group sizes, keyed by the set of woodcutter coordinates
+  // This avoids recalculating expensive flood-fill for every woodcutter every tick
+  private var forestGroupCacheKey: Set[Coord] = Set.empty
+  private var forestGroupCache: Map[Coord, Int] = Map.empty
+
+  /** Get woodcutter positions from a game state */
+  private def woodcutterCoords(game: TileKingdomGame): Set[Coord] =
+    game.tiles.filter(_._2.isWoodcutter).keySet
+
+  /** Get cached forest group size for a woodcutter, recomputing cache if needed */
+  def cachedForestGroupSize(game: TileKingdomGame, coord: Coord): Int =
+    val currentWoodcutters = woodcutterCoords(game)
+    if currentWoodcutters != forestGroupCacheKey then
+      recomputeForestGroupCache(game, currentWoodcutters)
+    forestGroupCache.getOrElse(coord, 1)
+
+  /** Recompute the entire forest group cache */
+  private def recomputeForestGroupCache(game: TileKingdomGame, woodcutters: Set[Coord]): Unit =
+    forestGroupCacheKey = woodcutters
+    var visited = Set.empty[Coord]
+    var newCache = Map.empty[Coord, Int]
+
+    woodcutters.foreach: startCoord =>
+      if !visited.contains(startCoord) then
+        val group = findConnectedWoodcuttersRaw(woodcutters, startCoord)
+        visited = visited ++ group
+        val groupSize = group.size
+        group.foreach: c =>
+          newCache = newCache.updated(c, groupSize)
+
+    forestGroupCache = newCache
+
+  /** Raw flood-fill that works on a set of woodcutter coords (no game needed) */
+  private def findConnectedWoodcuttersRaw(woodcutters: Set[Coord], startCoord: Coord): Set[Coord] =
+    @tailrec
+    def floodFill(toVisit: Set[Coord], visited: Set[Coord]): Set[Coord] =
+      if toVisit.isEmpty then visited
+      else
+        val current = toVisit.head
+        val remaining = toVisit.tail
+        if visited.contains(current) then floodFill(remaining, visited)
+        else if woodcutters.contains(current) then
+          val newNeighbors = current.neighbors.diff(visited)
+          floodFill(remaining ++ newNeighbors, visited + current)
+        else
+          floodFill(remaining, visited)
+    floodFill(Set(startCoord), Set.empty)
+
   // Find all woodcutters in the same connected group as the given coord
   def findConnectedWoodcutters(game: TileKingdomGame, startCoord: Coord): Set[Coord] =
     def floodFill(toVisit: Set[Coord], visited: Set[Coord]): Set[Coord] =
@@ -648,8 +702,9 @@ object TileKingdomLogic:
 
   // Calculate forest group bonus multiplier for a woodcutter
   // Bonus escalates: 2 tiles = 10%, 3 tiles = 10+20=30%, 4 tiles = 10+20+30=60%, etc.
+  // Uses cached group size to avoid expensive recalculation every tick
   def forestGroupBonusMultiplier(game: TileKingdomGame, coord: Coord): Double =
-    val groupSize = findConnectedWoodcutters(game, coord).size
+    val groupSize = cachedForestGroupSize(game, coord)
     val n = groupSize - 1 // Number of other woodcutters in group
     val totalBonus = n * (n + 1) / 2.0 * ForestGroupBonusPerTile // Triangular number * bonus per tile
     1.0 + totalBonus

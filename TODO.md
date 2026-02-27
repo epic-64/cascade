@@ -89,6 +89,7 @@
   - Management1: Bureau costs 0 wood to build and upgrades consume 0 wood. OR: Bureau can be directed to affect a 5x3 area in one of four directions (up, down, left, right) instead of a 2 tile radius around it.
   - Management2: Town halls cost 90% less stone to build. OR: Town halls can be directed.
   - Management3: Town halls can hold 2 politicians at the same time. OR: Normal politicians have 2 effects, rare politicians have 3 effects.
+- there are currently influence indicator lines (lines between tiles). Please make them solid (not dotted), and brighter, but thinner.
+- cache forest adjacency group bonus to fix performance sink
 
 ## Todos
-- there are currently influence indicator lines (lines between tiles). Please make them solid (not dotted), and brighter, but thinner.
