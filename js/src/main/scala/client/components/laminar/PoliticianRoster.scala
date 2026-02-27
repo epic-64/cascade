@@ -30,7 +30,10 @@ object PoliticianRoster:
 
   /** Render a single politician card - reads lifespan from signal for live updates */
   private def renderCard(politicianId: String, initialPolitician: Politician, politicianSignal: Signal[Politician]): HtmlElement =
-    val cardCls = if initialPolitician.isRare then "politician-card rare" else "politician-card"
+    val baseClass = "politician-card"
+    val rareClass = if initialPolitician.isRare then " rare" else ""
+    val tripleClass = if initialPolitician.tertiaryEffect.isDefined then " triple-effect" else ""
+    val cardCls = s"$baseClass$rareClass$tripleClass"
 
     div(
       cls := cardCls,
