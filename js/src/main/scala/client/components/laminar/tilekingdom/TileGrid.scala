@@ -148,7 +148,7 @@ object TileGrid:
             val dy = e.clientY - TileGridState.dragStartY
             if math.abs(dx) > 5 || math.abs(dy) > 5 then
               TileGridState.wasDragging = true
-            TileGridState.panOffset.set((TileGridState.panStartX + dx, TileGridState.panStartY + dy))
+            TileGridState.panOffset.set((math.round(TileGridState.panStartX + dx).toDouble, math.round(TileGridState.panStartY + dy).toDouble))
 
         dom.document.onmouseup = (_: MouseEvent) =>
           if TileGridState.isDragging then
@@ -184,7 +184,7 @@ object TileGrid:
             val touch = te.touches(0)
             val dx = touch.clientX - TileGridState.dragStartX
             val dy = touch.clientY - TileGridState.dragStartY
-            TileGridState.panOffset.set((TileGridState.panStartX + dx, TileGridState.panStartY + dy))
+            TileGridState.panOffset.set((math.round(TileGridState.panStartX + dx).toDouble, math.round(TileGridState.panStartY + dy).toDouble))
         )
 
         viewport.addEventListener("touchend", (_: dom.Event) =>

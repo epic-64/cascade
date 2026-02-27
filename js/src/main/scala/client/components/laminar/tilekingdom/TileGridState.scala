@@ -120,13 +120,18 @@ object TileGridState:
   // Style Helpers
   // ============================================================================
 
-  /** Generate CSS style for positioning a tile at given coordinates */
+  /** Generate CSS style for positioning a tile at given coordinates.
+    * All values are rounded to whole pixels to prevent sub-pixel blurriness.
+    */
   def tileStyle(coord: Coord): Signal[String] =
     zoomLevel.signal.map: zoom =>
       val tileSize = BaseTileSize * zoom
-      val tilePixelSize = (70 * zoom).toInt
+      val tilePixelSize = math.round(70 * zoom).toInt
+      val left = math.round(coord.col * tileSize).toInt
+      val top = math.round(coord.row * tileSize).toInt
       val fontScale = math.max(0.3, math.min(1.0, zoom))
-      s"position: absolute; left: ${coord.col * tileSize}px; top: ${coord.row * tileSize}px; width: ${tilePixelSize}px; height: ${tilePixelSize}px; font-size: ${fontScale}em;"
+      val fontPx = math.round(fontScale * 16).toInt // snap font to whole pixels (base 16px)
+      s"position: absolute; left: ${left}px; top: ${top}px; width: ${tilePixelSize}px; height: ${tilePixelSize}px; font-size: ${fontPx}px;"
 
   /** Get zoom tier CSS class */
   def zoomTierClass: Signal[String] = zoomTierSignal.map:
@@ -150,7 +155,9 @@ object TileGridState:
     else
       panOffset.set(target)
 
-  /** Calculate the offset needed to center on unlocked tiles */
+  /** Calculate the offset needed to center on unlocked tiles.
+    * Returns pan offset in screen pixels.
+    */
   def calculateCenterOffset(game: TileKingdomGame): (Double, Double) =
     val unlockedCoords = game.unlockedTiles.map(_.coord)
     if unlockedCoords.nonEmpty then
@@ -158,10 +165,11 @@ object TileGridState:
       val centerCol = unlockedCoords.map(_.col).sum.toDouble / unlockedCoords.size
       val viewportWidth = window.innerWidth
       val viewportHeight = window.innerHeight
-      val tileSize = zoomLevel.now() * BaseTileSize
-      val targetX = viewportWidth / 2 - (centerCol + 0.5) * tileSize
-      val targetY = viewportHeight / 2 - (centerRow + 0.5) * tileSize
-      (targetX, targetY)
+      val zoom = zoomLevel.now()
+      // World center in pixels, then multiply to zoom to get screen pixels
+      val targetX = viewportWidth / 2 - (centerCol + 0.5) * BaseTileSize * zoom
+      val targetY = viewportHeight / 2 - (centerRow + 0.5) * BaseTileSize * zoom
+      (math.round(targetX).toDouble, math.round(targetY).toDouble)
     else
       panOffset.now()
 
@@ -180,7 +188,7 @@ object TileGridState:
 
       val newX = startX + (targetX - startX) * eased
       val newY = startY + (targetY - startY) * eased
-      panOffset.set((newX, newY))
+      panOffset.set((math.round(newX).toDouble, math.round(newY).toDouble))
 
       if progress < 1.0 then
         window.requestAnimationFrame((_: Double) => animate())
@@ -191,17 +199,18 @@ object TileGridState:
   def snapBackIfNeeded(game: TileKingdomGame, onSnap: () => Unit): Unit =
     val viewportWidth = window.innerWidth
     val viewportHeight = window.innerHeight
-    val tileSize = zoomLevel.now() * BaseTileSize
+    val zoom = zoomLevel.now()
+    val screenTileSize = BaseTileSize * zoom
     val (panX, panY) = panOffset.now()
 
     val unlockedCoords = game.unlockedTiles.map(_.coord)
-    val margin = tileSize * 0.5
+    val margin = screenTileSize * 0.5
 
     val anyVisible = unlockedCoords.exists: coord =>
-      val tileScreenX = coord.col * tileSize + panX
-      val tileScreenY = coord.row * tileSize + panY
-      tileScreenX > -tileSize + margin && tileScreenX < viewportWidth - margin &&
-      tileScreenY > -tileSize + margin && tileScreenY < viewportHeight - margin
+      val tileScreenX = coord.col * screenTileSize + panX
+      val tileScreenY = coord.row * screenTileSize + panY
+      tileScreenX > -screenTileSize + margin && tileScreenX < viewportWidth - margin &&
+      tileScreenY > -screenTileSize + margin && tileScreenY < viewportHeight - margin
 
     if !anyVisible then
       animateTo(calculateCenterOffset(game))
@@ -225,7 +234,7 @@ object TileGridState:
     val newTileSize = BaseTileSize * newZoom
     val newPanX = mouseX - worldXBefore * newTileSize
     val newPanY = mouseY - worldYBefore * newTileSize
-    panOffset.set((newPanX, newPanY))
+    panOffset.set((math.round(newPanX).toDouble, math.round(newPanY).toDouble))
 
   // ============================================================================
   // Selection Operations
