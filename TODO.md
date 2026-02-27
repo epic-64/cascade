@@ -78,6 +78,9 @@
   also add a toggle to always show the influence lines.
 - by default, each academy should also grant 1 extra slot in the politician roster.
 
+## Done 2026-02-28
+
 ## Todos
-- if a save fails to load, try to read at least the skill points from the save, and award them in the current game. Also award 5000 gold.
-  Then inform the player that their save was lost due to a game update. Also tell them whether they skill points were recovered or not.
+- Currently, the game nukes the save completely if it fails to deserialize. Please change
+  the save structure such that it keeps track of total skill points earned. Then, restore at least this number on failed deserialization.
+  With this change we will still wipe saves on the next update, but at least afterwards it will be more stable.
