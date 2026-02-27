@@ -85,9 +85,10 @@
 - when fully zoomed in, the text on the tiles is a bit blurry. Please make sure the zoom level and font size are chosen such that the text is always crisp and clear.
 - currently we visualize influence areas, as well as influence lines. The influence areas are sometimes shown on top of tiles which makes them harder to read.
   Normally, the influence area should always be behind tiles. However on hover, it should be shown on top of tiles.
-
-## Todos
 - overhaul the management tree:
   - Management1: Bureau costs 0 wood to build and upgrades consume 0 wood. OR: Bureau can be directed to affect a 5x3 area in one of four directions (up, down, left, right) instead of a 2 tile radius around it.
   - Management2: Town halls cost 90% less stone to build. OR: Town halls can be directed.
   - Management3: Town halls can hold 2 politicians at the same time. OR: Normal politicians have 2 effects, rare politicians have 3 effects.
+
+## Todos
+- there are currently influence indicator lines (lines between tiles). Please make them not dotted, and brighter, but thinner.

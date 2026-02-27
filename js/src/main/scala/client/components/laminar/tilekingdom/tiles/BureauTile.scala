@@ -46,8 +46,8 @@ object BureauTile:
     val canAffordTurboSignal = gameSignal.combineWith(minFaithCostSignal).map:
       case (g, cost) => g.faith >= cost
 
-    // Direction signal (only relevant with Management3)
-    val hasDirectionSkillSignal = gameSignal.map(_.hasSkill(Skill.Management3))
+    // Direction signal (only relevant with Management1B)
+    val hasDirectionSkillSignal = gameSignal.map(_.hasSkill(Skill.Management1B))
     val directionSignal = gameSignal.map(g => TileKingdomLogic.getBureauDirection(g, coord))
 
     // Mode-dependent extra CSS class
@@ -131,7 +131,7 @@ object BureauTile:
           )
         ),
 
-        // Direction toggle buttons (only shown with Management3 skill)
+        // Direction toggle buttons (only shown with Management1B skill)
         div(
           cls := "bureau-direction-row",
           display <-- hasDirectionSkillSignal.map(has => if has then "flex" else "none"),

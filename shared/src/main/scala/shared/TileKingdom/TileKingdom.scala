@@ -120,12 +120,13 @@ enum Skill derives ReadWriter:
   case Agriculture2B // Farms affect neighboring quarries at 50% effectiveness
   case Agriculture3A // Wheat field upgrade costs reduced by 99%
   case Agriculture3B // Farms affect neighboring temples at 50% effectiveness
-  // Management branch
-  case Management1 // Politician roster holds 2 additional politicians
-  case Management2 // Town halls are 10x cheaper to build
-  case Management3 // Bureaus can be directed (5x3 rectangle instead of 2-tile radius)
-  case Management4 // Town halls can hold 2 politicians at the same time
-  case Management5 // Town halls can be directed (5x3 rectangle instead of 2-tile radius)
+  // Management branch (dual track at level 1, 2, and 3)
+  case Management1A // Bureau costs 0 wood to build and upgrades consume 0 wood
+  case Management1B // Bureau can be directed (5x3 rectangle instead of 2-tile radius)
+  case Management2A // Town halls cost 90% less stone to build
+  case Management2B // Town halls can be directed (5x3 rectangle instead of 2-tile radius)
+  case Management3A // Town halls can hold 2 politicians at the same time
+  case Management3B // Normal politicians have 2 effects, rare politicians have 3 effects
   // Wisdom branch
   case Wisdom1 // Quarries produce 25% more stone for each neighboring forest
   case Wisdom2 // Each forest grants 50% increased faith production to neighboring temples
@@ -140,7 +141,7 @@ object Skill:
   // Get skill branch name
   def branchName(skill: Skill): String = skill match
     case Agriculture1A | Agriculture1B | Agriculture2A | Agriculture2B | Agriculture3A | Agriculture3B => "Agriculture"
-    case Management1 | Management2 | Management3 | Management4 | Management5 => "Management"
+    case Management1A | Management1B | Management2A | Management2B | Management3A | Management3B => "Management"
     case Wisdom1 | Wisdom2 => "Wisdom"
     case Education1 | Education2 => "Education"
     case Logistics1A | Logistics1B => "Logistics"
@@ -151,11 +152,12 @@ object Skill:
     case Agriculture1B => "Farms affect neighboring forests at 50% effectiveness"
     case Agriculture2A => "Wheat fields produce twice as fast (50% shorter interval)"
     case Agriculture2B => "Farms affect neighboring quarries at 50% effectiveness"
-    case Management1 => "+2 politician roster slots"
-    case Management2 => "Town halls cost 10x less stone to build"
-    case Management3 => "Bureaus can be directed (5×3 rectangle)"
-    case Management4 => "Town Halls hold 2 politicians at once"
-    case Management5 => "Town Halls can be directed (5×3 rectangle)"
+    case Management1A => "Bureaus cost 0 wood to build and upgrade"
+    case Management1B => "Bureaus can be directed (5×3 rectangle)"
+    case Management2A => "Town halls cost 90% less stone to build"
+    case Management2B => "Town Halls can be directed (5×3 rectangle)"
+    case Management3A => "Town Halls hold 2 politicians at once"
+    case Management3B => "Normal politicians have 2 effects, rare have 3"
     case Wisdom1 => "+25% quarry stone output per neighboring forest"
     case Wisdom2 => "+50% temple faith output per neighboring forest"
     case Education1 => "Academies cost 10x less stone to build"
@@ -167,21 +169,17 @@ object Skill:
 
   // Get skill cost (position in branch)
   def cost(skill: Skill): Int = skill match
-    case Agriculture1A | Agriculture1B | Management1 | Wisdom1 | Education1 | Logistics1A | Logistics1B => 1
-    case Agriculture2A | Agriculture2B | Management2 | Wisdom2 | Education2 => 2
-    case Agriculture3A | Agriculture3B | Management3 => 3
-    case Management4 => 4
-    case Management5 => 5
+    case Agriculture1A | Agriculture1B | Management1A | Management1B | Wisdom1 | Education1 | Logistics1A | Logistics1B => 1
+    case Agriculture2A | Agriculture2B | Management2A | Management2B | Wisdom2 | Education2 => 2
+    case Agriculture3A | Agriculture3B | Management3A | Management3B => 3
 
   // Get prerequisite skill (if any)
   def prerequisite(skill: Skill): Option[Skill] = skill match
-    case Agriculture1A | Agriculture1B | Management1 | Wisdom1 | Education1 | Logistics1A | Logistics1B => None
+    case Agriculture1A | Agriculture1B | Management1A | Management1B | Wisdom1 | Education1 | Logistics1A | Logistics1B => None
     case Agriculture2A | Agriculture2B => None // Either Agriculture1A or Agriculture1B, handled by alternativePrerequisites
     case Agriculture3A | Agriculture3B => None // Either Agriculture2A or Agriculture2B, handled by alternativePrerequisites
-    case Management2 => Some(Management1)
-    case Management3 => Some(Management2)
-    case Management4 => Some(Management3)
-    case Management5 => Some(Management4)
+    case Management2A | Management2B => None // Either Management1A or Management1B, handled by alternativePrerequisites
+    case Management3A | Management3B => None // Either Management2A or Management2B, handled by alternativePrerequisites
     case Wisdom2 => Some(Wisdom1)
     case Education2 => Some(Education1)
 
@@ -190,6 +188,8 @@ object Skill:
   def alternativePrerequisites(skill: Skill): Option[Set[Skill]] = skill match
     case Agriculture2A | Agriculture2B => Some(Set(Agriculture1A, Agriculture1B))
     case Agriculture3A | Agriculture3B => Some(Set(Agriculture2A, Agriculture2B))
+    case Management2A | Management2B => Some(Set(Management1A, Management1B))
+    case Management3A | Management3B => Some(Set(Management2A, Management2B))
     case _ => None
 
   // Get mutually exclusive skill (choosing one locks out the other)
@@ -200,6 +200,12 @@ object Skill:
     case Agriculture2B => Some(Agriculture2A)
     case Agriculture3A => Some(Agriculture3B)
     case Agriculture3B => Some(Agriculture3A)
+    case Management1A => Some(Management1B)
+    case Management1B => Some(Management1A)
+    case Management2A => Some(Management2B)
+    case Management2B => Some(Management2A)
+    case Management3A => Some(Management3B)
+    case Management3B => Some(Management3A)
     case Logistics1A => Some(Logistics1B)
     case Logistics1B => Some(Logistics1A)
     case _ => None
@@ -207,7 +213,7 @@ object Skill:
   // Get all skills in a branch, in order (dual track alternatives grouped together)
   def branchSkills(branchName: String): List[Skill] = branchName match
     case "Agriculture" => List(Agriculture1A, Agriculture1B, Agriculture2A, Agriculture2B, Agriculture3A, Agriculture3B)
-    case "Management" => List(Management1, Management2, Management3, Management4, Management5)
+    case "Management" => List(Management1A, Management1B, Management2A, Management2B, Management3A, Management3B)
     case "Wisdom" => List(Wisdom1, Wisdom2)
     case "Education" => List(Education1, Education2)
     case "Logistics" => List(Logistics1A, Logistics1B)
@@ -232,7 +238,7 @@ enum TileType:
   case Woodcutter(level: Int) // produces wood
   case Bureau(level: Int) // auto-upgrades nearby buildings, costs wood
   case Temple(level: Int) // produces faith, costs wood
-  case TownHall(politicians: List[Politician]) // holds politician(s) - Management4 allows 2
+  case TownHall(politicians: List[Politician]) // holds politician(s) - Management3A allows 2
   case Quarry(level: Int) // produces stone
   case Academy(mode: AcademyMode) // boosts politician generation or rare chance
   case Tavern // extends politician lifespan in nearby Town Halls by 2x
@@ -304,9 +310,14 @@ case class Politician(
     effect: PoliticianEffect,
     emoji: String,
     secondaryEffect: Option[PoliticianEffect] = None, // Rare politicians have two effects
+    tertiaryEffect: Option[PoliticianEffect] = None, // Rare politicians with Management3B have three effects
     remainingLifespanMs: Long = 600000L // 10 minutes = 600,000 ms
 ) derives ReadWriter:
   def isRare: Boolean = secondaryEffect.isDefined
+  
+  /** All effects this politician has (1, 2, or 3) */
+  def allEffects: List[PoliticianEffect] =
+    effect :: secondaryEffect.toList ::: tertiaryEffect.toList
   
   private def describeEffect(eff: PoliticianEffect): String = eff match
     case PoliticianEffect.WheatProductionMultiplier(m) => s"${(m * 100).toInt}% wheat"
@@ -315,9 +326,11 @@ case class Politician(
     case PoliticianEffect.StoneProductionMultiplier(m) => s"${(m * 100).toInt}% stone"
     case PoliticianEffect.AllProductionMultiplier(m)   => s"${(m * 100).toInt}% all"
   
-  def effectDescription: String = secondaryEffect match
-    case Some(secondary) => s"${describeEffect(effect)} + ${describeEffect(secondary)}"
-    case None => effect match
+  def effectDescription: String =
+    val extras = secondaryEffect.toList ::: tertiaryEffect.toList
+    if extras.nonEmpty then
+      s"${describeEffect(effect)} + ${extras.map(describeEffect).mkString(" + ")}"
+    else effect match
       case PoliticianEffect.WheatProductionMultiplier(m) => s"${(m * 100).toInt}% wheat production"
       case PoliticianEffect.WoodProductionMultiplier(m)  => s"${(m * 100).toInt}% wood production"
       case PoliticianEffect.FaithProductionMultiplier(m) => s"${(m * 100).toInt}% faith production"
@@ -418,8 +431,8 @@ case class TileKingdomGame(
     lastTickTime: Long, // Timestamp in milliseconds for offline progress
     totalAbdications: Int,
     bureauMode: Map[Coord, BureauMode] = Map.empty, // Bureau operation mode per bureau
-    bureauDirection: Map[Coord, BureauDirection] = Map.empty, // Bureau direction per bureau (requires Management3)
-    townHallDirection: Map[Coord, BureauDirection] = Map.empty, // Town Hall direction per town hall (requires Management5)
+    bureauDirection: Map[Coord, BureauDirection] = Map.empty, // Bureau direction per bureau (requires Management1B)
+    townHallDirection: Map[Coord, BureauDirection] = Map.empty, // Town Hall direction per town hall (requires Management2B)
     upgradeCooldowns: Map[Coord, Long] = Map.empty, // Deprecated, kept for save compatibility
     politicianRoster: List[Politician] = List.empty, // Available politicians to assign
     lastPoliticianGeneration: Long = 0L, // Timestamp of last politician generation tick
@@ -568,14 +581,12 @@ object TileKingdomLogic:
   val TownHallDirectionHalfWidth: Int = 1 // 1 tile on each side = 3 wide
   val PoliticianGenerationIntervalSeconds: Int = 300 // 5 minutes = 300 seconds
   val MaxPoliticianRosterSize: Int = 3 // Maximum politicians in roster (base)
-  val Management1RosterBonus: Int = 2 // Extra slots from Management1 skill
   val PoliticianLifespanMs: Long = 600000L // 10 minutes = 600,000 ms
 
   // Calculate actual max roster size including skill bonuses and academies
   def maxPoliticianRosterSize(game: TileKingdomGame): Int =
-    val skillBonus = if game.hasSkill(Skill.Management1) then Management1RosterBonus else 0
     val academyBonus = game.tiles.values.count(_.isAcademy)
-    MaxPoliticianRosterSize + skillBonus + academyBonus
+    MaxPoliticianRosterSize + academyBonus
 
   // Quarry constants
   val QuarryBuildCost: Int = 500 // Wood cost to build a quarry
@@ -661,7 +672,7 @@ object TileKingdomLogic:
 
   // Maximum number of politicians a single Town Hall can hold
   def townHallCapacity(game: TileKingdomGame): Int =
-    if game.hasSkill(Skill.Management4) then 2 else 1
+    if game.hasSkill(Skill.Management3A) then 2 else 1
 
   // Get town hall direction (defaults to Center)
   def getTownHallDirection(game: TileKingdomGame, coord: Coord): BureauDirection =
@@ -672,7 +683,7 @@ object TileKingdomLogic:
     game.tiles.get(coord) match
       case None => Left("Tile not found")
       case Some(tile) if !tile.isTownHall => Left("Tile is not a town hall")
-      case Some(_) if !game.hasSkill(Skill.Management5) => Left("Requires Management 5 skill")
+      case Some(_) if !game.hasSkill(Skill.Management2B) => Left("Requires Management 2B skill")
       case Some(_) =>
         Right(game.copy(
           townHallDirection = game.townHallDirection.updated(coord, direction)
@@ -680,7 +691,7 @@ object TileKingdomLogic:
 
   // Get the set of coords affected by a town hall, considering direction skill
   def townHallAffectedCoords(game: TileKingdomGame, townHallCoord: Coord): Set[Coord] =
-    if game.hasSkill(Skill.Management5) then
+    if game.hasSkill(Skill.Management2B) then
       val direction = getTownHallDirection(game, townHallCoord)
       townHallCoord.rectangleInDirection(direction, TownHallDirectionLength, TownHallDirectionHalfWidth)
     else
@@ -709,29 +720,25 @@ object TileKingdomLogic:
   def townHallWheatMultiplier(game: TileKingdomGame, coord: Coord): Double =
     townHallsAffecting(game, coord).foldLeft(1.0): (acc, entry) =>
       val (_, politician) = entry
-      val afterPrimary = applyEffect(acc, politician.effect, isWheat = true)
-      politician.secondaryEffect.map(eff => applyEffect(afterPrimary, eff, isWheat = true)).getOrElse(afterPrimary)
+      politician.allEffects.foldLeft(acc)((a, eff) => applyEffect(a, eff, isWheat = true))
 
   // Calculate Town Hall bonus multiplier for wood production at a given coord
   def townHallWoodMultiplier(game: TileKingdomGame, coord: Coord): Double =
     townHallsAffecting(game, coord).foldLeft(1.0): (acc, entry) =>
       val (_, politician) = entry
-      val afterPrimary = applyEffect(acc, politician.effect, isWood = true)
-      politician.secondaryEffect.map(eff => applyEffect(afterPrimary, eff, isWood = true)).getOrElse(afterPrimary)
+      politician.allEffects.foldLeft(acc)((a, eff) => applyEffect(a, eff, isWood = true))
 
   // Calculate Town Hall bonus multiplier for faith production at a given coord
   def townHallFaithMultiplier(game: TileKingdomGame, coord: Coord): Double =
     townHallsAffecting(game, coord).foldLeft(1.0): (acc, entry) =>
       val (_, politician) = entry
-      val afterPrimary = applyEffect(acc, politician.effect, isFaith = true)
-      politician.secondaryEffect.map(eff => applyEffect(afterPrimary, eff, isFaith = true)).getOrElse(afterPrimary)
+      politician.allEffects.foldLeft(acc)((a, eff) => applyEffect(a, eff, isFaith = true))
 
   // Calculate Town Hall bonus multiplier for stone production at a given coord
   def townHallStoneMultiplier(game: TileKingdomGame, coord: Coord): Double =
     townHallsAffecting(game, coord).foldLeft(1.0): (acc, entry) =>
       val (_, politician) = entry
-      val afterPrimary = applyEffect(acc, politician.effect, isStone = true)
-      politician.secondaryEffect.map(eff => applyEffect(afterPrimary, eff, isStone = true)).getOrElse(afterPrimary)
+      politician.allEffects.foldLeft(acc)((a, eff) => applyEffect(a, eff, isStone = true))
 
   // Count taverns within influence radius of a Town Hall
   def tavernsAffectingTownHall(game: TileKingdomGame, townHallCoord: Coord): Int =
@@ -774,22 +781,37 @@ object TileKingdomLogic:
     val speedAcademies = countAcademies(game, AcademyMode.FasterPoliticians)
     math.pow(AcademySpeedMultiplier, speedAcademies)
 
-  // Generate a random politician (possibly rare)
-  def generatePolitician(seed: Long, rareChance: Double): Politician =
+  // Generate a random politician (possibly rare, possibly with extra effects from Management3B)
+  def generatePolitician(seed: Long, rareChance: Double, hasExtraEffects: Boolean = false): Politician =
     val random = new scala.util.Random(seed)
     val isRare = random.nextDouble() < rareChance
     val (name, title, effect, emoji) = PoliticianPool(random.nextInt(PoliticianPool.size))
     
+    // Pick a unique extra effect different from previously chosen ones
+    def pickExtraEffect(excludeEffects: List[PoliticianEffect]): PoliticianEffect =
+      val options = PoliticianPool.filterNot(p => excludeEffects.contains(p._3))
+      options(random.nextInt(options.size))._3
+    
     if isRare then
-      // Pick a different second effect
-      val secondaryOptions = PoliticianPool.filterNot(_._3 == effect)
-      val (_, _, secondEffect, _) = secondaryOptions(random.nextInt(secondaryOptions.size))
+      val secondEffect = pickExtraEffect(List(effect))
+      val tertiaryEffect = if hasExtraEffects then Some(pickExtraEffect(List(effect, secondEffect))) else None
       Politician(
         id = s"politician_${seed}_${random.nextInt(10000)}",
         name = s"$name the Great",
         title = s"Legendary $title",
         effect = effect,
         emoji = "⭐",
+        secondaryEffect = Some(secondEffect),
+        tertiaryEffect = tertiaryEffect
+      )
+    else if hasExtraEffects then
+      val secondEffect = pickExtraEffect(List(effect))
+      Politician(
+        id = s"politician_${seed}_${random.nextInt(10000)}",
+        name = name,
+        title = title,
+        effect = effect,
+        emoji = emoji,
         secondaryEffect = Some(secondEffect)
       )
     else
@@ -803,7 +825,7 @@ object TileKingdomLogic:
 
   // Legacy method without rare chance (for backwards compatibility)
   def generatePolitician(seed: Long): Politician =
-    generatePolitician(seed, BaseRarePoliticianChance)
+    generatePolitician(seed, BaseRarePoliticianChance, hasExtraEffects = false)
 
   // Check and generate new politicians based on elapsed time
   def generateNewPoliticians(game: TileKingdomGame, currentTimeMillis: Long): TileKingdomGame =
@@ -836,8 +858,9 @@ object TileKingdomLogic:
       val availableSlots = maxRosterSize - game.politicianRoster.size
       val actualNewCount = math.min(politiciansToGenerate, availableSlots)
       val rareChance = rarePoliticianChance(game)
+      val hasExtraEffects = game.hasSkill(Skill.Management3B)
       val newPoliticians = (0 until actualNewCount).map: i =>
-        generatePolitician(currentTimeMillis + i, rareChance)
+        generatePolitician(currentTimeMillis + i, rareChance, hasExtraEffects)
       .toList
       
       // If we filled the roster, reset progress; otherwise keep remainder
@@ -1041,7 +1064,9 @@ object TileKingdomLogic:
   def woodcutterBuildCost: Int = 20
 
   // Cost to build a bureau on an empty tile (costs wood, not wheat)
-  def bureauBuildCost: Int = 500
+  val BaseBureauBuildCost: Int = 500
+  def bureauBuildCost(game: TileKingdomGame): Int =
+    if game.hasSkill(Skill.Management1A) then 0 else BaseBureauBuildCost
 
   // Cost to build a temple on an empty tile (costs wood)
   def templeBuildCost: Int = TempleBuildCost
@@ -1050,7 +1075,7 @@ object TileKingdomLogic:
   def townHallBuildCost(game: TileKingdomGame): Int =
     val existingTownHalls = game.tiles.values.count(_.isTownHall)
     val baseCost = TownHallBuildCost * math.pow(10, existingTownHalls).toInt
-    if game.hasSkill(Skill.Management2) then baseCost / 10 else baseCost
+    if game.hasSkill(Skill.Management2A) then baseCost / 10 else baseCost
 
   // Cost to build a quarry on an empty tile (costs wheat)
   def quarryBuildCost: Int = QuarryBuildCost
@@ -1168,7 +1193,7 @@ object TileKingdomLogic:
       game.canBuildWoodcutter, "Build a farm first")
 
   def buildBureau(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
-    buildOnEmptyTile(game, coord, TileType.Bureau(1), Cost(bureauBuildCost, Resource.Wood),
+    buildOnEmptyTile(game, coord, TileType.Bureau(1), Cost(bureauBuildCost(game), Resource.Wood),
       game.canBuildBureau, "Build a forest first")
 
   def buildTemple(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
@@ -1182,7 +1207,8 @@ object TileKingdomLogic:
         // If roster is empty, generate a politician immediately
         if baseGame.politicianRoster.isEmpty then
           val rareChance = rarePoliticianChance(baseGame)
-          val newPolitician = generatePolitician(currentTimeMillis, rareChance)
+          val hasExtraEffects = baseGame.hasSkill(Skill.Management3B)
+          val newPolitician = generatePolitician(currentTimeMillis, rareChance, hasExtraEffects)
           baseGame.copy(
             politicianRoster = List(newPolitician),
             lastPoliticianGeneration = currentTimeMillis,
@@ -1353,7 +1379,7 @@ object TileKingdomLogic:
     game.tiles.get(coord) match
       case None => Left("Tile not found")
       case Some(tile) if !tile.isBureau => Left("Tile is not a bureau")
-      case Some(_) if !game.hasSkill(Skill.Management3) => Left("Requires Management 3 skill")
+      case Some(_) if !game.hasSkill(Skill.Management1B) => Left("Requires Management 1B skill")
       case Some(_) =>
         Right(game.copy(
           bureauDirection = game.bureauDirection.updated(coord, direction)
@@ -1361,7 +1387,7 @@ object TileKingdomLogic:
 
   // Get the set of coords affected by a bureau, considering direction skill
   def bureauAffectedCoords(game: TileKingdomGame, bureauCoord: Coord): Set[Coord] =
-    if game.hasSkill(Skill.Management3) then
+    if game.hasSkill(Skill.Management1B) then
       val direction = getBureauDirection(game, bureauCoord)
       bureauCoord.rectangleInDirection(direction, BureauDirectionLength, BureauDirectionHalfWidth)
     else
@@ -1370,9 +1396,10 @@ object TileKingdomLogic:
   // Calculate turbo faith cost based on target tile level (level × 10)
   def bureauTurboFaithCostForLevel(level: Int): Int = level * 10
 
-  // Effective bureau wood cost per upgrade (reduced by 90% with Logistics1A skill)
+  // Effective bureau wood cost per upgrade (0 with Management1A, reduced by 90% with Logistics1A)
   def effectiveBureauWoodCost(game: TileKingdomGame): Int =
-    if game.hasSkill(Skill.Logistics1A) then (BureauWoodCostPerUpgrade * 0.1).toInt.max(1)
+    if game.hasSkill(Skill.Management1A) then 0
+    else if game.hasSkill(Skill.Logistics1A) then (BureauWoodCostPerUpgrade * 0.1).toInt.max(1)
     else BureauWoodCostPerUpgrade
 
   // Effective bureau turbo faith cost (reduced by 90% with Logistics1B skill)

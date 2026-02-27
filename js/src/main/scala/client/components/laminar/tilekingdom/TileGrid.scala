@@ -93,7 +93,7 @@ object TileGrid:
           val townHallDirections = influenceTiles.collect {
             case tile if tile.isTownHall => tile.coord -> TileKingdomLogic.getTownHallDirection(game, tile.coord)
           }
-          val hasDirectionSkill = game.hasSkill(Skill.Management3) || game.hasSkill(Skill.Management5)
+          val hasDirectionSkill = game.hasSkill(Skill.Management1B) || game.hasSkill(Skill.Management2B)
           (influenceTiles, (minRow, maxRow, minCol, maxCol), bureauDirections, townHallDirections, hasDirectionSkill)
         }.distinct.map { (influenceTiles, bounds, _, _, _) =>
           val game = TileKingdomState.currentGame

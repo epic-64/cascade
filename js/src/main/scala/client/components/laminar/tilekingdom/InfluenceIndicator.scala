@@ -79,7 +79,7 @@ object InfluenceIndicator:
 
   /** Render bureau influence indicator based on game state (direction-aware) */
   private def renderBureauInfluence(game: TileKingdomGame, coord: Coord): HtmlElement =
-    if game.hasSkill(Skill.Management3) then
+    if game.hasSkill(Skill.Management1B) then
       val direction = TileKingdomLogic.getBureauDirection(game, coord)
       applyDirectional(coord, direction, "bureau-influence")
     else
@@ -87,7 +87,7 @@ object InfluenceIndicator:
 
   /** Render town hall influence indicator based on game state (direction-aware) */
   private def renderTownHallInfluence(game: TileKingdomGame, coord: Coord): HtmlElement =
-    if game.hasSkill(Skill.Management5) then
+    if game.hasSkill(Skill.Management2B) then
       val direction = TileKingdomLogic.getTownHallDirection(game, coord)
       applyDirectional(coord, direction, "town-hall-influence")
     else
