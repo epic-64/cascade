@@ -1629,6 +1629,31 @@
   color: #065f46;
 }
 
+/* Triple effect politician cards (3 effects) have red styling */
+.politician-card.triple-effect {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border: 1px solid #ef4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+}
+
+.politician-card.triple-effect:hover {
+  background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+}
+
+/* Dark text for triple-effect cards to contrast with bright background */
+.politician-card.triple-effect .politician-name {
+  color: #7f1d1d;
+}
+
+.politician-card.triple-effect .politician-title {
+  color: #991b1b;
+}
+
+.politician-card.triple-effect .politician-effect {
+  color: #065f46;
+}
+
 .politician-card:hover {
   background: #3a3a4e;
   box-shadow: inset 0 0 0 1px var(--accent-purple-light);
