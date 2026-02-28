@@ -9,10 +9,8 @@ import shared.TileKingdom.AcademyMode.FasterPoliticians
 import client.components.laminar.{ActionBar, DevToolsPopup, HelpPopup, NotificationSystem, PoliticianRosterPanel, ResourcePanel, SaveRecoveryModal, SkillTree, TileKingdomState, WelcomeBackModal}
 import client.components.laminar.tilekingdom.{FloatingEffects, TileGrid, TileGridState, TileRenderer, TileUtils}
 import com.raquo.laminar.api.L.render as laminarRender
-import org.scalajs.dom.window.alert
 
 def initializeTileKingdom(): Unit =
-  alert("hll")
   TileKingdomClient.init()
 
 object TileKingdomClient:
