@@ -40,7 +40,7 @@ Full-stack web application using Scala 3, Scala.js, Cask, and WebSockets.
 ```bash
 ./scripts/dev-server.sh
 ```
-This compiles the server and client, then starts the server.
+This compiles the server and client using bloop, then starts the server.
 Rerun after code changes (will be fast due to incremental compilation).
 
 **Browser:**
