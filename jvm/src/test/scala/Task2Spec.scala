@@ -528,3 +528,168 @@ class Task2Spec extends AnyFunSuite:
       def getVar(name: String) = Env.test.getVar(name)
 
     assert(complexWorkflow.run(testEnv) == Right("Configured with key sec***"))
+
+  test("two workflows with overlapping but different environments"):
+    // === Define capabilities ===
+    trait Auth:
+      def validateToken(token: String): Result[String]  // returns userId
+    
+    trait Cache:
+      def get(key: String): Option[String]
+      def set(key: String, value: String): Unit
+    
+    trait Metrics:
+      def increment(counter: String): Unit
+    
+    // === Workflow 1: needs Logs & Auth & Cache ===
+    def authenticateAndCache(token: String): Task2[Logs & Auth & Cache, String] = for
+      _      <- Task2.serviceWith[Logs, Unit](_.logInfo(s"Authenticating token"))
+      userId <- Task2.serviceWithTask[Auth, String](_.validateToken(token))
+      _      <- Task2.serviceWith[Cache, Unit](_.set(s"session:$token", userId))
+      _      <- Task2.serviceWith[Logs, Unit](_.logInfo(s"Cached session for $userId"))
+    yield userId
+    
+    // === Workflow 2: needs Logs & Auth & Metrics ===
+    def authenticateAndTrack(token: String): Task2[Logs & Auth & Metrics, String] = for
+      _      <- Task2.serviceWith[Logs, Unit](_.logInfo(s"Authenticating token"))
+      userId <- Task2.serviceWithTask[Auth, String](_.validateToken(token))
+      _      <- Task2.serviceWith[Metrics, Unit](_.increment("auth.success"))
+      _      <- Task2.serviceWith[Logs, Unit](_.logInfo(s"Tracked auth for $userId"))
+    yield userId
+    
+    // === Combined workflow: needs Logs & Auth & Cache & Metrics ===
+    // Both workflows share Logs and Auth, but one needs Cache, the other Metrics
+    def fullAuthFlow(token: String): Task2[Logs & Auth & Cache & Metrics, String] = for
+      userId1 <- authenticateAndCache(token)
+      userId2 <- authenticateAndTrack(token)
+      _       <- Task2.serviceWith[Metrics, Unit](_.increment("auth.complete"))
+    yield userId1
+    
+    // === Track what happens ===
+    var logs = List.empty[String]
+    var cacheContents = Map.empty[String, String]
+    var metricCounts = Map.empty[String, Int]
+    
+    // === Environment that satisfies Logs & Auth & Cache & Metrics ===
+    val fullEnv = new Logs with Auth with Cache with Metrics:
+      def logInfo(msg: String) = logs = logs :+ msg
+      def logError(fail: Fail) = logs = logs :+ s"ERROR: $fail"
+      def validateToken(token: String) = 
+        if token == "valid-token" then Right("user-123") 
+        else Left(Fail("auth", "invalid token"))
+      def get(key: String) = cacheContents.get(key)
+      def set(key: String, value: String) = cacheContents = cacheContents + (key -> value)
+      def increment(counter: String) = 
+        metricCounts = metricCounts.updatedWith(counter)(c => Some(c.getOrElse(0) + 1))
+    
+    // === Run the combined workflow ===
+    logs = Nil
+    cacheContents = Map.empty
+    metricCounts = Map.empty
+    
+    val result = fullAuthFlow("valid-token").run(fullEnv)
+    
+    assert(result == Right("user-123"))
+    assert(cacheContents == Map("session:valid-token" -> "user-123"))
+    assert(metricCounts == Map("auth.success" -> 1, "auth.complete" -> 1))
+    assert(logs.count(_.contains("Authenticating")) == 2)  // called twice, once per sub-workflow
+    
+    // === Demonstrate running each workflow separately with smaller envs ===
+    
+    // Workflow 1 only needs Logs & Auth & Cache
+    logs = Nil
+    cacheContents = Map.empty
+    val cacheOnlyEnv = new Logs with Auth with Cache:
+      def logInfo(msg: String) = logs = logs :+ msg
+      def logError(fail: Fail) = ()
+      def validateToken(token: String) = Right("user-456")
+      def get(key: String) = cacheContents.get(key)
+      def set(key: String, value: String) = cacheContents = cacheContents + (key -> value)
+    
+    assert(authenticateAndCache("another-token").run(cacheOnlyEnv) == Right("user-456"))
+    assert(cacheContents == Map("session:another-token" -> "user-456"))
+    
+    // Workflow 2 only needs Logs & Auth & Metrics
+    logs = Nil
+    metricCounts = Map.empty
+    val metricsOnlyEnv = new Logs with Auth with Metrics:
+      def logInfo(msg: String) = logs = logs :+ msg
+      def logError(fail: Fail) = ()
+      def validateToken(token: String) = Right("user-789")
+      def increment(counter: String) = 
+        metricCounts = metricCounts.updatedWith(counter)(c => Some(c.getOrElse(0) + 1))
+    
+    assert(authenticateAndTrack("yet-another-token").run(metricsOnlyEnv) == Right("user-789"))
+    assert(metricCounts == Map("auth.success" -> 1))
+    
+    // === What if one workflow needs a DIFFERENT Auth implementation? ===
+    // Use provide to substitute a different auth service for one workflow
+    
+    // Alternative auth that uses a different validation strategy
+    trait PremiumAuth extends Auth:
+      def validateToken(token: String): Result[String] = 
+        if token.startsWith("premium-") then Right(s"premium-user-${token.drop(8)}")
+        else Left(Fail("auth", "not a premium token"))
+    
+    // Workflow that uses premium auth but still shares Logs & Cache
+    def premiumAuthenticateAndCache(token: String): Task2[Logs & Cache, String] =
+      authenticateAndCache(token).provide: (env: Logs & Cache) =>
+        new Logs with Auth with Cache:
+          // Delegate Logs to the outer env
+          def logInfo(msg: String): Unit = env.logInfo(msg)
+          def logError(fail: Fail): Unit = env.logError(fail)
+          // Use our own premium auth
+          def validateToken(t: String): Result[String] = 
+            if t.startsWith("premium-") then Right(s"premium-user-${t.drop(8)}")
+            else Left(Fail("auth", "not a premium token"))
+          // Delegate Cache to the outer env
+          def get(key: String): Option[String] = env.get(key)
+          def set(key: String, value: String): Unit = env.set(key, value)
+    
+    // Now this workflow only needs Logs & Cache - Auth is "baked in"
+    logs = Nil
+    cacheContents = Map.empty
+    val logsCacheEnv = new Logs with Cache:
+      def logInfo(msg: String): Unit = logs = logs :+ msg
+      def logError(fail: Fail): Unit = ()
+      def get(key: String): Option[String] = cacheContents.get(key)
+      def set(key: String, value: String): Unit = cacheContents = cacheContents + (key -> value)
+    
+    // Premium tokens work
+    assert(premiumAuthenticateAndCache("premium-abc").run(logsCacheEnv) == Right("premium-user-abc"))
+    assert(cacheContents == Map("session:premium-abc" -> "premium-user-abc"))
+    
+    // Regular tokens fail with premium auth
+    cacheContents = Map.empty
+    assert(premiumAuthenticateAndCache("regular-token").run(logsCacheEnv).isLeft)
+    
+    // === Combine workflows with DIFFERENT auth implementations ===
+    // One uses standard auth, one uses premium auth
+    def mixedAuthFlow(standardToken: String, premiumToken: String): Task2[Logs & Auth & Cache & Metrics, (String, String)] = for
+      // This uses the Auth from the environment
+      standardUser <- authenticateAndCache(standardToken)
+      // This uses premium auth (baked in), but still needs Logs, Cache, Metrics from env
+      premiumUser  <- premiumAuthenticateAndCache(premiumToken).provide: (env: Logs & Auth & Cache & Metrics) =>
+        // Just pass through the parts premium workflow needs
+        new Logs with Cache:
+          def logInfo(msg: String): Unit = env.logInfo(msg)
+          def logError(fail: Fail): Unit = env.logError(fail)
+          def get(key: String): Option[String] = env.get(key)
+          def set(key: String, value: String): Unit = env.set(key, value)
+      _ <- Task2.serviceWith[Metrics, Unit](_.increment("mixed.auth.complete"))
+    yield (standardUser, premiumUser)
+    
+    logs = Nil
+    cacheContents = Map.empty
+    metricCounts = Map.empty
+    
+    val mixedResult = mixedAuthFlow("valid-token", "premium-xyz").run(fullEnv)
+    
+    assert(mixedResult == Right(("user-123", "premium-user-xyz")))
+    assert(cacheContents == Map(
+      "session:valid-token" -> "user-123",
+      "session:premium-xyz" -> "premium-user-xyz"
+    ))
+    assert(metricCounts == Map("mixed.auth.complete" -> 1))
+
+
