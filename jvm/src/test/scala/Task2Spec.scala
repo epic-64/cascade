@@ -300,4 +300,217 @@ class Task2Spec extends AnyFunSuite:
     assert(logMessages.contains("Payment successful: txn_12345"))
     assert(logMessages.contains("Order complete"))
 
+  // === Real-world environment patterns ===
+
+  test("pattern 1: case class environment bundles capabilities"):
+    // Instead of mixing traits, bundle them in a case class
+    case class AppEnv(
+      logs: Logs,
+      clock: Clock,
+      random: Random
+    )
+
+    // Tasks access what they need via the bundle
+    def logTime: Task2[AppEnv, Unit] = Task2[AppEnv, Unit]: env =>
+      val time = env.clock.currentTimeMillis
+      env.logs.logInfo(s"Current time: $time")
+      Right(())
+
+    def randomDelay: Task2[AppEnv, Int] = Task2[AppEnv, Int]: env =>
+      Right(env.random.nextInt(100))
+
+    val workflow: Task2[AppEnv, Int] = for
+      _     <- logTime
+      delay <- randomDelay
+    yield delay
+
+    // Clean instantiation - no mixin gymnastics
+    val env = AppEnv(
+      logs = Logs.console,
+      clock = Clock.system,
+      random = Random.live
+    )
+
+    assert(workflow.run(env).isRight)
+
+  test("pattern 2: provide layers incrementally"):
+    // Start with fine-grained requirements
+    def needsClock: Task2[Clock, Long] =
+      Task2.serviceWith[Clock, Long](_.currentTimeMillis)
+
+    def needsRandom: Task2[Random, Int] =
+      Task2.serviceWith[Random, Int](_.nextInt(100))
+
+    // Combine them
+    val combined: Task2[Clock & Random, (Long, Int)] =
+      needsClock.zip(needsRandom)
+
+    // Provide capabilities one at a time using provide
+    val withClock: Task2[Random, (Long, Int)] = combined.provide: random =>
+      new Clock with Random:
+        def currentTimeMillis = Clock.system.currentTimeMillis
+        def nextInt(bound: Int) = random.nextInt(bound)
+        def nextDouble = random.nextDouble
+
+    // Now only Random is needed
+    val result = withClock.run(Random.seeded(42L))
+    assert(result.isRight)
+
+  test("pattern 3: module pattern for production code"):
+    // Define a module that holds related capabilities
+    trait OrderModule:
+      def database: Database
+      def payments: PaymentGateway
+      def email: EmailService
+      def logs: Logs
+
+    // Capabilities for this test
+    trait Database:
+      def findOrder(id: String): Result[String]
+
+    trait PaymentGateway:
+      def charge(amount: Int): Result[String]
+
+    // Tasks are defined against the module
+    def getOrder(id: String): Task2[OrderModule, String] =
+      Task2.serviceWithTask[OrderModule, String](_.database.findOrder(id))
+
+    def chargeCard(amount: Int): Task2[OrderModule, String] =
+      Task2.serviceWithTask[OrderModule, String](_.payments.charge(amount))
+
+    def sendNotification(msg: String): Task2[OrderModule, Unit] =
+      Task2.serviceWithTask[OrderModule, Unit](_.email.sendEmail("user@test.com", msg))
+
+    def log(msg: String): Task2[OrderModule, Unit] =
+      Task2.serviceWith[OrderModule, Unit](_.logs.logInfo(msg))
+
+    val workflow: Task2[OrderModule, String] = for
+      _       <- log("Starting order processing")
+      orderId <- getOrder("123")
+      txnId   <- chargeCard(100)
+      _       <- sendNotification(s"Order $orderId charged: $txnId")
+    yield txnId
+
+    // Production: real implementations
+    object ProdModule extends OrderModule:
+      val database = new Database:
+        def findOrder(id: String) = Right(s"order-$id")
+      val payments = new PaymentGateway:
+        def charge(amount: Int) = Right(s"txn-${System.currentTimeMillis}")
+      val email = new EmailService:
+        def sendEmail(to: String, body: String) = Right(()) // real SMTP here
+      val logs = Logs.console
+
+    // Test: mock implementations
+    object TestModule extends OrderModule:
+      val database = new Database:
+        def findOrder(id: String) = Right("test-order")
+      val payments = new PaymentGateway:
+        def charge(amount: Int) = Right("test-txn")
+      val email = new EmailService:
+        def sendEmail(to: String, body: String) = Right(())
+      val logs = Logs.silent
+
+    // Same workflow, different environments
+    assert(workflow.run(ProdModule).isRight)
+    assert(workflow.run(TestModule) == Right("test-txn"))
+
+  test("pattern 4: main app entry point"):
+    // This is how your main app would look
+
+    // 1. Define your capabilities
+    trait AppCapabilities:
+      def logs: Logs
+      def clock: Clock
+
+    // 2. Define your app logic as Task2
+    def appLogic: Task2[AppCapabilities, String] = for
+      _    <- Task2.serviceWith[AppCapabilities, Unit](_.logs.logInfo("App starting"))
+      time <- Task2.serviceWith[AppCapabilities, Long](_.clock.currentTimeMillis)
+      _    <- Task2.serviceWith[AppCapabilities, Unit](_.logs.logInfo(s"Time: $time"))
+    yield s"Started at $time"
+
+    // 3. In main(), create the live environment and run
+    object LiveEnv extends AppCapabilities:
+      val logs = Logs.console
+      val clock = Clock.system
+
+    // def main(args: Array[String]): Unit =
+    //   appLogic.run(LiveEnv) match
+    //     case Right(msg) => println(s"Success: $msg")
+    //     case Left(fail) => println(s"Failed: $fail"); sys.exit(1)
+
+    // For this test, just verify it works
+    assert(appLogic.run(LiveEnv).isRight)
+
+  test("incorporating non-Task2 functions into for-comprehensions"):
+    // Regular functions that don't return Task2
+    def pureCalculation(x: Int): Int = x * 2
+    def parseNumber(s: String): Option[Int] = s.toIntOption
+    def riskyParse(s: String): scala.util.Try[Int] = scala.util.Try(s.toInt)
+    def validate(n: Int): Either[String, Int] = if n > 0 then Right(n) else Left("must be positive")
+    
+    // Method 1: Use = for pure transformations (no lifting needed!)
+    val withPure: Task2[Any, Int] = for
+      base   <- Task2.succeed(21)
+      doubled = pureCalculation(base)  // just use = for pure functions
+    yield doubled
+    
+    assert(withPure.run(()) == Right(42))
+    
+    // Method 2: Use Task2.fromOption for Option-returning functions
+    val withOption: Task2[Any, Int] = for
+      input  <- Task2.succeed("42")
+      parsed <- Task2.fromOption("parseNumber")(parseNumber(input))
+    yield parsed
+    
+    assert(withOption.run(()) == Right(42))
+    
+    val withOptionFail: Task2[Any, Int] = for
+      input  <- Task2.succeed("not a number")
+      parsed <- Task2.fromOption("parseNumber", "invalid integer")(parseNumber(input))
+    yield parsed
+    
+    assert(withOptionFail.run(()) == Left(Fail("parseNumber", "invalid integer")))
+    
+    // Method 3: Use Task2.fromTry for Try-returning functions
+    val withTry: Task2[Any, Int] = for
+      input  <- Task2.succeed("42")
+      parsed <- Task2.fromTry("riskyParse")(riskyParse(input))
+    yield parsed
+    
+    assert(withTry.run(()) == Right(42))
+    
+    // Method 4: Use Task2.fromEither for Either-returning functions
+    val withEither: Task2[Any, Int] = for
+      n         <- Task2.succeed(10)
+      validated <- Task2.fromEither("validate")(validate(n))
+    yield validated
+    
+    assert(withEither.run(()) == Right(10))
+    
+    val withEitherFail: Task2[Any, Int] = for
+      n         <- Task2.succeed(-5)
+      validated <- Task2.fromEither("validate")(validate(n))
+    yield validated
+    
+    assert(withEitherFail.run(()) == Left(Fail("validate", "must be positive")))
+    
+    // Method 5: Complex example mixing everything
+    def fetchConfig: Task2[Any, Map[String, String]] = 
+      Task2.succeed(Map("maxRetries" -> "3", "timeout" -> "5000"))
+    
+    def getEnvVar(name: String): Option[String] = 
+      if name == "API_KEY" then Some("secret123") else None
+    
+    val complexWorkflow: Task2[Logs, String] = for
+      config     <- fetchConfig
+      maxRetries  = config.getOrElse("maxRetries", "1").toInt  // pure, use =
+      timeout     = config.getOrElse("timeout", "1000").toInt   // pure, use =
+      apiKey     <- Task2.fromOption("env.API_KEY")(getEnvVar("API_KEY"))
+      _          <- Task2.serviceWith[Logs, Unit](_.logInfo(s"Using $maxRetries retries, ${timeout}ms timeout"))
+    yield s"Configured with key ${apiKey.take(3)}***"
+    
+    assert(complexWorkflow.run(Logs.silent) == Right("Configured with key sec***"))
+
 
