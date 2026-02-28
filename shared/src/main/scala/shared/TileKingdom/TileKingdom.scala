@@ -420,35 +420,150 @@ case class Tile(
   )
 
 // ============================================================================
+// Island - a fixed 3x5 tile grid
+// ============================================================================
+
+case class Island(
+    id: Int,
+    tiles: Map[Coord, Tile]
+) derives ReadWriter:
+  /** All tiles that are unlocked on this island */
+  def unlockedTiles: List[Tile] =
+    tiles.values.filter(_.unlocked).toList.sortBy(t => (t.coord.row, t.coord.col))
+
+  /** All tiles that are locked on this island */
+  def lockedTiles: List[Tile] =
+    tiles.values.filterNot(_.unlocked).toList.sortBy(t => (t.coord.row, t.coord.col))
+
+  /** Check if all unlocked tiles have buildings */
+  def allUnlockedTilesFilled: Boolean =
+    unlockedTiles.nonEmpty && unlockedTiles.forall(_.isBuilding)
+
+  /** Check if all 15 tiles are unlocked */
+  def allTilesUnlocked: Boolean =
+    tiles.values.forall(_.unlocked)
+
+  /** Check if this island is complete (all tiles unlocked AND all have buildings) */
+  def isComplete: Boolean =
+    allTilesUnlocked && allUnlockedTilesFilled
+
+  /** Get unlockable tile coords (locked tiles adjacent to unlocked tiles) */
+  def unlockableCoords: Set[Coord] =
+    val unlockedCoords = unlockedTiles.map(_.coord).toSet
+    val allAdjacentToUnlocked = unlockedCoords.flatMap(_.neighbors)
+    allAdjacentToUnlocked.filter(c =>
+      tiles.get(c).exists(!_.unlocked) // Must be a locked tile on this island
+    )
+
+object Island:
+  val Width: Int = 3   // 3 columns (0-2)
+  val Height: Int = 5  // 5 rows (0-4)
+  val TileCount: Int = Width * Height // 15 tiles
+
+  /** All valid coordinates for an island */
+  val AllCoords: Set[Coord] =
+    (for
+      row <- 0 until Height
+      col <- 0 until Width
+    yield Coord(row, col)).toSet
+
+  /** Create a new island with all tiles locked except one starting tile */
+  def create(id: Int): Island =
+    val startCoord = Coord(Height / 2, Width / 2) // Center tile (row 2, col 1)
+    val tiles = AllCoords.map { coord =>
+      val unlocked = coord == startCoord
+      coord -> Tile(coord = coord, tileType = TileType.Empty, unlocked = unlocked)
+    }.toMap
+    Island(id = id, tiles = tiles)
+
+// ============================================================================
 // Game State
 // ============================================================================
 
 case class TileKingdomGame(
-    tiles: Map[Coord, Tile],
-    wheat: Double, // Can be fractional for smooth accumulation
-    wood: Double, // Wood resource
-    faith: Double, // Faith resource from temples
+    islands: List[Island],        // List of islands (replaces tiles: Map[Coord, Tile])
+    currentIslandIndex: Int,      // Which island is currently being viewed
+    wheat: Double,                // Can be fractional for smooth accumulation
+    wood: Double,                 // Wood resource
+    faith: Double,                // Faith resource from temples
     gold: Int,
-    stone: Double = 0.0, // Stone resource from quarries
-    lastTickTime: Long, // Timestamp in milliseconds for offline progress
+    stone: Double = 0.0,          // Stone resource from quarries
+    lastTickTime: Long,           // Timestamp in milliseconds for offline progress
     totalAbdications: Int,
-    bureauMode: Map[Coord, BureauMode] = Map.empty, // Bureau operation mode per bureau
-    bureauDirection: Map[Coord, BureauDirection] = Map.empty, // Bureau direction per bureau (requires Management1B)
-    townHallDirection: Map[Coord, BureauDirection] = Map.empty, // Town Hall direction per town hall (requires Management2B)
-    upgradeCooldowns: Map[Coord, Long] = Map.empty, // Deprecated, kept for save compatibility
+    bureauMode: Map[Coord, BureauMode] = Map.empty,      // Bureau mode per coord (on current island)
+    bureauDirection: Map[Coord, BureauDirection] = Map.empty, // Bureau direction per coord
+    townHallDirection: Map[Coord, BureauDirection] = Map.empty, // Town Hall direction per coord
     politicianRoster: List[Politician] = List.empty, // Available politicians to assign
-    lastPoliticianGeneration: Long = 0L, // Timestamp of last politician generation tick
-    politicianGenerationProgress: Double = 0.0, // Progress towards next politician (0.0 to 1.0)
-    legacyPoints: Int = 0, // Legacy points earned from Sailing (second tier prestige)
-    skillPoints: Int = 0, // Skill points (1 per 25 legacy points)
+    lastPoliticianGeneration: Long = 0L,             // Timestamp of last politician generation tick
+    politicianGenerationProgress: Double = 0.0,     // Progress towards next politician (0.0 to 1.0)
+    legacyPoints: Int = 0,        // Legacy points earned from Sailing (second tier prestige)
+    skillPoints: Int = 0,         // Skill points (1 per 25 legacy points)
     unlockedSkills: Set[Skill] = Set.empty, // Skills unlocked via skill tree
-    hasSailed: Boolean = false, // Whether player has sailed at least once (unlocks skill tree)
+    hasSailed: Boolean = false,   // Whether player has sailed at least once (unlocks skill tree)
     hasPlacedBuilding: Boolean = false, // Whether any building has been placed since last abdication/sail
-    tilePoints: Int = 0, // Tile points earned by destroying tiles, used for free tile unlocks
+    tilePoints: Int = 0,          // Tile points earned by destroying tiles, used for free tile unlocks
     totalSkillPointsEarned: Int = 0 // Cumulative skill points ever earned (for save recovery)
 ) derives ReadWriter:
 
+  // ============================================================================
+  // Island helpers
+  // ============================================================================
+
+  /** Get the currently viewed island */
+  def currentIsland: Island = islands(currentIslandIndex)
+
+  /** Get all unlocked tiles across all islands (for production calculations) */
+  def allUnlockedTiles: List[Tile] = islands.flatMap(_.unlockedTiles)
+
+  /** Total number of unlocked tiles across all islands */
+  def totalUnlockedTileCount: Int = allUnlockedTiles.size
+
+  /** Total number of islands */
+  def totalIslands: Int = islands.size
+
+  /** Check if can navigate to previous island */
+  def canGoPreviousIsland: Boolean = currentIslandIndex > 0
+
+  /** Check if can navigate to next island */
+  def canGoNextIsland: Boolean = currentIslandIndex < islands.size - 1
+
+  /** Check if current island is complete (all 15 tiles unlocked and filled) */
+  def currentIslandComplete: Boolean = currentIsland.isComplete
+
+  /** Check if can unlock a new island */
+  def canUnlockNewIsland: Boolean =
+    currentIslandComplete && gold >= TileKingdomLogic.islandUnlockCost(islands.size)
+
+  /** Get unlockable tile coords on current island */
+  def unlockableCoordsOnCurrentIsland: Set[Coord] = currentIsland.unlockableCoords
+
+  // ============================================================================
+  // Tile accessors for current island (backward compatibility)
+  // ============================================================================
+
+  /** Get tiles on current island (for backward compatibility with existing logic) */
+  def tiles: Map[Coord, Tile] = currentIsland.tiles
+
+  /** Update a tile on the current island */
+  def updateTileOnCurrentIsland(coord: Coord, tile: Tile): TileKingdomGame =
+    val updatedIsland = currentIsland.copy(tiles = currentIsland.tiles.updated(coord, tile))
+    copy(islands = islands.updated(currentIslandIndex, updatedIsland))
+
+  /** Update multiple tiles on the current island */
+  def updateTilesOnCurrentIsland(updates: Map[Coord, Tile]): TileKingdomGame =
+    val updatedTiles = currentIsland.tiles ++ updates
+    val updatedIsland = currentIsland.copy(tiles = updatedTiles)
+    copy(islands = islands.updated(currentIslandIndex, updatedIsland))
+
+  /** Remove a tile from the current island (reset to empty locked) */
+  def removeTileOnCurrentIsland(coord: Coord): TileKingdomGame =
+    val resetTile = Tile(coord = coord, tileType = TileType.Empty, unlocked = false)
+    updateTileOnCurrentIsland(coord, resetTile)
+
+  // ============================================================================
   // Resource helpers
+  // ============================================================================
+
   def resources: Resources = Resources(wheat, wood, faith, gold, stone)
 
   def canAfford(cost: Cost): Boolean = resources.canAfford(cost)
@@ -462,29 +577,30 @@ case class TileKingdomGame(
     case Resource.Gold  => copy(gold = gold - cost.amount)
     case Resource.Stone => copy(stone = stone - cost.amount)
 
-  def unlockedTiles: List[Tile] =
-    tiles.values.filter(_.unlocked).toList.sortBy(t => (t.coord.row, t.coord.col))
+  /** All unlocked tiles (across all islands) */
+  def unlockedTiles: List[Tile] = allUnlockedTiles
 
-  def lockedTiles: List[Tile] =
-    tiles.values.filterNot(_.unlocked).toList.sortBy(t => (t.coord.row, t.coord.col))
+  /** All locked tiles (across all islands) */
+  def lockedTiles: List[Tile] = islands.flatMap(_.lockedTiles)
 
+  /** Check if all unlocked tiles on all islands have buildings */
   def allTilesFilled: Boolean =
-    unlockedTiles.nonEmpty && unlockedTiles.forall(_.isBuilding)
+    allUnlockedTiles.nonEmpty && allUnlockedTiles.forall(_.isBuilding)
 
   def hasWheatField: Boolean =
-    unlockedTiles.exists(_.isWheatField)
+    allUnlockedTiles.exists(_.isWheatField)
 
   def hasFarm: Boolean =
-    unlockedTiles.exists(_.isFarm)
+    allUnlockedTiles.exists(_.isFarm)
 
   def hasWoodcutter: Boolean =
-    unlockedTiles.exists(_.isWoodcutter)
+    allUnlockedTiles.exists(_.isWoodcutter)
 
   def hasQuarry: Boolean =
-    unlockedTiles.exists(_.isQuarry)
+    allUnlockedTiles.exists(_.isQuarry)
 
   def hasTownHall: Boolean =
-    unlockedTiles.exists(_.isTownHall)
+    allUnlockedTiles.exists(_.isTownHall)
 
   // Building unlock progression:
   // Wheat Field -> Farm -> Forest -> everything else
@@ -504,15 +620,15 @@ case class TileKingdomGame(
     TileKingdomLogic.totalFaithProductionRate(this)
 
   def nextTileUnlockCost: Int =
-    TileKingdomLogic.tileUnlockCost(unlockedTiles.size)
+    TileKingdomLogic.tileUnlockCost(totalUnlockedTileCount)
 
   def abdicationGoldReward: Int =
     TileKingdomLogic.abdicationReward(totalIncomeRate)
 
-  // Sail (second tier prestige) - requires 25 tiles
-  def canSail: Boolean = unlockedTiles.size >= TileKingdomLogic.SailMinTiles
+  // Sail (second tier prestige) - requires 2+ islands
+  def canSail: Boolean = islands.size >= TileKingdomLogic.SailMinIslands
 
-  def sailLegacyReward: Int = unlockedTiles.size // 1 legacy point per tile destroyed
+  def sailLegacyReward: Int = totalUnlockedTileCount // 1 legacy point per tile destroyed
 
   // Skill helpers
   def hasSkill(skill: Skill): Boolean = unlockedSkills.contains(skill)
@@ -551,6 +667,7 @@ case class TileKingdomGame(
             alts.contains(skill) && !alts.exists(alt => alt != skill && unlockedSkills.contains(alt))
       dependents.isEmpty
 
+
 // ============================================================================
 // Game Logic
 // ============================================================================
@@ -560,8 +677,20 @@ object TileKingdomLogic:
   // Constants
   val TickIntervalSeconds: Double = 0.5 // Tick four times per second
   val ProductionIntervalSeconds: Int = 10 // Wheat fields produce every 10 seconds
-  val InitialTileCount: Int = 4
+  val InitialTileCount: Int = 1 // Start with 1 unlocked tile per island
   val FarmBoostPerLevel: Double = 0.25 // 25% boost per farm level
+  val StartingGold: Int = 10 // Enough to unlock first tile
+
+  // Island constants
+  val SailMinIslands: Int = 2 // Minimum islands required to sail
+
+  // Island unlock costs
+  def islandUnlockCost(currentIslandCount: Int): Int =
+    currentIslandCount match
+      case 1 => 1000     // Island 2: 1,000 gold
+      case 2 => 5000     // Island 3: 5,000 gold
+      case 3 => 25000    // Island 4: 25,000 gold
+      case n => 25000 * math.pow(2, n - 3).toInt // Island 5+: exponential
 
   // Bureau constants
   val BureauIntervalSeconds: Int = 5 // Bureau attempts upgrade every 5 seconds
@@ -587,7 +716,7 @@ object TileKingdomLogic:
 
   // Calculate actual max roster size including skill bonuses and academies
   def maxPoliticianRosterSize(game: TileKingdomGame): Int =
-    val academyBonus = game.tiles.values.count(_.isAcademy)
+    val academyBonus = game.allUnlockedTiles.count(_.isAcademy)
     MaxPoliticianRosterSize + academyBonus
 
   // Quarry constants
@@ -605,7 +734,6 @@ object TileKingdomLogic:
   val BaseRarePoliticianChance: Double = 0.05 // 5% base chance for rare politician
 
   // Sail (second tier prestige) constants
-  val SailMinTiles: Int = 25 // Minimum tiles required to sail
   val LegacyPointsPerSkillPoint: Int = 25 // Legacy points needed for 1 skill point
   val SkillRefundGoldCost: Int = 1000 // Gold cost per skill point refunded
 
@@ -623,16 +751,66 @@ object TileKingdomLogic:
     ("Grand Vizier", "Master Strategist", PoliticianEffect.AllProductionMultiplier(1.25), "🎭")
   )
 
-  // Initial 2x2 tiles at origin (center of infinite grid)
-  val InitialUnlockedCoords: Set[Coord] = Set(
-    Coord(0, 0),
-    Coord(0, 1),
-    Coord(1, 0),
-    Coord(1, 1)
-  )
+  // ============================================================================
+  // Island Management
+  // ============================================================================
+
+
+  /** Navigate to previous island */
+  def previousIsland(game: TileKingdomGame): TileKingdomGame =
+    if game.canGoPreviousIsland then
+      game.copy(currentIslandIndex = game.currentIslandIndex - 1)
+    else game
+
+  /** Navigate to next island */
+  def nextIsland(game: TileKingdomGame): TileKingdomGame =
+    if game.canGoNextIsland then
+      game.copy(currentIslandIndex = game.currentIslandIndex + 1)
+    else game
+
+  /** Unlock a new island */
+  def unlockNewIsland(game: TileKingdomGame): Either[String, TileKingdomGame] =
+    val cost = islandUnlockCost(game.islands.size)
+    if !game.currentIslandComplete then
+      Left("Current island must be complete to unlock a new island")
+    else if game.gold < cost then
+      Left(s"Not enough gold (need $cost)")
+    else
+      val newIsland = Island.create(game.islands.size)
+      Right(game.copy(
+        islands = game.islands :+ newIsland,
+        currentIslandIndex = game.islands.size, // Navigate to new island
+        gold = game.gold - cost
+      ))
+
+  /** Unlock a tile on the current island */
+  def unlockTileOnCurrentIsland(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
+    val island = game.currentIsland
+    island.tiles.get(coord) match
+      case None => Left("Coordinate not on this island")
+      case Some(tile) if tile.unlocked => Left("Tile already unlocked")
+      case Some(_) if !island.unlockableCoords.contains(coord) =>
+        Left("Can only unlock tiles adjacent to your territory")
+      case Some(tile) =>
+        // Use tile point if available, otherwise use gold
+        val cost = tileUnlockCost(game.totalUnlockedTileCount)
+        if game.tilePoints > 0 then
+          val updatedIsland = island.copy(tiles = island.tiles.updated(coord, tile.copy(unlocked = true)))
+          Right(game.copy(
+            islands = game.islands.updated(game.currentIslandIndex, updatedIsland),
+            tilePoints = game.tilePoints - 1
+          ))
+        else if game.gold < cost then
+          Left(s"Not enough gold (need $cost)")
+        else
+          val updatedIsland = island.copy(tiles = island.tiles.updated(coord, tile.copy(unlocked = true)))
+          Right(game.copy(
+            islands = game.islands.updated(game.currentIslandIndex, updatedIsland),
+            gold = game.gold - cost
+          ))
 
   // ============================================================================
-  // Forest Group Cache
+  // Forest Group Cache (island-scoped)
   // ============================================================================
 
   // Cache for forest group sizes, keyed by the set of woodcutter coordinates
@@ -953,11 +1131,11 @@ object TileKingdomLogic:
         case _ => false
       => coord
 
-    var updatedTiles = game.tiles
+    var updatedTiles = Map.empty[Coord, Tile]
     var destroyedPoliticians: List[String] = List.empty
 
     townHallCoords.foreach: coord =>
-      updatedTiles.get(coord).foreach: tile =>
+      game.tiles.get(coord).foreach: tile =>
         tile.tileType match
           case TileType.TownHall(politicians) if politicians.nonEmpty =>
             val lifespanMultiplier = politicianLifespanMultiplier(game, coord)
@@ -971,7 +1149,7 @@ object TileKingdomLogic:
             updatedTiles = updatedTiles.updated(coord, updatedTile)
           case _ => ()
 
-    (game.copy(tiles = updatedTiles), destroyedPoliticians)
+    (game.updateTilesOnCurrentIsland(updatedTiles), destroyedPoliticians)
 
   // Base production per harvest (wheat per 10-second interval) - without bonuses
   def baseWheatProductionRate(tile: Tile): Double = tile.tileType match
@@ -1185,20 +1363,15 @@ object TileKingdomLogic:
 
   // Create initial game state
   def newGame(currentTimeMillis: Long): TileKingdomGame =
-    val initialTiles = InitialUnlockedCoords.map: coord =>
-      coord -> Tile(
-        coord = coord,
-        tileType = TileType.Empty,
-        unlocked = true
-      )
-    .toMap
+    val initialIsland = Island.create(0)
 
     TileKingdomGame(
-      tiles = initialTiles,
+      islands = List(initialIsland),
+      currentIslandIndex = 0,
       wheat = 50.0, // Start with some wheat to build first field
       wood = 0.0,
       faith = 0.0,
-      gold = 0,
+      gold = StartingGold, // Enough gold to unlock first tile
       lastTickTime = currentTimeMillis,
       totalAbdications = 0,
       politicianRoster = List.empty,
@@ -1221,7 +1394,7 @@ object TileKingdomLogic:
       lastTickTime = currentTimeMillis
     )
 
-  /** Shared validation and placement for all build actions. */
+  /** Shared validation and placement for all build actions on current island. */
   private def buildOnEmptyTile(
       game: TileKingdomGame,
       coord: Coord,
@@ -1230,15 +1403,17 @@ object TileKingdomLogic:
       prerequisite: => Boolean = true,
       prerequisiteMsg: String = ""
   ): Either[String, TileKingdomGame] =
-    game.tiles.get(coord) match
-      case None                                 => Left("Tile not found")
+    val island = game.currentIsland
+    island.tiles.get(coord) match
+      case None                                 => Left("Tile not found on this island")
       case Some(tile) if !tile.unlocked         => Left("Tile is locked")
       case Some(tile) if !tile.isEmpty          => Left("Tile is not empty")
       case Some(_) if !prerequisite             => Left(prerequisiteMsg)
       case Some(_) if !game.canAfford(cost)     => Left(s"Not enough ${cost.resource.toString.toLowerCase} (need ${cost.amount})")
       case Some(tile) =>
+        val updatedIsland = island.copy(tiles = island.tiles.updated(coord, tile.copy(tileType = tileType)))
         Right(game.deduct(cost).copy(
-          tiles = game.tiles.updated(coord, tile.copy(tileType = tileType)),
+          islands = game.islands.updated(game.currentIslandIndex, updatedIsland),
           hasPlacedBuilding = true
         ))
 
@@ -1300,7 +1475,7 @@ object TileKingdomLogic:
             case AcademyMode.FasterPoliticians => AcademyMode.RareChance
             case AcademyMode.RareChance => AcademyMode.FasterPoliticians
           val updatedTile = tile.copy(tileType = TileType.Academy(newMode))
-          Right(game.copy(tiles = game.tiles.updated(coord, updatedTile)))
+          Right(game.updateTileOnCurrentIsland(coord, updatedTile))
         case _ => Left("Tile is not an academy")
 
   // Assign a politician from the roster to a town hall (adds to list, or replaces oldest if at capacity)
@@ -1321,8 +1496,7 @@ object TileKingdomLogic:
                   (existing.tail :+ newPolitician, List(existing.head))
               val updatedTile = tile.copy(tileType = TileType.TownHall(updatedPols))
               val updatedRoster = game.politicianRoster.filterNot(_.id == politicianId) ++ returnedToRoster
-              Right(game.copy(
-                tiles = game.tiles.updated(townHallCoord, updatedTile),
+              Right(game.updateTileOnCurrentIsland(townHallCoord, updatedTile).copy(
                 politicianRoster = updatedRoster
               ))
         case _ => Left("Tile is not a town hall")
@@ -1341,8 +1515,7 @@ object TileKingdomLogic:
             case Some(politician) =>
               val remaining = politicians.filterNot(_.id == politician.id)
               val updatedTile = tile.copy(tileType = TileType.TownHall(remaining))
-              Right(game.copy(
-                tiles = game.tiles.updated(townHallCoord, updatedTile),
+              Right(game.updateTileOnCurrentIsland(townHallCoord, updatedTile).copy(
                 politicianRoster = game.politicianRoster :+ politician
               ))
         case TileType.TownHall(_) => Left("Town Hall has no politician")
@@ -1364,21 +1537,19 @@ object TileKingdomLogic:
               // Target has room: just move
               val updatedFrom = fromTile.copy(tileType = TileType.TownHall(fromRemaining))
               val updatedTo = toTile.copy(tileType = TileType.TownHall(toPols :+ movedPol))
-              Right(game.copy(
-                tiles = game.tiles
-                  .updated(fromCoord, updatedFrom)
-                  .updated(toCoord, updatedTo)
-              ))
+              Right(game.updateTilesOnCurrentIsland(Map(
+                fromCoord -> updatedFrom,
+                toCoord -> updatedTo
+              )))
             else
               // Target full: swap first politician
               val swappedPol = toPols.head
               val updatedFrom = fromTile.copy(tileType = TileType.TownHall(fromRemaining :+ swappedPol))
               val updatedTo = toTile.copy(tileType = TileType.TownHall(toPols.tail :+ movedPol))
-              Right(game.copy(
-                tiles = game.tiles
-                  .updated(fromCoord, updatedFrom)
-                  .updated(toCoord, updatedTo)
-              ))
+              Right(game.updateTilesOnCurrentIsland(Map(
+                fromCoord -> updatedFrom,
+                toCoord -> updatedTo
+              )))
           case (TileType.TownHall(pols), _) if pols.isEmpty => Left("Source town hall has no politician")
           case (_, TileType.TownHall(_)) => Left("Source is not a town hall")
           case _ => Left("Target is not a town hall")
@@ -1396,9 +1567,7 @@ object TileKingdomLogic:
             if !game.canAfford(cost) then
               Left(s"Not enough ${cost.resource.toString.toLowerCase} (need ${cost.amount})")
             else
-              Right(game.deduct(cost).copy(
-                tiles = game.tiles.updated(coord, tile.withNextLevel)
-              ))
+              Right(game.deduct(cost).updateTileOnCurrentIsland(coord, tile.withNextLevel))
 
 
   // Cycle bureau mode: Slow -> Turbo -> Disabled -> Slow
@@ -1543,9 +1712,7 @@ object TileKingdomLogic:
               if effectiveIsTurbo then afterBureauFee.copy(faith = afterBureauFee.faith - turboFaithCost)
               else afterBureauFee
 
-            val newGame = afterTurboCost.copy(
-              tiles = gameWithTurboCheck.tiles.updated(targetCoord, upgradedTile)
-            )
+            val newGame = afterTurboCost.updateTileOnCurrentIsland(targetCoord, upgradedTile)
             Some((newGame, targetCoord))
           case None =>
             // No affordable upgrade, but return game with turbo disabled if it was disabled
@@ -1565,12 +1732,11 @@ object TileKingdomLogic:
         val returnedPoliticians = tile.tileType match
           case TileType.TownHall(politicians) => politicians
           case _ => List.empty
-        Right(game.copy(
-          tiles = game.tiles.updated(coord, updatedTile),
+        Right(game.updateTileOnCurrentIsland(coord, updatedTile).copy(
           politicianRoster = game.politicianRoster ++ returnedPoliticians
         ))
 
-  // Destroy a tile entirely (removes it from the map), awarding a tile point
+  // Destroy a tile entirely (resets it to locked empty), awarding a tile point
   // If destroying a Town Hall, its politicians are returned to the roster
   def destroyTile(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
     game.tiles.get(coord) match
@@ -1578,74 +1744,76 @@ object TileKingdomLogic:
       case Some(tile) if !tile.unlocked => Left("Tile is locked")
       case Some(tile) =>
         // Must have at least 2 unlocked tiles to destroy one (can't destroy last tile)
-        if game.unlockedTiles.size <= 1 then
+        if game.currentIsland.unlockedTiles.size <= 1 then
           Left("Cannot destroy your last tile")
         else
           val returnedPoliticians = tile.tileType match
             case TileType.TownHall(politicians) => politicians
             case _ => List.empty
-          Right(game.copy(
-            tiles = game.tiles.removed(coord),
+          Right(game.removeTileOnCurrentIsland(coord).copy(
             tilePoints = game.tilePoints + 1,
             politicianRoster = game.politicianRoster ++ returnedPoliticians
           ))
 
-  // Abdicate: reset tiles, gain gold based on income rate
+  // Abdicate: reset buildings on all islands, gain gold based on income rate
+  // Can abdicate at any time (no restrictions)
   def abdicate(game: TileKingdomGame, currentTimeMillis: Long): Either[String, TileKingdomGame] =
-    if !game.allTilesFilled then
-      Left("Must fill all unlocked tiles with buildings before abdicating")
-    else
-      val goldReward = abdicationReward(game.totalIncomeRate)
+    val goldReward = abdicationReward(game.totalIncomeRate)
 
-      val resetTiles = game.tiles.map:
-        case (coord, tile) if tile.unlocked =>
-          coord -> tile.copy(tileType = TileType.Empty)
-        case (coord, tile) =>
-          coord -> tile
+    // Clear all buildings but keep all islands and tile unlock status
+    val resetIslands = game.islands.map { island =>
+      island.copy(tiles = island.tiles.map { case (coord, tile) =>
+        coord -> tile.copy(tileType = TileType.Empty) // Keep unlocked status
+      })
+    }
 
-      Right(game.copy(
-        tiles = resetTiles,
-        wheat = 50.0, // Reset wheat, give starting amount
-        wood = 0.0, // Reset wood
-        faith = 0.0, // Reset faith
-        stone = 0.0, // Reset stone
-        gold = game.gold + goldReward,
-        lastTickTime = currentTimeMillis,
-        totalAbdications = game.totalAbdications + 1,
-        bureauMode = Map.empty, // Reset bureau mode since bureaus are destroyed
-        politicianRoster = List.empty, // All politicians are destroyed on abdication
-        politicianGenerationProgress = 0.0, // Reset politician generation progress
-        hasPlacedBuilding = false // Fresh abdication
-      ))
+    Right(game.copy(
+      islands = resetIslands,
+      currentIslandIndex = 0, // Go back to first island
+      wheat = 50.0, // Reset wheat, give starting amount
+      wood = 0.0, // Reset wood
+      faith = 0.0, // Reset faith
+      stone = 0.0, // Reset stone
+      gold = game.gold + goldReward,
+      lastTickTime = currentTimeMillis,
+      totalAbdications = game.totalAbdications + 1,
+      bureauMode = Map.empty, // Reset bureau mode since bureaus are destroyed
+      bureauDirection = Map.empty,
+      townHallDirection = Map.empty,
+      politicianRoster = List.empty, // All politicians are destroyed on abdication
+      politicianGenerationProgress = 0.0, // Reset politician generation progress
+      hasPlacedBuilding = false // Fresh abdication
+    ))
 
   // Sail: second tier prestige - reset everything including gold, gain legacy points for tiles
   def sail(game: TileKingdomGame, currentTimeMillis: Long): Either[String, TileKingdomGame] =
     if !game.canSail then
-      Left(s"Must have at least $SailMinTiles tiles to sail")
+      Left(s"Must have at least $SailMinIslands islands to sail")
     else
-      val tilesDestroyed = game.unlockedTiles.size
+      val tilesDestroyed = game.totalUnlockedTileCount
       val totalLegacyPoints = game.legacyPoints + tilesDestroyed
       val skillPointsEarned = totalLegacyPoints / LegacyPointsPerSkillPoint
       val remainingLegacyPoints = totalLegacyPoints % LegacyPointsPerSkillPoint
 
-      // Reset to initial 4 tiles, all empty
-      val initialTiles = InitialUnlockedCoords.map: coord =>
-        coord -> Tile(coord = coord, tileType = TileType.Empty, unlocked = true)
-      .toMap
+      // Reset to single starting island
+      val startingIsland = Island.create(0)
 
       val newTotalSkillPoints = game.skillPoints + skillPointsEarned
       val newTotalEarned = game.totalSkillPointsEarned + skillPointsEarned
 
       Right(game.copy(
-        tiles = initialTiles,
+        islands = List(startingIsland),
+        currentIslandIndex = 0,
         wheat = 50.0, // Reset to starting amount
         wood = 0.0,
         faith = 0.0,
         stone = 0.0,
-        gold = 0, // Gold resets on sail
+        gold = StartingGold, // Reset to starting gold
         lastTickTime = currentTimeMillis,
         totalAbdications = 0, // Abdications reset on sail
         bureauMode = Map.empty,
+        bureauDirection = Map.empty,
+        townHallDirection = Map.empty,
         politicianRoster = List.empty,
         politicianGenerationProgress = 0.0,
         legacyPoints = remainingLegacyPoints,
@@ -1655,139 +1823,14 @@ object TileKingdomLogic:
         totalSkillPointsEarned = newTotalEarned
       ))
 
-  // Get all coords that can be unlocked (coords adjacent to unlocked tiles that aren't already tiles)
+  // Get all coords that can be unlocked on current island (locked tiles adjacent to unlocked tiles)
   def unlockableCoords(game: TileKingdomGame): Set[Coord] =
-    val unlockedCoords = game.unlockedTiles.map(_.coord).toSet
-    val allAdjacentToUnlocked = unlockedCoords.flatMap(_.neighbors)
-    allAdjacentToUnlocked.filterNot(game.tiles.contains)
+    game.unlockableCoordsOnCurrentIsland
 
-  // Unlock a specific tile (uses tile point if available, otherwise gold)
+  // Unlock a specific tile on current island (uses tile point if available, otherwise gold)
   def unlockTile(game: TileKingdomGame, coord: Coord): Either[String, TileKingdomGame] =
-    if game.tiles.contains(coord) then
-      Left("Tile already exists")
-    else if !unlockableCoords(game).contains(coord) then
-      Left("Can only unlock tiles adjacent to your territory")
-    else
-      val newTile = Tile(coord = coord, tileType = TileType.Empty, unlocked = true)
-      // Use tile point if available, otherwise use gold
-      if game.tilePoints > 0 then
-        Right(game.copy(
-          tiles = game.tiles.updated(coord, newTile),
-          tilePoints = game.tilePoints - 1
-        ))
-      else
-        val cost = tileUnlockCost(game.unlockedTiles.size)
-        if game.gold < cost then
-          Left(s"Not enough gold (need $cost)")
-        else
-          Right(game.copy(
-            tiles = game.tiles.updated(coord, newTile),
-            gold = game.gold - cost
-          ))
+    unlockTileOnCurrentIsland(game, coord)
 
-  // Simple Perlin-like noise for continent generation
-  private def noise2D(x: Double, y: Double, seed: Long): Double =
-    val random = new scala.util.Random(seed ^ (x.toLong * 73856093L) ^ (y.toLong * 19349663L))
-    random.nextDouble()
-
-  private def smoothNoise(x: Double, y: Double, seed: Long): Double =
-    val x0 = x.floor.toInt
-    val y0 = y.floor.toInt
-    val fx = x - x0
-    val fy = y - y0
-
-    // Get values at corners
-    val v00 = noise2D(x0, y0, seed)
-    val v10 = noise2D(x0 + 1, y0, seed)
-    val v01 = noise2D(x0, y0 + 1, seed)
-    val v11 = noise2D(x0 + 1, y0 + 1, seed)
-
-    // Smooth interpolation
-    val sx = fx * fx * (3 - 2 * fx)
-    val sy = fy * fy * (3 - 2 * fy)
-
-    val i0 = v00 * (1 - sx) + v10 * sx
-    val i1 = v01 * (1 - sx) + v11 * sx
-    i0 * (1 - sy) + i1 * sy
-
-  private def perlinNoise(x: Double, y: Double, seed: Long, octaves: Int = 3): Double =
-    var total = 0.0
-    var frequency = 1.0
-    var amplitude = 1.0
-    var maxValue = 0.0
-
-    for _ <- 0 until octaves do
-      total += smoothNoise(x * frequency, y * frequency, seed) * amplitude
-      maxValue += amplitude
-      amplitude *= 0.5
-      frequency *= 2
-
-    total / maxValue
-
-  // Dev tool: Unlock many tiles for free (creates continent-like shapes)
-  def unlockManyTiles(game: TileKingdomGame, count: Int): TileKingdomGame =
-    val random = new scala.util.Random(System.currentTimeMillis())
-
-    // Pick 3-5 random growth directions (angles in radians)
-    val numDirections = 3 + random.nextInt(3)
-    val growthDirections = (0 until numDirections).map: _ =>
-      random.nextDouble() * 2 * math.Pi
-    .toList
-
-    // Each direction has a random "strength"
-    val directionStrengths = growthDirections.map(_ => 0.5 + random.nextDouble() * 0.5)
-
-    // Find center of current territory
-    val startCoords = game.tiles.keySet
-    val startCenterRow = startCoords.map(_.row).sum.toDouble / startCoords.size
-    val startCenterCol = startCoords.map(_.col).sum.toDouble / startCoords.size
-
-    (1 to count).foldLeft(game): (currentGame, i) =>
-      val available = unlockableCoords(currentGame)
-      if available.isEmpty then currentGame
-      else
-        val currentCoords = currentGame.tiles.keySet
-
-        // Score each candidate
-        val scored = available.toList.map: coord =>
-          val neighborCount = coord.neighbors.count(currentCoords.contains)
-
-          // Calculate angle from start center to this coord
-          val dx = coord.col - startCenterCol
-          val dy = coord.row - startCenterRow
-          val angle = math.atan2(dy, dx)
-
-          // Score based on alignment with growth directions
-          val directionScore = growthDirections.zip(directionStrengths).map: (dir, strength) =>
-            val angleDiff = math.abs(((angle - dir) + math.Pi) % (2 * math.Pi) - math.Pi)
-            val alignment = math.cos(angleDiff) // 1.0 when aligned, -1.0 when opposite
-            if alignment > 0 then alignment * strength else 0.0
-          .max
-
-          // Add some noise for organic feel
-          val noise = random.nextDouble() * 0.3
-
-          // Only fill holes when really necessary (7-8 neighbors)
-          val holeScore = neighborCount match
-            case 8 => 3.0 // Must fill
-            case 7 => 2.0 // Should fill
-            case _ => 0.0 // Don't prioritize filling
-
-          // Prefer tiles on the edge (1-3 neighbors) for exploration
-          val edgeBonus = neighborCount match
-            case 1 => 0.8
-            case 2 => 1.0
-            case 3 => 0.9
-            case _ => 0.5
-
-          val finalScore = directionScore * edgeBonus + noise + holeScore
-          (coord, finalScore)
-
-        // Pick the best candidate
-        val best = scored.maxBy(_._2)._1
-
-        val newTile = Tile(coord = best, tileType = TileType.Empty, unlocked = true)
-        currentGame.copy(tiles = currentGame.tiles.updated(best, newTile))
 
   // Unlock a skill from the skill tree
   def unlockSkill(game: TileKingdomGame, skill: Skill): Either[String, TileKingdomGame] =

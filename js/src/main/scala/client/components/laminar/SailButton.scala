@@ -15,9 +15,9 @@ object SailButton:
     import TileKingdomState.*
 
     val buttonTextSignal: Signal[String] = 
-      canSailSignal.combineWith(sailLegacyRewardSignal, tileCountSignal).map:
+      canSailSignal.combineWith(sailLegacyRewardSignal, totalIslandsSignal).map:
         case (true, reward, _) => s"⛵ Sail (+$reward 🏅)"
-        case (false, _, count) => s"⛵ Sail ($count/${TileKingdomLogic.SailMinTiles} tiles)"
+        case (false, _, islandCount) => s"⛵ Sail ($islandCount/${TileKingdomLogic.SailMinIslands} islands)"
 
     button(
       idAttr := "tile-kingdom-sail-btn",

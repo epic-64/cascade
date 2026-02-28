@@ -52,7 +52,15 @@ object TileKingdomState:
   // Sail button state
   val canSailSignal: Signal[Boolean] = gameSignal.map(_.canSail)
   val sailLegacyRewardSignal: Signal[Int] = gameSignal.map(_.sailLegacyReward)
-  val tileCountSignal: Signal[Int] = gameSignal.map(_.unlockedTiles.size)
+  val tileCountSignal: Signal[Int] = gameSignal.map(_.totalUnlockedTileCount)
+
+  // Island signals
+  val totalIslandsSignal: Signal[Int] = gameSignal.map(_.totalIslands)
+  val currentIslandIndexSignal: Signal[Int] = gameSignal.map(_.currentIslandIndex)
+  val canGoPreviousIslandSignal: Signal[Boolean] = gameSignal.map(_.canGoPreviousIsland)
+  val canGoNextIslandSignal: Signal[Boolean] = gameSignal.map(_.canGoNextIsland)
+  val currentIslandCompleteSignal: Signal[Boolean] = gameSignal.map(_.currentIslandComplete)
+  val canUnlockNewIslandSignal: Signal[Boolean] = gameSignal.map(_.canUnlockNewIsland)
 
   // Skills button state
   val hasSailedSignal: Signal[Boolean] = gameSignal.map(_.hasSailed)

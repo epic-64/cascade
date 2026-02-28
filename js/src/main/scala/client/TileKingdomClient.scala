@@ -169,7 +169,6 @@ object TileKingdomClient:
     DevToolsPopup.DevAction("🪨 Stone +1000", () => devAction { currentGame = currentGame.copy(stone = currentGame.stone + 1000) }),
     DevToolsPopup.DevAction("✨ Faith +1000", () => devAction { currentGame = currentGame.copy(faith = currentGame.faith + 1000) }),
     DevToolsPopup.DevAction("🌟 +1 Skill Point", () => devAction { currentGame = currentGame.copy(skillPoints = currentGame.skillPoints + 1, totalSkillPointsEarned = currentGame.totalSkillPointsEarned + 1, hasSailed = true) }),
-    DevToolsPopup.DevAction("🗺️ +100 Tiles", () => devAction { currentGame = TileKingdomLogic.unlockManyTiles(currentGame, 100) }),
     DevToolsPopup.DevAction("👤 +Politician", () => devAction {
       val p = TileKingdomLogic.generatePolitician(currentGame, System.currentTimeMillis())
       currentGame = currentGame.copy(politicianRoster = currentGame.politicianRoster :+ p)
@@ -180,58 +179,10 @@ object TileKingdomClient:
     }),
     DevToolsPopup.DevAction("🌟 +5 Skill Points", () => devAction { currentGame = currentGame.copy(skillPoints = currentGame.skillPoints + 5, totalSkillPointsEarned = currentGame.totalSkillPointsEarned + 5, hasSailed = true) }),
     DevToolsPopup.DevAction("🪓 Fill Forests", () => devAction {
-      val filled = currentGame.unlockedTiles.filter(_.isEmpty).map(_.coord)
-      val newTiles = filled.foldLeft(currentGame.tiles): (tiles, coord) =>
-        tiles.updated(coord, tiles(coord).copy(tileType = TileType.Woodcutter(1)))
-      currentGame = currentGame.copy(tiles = newTiles)
-    }),
-    DevToolsPopup.DevAction("🧱 +50 Random Block", () => devAction {
-      val rng = new scala.util.Random(System.currentTimeMillis())
-      val existingCoords = currentGame.tiles.keySet
-      val maxRow = if existingCoords.isEmpty then 0 else existingCoords.map(_.row).max
-      val minCol = if existingCoords.isEmpty then 0 else existingCoords.map(_.col).min
-      val startRow = maxRow + 1
-      val startCol = minCol
-      def randomTileType(): TileType = rng.nextInt(8) match
-        case 0 => TileType.WheatField(1)
-        case 1 => TileType.Farm(1)
-        case 2 => TileType.Woodcutter(1)
-        case 3 => TileType.Bureau(1)
-        case 4 => TileType.Temple(1)
-        case 5 => TileType.Quarry(1)
-        case 6 => TileType.Academy(FasterPoliticians)
-        case _ => TileType.TownHall(List.empty)
-      val blockTiles = for
-        r <- 0 until 10
-        c <- 0 until 5
-      yield
-        val coord = Coord(startRow + r, startCol + c)
-        coord -> Tile(coord = coord, tileType = randomTileType(), unlocked = true)
-      currentGame = currentGame.copy(tiles = currentGame.tiles ++ blockTiles.toMap)
-    }),
-    DevToolsPopup.DevAction("🧱 +180 Wide Block", () => devAction {
-      val rng = new scala.util.Random(System.currentTimeMillis())
-      val existingCoords = currentGame.tiles.keySet
-      val maxRow = if existingCoords.isEmpty then 0 else existingCoords.map(_.row).max
-      val minCol = if existingCoords.isEmpty then 0 else existingCoords.map(_.col).min
-      val startRow = maxRow + 1
-      val startCol = minCol
-      def randomTileType(): TileType = rng.nextInt(8) match
-        case 0 => TileType.WheatField(1)
-        case 1 => TileType.Farm(1)
-        case 2 => TileType.Woodcutter(1)
-        case 3 => TileType.Bureau(1)
-        case 4 => TileType.Temple(1)
-        case 5 => TileType.Quarry(1)
-        case 6 => TileType.Academy(AcademyMode.RareChance)
-        case _ => TileType.TownHall(List.empty)
-      val blockTiles = for
-        r <- 0 until 9
-        c <- 0 until 20
-      yield
-        val coord = Coord(startRow + r, startCol + c)
-        coord -> Tile(coord = coord, tileType = randomTileType(), unlocked = true)
-      currentGame = currentGame.copy(tiles = currentGame.tiles ++ blockTiles.toMap)
+      val filled = currentGame.currentIsland.unlockedTiles.filter(_.isEmpty).map(_.coord)
+      filled.foreach { coord =>
+        currentGame = currentGame.updateTileOnCurrentIsland(coord, currentGame.tiles(coord).copy(tileType = TileType.Woodcutter(1)))
+      }
     }),
     DevToolsPopup.DevAction("💥 Corrupt Save", () => {
       stopGameTicker()
