@@ -371,10 +371,14 @@ object TileKingdomClient:
     val previousGame = currentGame
     val previousRosterSize = previousGame.politicianRoster.size
     
-    // Track bureau upgrades for visual effects
+    // Track resources harvested and bureau upgrades for visual effects
+    var totalWheatHarvested = 0.0
+    var totalWoodHarvested = 0.0
+    var totalFaithHarvested = 0.0
+    var totalStoneHarvested = 0.0
     var bureauUpgrades: List[(Coord, Int, Coord, Int, Resource, Boolean, Int)] = List.empty
     
-    // Update tile progress bars and collect visual harvest info
+    // Update tile progress bars and collect harvests
     val currentIslandIndex = currentGame.currentIslandIndex
     currentGame.islands.zipWithIndex.foreach: (island, islandIndex) =>
       // Update producing tile progress bars
@@ -387,16 +391,31 @@ object TileKingdomClient:
           if newProgress >= 1.0 then
             val harvests = newProgress.toInt
             tileProgress = tileProgress.updated(key, newProgress - harvests)
+            
+            // Calculate and accumulate production
+            val production = tile.tileType match
+              case TileType.WheatField(_) => TileKingdomLogic.productionPerHarvest(currentGame, tile) * harvests
+              case TileType.Woodcutter(_) => TileKingdomLogic.woodProductionPerHarvest(currentGame, tile) * harvests
+              case TileType.Temple(_) => TileKingdomLogic.faithProductionPerHarvest(currentGame, tile) * harvests
+              case TileType.Quarry(_) => TileKingdomLogic.stoneProductionPerHarvest(currentGame, tile) * harvests
+              case _ => 0.0
+            
+            tile.tileType match
+              case TileType.WheatField(_) => totalWheatHarvested += production
+              case TileType.Woodcutter(_) => totalWoodHarvested += production
+              case TileType.Temple(_) => totalFaithHarvested += production
+              case TileType.Quarry(_) => totalStoneHarvested += production
+              case _ => ()
+            
             // Show floating reward for current island only
-            if islandIndex == currentIslandIndex then
-              val (production, emoji) = tile.tileType match
-                case TileType.WheatField(_) => (TileKingdomLogic.productionPerHarvest(currentGame, tile) * harvests, "🌾")
-                case TileType.Woodcutter(_) => (TileKingdomLogic.woodProductionPerHarvest(currentGame, tile) * harvests, "🪵")
-                case TileType.Temple(_) => (TileKingdomLogic.faithProductionPerHarvest(currentGame, tile) * harvests, "✨")
-                case TileType.Quarry(_) => (TileKingdomLogic.stoneProductionPerHarvest(currentGame, tile) * harvests, "🪨")
-                case _ => (0.0, "")
-              if production > 0 then
-                showFloatingReward(tile.coord, production.toInt, emoji, isSpend = false, offsetIndex = 0)
+            if islandIndex == currentIslandIndex && production > 0 then
+              val emoji = tile.tileType match
+                case TileType.WheatField(_) => "🌾"
+                case TileType.Woodcutter(_) => "🪵"
+                case TileType.Temple(_) => "✨"
+                case TileType.Quarry(_) => "🪨"
+                case _ => ""
+              showFloatingReward(tile.coord, production.toInt, emoji, isSpend = false, offsetIndex = 0)
           else
             tileProgress = tileProgress.updated(key, newProgress)
       
@@ -436,12 +455,28 @@ object TileKingdomClient:
         else
           tileProgress = tileProgress.updated(key, newProgress)
 
-    // Run the actual game tick (core logic)
-    currentGame = TileKingdomLogic.simulateSingleTick(currentGame, elapsedMs.toLong, currentTime)
+    // Update game state with harvested resources
+    currentGame = currentGame.copy(
+      wheat = currentGame.wheat + totalWheatHarvested,
+      wood = currentGame.wood + totalWoodHarvested,
+      faith = currentGame.faith + totalFaithHarvested,
+      stone = currentGame.stone + totalStoneHarvested,
+      lastTickTime = currentTime
+    )
     
-    // Check for destroyed politicians (compare before/after)
-    val destroyedPoliticians = previousGame.allAssignedPoliticians.map(_.name).toSet -- 
-                               currentGame.allAssignedPoliticians.map(_.name).toSet
+    // Process bureau auto-upgrades
+    currentGame.islands.foreach: island =>
+      island.unlockedTiles.filter(_.isBureau).foreach: tile =>
+        TileKingdomLogic.bureauAutoUpgrade(currentGame, tile.coord, currentTime) match
+          case Some((newGame, _)) => currentGame = newGame
+          case None => ()
+    
+    // Tick politician lifespans
+    val (gameAfterLifespan, destroyedPoliticianNames) = TileKingdomLogic.tickPoliticianLifespans(currentGame, elapsedMs.toLong)
+    currentGame = gameAfterLifespan
+    
+    // Generate new politicians
+    currentGame = TileKingdomLogic.generateNewPoliticians(currentGame, currentTime)
     
     // Check for new politicians
     val newPoliticianGenerated = currentGame.politicianRoster.size > previousRosterSize
@@ -459,7 +494,7 @@ object TileKingdomClient:
     if newPoliticianGenerated then
       showNotification("A new politician has arrived!")
 
-    destroyedPoliticians.foreach: name =>
+    destroyedPoliticianNames.foreach: name =>
       showNotification(s"$name has reached the end of their term!")
 
     // Show projectile and floating text for bureau upgrades (only on current island)
