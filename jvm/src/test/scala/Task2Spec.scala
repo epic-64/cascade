@@ -500,15 +500,31 @@ class Task2Spec extends AnyFunSuite:
     def fetchConfig: Task2[Any, Map[String, String]] =
       Task2.succeed(Map("maxRetries" -> "3", "timeout" -> "5000"))
 
-    def getEnvVar(name: String): Option[String] =
-      if name == "API_KEY" then Some("secret123") else None
+    // Side-effectful function should be wrapped in a capability!
+    trait Env:
+      def getVar(name: String): Option[String]
+    
+    object Env:
+      val live: Env = name => sys.env.get(name)
+      val test: Env = name => if name == "API_KEY" then Some("secret123") else None
 
-    val complexWorkflow: Task2[Logs, String] = for
+    // Now getEnvVar is a proper Task2 with a requirement
+    def getEnvVar(name: String): Task2[Env, String] =
+      Task2.serviceWithTask[Env, String]: env =>
+        env.getVar(name).toResult("env." + name, s"$name not set")
+
+    val complexWorkflow: Task2[Logs & Env, String] = for
       config     <- fetchConfig
       maxRetries  = config.getOrElse("maxRetries", "1").toInt  // pure, use =
       timeout     = config.getOrElse("timeout", "1000").toInt   // pure, use =
-      apiKey     <- Task2.fromOption("env.API_KEY")(getEnvVar("API_KEY"))
+      apiKey     <- getEnvVar("API_KEY")  // Now properly tracked as Env requirement!
       _          <- Task2.serviceWith[Logs, Unit](_.logInfo(s"Using $maxRetries retries, ${timeout}ms timeout"))
     yield s"Configured with key ${apiKey.take(3)}***"
 
-    assert(complexWorkflow.run(Logs.silent) == Right("Configured with key sec***"))
+    // Environment must provide both Logs and Env
+    val testEnv = new Logs with Env:
+      def logInfo(msg: String) = ()
+      def logError(fail: Fail) = ()
+      def getVar(name: String) = Env.test.getVar(name)
+
+    assert(complexWorkflow.run(testEnv) == Right("Configured with key sec***"))
