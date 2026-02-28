@@ -61,6 +61,21 @@ object TileGridState:
     showInfluenceLines.update(!_)
 
   // ============================================================================
+  // Zen Mode State
+  // ============================================================================
+
+  /** Whether Zen Mode is active (hides text, shows only emojis) */
+  val zenMode: Var[Boolean] = Var(false)
+
+  def toggleZenMode(): Unit =
+    zenMode.update(!_)
+    // Apply/remove zen-mode class on body
+    if zenMode.now() then
+      org.scalajs.dom.document.body.classList.add("zen-mode")
+    else
+      org.scalajs.dom.document.body.classList.remove("zen-mode")
+
+  // ============================================================================
   // Progress Tracking
   // ============================================================================
 
