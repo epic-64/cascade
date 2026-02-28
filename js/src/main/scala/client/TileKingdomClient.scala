@@ -419,16 +419,31 @@ object TileKingdomClient:
           else
             tileProgress = tileProgress.updated(key, newProgress)
       
-      // Update bureau progress and track upgrades for visual effects
+      // Update bureau progress (but don't process upgrades yet - need resources first)
       island.unlockedTiles.filter(_.isBureau).foreach: tile =>
         val key = (islandIndex, tile.coord)
         val currentProgress = getOrInitProgress(islandIndex, tile.coord)
         val speedMultiplier = TileKingdomLogic.bureauSpeedMultiplier(currentGame, tile.coord)
         val progressIncrement = elapsedMs / BureauIntervalMs * speedMultiplier
         val newProgress = currentProgress + progressIncrement
+        tileProgress = tileProgress.updated(key, newProgress)
+
+    // Update game state with harvested resources
+    currentGame = currentGame.copy(
+      wheat = currentGame.wheat + totalWheatHarvested,
+      wood = currentGame.wood + totalWoodHarvested,
+      faith = currentGame.faith + totalFaithHarvested,
+      stone = currentGame.stone + totalStoneHarvested,
+      lastTickTime = currentTime
+    )
+    
+    // Process bureau auto-upgrades (after resources are updated)
+    currentGame.islands.zipWithIndex.foreach: (island, islandIndex) =>
+      island.unlockedTiles.filter(_.isBureau).foreach: tile =>
+        val key = (islandIndex, tile.coord)
+        val currentProgress = tileProgress.getOrElse(key, 0.0)
         
-        if newProgress >= 1.0 then
-          // Check if bureau will upgrade something (for visual effects)
+        if currentProgress >= 1.0 then
           val isTurbo = TileKingdomLogic.isBureauTurbo(currentGame, tile.coord)
           val nearbyCoords = TileKingdomLogic.bureauAffectedCoords(currentGame, tile.coord)
           val minLevel = nearbyCoords
@@ -440,36 +455,21 @@ object TileKingdomClient:
           val minFaithCost = TileKingdomLogic.effectiveBureauFaithCostForLevel(currentGame, minLevel)
           val effectivelyTurbo = isTurbo && currentGame.faith >= minFaithCost
           
-          // Peek at what would be upgraded (before the actual tick)
           TileKingdomLogic.bureauAutoUpgrade(currentGame, tile.coord, currentTime) match
-            case Some((_, upgradedCoord)) if upgradedCoord != tile.coord =>
+            case Some((newGame, upgradedCoord)) if upgradedCoord != tile.coord =>
               val upgradedTile = currentGame.tiles.get(upgradedCoord)
               val upgradeCostOpt = upgradedTile.flatMap(t => TileKingdomLogic.effectiveUpgradeCost(currentGame, t))
               val upgradeCost = upgradeCostOpt.map(_.amount).getOrElse(0)
               val costResource = upgradeCostOpt.map(_.resource).getOrElse(Resource.Wheat)
-              val newLevel = upgradedTile.map(_.level + 1).getOrElse(1)
+              val newLevel = newGame.tiles.get(upgradedCoord).map(_.level).getOrElse(1)
               bureauUpgrades = bureauUpgrades :+ (upgradedCoord, newLevel, tile.coord, upgradeCost, costResource, effectivelyTurbo, islandIndex)
-              tileProgress = tileProgress.updated(key, newProgress - 1.0)
-            case _ =>
-              tileProgress = tileProgress.updated(key, math.min(newProgress, 1.0))
-        else
-          tileProgress = tileProgress.updated(key, newProgress)
-
-    // Update game state with harvested resources
-    currentGame = currentGame.copy(
-      wheat = currentGame.wheat + totalWheatHarvested,
-      wood = currentGame.wood + totalWoodHarvested,
-      faith = currentGame.faith + totalFaithHarvested,
-      stone = currentGame.stone + totalStoneHarvested,
-      lastTickTime = currentTime
-    )
-    
-    // Process bureau auto-upgrades
-    currentGame.islands.foreach: island =>
-      island.unlockedTiles.filter(_.isBureau).foreach: tile =>
-        TileKingdomLogic.bureauAutoUpgrade(currentGame, tile.coord, currentTime) match
-          case Some((newGame, _)) => currentGame = newGame
-          case None => ()
+              currentGame = newGame
+              tileProgress = tileProgress.updated(key, currentProgress - 1.0)
+            case Some((newGame, _)) =>
+              currentGame = newGame
+              tileProgress = tileProgress.updated(key, 1.0)
+            case None =>
+              tileProgress = tileProgress.updated(key, 1.0)
     
     // Tick politician lifespans
     val (gameAfterLifespan, destroyedPoliticianNames) = TileKingdomLogic.tickPoliticianLifespans(currentGame, elapsedMs.toLong)
