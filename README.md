@@ -36,15 +36,16 @@ Full-stack web application using Scala 3, Scala.js, Cask, and WebSockets.
 
 ## Quick Start
 
-**Terminal 1 - Transpile client (watch mode):**
+**Terminal 1 - Run dev server**
 ```bash
-sbt ~"js/fastLinkJS"
+./scripts/dev-server.sh
 ```
 
-**Terminal 2 - Start server:**
+**Terminal 2 - Transpile client**
 ```bash
-sbt "jvm/run"
+./scripts/bloop-js.sh
 ```
+(Has to be rerun after ScalaJS changes. But dev server will re-run automatically)
 
 **Browser:**
 ```
