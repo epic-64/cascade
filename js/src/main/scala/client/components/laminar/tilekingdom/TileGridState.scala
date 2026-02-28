@@ -155,23 +155,22 @@ object TileGridState:
     else
       panOffset.set(target)
 
-  /** Calculate the offset needed to center on unlocked tiles.
+  /** Calculate the offset needed to center on the current island.
+    * For a 3x5 island grid, centers on the middle of the grid (row 2, col 1).
     * Returns pan offset in screen pixels.
     */
   def calculateCenterOffset(game: TileKingdomGame): (Double, Double) =
-    val unlockedCoords = game.unlockedTiles.map(_.coord)
-    if unlockedCoords.nonEmpty then
-      val centerRow = unlockedCoords.map(_.row).sum.toDouble / unlockedCoords.size
-      val centerCol = unlockedCoords.map(_.col).sum.toDouble / unlockedCoords.size
-      val viewportWidth = window.innerWidth
-      val viewportHeight = window.innerHeight
-      val zoom = zoomLevel.now()
-      // World center in pixels, then multiply to zoom to get screen pixels
-      val targetX = viewportWidth / 2 - (centerCol + 0.5) * BaseTileSize * zoom
-      val targetY = viewportHeight / 2 - (centerRow + 0.5) * BaseTileSize * zoom
-      (math.round(targetX).toDouble, math.round(targetY).toDouble)
-    else
-      panOffset.now()
+    // Center on the island grid center (middle of 3x5 grid)
+    // Island.Height = 5, Island.Width = 3, so center is (2, 1)
+    val centerRow = (Island.Height - 1) / 2.0  // 2.0
+    val centerCol = (Island.Width - 1) / 2.0   // 1.0
+    val viewportWidth = window.innerWidth
+    val viewportHeight = window.innerHeight
+    val zoom = zoomLevel.now()
+    // World center in pixels, then multiply by zoom to get screen pixels
+    val targetX = viewportWidth / 2 - (centerCol + 0.5) * BaseTileSize * zoom
+    val targetY = viewportHeight / 2 - (centerRow + 0.5) * BaseTileSize * zoom
+    (math.round(targetX).toDouble, math.round(targetY).toDouble)
 
   /** Animate pan offset to target position */
   def animateTo(target: (Double, Double)): Unit =
@@ -195,7 +194,7 @@ object TileGridState:
 
     animate()
 
-  /** Check if any tile is visible and snap back if not */
+  /** Check if the island grid is visible and snap back if not */
   def snapBackIfNeeded(game: TileKingdomGame, onSnap: () => Unit): Unit =
     val viewportWidth = window.innerWidth
     val viewportHeight = window.innerHeight
@@ -203,16 +202,18 @@ object TileGridState:
     val screenTileSize = BaseTileSize * zoom
     val (panX, panY) = panOffset.now()
 
-    val unlockedCoords = game.unlockedTiles.map(_.coord)
+    // Check if any part of the 3x5 island grid is visible
     val margin = screenTileSize * 0.5
+    val gridRight = Island.Width * screenTileSize + panX
+    val gridBottom = Island.Height * screenTileSize + panY
+    
+    val islandVisible = 
+      panX < viewportWidth - margin &&       // Left edge not too far right
+      gridRight > margin &&                  // Right edge not too far left  
+      panY < viewportHeight - margin &&      // Top edge not too far down
+      gridBottom > margin                    // Bottom edge not too far up
 
-    val anyVisible = unlockedCoords.exists: coord =>
-      val tileScreenX = coord.col * screenTileSize + panX
-      val tileScreenY = coord.row * screenTileSize + panY
-      tileScreenX > -screenTileSize + margin && tileScreenX < viewportWidth - margin &&
-      tileScreenY > -screenTileSize + margin && tileScreenY < viewportHeight - margin
-
-    if !anyVisible then
+    if !islandVisible then
       animateTo(calculateCenterOffset(game))
       onSnap()
 

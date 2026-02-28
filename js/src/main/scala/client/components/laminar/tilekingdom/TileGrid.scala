@@ -2,13 +2,12 @@ package client.components.laminar.tilekingdom
 
 import com.raquo.laminar.api.L.*
 import org.scalajs.dom
-import org.scalajs.dom.{MouseEvent, TouchEvent, WheelEvent, HTMLElement, window}
 import shared.TileKingdom.*
 import client.components.laminar.TileKingdomState
 
 /** Main tile grid component.
   *
-  * Manages the grid viewport with pan/zoom and renders all tiles.
+  * Renders the current island's tiles in a fixed 3x5 grid.
   */
 object TileGrid:
 
@@ -66,7 +65,6 @@ object TileGrid:
     div(
       idAttr := "tile-kingdom-grid-viewport",
       cls := "tile-kingdom-grid-viewport",
-      styleAttr := "cursor: grab;",
 
       // Grid container (transforms with pan offset)
       div(
@@ -125,81 +123,10 @@ object TileGrid:
         InfluenceLines()
       ),
 
-      // Event handlers for pan/zoom
+      // Center the grid on mount and when island changes
       onMountCallback { ctx =>
-        val viewport = ctx.thisNode.ref
-
-        // Mouse drag handlers
-        viewport.onmousedown = (e: MouseEvent) =>
-          if e.button == 0 then // Left mouse button
-            val target = e.target.asInstanceOf[dom.Element]
-            if !hasDraggableAncestor(target) then
-              TileGridState.isDragging = true
-              TileGridState.dragStartX = e.clientX
-              TileGridState.dragStartY = e.clientY
-              val (panX, panY) = TileGridState.panOffset.now()
-              TileGridState.panStartX = panX
-              TileGridState.panStartY = panY
-              viewport.asInstanceOf[HTMLElement].style.cursor = "grabbing"
-
-        dom.document.onmousemove = (e: MouseEvent) =>
-          if TileGridState.isDragging then
-            val dx = e.clientX - TileGridState.dragStartX
-            val dy = e.clientY - TileGridState.dragStartY
-            if math.abs(dx) > 5 || math.abs(dy) > 5 then
-              TileGridState.wasDragging = true
-            TileGridState.panOffset.set((math.round(TileGridState.panStartX + dx).toDouble, math.round(TileGridState.panStartY + dy).toDouble))
-
-        dom.document.onmouseup = (_: MouseEvent) =>
-          if TileGridState.isDragging then
-            TileGridState.isDragging = false
-            viewport.asInstanceOf[HTMLElement].style.cursor = "grab"
-            TileGridState.snapBackIfNeeded(TileKingdomState.currentGame, () => onNotification("Snapped back to kingdom"))
-
-        // Suppress click events that follow a drag - using capture phase to intercept before any handler
-        dom.document.addEventListener("click", (e: dom.Event) =>
-          if TileGridState.wasDragging then
-            e.stopPropagation()
-            e.preventDefault()
-            TileGridState.wasDragging = false
-        , true) // true = capture phase
-
-        // Touch handlers
-        viewport.addEventListener("touchstart", (e: dom.Event) =>
-          val te = e.asInstanceOf[TouchEvent]
-          if te.touches.length == 1 then
-            val touch = te.touches(0)
-            TileGridState.isDragging = true
-            TileGridState.dragStartX = touch.clientX
-            TileGridState.dragStartY = touch.clientY
-            val (panX, panY) = TileGridState.panOffset.now()
-            TileGridState.panStartX = panX
-            TileGridState.panStartY = panY
-        )
-
-        viewport.addEventListener("touchmove", (e: dom.Event) =>
-          val te = e.asInstanceOf[TouchEvent]
-          if TileGridState.isDragging && te.touches.length == 1 then
-            e.preventDefault()
-            val touch = te.touches(0)
-            val dx = touch.clientX - TileGridState.dragStartX
-            val dy = touch.clientY - TileGridState.dragStartY
-            TileGridState.panOffset.set((math.round(TileGridState.panStartX + dx).toDouble, math.round(TileGridState.panStartY + dy).toDouble))
-        )
-
-        viewport.addEventListener("touchend", (_: dom.Event) =>
-          if TileGridState.isDragging then
-            TileGridState.isDragging = false
-            TileGridState.snapBackIfNeeded(TileKingdomState.currentGame, () => onNotification("Snapped back to kingdom"))
-        )
-
-        // Mouse wheel zoom
-        viewport.addEventListener("wheel", (e: dom.Event) =>
-          val we = e.asInstanceOf[WheelEvent]
-          e.preventDefault()
-          val delta = if we.deltaY < 0 then TileGridState.ZoomStep else -TileGridState.ZoomStep
-          TileGridState.applyZoom(delta, we.clientX, we.clientY)
-        )
+        // Initial centering
+        TileGridState.centerOnKingdom(TileKingdomState.currentGame, animated = false)
       }
     )
 
