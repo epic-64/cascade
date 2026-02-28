@@ -98,8 +98,9 @@ object TileKingdomState:
   // Tile Grid Signals
   // ============================================================================
 
-  /** Signal for all tiles in the game */
-  val tilesSignal: Signal[Map[Coord, Tile]] = gameSignal.map(_.tiles)
+  /** Signal for unlocked tiles on the current island (only unlocked tiles are rendered as interactive) */
+  val tilesSignal: Signal[Map[Coord, Tile]] = gameSignal.map: game =>
+    game.tiles.filter(_._2.unlocked)
 
   /** Signal for unlockable tile coordinates */
   val unlockableCoordsSignal: Signal[Set[Coord]] = gameSignal.map(TileKingdomLogic.unlockableCoords)
