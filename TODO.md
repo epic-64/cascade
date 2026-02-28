@@ -93,3 +93,4 @@
 - cache forest adjacency group bonus to fix performance sink
 
 ## Todos
+- it seems resources are now generated per second rather than waiting for the tile progress to complete
