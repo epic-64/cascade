@@ -65,22 +65,12 @@ object InfluenceLines:
   /** The container for influence lines, placed inside the grid container */
   def apply(): HtmlElement =
     val gameSignal = TileKingdomState.gameSignal
-    val hoveredSignal = TileGridState.hoveredTileCoord.signal
     val alwaysShowSignal = TileGridState.showInfluenceLines.signal
     val tileSizeSignal = TileGridState.tileSizeSignal
 
     div(
       cls := "influence-lines-overlay",
-      // Hover lines — draw from hovered source to all affected tiles
-      children <-- hoveredSignal.combineWith(gameSignal).combineWith(tileSizeSignal).map:
-        case (hovered, game, tileSize) =>
-          hovered match
-            case Some(coord) =>
-              val (targets, lineType) = affectedCoords(game, coord)
-              targets.map(target => renderLine(coord, target, tileSize, lineType))
-            case None => Nil
-      ,
-      // Always-on lines — draw all influence lines for all source tiles
+      // Always-on lines — only shown when toggled on via button
       children <-- alwaysShowSignal.combineWith(gameSignal).combineWith(tileSizeSignal).map:
         case (show, game, tileSize) =>
           if show then renderAllInfluenceLines(game, tileSize)
