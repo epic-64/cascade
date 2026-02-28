@@ -673,7 +673,7 @@ object TileKingdomLogic:
   val ProductionIntervalSeconds: Int = 10 // Wheat fields produce every 10 seconds
   val InitialTileCount: Int = 0 // Start with 0 unlocked tiles per island
   val FarmBoostPerLevel: Double = 0.25 // 25% boost per farm level
-  val StartingGold: Int = 100 // Enough to unlock first tile
+  val StartingGold: Int = 25 // Enough to unlock first tile
 
   // Island constants
   val SailMinIslands: Int = 2 // Minimum islands required to sail
@@ -1455,7 +1455,7 @@ object TileKingdomLogic:
     .sum
 
   // Cost to build a wheat field on an empty tile
-  def wheatFieldBuildCost: Int = 10
+  def wheatFieldBuildCost: Int = 0
 
   // Cost to build a farm on an empty tile
   def farmBuildCost: Int = 25
@@ -1508,13 +1508,17 @@ object TileKingdomLogic:
   def quarryLevelUpCost(currentLevel: Int): Int =
     currentLevel * 20 * tierMultiplier(currentLevel) // Level 1→2 costs 20 wheat, 2→3 costs 40 wheat, etc.
 
-  // Cost to unlock next tile (linear with tier multiplier every 10 tiles)
+  // Cost to unlock next tile (starts cheap, scales up)
   def tileUnlockCost(currentUnlockedCount: Int): Int =
-    if currentUnlockedCount == 0 then 100  // First tile costs 100
-    else
-      val tier = currentUnlockedCount / 10
-      val multiplier = math.pow(3, tier).toInt
-      100 + currentUnlockedCount * 50 * multiplier
+    currentUnlockedCount match
+      case 0 => 25
+      case 1 => 50
+      case 2 => 100
+      case 3 => 200
+      case 4 => 400
+      case n =>
+        val baseCost = 400 * math.pow(2, n - 4).toInt // Doubles every tile after the 5th
+        if baseCost > 100_000_000 then 100_000_000 else baseCost // Cap unlock cost
 
   // Gold reward for abdication based on total income rate
   def abdicationReward(totalIncomeRate: Double): Int =
@@ -1902,17 +1906,13 @@ object TileKingdomLogic:
       case None => Left("Tile not found")
       case Some(tile) if !tile.unlocked => Left("Tile is locked")
       case Some(tile) =>
-        // Must have at least 2 unlocked tiles to destroy one (can't destroy last tile)
-        if game.currentIsland.unlockedTiles.size <= 1 then
-          Left("Cannot destroy your last tile")
-        else
-          val returnedPoliticians = tile.tileType match
-            case TileType.TownHall(politicians) => politicians
-            case _ => List.empty
-          Right(game.removeTileOnCurrentIsland(coord).copy(
-            tilePoints = game.tilePoints + 1,
-            politicianRoster = game.politicianRoster ++ returnedPoliticians
-          ))
+        val returnedPoliticians = tile.tileType match
+          case TileType.TownHall(politicians) => politicians
+          case _ => List.empty
+        Right(game.removeTileOnCurrentIsland(coord).copy(
+          tilePoints = game.tilePoints + 1,
+          politicianRoster = game.politicianRoster ++ returnedPoliticians
+        ))
 
   // Abdicate: reset buildings on all islands, gain gold based on income rate
   // Can abdicate at any time (no restrictions)
