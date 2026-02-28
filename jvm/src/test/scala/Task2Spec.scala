@@ -9,10 +9,10 @@ class Task2Spec extends AnyFunSuite:
   given ExecutionContext = ExecutionContext.global
 
   // === Test capabilities ===
-  
+
   trait UserRepo:
     def findUser(id: String): Result[String]
-  
+
   trait EmailService:
     def sendEmail(to: String, body: String): Result[Unit]
 
@@ -27,9 +27,9 @@ class Task2Spec extends AnyFunSuite:
     assert(task.run(()) == Left(Fail("test", "oops")))
 
   test("Task2.service accesses a capability"):
-    val task: Task2[Clock, Long] = 
+    val task: Task2[Clock, Long] =
       Task2.serviceWith[Clock, Long](_.currentTimeMillis)
-    
+
     val result = task.run(Clock.system)
     assert(result.isRight)
     assert(result.exists(_ > 0))
@@ -42,31 +42,31 @@ class Task2Spec extends AnyFunSuite:
     // Define tasks with different requirements
     def getUser(id: String): Task2[UserRepo, String] =
       Task2.serviceWithTask[UserRepo, String](_.findUser(id))
-    
+
     def sendWelcome(email: String): Task2[EmailService, Unit] =
       Task2.serviceWithTask[EmailService, Unit](_.sendEmail(email, "Welcome!"))
-    
+
     // Combined task requires BOTH capabilities - visible in the type!
     val combined: Task2[UserRepo & EmailService, Unit] = for
       user <- getUser("123")
       _    <- sendWelcome(user)
     yield ()
-    
+
     // Provide an environment that satisfies both
     val env = new UserRepo with EmailService:
       def findUser(id: String) = Right("bob@example.com")
       def sendEmail(to: String, body: String) = Right(())
-    
+
     assert(combined.run(env) == Right(()))
 
   test("flatMap short-circuits on failure"):
     var secondCalled = false
-    
+
     val task = for
       _ <- Task2.fail[Unit]("first", "boom")
       _ <- Task2.succeed { secondCalled = true }
     yield ()
-    
+
     assert(task.run(()).isLeft)
     assert(!secondCalled, "Second task should not run after failure")
 
@@ -132,10 +132,10 @@ class Task2Spec extends AnyFunSuite:
 
   test("provideEnvironment eliminates all requirements"):
     val task: Task2[Clock, Long] = Task2.serviceWith(_.currentTimeMillis)
-    
+
     // Provide the environment, resulting in Task2[Any, Long]
     val provided: Task2[Any, Long] = task.provideEnvironment(Clock.system)
-    
+
     // Can now run with unit
     assert(provided.run(()).isRight)
 
@@ -147,7 +147,7 @@ class Task2Spec extends AnyFunSuite:
 
   test("ensuring runs cleanup after success"):
     var cleaned = false
-    
+
     val task = Task2.succeed(42).ensuring { cleaned = true }
     val result = task.run(())
 
@@ -165,61 +165,61 @@ class Task2Spec extends AnyFunSuite:
 
   test("type system enforces capability requirements"):
     // This test demonstrates that the compiler catches missing capabilities
-    
-    def needsLogging: Task2[Logs, Unit] = 
+
+    def needsLogging: Task2[Logs, Unit] =
       Task2.serviceWith[Logs, Unit](_.logInfo("hello"))
-    
-    def needsClock: Task2[Clock, Long] = 
+
+    def needsClock: Task2[Clock, Long] =
       Task2.serviceWith[Clock, Long](_.currentTimeMillis)
-    
+
     // If you try to run needsLogging with just Clock, it won't compile:
     // needsLogging.run(Clock.system)  // ERROR: Clock is not Logs
-    
+
     // You must provide the correct capability:
     assert(needsLogging.run(Logs.silent) == Right(()))
     assert(needsClock.run(Clock.system).isRight)
 
   test("combined requirements are visible in types"):
-    def step1: Task2[Logs, Int] = 
+    def step1: Task2[Logs, Int] =
       Task2.serviceWith[Logs, Int] { logs =>
         logs.logInfo("step1")
         42
       }
-    
+
     def step2(n: Int): Task2[Clock, Long] =
       Task2.serviceWith[Clock, Long] { clock =>
         clock.currentTimeMillis + n
       }
-    
+
     // The combined type shows BOTH requirements
     val combined: Task2[Logs & Clock, Long] = for
       n <- step1
       t <- step2(n)
     yield t
-    
+
     // Must provide environment that satisfies both
     val env = new Logs with Clock:
       def logInfo(msg: String) = ()
       def logError(fail: Fail) = ()
       def currentTimeMillis = 1000L
-    
+
     assert(combined.run(env) == Right(1042L))
 
   test("Random capability enables deterministic testing"):
     def rollDice: Task2[Random, Int] =
       Task2.serviceWith[Random, Int](_.nextInt(6) + 1)
-    
+
     // In production: use live random
     val liveResult = rollDice.run(Random.live)
     assert(liveResult.exists(n => n >= 1 && n <= 6))
-    
+
     // In tests: use seeded random for determinism
     val seeded = Random.seeded(42L)
     val result1 = rollDice.run(seeded)
-    
+
     val seeded2 = Random.seeded(42L)  // same seed
     val result2 = rollDice.run(seeded2)
-    
+
     assert(result1 == result2, "Same seed should produce same results")
 
   test("complex workflow with three capabilities and retry"):
@@ -227,29 +227,29 @@ class Task2Spec extends AnyFunSuite:
     trait Database:
       def findOrder(id: String): Result[Order]
       def updateStatus(id: String, status: String): Result[Unit]
-    
+
     trait PaymentGateway:
       def charge(amount: BigDecimal, cardToken: String): Result[String] // returns transaction ID
-    
+
     case class Order(id: String, amount: BigDecimal, cardToken: String, customerEmail: String)
-    
+
     // === Task definitions - note how types show requirements ===
-    
+
     def loadOrder(id: String): Task2[Database, Order] =
       Task2.serviceWithTask[Database, Order](_.findOrder(id))
-    
+
     def processPayment(order: Order): Task2[PaymentGateway, String] =
       Task2.serviceWithTask[PaymentGateway, String](_.charge(order.amount, order.cardToken))
-    
+
     def sendReceipt(email: String, transactionId: String): Task2[EmailService, Unit] =
       Task2.serviceWithTask[EmailService, Unit](_.sendEmail(email, s"Receipt: $transactionId"))
-    
+
     def markComplete(orderId: String): Task2[Database, Unit] =
       Task2.serviceWithTask[Database, Unit](_.updateStatus(orderId, "complete"))
-    
+
     def logStep(msg: String): Task2[Logs, Unit] =
       Task2.serviceWith[Logs, Unit](_.logInfo(msg))
-    
+
     // === Combined workflow - type shows ALL requirements ===
     def processOrder(orderId: String): Task2[Database & PaymentGateway & EmailService & Logs, String] =
       for
@@ -262,36 +262,36 @@ class Task2Spec extends AnyFunSuite:
         _     <- markComplete(orderId)
         _     <- logStep("Order complete")
       yield txnId
-    
+
     // === Test implementation with flaky payment ===
     var paymentAttempts = 0
     var emailAttempts = 0
     var logMessages = List.empty[String]
-    
+
     val testEnv = new Database with PaymentGateway with EmailService with Logs:
       def findOrder(id: String) = Right(Order(id, 99.99, "card_xxx", "bob@test.com"))
       def updateStatus(id: String, status: String) = Right(())
-      
+
       def charge(amount: BigDecimal, cardToken: String) =
         paymentAttempts += 1
         if paymentAttempts < 2 then Left(Fail("payment", "gateway timeout"))
         else Right("txn_12345")
-      
+
       def sendEmail(to: String, body: String) =
         emailAttempts += 1
         if emailAttempts < 2 then Left(Fail("email", "SMTP error"))
         else Right(())
-      
+
       def logInfo(msg: String) = logMessages = logMessages :+ msg
       def logError(fail: Fail) = logMessages = logMessages :+ s"ERROR: $fail"
-    
+
     // === Execute ===
     paymentAttempts = 0
     emailAttempts = 0
     logMessages = Nil
-    
+
     val result = processOrder("order_123").run(testEnv)
-    
+
     // === Verify ===
     assert(result == Right("txn_12345"))
     assert(paymentAttempts == 2, s"Payment should retry once, got $paymentAttempts attempts")
