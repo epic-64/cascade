@@ -447,13 +447,9 @@ case class Island(
   def isComplete: Boolean =
     allTilesUnlocked && allUnlockedTilesFilled
 
-  /** Get unlockable tile coords (locked tiles adjacent to unlocked tiles) */
+  /** Get unlockable tile coords (all locked tiles on this island) */
   def unlockableCoords: Set[Coord] =
-    val unlockedCoords = unlockedTiles.map(_.coord).toSet
-    val allAdjacentToUnlocked = unlockedCoords.flatMap(_.neighbors)
-    allAdjacentToUnlocked.filter(c =>
-      tiles.get(c).exists(!_.unlocked) // Must be a locked tile on this island
-    )
+    tiles.collect { case (coord, tile) if !tile.unlocked => coord }.toSet
 
 object Island:
   val Width: Int = 3   // 3 columns (0-2)
@@ -467,12 +463,10 @@ object Island:
       col <- 0 until Width
     yield Coord(row, col)).toSet
 
-  /** Create a new island with all tiles locked except one starting tile */
+  /** Create a new island with all tiles locked */
   def create(id: Int): Island =
-    val startCoord = Coord(Height / 2, Width / 2) // Center tile (row 2, col 1)
     val tiles = AllCoords.map { coord =>
-      val unlocked = coord == startCoord
-      coord -> Tile(coord = coord, tileType = TileType.Empty, unlocked = unlocked)
+      coord -> Tile(coord = coord, tileType = TileType.Empty, unlocked = false)
     }.toMap
     Island(id = id, tiles = tiles)
 
@@ -677,9 +671,9 @@ object TileKingdomLogic:
   // Constants
   val TickIntervalSeconds: Double = 0.5 // Tick four times per second
   val ProductionIntervalSeconds: Int = 10 // Wheat fields produce every 10 seconds
-  val InitialTileCount: Int = 1 // Start with 1 unlocked tile per island
+  val InitialTileCount: Int = 0 // Start with 0 unlocked tiles per island
   val FarmBoostPerLevel: Double = 0.25 // 25% boost per farm level
-  val StartingGold: Int = 10 // Enough to unlock first tile
+  val StartingGold: Int = 100 // Enough to unlock first tile
 
   // Island constants
   val SailMinIslands: Int = 2 // Minimum islands required to sail
@@ -1516,12 +1510,11 @@ object TileKingdomLogic:
 
   // Cost to unlock next tile (linear with tier multiplier every 10 tiles)
   def tileUnlockCost(currentUnlockedCount: Int): Int =
-    val tilesAfterInitial = math.max(0, currentUnlockedCount - InitialTileCount)
-    if tilesAfterInitial == 0 then 100
+    if currentUnlockedCount == 0 then 100  // First tile costs 100
     else
-      val tier = tilesAfterInitial / 10
+      val tier = currentUnlockedCount / 10
       val multiplier = math.pow(3, tier).toInt
-      100 + tilesAfterInitial * 50 * multiplier
+      100 + currentUnlockedCount * 50 * multiplier
 
   // Gold reward for abdication based on total income rate
   def abdicationReward(totalIncomeRate: Double): Int =
