@@ -23,6 +23,9 @@ sbt configuration:
 - to build the js, run `sbt js/fastLinkJS`
 - to build the jvm, run `sbt jvm/compile`
 
+running tests:
+- to run jvm tests, use bloop: `bloop test jvm`
+
 ui library:
 - we are using a fully custom css lib, defined in `jvm/src/main/resources/static/base.css`
 
