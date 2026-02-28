@@ -596,6 +596,13 @@ case class TileKingdomGame(
   def hasTownHall: Boolean =
     allUnlockedTiles.exists(_.isTownHall)
 
+  /** Get all politicians currently assigned to town halls (across all islands) */
+  def allAssignedPoliticians: List[Politician] =
+    allUnlockedTiles.flatMap: tile =>
+      tile.tileType match
+        case TileType.TownHall(pols) => pols
+        case _ => List.empty
+
   // Building unlock progression:
   // Wheat Field -> Farm -> Forest -> everything else
   def canBuildFarm: Boolean = hasWheatField
@@ -1542,74 +1549,19 @@ object TileKingdomLogic:
     )
 
   // Simple tick: just accumulate resources based on production rate (used for very short intervals)
-  private def simpleTick(game: TileKingdomGame, elapsedSeconds: Double, currentTimeMillis: Long): TileKingdomGame =
-    val wheatProduced = totalWheatProductionRate(game) * elapsedSeconds
-    val woodProduced = totalWoodProductionRate(game) * elapsedSeconds
-    val faithProduced = totalFaithProductionRate(game) * elapsedSeconds
-    val stoneProduced = totalStoneProductionRate(game) * elapsedSeconds
-
-    game.copy(
-      wheat = game.wheat + wheatProduced,
-      wood = game.wood + woodProduced,
-      faith = game.faith + faithProduced,
-      stone = game.stone + stoneProduced,
-      lastTickTime = currentTimeMillis
-    )
-
-  /** Tick the game: simulate all game mechanics including:
+  /** Simulate a single tick interval worth of game mechanics.
+    * This is the core game loop that handles:
     * - Resource production (wheat, wood, faith, stone)
     * - Bureau auto-upgrades
     * - Politician lifespan ticking
     * - Politician generation
     * 
-    * For short intervals (< 5 seconds), uses simple resource accumulation.
-    * For longer intervals, simulates in steps to properly handle all mechanics.
+    * @param game Current game state
+    * @param elapsedMs Milliseconds elapsed since last tick
+    * @param currentTime Current timestamp
+    * @return Updated game state
     */
-  def tick(game: TileKingdomGame, currentTimeMillis: Long): TileKingdomGame =
-    val elapsedMs = currentTimeMillis - game.lastTickTime
-    val elapsedSeconds = elapsedMs / 1000.0
-    
-    // For very short intervals, just do simple resource accumulation
-    if elapsedMs < 5000 then
-      return simpleTick(game, elapsedSeconds, currentTimeMillis)
-    
-    // For longer intervals, simulate in steps
-    simulateOfflineProgress(game, currentTimeMillis)
-
-  /** Simulate offline progress by stepping through time in chunks.
-    * This properly simulates bureau upgrades, politician timers, and generation.
-    * 
-    * Uses a simulation step of 5 seconds (bureau interval) to balance accuracy vs performance.
-    * Caps simulation at 24 hours to prevent extremely long calculations.
-    */
-  private def simulateOfflineProgress(game: TileKingdomGame, currentTimeMillis: Long): TileKingdomGame =
-    val elapsedMs = currentTimeMillis - game.lastTickTime
-    val maxSimulationMs = 24L * 60 * 60 * 1000 // Cap at 24 hours
-    val actualElapsedMs = math.min(elapsedMs, maxSimulationMs)
-    
-    // Simulation step size in milliseconds (use bureau interval as base)
-    val stepMs = BureauIntervalSeconds * 1000L
-    val numSteps = (actualElapsedMs / stepMs).toInt
-    val remainderMs = actualElapsedMs % stepMs
-    
-    var currentGame = game
-    var simulatedTime = game.lastTickTime
-    
-    // Step through time
-    for _ <- 0 until numSteps do
-      simulatedTime += stepMs
-      currentGame = simulateStep(currentGame, stepMs, simulatedTime)
-    
-    // Handle remainder
-    if remainderMs > 0 then
-      simulatedTime += remainderMs
-      currentGame = simulateStep(currentGame, remainderMs, simulatedTime)
-    
-    // Make sure lastTickTime is set to actual current time
-    currentGame.copy(lastTickTime = currentTimeMillis)
-
-  /** Simulate a single time step, applying all game mechanics */
-  private def simulateStep(game: TileKingdomGame, elapsedMs: Long, currentTime: Long): TileKingdomGame =
+  def simulateSingleTick(game: TileKingdomGame, elapsedMs: Long, currentTime: Long): TileKingdomGame =
     val elapsedSeconds = elapsedMs / 1000.0
     
     // 1. Accumulate resources
@@ -1627,8 +1579,7 @@ object TileKingdomLogic:
     )
     
     // 2. Process bureau auto-upgrades (for all islands)
-    // Each bureau can upgrade once per step (5 seconds matches bureau interval)
-    currentGame.islands.zipWithIndex.foreach { case (island, islandIndex) =>
+    currentGame.islands.foreach { island =>
       island.unlockedTiles.filter(_.isBureau).foreach { tile =>
         bureauAutoUpgrade(currentGame, tile.coord, currentTime) match
           case Some((newGame, _)) => currentGame = newGame
@@ -1644,6 +1595,47 @@ object TileKingdomLogic:
     currentGame = generateNewPoliticians(currentGame, currentTime)
     
     currentGame
+
+  /** Tick the game forward to the current time.
+    * 
+    * Simulates all game mechanics by running the appropriate number of tick intervals.
+    * For performance, caps simulation at 24 hours and uses adaptive step sizes.
+    */
+  def tick(game: TileKingdomGame, currentTimeMillis: Long): TileKingdomGame =
+    val elapsedMs = currentTimeMillis - game.lastTickTime
+    if elapsedMs <= 0 then return game
+    
+    // Cap at 24 hours to prevent extremely long calculations
+    val maxSimulationMs = 24L * 60 * 60 * 1000
+    val actualElapsedMs = math.min(elapsedMs, maxSimulationMs)
+    
+    // Use adaptive step size based on elapsed time:
+    // - For real-time play (< 5s): use actual tick interval (500ms)
+    // - For short offline (< 1 hour): use 5 second steps (bureau interval)
+    // - For long offline (>= 1 hour): use 30 second steps for performance
+    val stepMs: Long = 
+      if actualElapsedMs < 5000 then (TickIntervalSeconds * 1000).toLong
+      else if actualElapsedMs < 3600000 then BureauIntervalSeconds * 1000L
+      else 30000L // 30 second steps for very long offline
+    
+    val numTicks = (actualElapsedMs / stepMs).toInt
+    val remainderMs = actualElapsedMs % stepMs
+    
+    var currentGame = game
+    var simulatedTime = game.lastTickTime
+    
+    // Run full tick intervals
+    for _ <- 0 until numTicks do
+      simulatedTime += stepMs
+      currentGame = simulateSingleTick(currentGame, stepMs, simulatedTime)
+    
+    // Handle remainder
+    if remainderMs > 0 then
+      simulatedTime += remainderMs
+      currentGame = simulateSingleTick(currentGame, remainderMs, simulatedTime)
+    
+    // Ensure lastTickTime is set to actual current time
+    currentGame.copy(lastTickTime = currentTimeMillis)
 
   /** Shared validation and placement for all build actions on current island. */
   private def buildOnEmptyTile(
