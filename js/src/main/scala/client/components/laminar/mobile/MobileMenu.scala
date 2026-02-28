@@ -15,7 +15,8 @@ object MobileMenu:
 
   def apply(
     onHelp: () => Unit,
-    onReset: () => Unit
+    onReset: () => Unit,
+    onDevTools: () => Unit
   ): HtmlElement =
     val legacySignal = TileKingdomState.legacyPointsSignal
     val skillPointsSignal = TileKingdomState.skillPointsSignal
@@ -86,6 +87,17 @@ object MobileMenu:
             onClick --> { _ =>
               close()
               onHelp()
+            }
+          ),
+
+          // Dev Tools button
+          button(
+            cls := "mobile-menu-item",
+            span(cls := "menu-item-icon", "🛠️"),
+            span(cls := "menu-item-label", "Dev Tools"),
+            onClick --> { _ =>
+              close()
+              onDevTools()
             }
           ),
 
