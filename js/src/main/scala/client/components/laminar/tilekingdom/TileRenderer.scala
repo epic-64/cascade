@@ -171,3 +171,7 @@ object TileRenderer:
       )
     )
 
+  /** Render a locked tile (dark gray, no content) */
+  def renderLocked(coord: Coord): HtmlElement =
+    LockedTile(coord)
+

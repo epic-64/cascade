@@ -12,7 +12,7 @@ import client.components.laminar.TileKingdomState
 object TileGrid:
 
   /** Represents a tile slot that can be rendered */
-  private case class TileSlot(coord: Coord, isUnlockable: Boolean)
+  private case class TileSlot(coord: Coord, isUnlockable: Boolean, isLocked: Boolean)
 
   /** Compare tiles for structural equality, ignoring politician lifespan changes.
     * This prevents tile re-rendering just because the lifespan countdown changed.
@@ -40,22 +40,25 @@ object TileGrid:
     val canAffordUnlockSignal = TileKingdomState.canAffordUnlockSignal
     val visibleBoundsSignal = TileGridState.visibleBoundsSignal
 
-    // Signal of visible tile slots - only changes when coords or tile types change
-    // Use distinctBy to prevent re-renders when only resource amounts change
+    // Signal of visible tile slots - includes all island tiles
+    // Unlocked tiles show their content, unlockable tiles show unlock UI, locked tiles show as dark
     val visibleSlotsSignal: Signal[List[TileSlot]] = tilesSignal
       .combineWith(unlockableCoordsSignal)
       .combineWith(canAffordUnlockSignal)
       .combineWith(visibleBoundsSignal)
       .map { (tiles, unlockableCoords, canAffordUnlock, minRow, maxRow, minCol, maxCol) =>
-        val tileCoords = tiles.keySet
+        // All tiles on the current island (unlocked and locked)
+        val allIslandCoords = Island.AllCoords
+        val unlockedCoords = tiles.filter(_._2.unlocked).keySet
         val unlockable = if canAffordUnlock then unlockableCoords else Set.empty[Coord]
-        val allCoords = tileCoords ++ unlockable
 
-        allCoords.flatMap { coord =>
+        allIslandCoords.flatMap { coord =>
           if coord.row >= minRow && coord.row <= maxRow &&
              coord.col >= minCol && coord.col <= maxCol then
-            val isUnlockable = !tileCoords.contains(coord) && unlockable.contains(coord)
-            Some(TileSlot(coord, isUnlockable))
+            val isUnlocked = unlockedCoords.contains(coord)
+            val isUnlockable = !isUnlocked && unlockable.contains(coord)
+            val isLocked = !isUnlocked && !isUnlockable
+            Some(TileSlot(coord, isUnlockable, isLocked))
           else
             None
         }.toList.sortBy(s => (s.coord.row, s.coord.col))
@@ -104,15 +107,18 @@ object TileGrid:
           // Use distinctByFn to ignore politician lifespan changes (handled by TownHallTile internally)
           val tileSignal = tilesSignal.map(_.get(coord)).distinctByFn(tileStructurallyEqual)
           val isUnlockableSignal = slotSignal.map(_.isUnlockable).distinct
+          val isLockedSignal = slotSignal.map(_.isLocked).distinct
 
           div(
             // This wrapper div is keyed by coord and stays stable
-            children <-- tileSignal.combineWith(isUnlockableSignal).map { (tileOpt, isUnlockable) =>
+            children <-- tileSignal.combineWith(isUnlockableSignal).combineWith(isLockedSignal).map { (tileOpt, isUnlockable, isLocked) =>
               tileOpt match
-                case Some(tile) =>
+                case Some(tile) if tile.unlocked =>
                   List(TileRenderer(coord, tile, actions))
-                case None if isUnlockable =>
+                case _ if isUnlockable =>
                   List(TileRenderer.renderUnlockable(coord, actions))
+                case _ if isLocked =>
+                  List(TileRenderer.renderLocked(coord))
                 case _ =>
                   Nil
             }
