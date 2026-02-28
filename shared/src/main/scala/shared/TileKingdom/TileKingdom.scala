@@ -878,6 +878,23 @@ object TileKingdomLogic:
               floodFill(remaining, visited)
     floodFill(Set(startCoord), Set.empty)
 
+  // Island-aware version: Find all woodcutters in the same connected group on a specific island
+  def findConnectedWoodcuttersOnIsland(island: Island, startCoord: Coord): Set[Coord] =
+    def floodFill(toVisit: Set[Coord], visited: Set[Coord]): Set[Coord] =
+      if toVisit.isEmpty then visited
+      else
+        val current = toVisit.head
+        val remaining = toVisit.tail
+        if visited.contains(current) then floodFill(remaining, visited)
+        else
+          island.tiles.get(current) match
+            case Some(tile) if tile.isWoodcutter =>
+              val newNeighbors = current.neighbors.filterNot(visited.contains)
+              floodFill(remaining ++ newNeighbors, visited + current)
+            case _ =>
+              floodFill(remaining, visited)
+    floodFill(Set(startCoord), Set.empty)
+
   // Calculate forest group bonus multiplier for a woodcutter
   // Bonus escalates: 2 tiles = 10%, 3 tiles = 10+20=30%, 4 tiles = 10+20+30=60%, etc.
   // Uses cached group size to avoid expensive recalculation every tick
@@ -1278,21 +1295,170 @@ object TileKingdomLogic:
     if base > 0 then base * townHallStoneMultiplier(game, tile.coord) * quarryWisdom1Multiplier(game, tile.coord) * agriculture2BFarmBonusMultiplier(game, tile.coord)
     else 0.0
 
-  // Total wheat production rate for the game (all wheat fields with bonuses)
+  // ============================================================================
+  // Island-scoped production multipliers
+  // These versions take an Island parameter for calculating bonuses on specific islands
+  // ============================================================================
+
+  // Island-scoped: Calculate farm bonus multiplier for a wheat field at given coord on a specific island
+  def farmBonusMultiplierOnIsland(game: TileKingdomGame, island: Island, coord: Coord): Double =
+    val farmBonus = coord.neighbors.toList.flatMap(island.tiles.get).collect:
+      case tile if tile.isFarm => tile.level * FarmBoostPerLevel
+    .sum
+    1.0 + farmBonus
+
+  // Island-scoped: Agriculture1B farm bonus for forests
+  def agriculture1BFarmBonusMultiplierOnIsland(game: TileKingdomGame, island: Island, coord: Coord): Double =
+    if game.hasSkill(Skill.Agriculture1B) then
+      val farmBonus = coord.neighbors.toList.flatMap(island.tiles.get).collect:
+        case tile if tile.isFarm => tile.level * FarmBoostPerLevel * 0.5
+      .sum
+      1.0 + farmBonus
+    else 1.0
+
+  // Island-scoped: Agriculture2B farm bonus for quarries
+  def agriculture2BFarmBonusMultiplierOnIsland(game: TileKingdomGame, island: Island, coord: Coord): Double =
+    if game.hasSkill(Skill.Agriculture2B) then
+      val farmBonus = coord.neighbors.toList.flatMap(island.tiles.get).collect:
+        case tile if tile.isFarm => tile.level * FarmBoostPerLevel * 0.5
+      .sum
+      1.0 + farmBonus
+    else 1.0
+
+  // Island-scoped: Agriculture3B farm bonus for temples
+  def agriculture3BFarmBonusMultiplierOnIsland(game: TileKingdomGame, island: Island, coord: Coord): Double =
+    if game.hasSkill(Skill.Agriculture3B) then
+      val farmBonus = coord.neighbors.toList.flatMap(island.tiles.get).collect:
+        case tile if tile.isFarm => tile.level * FarmBoostPerLevel * 0.5
+      .sum
+      1.0 + farmBonus
+    else 1.0
+
+  // Island-scoped: Wisdom1 quarry bonus from neighboring forests
+  def quarryWisdom1MultiplierOnIsland(game: TileKingdomGame, island: Island, coord: Coord): Double =
+    if !game.hasSkill(Skill.Wisdom1) then 1.0
+    else
+      val neighboringForests = coord.neighbors.count: neighborCoord =>
+        island.tiles.get(neighborCoord).exists(_.isWoodcutter)
+      1.0 + (neighboringForests * 0.25)
+
+  // Island-scoped: Wisdom2 temple bonus from neighboring forests
+  def templeWisdom2MultiplierOnIsland(game: TileKingdomGame, island: Island, coord: Coord): Double =
+    if !game.hasSkill(Skill.Wisdom2) then 1.0
+    else
+      val neighboringForests = coord.neighbors.count: neighborCoord =>
+        island.tiles.get(neighborCoord).exists(_.isWoodcutter)
+      1.0 + (neighboringForests * 0.50)
+
+  // Island-scoped: Forest group bonus using island's woodcutters
+  def forestGroupBonusMultiplierOnIsland(game: TileKingdomGame, island: Island, coord: Coord): Double =
+    val groupSize = findConnectedWoodcuttersOnIsland(island, coord).size
+    val n = groupSize - 1
+    val totalBonus = n * (n + 1) / 2.0 * ForestGroupBonusPerTile
+    1.0 + totalBonus
+
+  // Island-scoped: Town halls affecting a coord on this island
+  def townHallsAffectingOnIsland(game: TileKingdomGame, island: Island, coord: Coord): List[(Coord, Politician)] =
+    island.tiles.toList.flatMap:
+      case (townHallCoord, tile) => tile.tileType match
+        case TileType.TownHall(politicians) if politicians.nonEmpty
+          && townHallAffectedCoordsOnIsland(game, island, townHallCoord).contains(coord) =>
+          politicians.map(pol => (townHallCoord, pol))
+        case _ => Nil
+
+  // Island-scoped: Town hall affected coords (using island-specific direction lookup)
+  def townHallAffectedCoordsOnIsland(game: TileKingdomGame, island: Island, townHallCoord: Coord): Set[Coord] =
+    if game.hasSkill(Skill.Management2B) then
+      val direction = game.townHallDirection.getOrElse(townHallCoord, BureauDirection.Center)
+      townHallCoord.rectangleInDirection(direction, TownHallDirectionLength, TownHallDirectionHalfWidth)
+    else
+      townHallCoord.neighborsWithinRadius(TownHallInfluenceRadius)
+
+  // Island-scoped: Town Hall multipliers
+  def townHallWheatMultiplierOnIsland(game: TileKingdomGame, island: Island, coord: Coord): Double =
+    townHallsAffectingOnIsland(game, island, coord).foldLeft(1.0): (acc, entry) =>
+      val (_, politician) = entry
+      politician.allEffects.foldLeft(acc)((a, eff) => applyEffect(a, eff, isWheat = true))
+
+  def townHallWoodMultiplierOnIsland(game: TileKingdomGame, island: Island, coord: Coord): Double =
+    townHallsAffectingOnIsland(game, island, coord).foldLeft(1.0): (acc, entry) =>
+      val (_, politician) = entry
+      politician.allEffects.foldLeft(acc)((a, eff) => applyEffect(a, eff, isWood = true))
+
+  def townHallFaithMultiplierOnIsland(game: TileKingdomGame, island: Island, coord: Coord): Double =
+    townHallsAffectingOnIsland(game, island, coord).foldLeft(1.0): (acc, entry) =>
+      val (_, politician) = entry
+      politician.allEffects.foldLeft(acc)((a, eff) => applyEffect(a, eff, isFaith = true))
+
+  def townHallStoneMultiplierOnIsland(game: TileKingdomGame, island: Island, coord: Coord): Double =
+    townHallsAffectingOnIsland(game, island, coord).foldLeft(1.0): (acc, entry) =>
+      val (_, politician) = entry
+      politician.allEffects.foldLeft(acc)((a, eff) => applyEffect(a, eff, isStone = true))
+
+  // ============================================================================
+  // Island-scoped production rate calculations
+  // ============================================================================
+
+  // Production rate for a specific tile on a specific island
+  def productionRateOnIsland(game: TileKingdomGame, island: Island, tile: Tile): Double =
+    val base = productionPerSecond(tile)
+    if base > 0 then
+      base * farmBonusMultiplierOnIsland(game, island, tile.coord) *
+        townHallWheatMultiplierOnIsland(game, island, tile.coord) /
+        agriculture2AIntervalMultiplier(game)
+    else 0.0
+
+  def woodProductionRateOnIsland(game: TileKingdomGame, island: Island, tile: Tile): Double =
+    val base = woodProductionPerSecond(tile)
+    if base > 0 then
+      base * forestGroupBonusMultiplierOnIsland(game, island, tile.coord) *
+        townHallWoodMultiplierOnIsland(game, island, tile.coord) *
+        agriculture1BFarmBonusMultiplierOnIsland(game, island, tile.coord)
+    else 0.0
+
+  def faithProductionRateOnIsland(game: TileKingdomGame, island: Island, tile: Tile): Double =
+    val base = faithProductionPerSecond(tile)
+    if base > 0 then
+      base * townHallFaithMultiplierOnIsland(game, island, tile.coord) *
+        templeWisdom2MultiplierOnIsland(game, island, tile.coord) *
+        agriculture3BFarmBonusMultiplierOnIsland(game, island, tile.coord)
+    else 0.0
+
+  def stoneProductionRateOnIsland(game: TileKingdomGame, island: Island, tile: Tile): Double =
+    val base = stoneProductionPerSecond(tile)
+    if base > 0 then
+      base * townHallStoneMultiplierOnIsland(game, island, tile.coord) *
+        quarryWisdom1MultiplierOnIsland(game, island, tile.coord) *
+        agriculture2BFarmBonusMultiplierOnIsland(game, island, tile.coord)
+    else 0.0
+
+  // ============================================================================
+  // Total production rates (across all islands)
+  // ============================================================================
+
+  // Total wheat production rate for the game (all wheat fields with bonuses, island-scoped)
   def totalWheatProductionRate(game: TileKingdomGame): Double =
-    game.unlockedTiles.map(tile => productionRate(game, tile)).sum
+    game.islands.map: island =>
+      island.unlockedTiles.map(tile => productionRateOnIsland(game, island, tile)).sum
+    .sum
 
-  // Total wood production rate
+  // Total wood production rate (island-scoped)
   def totalWoodProductionRate(game: TileKingdomGame): Double =
-    game.unlockedTiles.map(tile => woodProductionRate(game, tile)).sum
+    game.islands.map: island =>
+      island.unlockedTiles.map(tile => woodProductionRateOnIsland(game, island, tile)).sum
+    .sum
 
-  // Total faith production rate
+  // Total faith production rate (island-scoped)
   def totalFaithProductionRate(game: TileKingdomGame): Double =
-    game.unlockedTiles.map(tile => faithProductionRate(game, tile)).sum
+    game.islands.map: island =>
+      island.unlockedTiles.map(tile => faithProductionRateOnIsland(game, island, tile)).sum
+    .sum
 
-  // Total stone production rate
+  // Total stone production rate (island-scoped)
   def totalStoneProductionRate(game: TileKingdomGame): Double =
-    game.unlockedTiles.map(tile => stoneProductionRate(game, tile)).sum
+    game.islands.map: island =>
+      island.unlockedTiles.map(tile => stoneProductionRateOnIsland(game, island, tile)).sum
+    .sum
 
   // Cost to build a wheat field on an empty tile
   def wheatFieldBuildCost: Int = 10
