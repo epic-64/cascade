@@ -97,6 +97,9 @@ object ResourcePanel:
       // Abdications
       resourceItem("👑", totalAbdicationsSignal.map(_.toString), label = "reigns"),
 
+      // Islands count
+      resourceItem("🏝️", totalIslandsSignal.map(_.toString), label = "islands"),
+
       // Legacy points with /25 label
       div(
         cls := "resource-item prestige",

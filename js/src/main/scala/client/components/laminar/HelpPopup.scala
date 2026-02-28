@@ -26,16 +26,18 @@ object HelpPopup:
         ),
         div(
           cls := "help-popup-body",
+          p("🏝️ Each island is a 3×5 grid of 15 tiles"),
+          p("🔓 Unlock adjacent tiles with gold or tile points"),
           p("🌾 Click empty tiles to build wheat fields"),
           p("⬆️ Click buildings to level them up"),
           p("🏠 After your first wheat field, you can build farms"),
           p("📈 Farms boost nearby wheat fields by 25% per level"),
-          p("👑 Fill all unlocked tiles to abdicate"),
-          p("💰 Abdication earns gold based on income rate"),
-          p("🔓 Click adjacent tiles to expand your territory"),
-          p("⛵ At 25 tiles, you can Sail for legacy points"),
+          p("🏛️ Politicians and bureaus only affect their own island"),
+          p("👑 Fill all tiles to abdicate (keeps tiles, earns gold)"),
+          p("🏝️ Unlock new islands when one is complete"),
+          p("⛵ With 2+ islands, Sail for legacy points (resets islands)"),
           p("🏅 25 legacy points = 1 skill point"),
-          p("🖱️ Drag to pan, scroll to zoom"),
+          p("⬅️➡️ Use arrow keys to navigate between islands"),
           p("🗑️ Right-click a building to destroy it")
         )
       )

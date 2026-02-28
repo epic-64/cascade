@@ -379,10 +379,11 @@ def migrateOldSave(old: OldTileKingdomGame): TileKingdomGame =
 
 ### Phase 5: UI - Grid Simplification
 - [x] Update `TileGrid.scala` to render current island only
-- [ ] Remove pan/zoom functionality (kept for accessibility)
-- [ ] Remove snap-back logic (kept for now)
+- [x] Remove pan/zoom functionality (fully removed)
+- [x] Remove snap-back logic (simplified for island bounds)
 - [x] Update `TileGridState.scala` to track current island
 - [x] Fix influence indicators for island-local coords
+- [x] Remove Center button from ActionBar
 
 ### Phase 6: UI - Island Unlock
 - [x] Create `UnlockIslandButton.scala` component (integrated into IslandNavigator)
@@ -409,10 +410,10 @@ def migrateOldSave(old: OldTileKingdomGame): TileKingdomGame =
 - [x] Change sail requirement from "25 tiles" to "2 islands"
 
 ### Phase 10: Polish
-- [ ] Update skill tree if any skills reference tile counts
-- [ ] Update help popup with new island mechanics
+- [x] Update skill tree if any skills reference tile counts (verified - none do)
+- [x] Update help popup with new island mechanics
 - [x] Add notification when new island is unlocked
-- [ ] Update resource panel to show total tiles across all islands
+- [x] Update resource panel to show total tiles across all islands
 - [ ] Test save/load with multiple islands
 
 ### Phase 11: Testing

@@ -1,7 +1,6 @@
 package client.components.laminar
 
 import com.raquo.laminar.api.L.*
-import client.components.laminar.tilekingdom.TileGridState
 import shared.TileKingdom.TileKingdomGame
 
 /** Laminar-based action bar containing all game action buttons. */
@@ -20,7 +19,6 @@ object ActionBar:
       AbdicationButton(onAbdicate),
       SailButton(onSail),
       SkillsButton(onToggleSkillTree),
-      CenterButton(() => TileGridState.centerOnKingdom(currentGame(), animated = true)),
       InfluenceLinesButton(),
       AutoLayoutButton(),
       ResetButton(onReset),
