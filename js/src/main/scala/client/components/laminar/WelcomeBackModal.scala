@@ -15,17 +15,18 @@ object WelcomeBackModal:
     wheatGain: Int,
     woodGain: Int,
     faithGain: Int,
+    stoneGain: Int,
     timeAway: String
   )
 
   /** Show the welcome back modal with the given content */
-  def show(wheatGain: Int, woodGain: Int, faithGain: Int, offlineSeconds: Double): Unit =
+  def show(wheatGain: Int, woodGain: Int, faithGain: Int, stoneGain: Int, offlineSeconds: Double): Unit =
     val timeAway =
       if offlineSeconds >= 3600 then f"${offlineSeconds / 3600}%.1f hours"
       else if offlineSeconds >= 60 then f"${offlineSeconds / 60}%.0f minutes"
       else f"${offlineSeconds}%.0f seconds"
 
-    contentVar.set(Some(WelcomeContent(wheatGain, woodGain, faithGain, timeAway)))
+    contentVar.set(Some(WelcomeContent(wheatGain, woodGain, faithGain, stoneGain, timeAway)))
     isVisibleVar.set(true)
 
   /** Hide the welcome back modal */
@@ -62,11 +63,13 @@ object WelcomeBackModal:
     val resources = List(
       Option.when(content.wheatGain > 0)(p(cls := "welcome-resource", s"🌾 ${content.wheatGain} wheat")),
       Option.when(content.woodGain > 0)(p(cls := "welcome-resource", s"🪵 ${content.woodGain} wood")),
-      Option.when(content.faithGain > 0)(p(cls := "welcome-resource", s"✨ ${content.faithGain} faith"))
+      Option.when(content.faithGain > 0)(p(cls := "welcome-resource", s"✨ ${content.faithGain} faith")),
+      Option.when(content.stoneGain > 0)(p(cls := "welcome-resource", s"🪨 ${content.stoneGain} stone"))
     ).flatten
     
     List(
       p(cls := "welcome-time", s"You were away for ${content.timeAway}"),
-      p(cls := "welcome-resources", "While you were gone, you earned:")
+      p(cls := "welcome-subtitle", "Your kingdom progressed while you were gone:"),
+      p(cls := "welcome-resources-label", "Resources earned:")
     ) ++ resources
 
