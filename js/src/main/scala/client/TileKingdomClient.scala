@@ -520,8 +520,38 @@ object TileKingdomClient:
   private def registerLifecycleHooks(): Unit =
     window.addEventListener("beforeunload", (_: Event) => saveIfDirty())
     document.addEventListener("visibilitychange", (_: Event) =>
-      if document.visibilityState == "hidden" then saveIfDirty()
+      if document.visibilityState == "hidden" then
+        // Tab is being hidden - save and stop the ticker to prevent event accumulation
+        saveIfDirty()
+        stopGameTicker()
+      else
+        // Tab is becoming visible again - reload game state with offline progression
+        reloadGameState()
+        startGameTicker()
     )
+
+  /** Reload game state from memory, applying offline progression */
+  private def reloadGameState(): Unit =
+    val currentTime = System.currentTimeMillis()
+    val previousGame = currentGame
+    val offlineMs = currentTime - previousGame.lastTickTime
+    
+    // Only apply offline progression if significant time has passed (> 1 second)
+    if offlineMs > 1000 then
+      currentGame = TileKingdomLogic.tick(previousGame, currentTime)
+      TileKingdomState.update(currentGame)
+      
+      // Reset tile progress to avoid visual glitches from stale progress
+      tileProgress = Map.empty
+      TileGridState.tileProgress.set(Map.empty)
+      
+      val offlineSeconds = offlineMs / 1000.0
+      if offlineSeconds > 5 then
+        val offlineWheat = (currentGame.wheat - previousGame.wheat).toInt
+        val offlineWood = (currentGame.wood - previousGame.wood).toInt
+        val offlineFaith = (currentGame.faith - previousGame.faith).toInt
+        if offlineWheat > 0 || offlineWood > 0 || offlineFaith > 0 then
+          showNotification(s"Welcome back! +${offlineWheat}🌾 +${offlineWood}🪵 +${offlineFaith}✨")
 
   private def loadGame(): Unit =
     Try:
