@@ -449,60 +449,60 @@ class Task2Spec extends AnyFunSuite:
     def parseNumber(s: String): Option[Int] = s.toIntOption
     def riskyParse(s: String): scala.util.Try[Int] = scala.util.Try(s.toInt)
     def validate(n: Int): Either[String, Int] = if n > 0 then Right(n) else Left("must be positive")
-    
+
     // Method 1: Use = for pure transformations (no lifting needed!)
     val withPure: Task2[Any, Int] = for
       base   <- Task2.succeed(21)
       doubled = pureCalculation(base)  // just use = for pure functions
     yield doubled
-    
+
     assert(withPure.run(()) == Right(42))
-    
+
     // Method 2: Use Task2.fromOption for Option-returning functions
     val withOption: Task2[Any, Int] = for
       input  <- Task2.succeed("42")
       parsed <- Task2.fromOption("parseNumber")(parseNumber(input))
     yield parsed
-    
+
     assert(withOption.run(()) == Right(42))
-    
+
     val withOptionFail: Task2[Any, Int] = for
       input  <- Task2.succeed("not a number")
       parsed <- Task2.fromOption("parseNumber", "invalid integer")(parseNumber(input))
     yield parsed
-    
+
     assert(withOptionFail.run(()) == Left(Fail("parseNumber", "invalid integer")))
-    
+
     // Method 3: Use Task2.fromTry for Try-returning functions
     val withTry: Task2[Any, Int] = for
       input  <- Task2.succeed("42")
       parsed <- Task2.fromTry("riskyParse")(riskyParse(input))
     yield parsed
-    
+
     assert(withTry.run(()) == Right(42))
-    
+
     // Method 4: Use Task2.fromEither for Either-returning functions
     val withEither: Task2[Any, Int] = for
       n         <- Task2.succeed(10)
       validated <- Task2.fromEither("validate")(validate(n))
     yield validated
-    
+
     assert(withEither.run(()) == Right(10))
-    
+
     val withEitherFail: Task2[Any, Int] = for
       n         <- Task2.succeed(-5)
       validated <- Task2.fromEither("validate")(validate(n))
     yield validated
-    
+
     assert(withEitherFail.run(()) == Left(Fail("validate", "must be positive")))
-    
+
     // Method 5: Complex example mixing everything
-    def fetchConfig: Task2[Any, Map[String, String]] = 
+    def fetchConfig: Task2[Any, Map[String, String]] =
       Task2.succeed(Map("maxRetries" -> "3", "timeout" -> "5000"))
-    
-    def getEnvVar(name: String): Option[String] = 
+
+    def getEnvVar(name: String): Option[String] =
       if name == "API_KEY" then Some("secret123") else None
-    
+
     val complexWorkflow: Task2[Logs, String] = for
       config     <- fetchConfig
       maxRetries  = config.getOrElse("maxRetries", "1").toInt  // pure, use =
@@ -510,7 +510,5 @@ class Task2Spec extends AnyFunSuite:
       apiKey     <- Task2.fromOption("env.API_KEY")(getEnvVar("API_KEY"))
       _          <- Task2.serviceWith[Logs, Unit](_.logInfo(s"Using $maxRetries retries, ${timeout}ms timeout"))
     yield s"Configured with key ${apiKey.take(3)}***"
-    
+
     assert(complexWorkflow.run(Logs.silent) == Right("Configured with key sec***"))
-
-
