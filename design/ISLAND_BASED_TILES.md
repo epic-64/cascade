@@ -366,9 +366,9 @@ def migrateOldSave(old: OldTileKingdomGame): TileKingdomGame =
 ### Phase 3: Production Logic
 - [x] Update `tick()` to iterate over all islands
 - [x] Update wheat/wood/stone/faith harvesting to use `allUnlockedTiles`
-- [ ] Update bureau logic to be island-scoped
-- [ ] Update politician influence to be island-scoped
-- [ ] Update farm boost calculations to be island-scoped
+- [x] Update bureau logic to be island-scoped
+- [x] Update politician influence to be island-scoped
+- [x] Update farm boost calculations to be island-scoped
 
 ### Phase 4: UI - Island Navigator
 - [ ] Create `IslandNavigator.scala` component
