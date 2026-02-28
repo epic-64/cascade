@@ -58,23 +58,20 @@ class TaskSpec extends AnyFunSuite:
     assert(result.isLeft)
     assert(result.left.exists(_.context == "fetchUser"))
 
-  test("Task.zip runs operations in parallel"):
-    var order = List.empty[String]
+  test("Task.zip combines results from both operations"):
+    def opA: Task[String] = Task(Right("A"))
+    def opB: Task[Int] = Task(Right(42))
 
-    def slowOp(name: String, delayMs: Int): Task[String] = Task:
-      Thread.sleep(delayMs)
-      order = order :+ name
-      Right(name)
+    val result = opA.zip(opB).execute
 
-    val startTime = System.currentTimeMillis()
-    val result = slowOp("A", 100).zip(slowOp("B", 100)).execute
-    val elapsed = System.currentTimeMillis() - startTime
-
-    assert(result == Right(("A", "B")))
-    // Parallel should take ~100ms, not ~200ms
-    assert(elapsed < 180, s"Expected parallel execution but took ${elapsed}ms")
+    assert(result == Right(("A", 42)))
 
   test("Task.zip proves concurrency by overlapping execution windows"):
+    // Skip on single-core systems where parallelism isn't possible
+    if Runtime.getRuntime.availableProcessors() <= 1 then
+      info("Skipping parallelism test: only 1 processor available")
+      cancel()
+
     // Track when each operation starts and ends
     case class Timing(name: String, startedAt: Long, endedAt: Long)
     var timings = List.empty[Timing]
