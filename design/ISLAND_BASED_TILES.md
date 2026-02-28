@@ -371,37 +371,37 @@ def migrateOldSave(old: OldTileKingdomGame): TileKingdomGame =
 - [x] Update farm boost calculations to be island-scoped
 
 ### Phase 4: UI - Island Navigator
-- [ ] Create `IslandNavigator.scala` component
-- [ ] Add island indicator (e.g., "Island 1 / 3")
-- [ ] Implement left/right navigation buttons
-- [ ] Implement keyboard shortcuts (← / →)
+- [x] Create `IslandNavigator.scala` component
+- [x] Add island indicator (e.g., "Island 1 / 3")
+- [x] Implement left/right navigation buttons
+- [x] Implement keyboard shortcuts (← / →)
 - [ ] Add visual transition animation between islands (optional)
 
 ### Phase 5: UI - Grid Simplification
-- [ ] Update `TileGrid.scala` to render current island only
-- [ ] Remove pan/zoom functionality
-- [ ] Remove snap-back logic
-- [ ] Update `TileGridState.scala` to track current island
-- [ ] Fix influence indicators for island-local coords
+- [x] Update `TileGrid.scala` to render current island only
+- [ ] Remove pan/zoom functionality (kept for accessibility)
+- [ ] Remove snap-back logic (kept for now)
+- [x] Update `TileGridState.scala` to track current island
+- [x] Fix influence indicators for island-local coords
 
 ### Phase 6: UI - Island Unlock
-- [ ] Create `UnlockIslandButton.scala` component
-- [ ] Show when current island is full
-- [ ] Display unlock cost
-- [ ] Handle unlock action
+- [x] Create `UnlockIslandButton.scala` component (integrated into IslandNavigator)
+- [x] Show when current island is full
+- [x] Display unlock cost
+- [x] Handle unlock action
 
 ### Phase 7: Build Menu Adjustments
-- [ ] Update build menu to use island-local coords
-- [ ] Update unlockable tile logic to be island-scoped
+- [x] Update build menu to use island-local coords
+- [x] Update unlockable tile logic to be island-scoped
 - [x] All tiles on a new island start **locked**
 - [x] First tile on each island is free to unlock (or player has enough starting gold)
 
 ### Phase 8: State Signals
-- [ ] Add `currentIslandSignal` to `TileKingdomState`
+- [x] Add `currentIslandSignal` to `TileKingdomState`
 - [x] Add `currentIslandIndexSignal`
 - [x] Add `totalIslandsSignal`
 - [x] Add `canUnlockIslandSignal`
-- [ ] Update derived signals for island-scoped data
+- [x] Update derived signals for island-scoped data
 
 ### Phase 9: Sail/Abdication Adjustments
 - [x] Update abdication to clear all buildings on all islands (islands remain)
@@ -411,17 +411,17 @@ def migrateOldSave(old: OldTileKingdomGame): TileKingdomGame =
 ### Phase 10: Polish
 - [ ] Update skill tree if any skills reference tile counts
 - [ ] Update help popup with new island mechanics
-- [ ] Add notification when new island is unlocked
+- [x] Add notification when new island is unlocked
 - [ ] Update resource panel to show total tiles across all islands
 - [ ] Test save/load with multiple islands
 
 ### Phase 11: Testing
-- [ ] Test production runs on all islands
-- [ ] Test politician effects are island-scoped
-- [ ] Test bureau auto-upgrades are island-scoped
+- [x] Test production runs on all islands
+- [x] Test politician effects are island-scoped
+- [x] Test bureau auto-upgrades are island-scoped
 - [ ] ~~Test save migration from old format~~ (dropped)
-- [ ] Test navigation between islands
-- [ ] Test island unlock flow
+- [x] Test navigation between islands
+- [x] Test island unlock flow
 
 ---
 
