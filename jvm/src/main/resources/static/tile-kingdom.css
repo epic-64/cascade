@@ -16,8 +16,7 @@
 .tile-kingdom-header {
   position: fixed;
   top: 1rem;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 1rem;
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -26,6 +25,13 @@
   padding: 0.5rem 1rem;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
+}
+
+/* Hide header on mobile */
+@media (max-width: 768px) {
+  .tile-kingdom-header {
+    display: none;
+  }
 }
 
 .tile-kingdom-header h1 {
