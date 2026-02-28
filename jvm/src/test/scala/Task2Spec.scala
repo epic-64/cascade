@@ -222,3 +222,82 @@ class Task2Spec extends AnyFunSuite:
     
     assert(result1 == result2, "Same seed should produce same results")
 
+  test("complex workflow with three capabilities and retry"):
+    // === Capabilities ===
+    trait Database:
+      def findOrder(id: String): Result[Order]
+      def updateStatus(id: String, status: String): Result[Unit]
+    
+    trait PaymentGateway:
+      def charge(amount: BigDecimal, cardToken: String): Result[String] // returns transaction ID
+    
+    case class Order(id: String, amount: BigDecimal, cardToken: String, customerEmail: String)
+    
+    // === Task definitions - note how types show requirements ===
+    
+    def loadOrder(id: String): Task2[Database, Order] =
+      Task2.serviceWithTask[Database, Order](_.findOrder(id))
+    
+    def processPayment(order: Order): Task2[PaymentGateway, String] =
+      Task2.serviceWithTask[PaymentGateway, String](_.charge(order.amount, order.cardToken))
+    
+    def sendReceipt(email: String, transactionId: String): Task2[EmailService, Unit] =
+      Task2.serviceWithTask[EmailService, Unit](_.sendEmail(email, s"Receipt: $transactionId"))
+    
+    def markComplete(orderId: String): Task2[Database, Unit] =
+      Task2.serviceWithTask[Database, Unit](_.updateStatus(orderId, "complete"))
+    
+    def logStep(msg: String): Task2[Logs, Unit] =
+      Task2.serviceWith[Logs, Unit](_.logInfo(msg))
+    
+    // === Combined workflow - type shows ALL requirements ===
+    def processOrder(orderId: String): Task2[Database & PaymentGateway & EmailService & Logs, String] =
+      for
+        _     <- logStep(s"Processing order $orderId")
+        order <- loadOrder(orderId)
+        _     <- logStep(s"Charging ${order.amount}")
+        txnId <- processPayment(order).retry(3)  // retry payment up to 3 times
+        _     <- logStep(s"Payment successful: $txnId")
+        _     <- sendReceipt(order.customerEmail, txnId).retry(2)  // retry email up to 2 times
+        _     <- markComplete(orderId)
+        _     <- logStep("Order complete")
+      yield txnId
+    
+    // === Test implementation with flaky payment ===
+    var paymentAttempts = 0
+    var emailAttempts = 0
+    var logMessages = List.empty[String]
+    
+    val testEnv = new Database with PaymentGateway with EmailService with Logs:
+      def findOrder(id: String) = Right(Order(id, 99.99, "card_xxx", "bob@test.com"))
+      def updateStatus(id: String, status: String) = Right(())
+      
+      def charge(amount: BigDecimal, cardToken: String) =
+        paymentAttempts += 1
+        if paymentAttempts < 2 then Left(Fail("payment", "gateway timeout"))
+        else Right("txn_12345")
+      
+      def sendEmail(to: String, body: String) =
+        emailAttempts += 1
+        if emailAttempts < 2 then Left(Fail("email", "SMTP error"))
+        else Right(())
+      
+      def logInfo(msg: String) = logMessages = logMessages :+ msg
+      def logError(fail: Fail) = logMessages = logMessages :+ s"ERROR: $fail"
+    
+    // === Execute ===
+    paymentAttempts = 0
+    emailAttempts = 0
+    logMessages = Nil
+    
+    val result = processOrder("order_123").run(testEnv)
+    
+    // === Verify ===
+    assert(result == Right("txn_12345"))
+    assert(paymentAttempts == 2, s"Payment should retry once, got $paymentAttempts attempts")
+    assert(emailAttempts == 2, s"Email should retry once, got $emailAttempts attempts")
+    assert(logMessages.contains("Processing order order_123"))
+    assert(logMessages.contains("Payment successful: txn_12345"))
+    assert(logMessages.contains("Order complete"))
+
+
