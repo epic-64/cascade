@@ -8,6 +8,7 @@ import shared.TileKingdom.*
 import shared.TileKingdom.AcademyMode.FasterPoliticians
 import client.components.laminar.{ActionBar, DevToolsPopup, HelpPopup, NotificationSystem, PoliticianRosterPanel, ResourcePanel, SaveRecoveryModal, SkillTree, TileKingdomState, WelcomeBackModal}
 import client.components.laminar.tilekingdom.{FloatingEffects, IslandNavigator, TileGrid, TileGridState, TileRenderer, TileUtils}
+import client.components.laminar.mobile
 import com.raquo.laminar.api.L.render as laminarRender
 
 def initializeTileKingdom(): Unit =
@@ -106,6 +107,11 @@ object TileKingdomClient:
     container.appendChild(buildDevToolsPopup())
     container.appendChild(buildSkillTreeModal())
     container.appendChild(buildSaveRecoveryModal())
+    
+    // Mobile UI containers
+    container.appendChild(div.idx("laminar-mobile-top-bar"))
+    container.appendChild(div.idx("laminar-mobile-action-bar"))
+    container.appendChild(div.idx("laminar-mobile-menu"))
 
     // Mount Laminar components AFTER elements are in the DOM
     mountLaminarComponents()
@@ -156,6 +162,21 @@ object TileKingdomClient:
       laminarRender(container, WelcomeBackModal())
     getElementById("laminar-save-recovery-modal").foreach: container =>
       laminarRender(container, SaveRecoveryModal())
+    
+    // Mobile UI components
+    getElementById("laminar-mobile-top-bar").foreach: container =>
+      laminarRender(container, mobile.MobileTopBar(() => mobile.MobileMenu.open()))
+    getElementById("laminar-mobile-action-bar").foreach: container =>
+      laminarRender(container, mobile.MobileActionBar(
+        onAbdicate = () => handleAbdicate(),
+        onSail = () => handleSail(),
+        onToggleSkillTree = () => toggleSkillTree()
+      ))
+    getElementById("laminar-mobile-menu").foreach: container =>
+      laminarRender(container, mobile.MobileMenu(
+        onHelp = () => toggleHelpPopup(),
+        onReset = () => handleResetGame()
+      ))
 
   /** Create TileRenderer.Actions from the existing handlers */
   private def tileRendererActions: TileRenderer.Actions = TileRenderer.Actions(

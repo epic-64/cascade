@@ -167,7 +167,7 @@ object TileGridState:
     // Calculate optimal zoom to fit the 3x5 grid with some padding
     val optimalZoom = calculateOptimalZoom()
     zoomLevel.set(optimalZoom)
-    
+
     val target = calculateCenterOffset(game)
     if animated then
       animateTo(target)
@@ -178,23 +178,28 @@ object TileGridState:
   private def calculateOptimalZoom(): Double =
     val viewportWidth = window.innerWidth
     val viewportHeight = window.innerHeight
-    
+
     // Grid dimensions: 3 columns, 5 rows
     // Each tile is BaseTileSize (74px = 70px tile + 4px gap)
     val gridWidth = Island.Width * BaseTileSize   // 3 * 74 = 222px at zoom 1.0
     val gridHeight = Island.Height * BaseTileSize // 5 * 74 = 370px at zoom 1.0
-    
-    // Leave some padding around the grid (for UI elements like island navigator)
+
+    // Check if mobile (viewport width <= 768px)
+    val isMobile = viewportWidth <= 768
+
+    // Leave padding for UI elements
     val horizontalPadding = 40  // 20px on each side
-    val verticalPadding = 160   // Space for island navigator at bottom + some top margin
-    
+    // Mobile: top bar (48px) + action bar (56px) + island nav (60px) + margins
+    // Desktop: island navigator at bottom + some margin
+    val verticalPadding = if isMobile then 200 else 160
+
     val availableWidth = viewportWidth - horizontalPadding
     val availableHeight = viewportHeight - verticalPadding
-    
+
     // Calculate zoom to fit width and height
     val zoomForWidth = availableWidth.toDouble / gridWidth
     val zoomForHeight = availableHeight.toDouble / gridHeight
-    
+
     // Use the smaller zoom to ensure it fits in both dimensions
     // Clamp to reasonable bounds
     val optimalZoom = math.min(zoomForWidth, zoomForHeight)
@@ -212,9 +217,18 @@ object TileGridState:
     val viewportWidth = window.innerWidth
     val viewportHeight = window.innerHeight
     val zoom = zoomLevel.now()
+
+    // Check if mobile (viewport width <= 768px)
+    val isMobile = viewportWidth <= 768
+
+    // On mobile, offset the center to account for top bar and bottom bars
+    // Top bar: 48px, Bottom (action bar + nav): ~116px
+    // So shift the visual center up by (116 - 48) / 2 = 34px
+    val verticalOffset = if isMobile then 34 else 0
+
     // World center in pixels, then multiply by zoom to get screen pixels
     val targetX = viewportWidth / 2 - (centerCol + 0.5) * BaseTileSize * zoom
-    val targetY = viewportHeight / 2 - (centerRow + 0.5) * BaseTileSize * zoom
+    val targetY = (viewportHeight / 2 - verticalOffset) - (centerRow + 0.5) * BaseTileSize * zoom
     (math.round(targetX).toDouble, math.round(targetY).toDouble)
 
   /** Animate pan offset to target position */
@@ -251,10 +265,10 @@ object TileGridState:
     val margin = screenTileSize * 0.5
     val gridRight = Island.Width * screenTileSize + panX
     val gridBottom = Island.Height * screenTileSize + panY
-    
-    val islandVisible = 
+
+    val islandVisible =
       panX < viewportWidth - margin &&       // Left edge not too far right
-      gridRight > margin &&                  // Right edge not too far left  
+      gridRight > margin &&                  // Right edge not too far left
       panY < viewportHeight - margin &&      // Top edge not too far down
       gridBottom > margin                    // Bottom edge not too far up
 
