@@ -349,23 +349,23 @@ def migrateOldSave(old: OldTileKingdomGame): TileKingdomGame =
 ## Implementation Checklist
 
 ### Phase 1: Data Model
-- [ ] Define `Island` case class in `TileKingdom.scala`
-- [ ] Add `islands: List[Island]` to `TileKingdomGame`
-- [ ] Add `currentIslandIndex: Int` to `TileKingdomGame`
-- [ ] Add helper methods: `currentIsland`, `allUnlockedTiles`, `currentIslandFull`
-- [ ] Update `TileKingdomGame` ReadWriter for JSON serialization
-- [ ] Create migration function for old saves
+- [x] Define `Island` case class in `TileKingdom.scala`
+- [x] Add `islands: List[Island]` to `TileKingdomGame`
+- [x] Add `currentIslandIndex: Int` to `TileKingdomGame`
+- [x] Add helper methods: `currentIsland`, `allUnlockedTiles`, `currentIslandFull`
+- [x] Update `TileKingdomGame` ReadWriter for JSON serialization
+- [x] ~~Create migration function for old saves~~ (dropped - no migration)
 
 ### Phase 2: Island Generation
-- [ ] Implement `newIsland(id: Int): Island` in `TileKingdomLogic` (all 15 tiles locked)
-- [ ] Update `newGame()` to start with one island (15 locked tiles) + enough gold for 1 unlock
-- [ ] Implement `unlockNewIsland(game: TileKingdomGame): Either[String, TileKingdomGame]`
-- [ ] Define island unlock cost formula
-- [ ] Implement `unlockTileOnIsland(game, islandId, coord)` for tile unlocking within islands
+- [x] Implement `newIsland(id: Int): Island` in `TileKingdomLogic` (all 15 tiles locked)
+- [x] Update `newGame()` to start with one island (15 locked tiles) + enough gold for 1 unlock
+- [x] Implement `unlockNewIsland(game: TileKingdomGame): Either[String, TileKingdomGame]`
+- [x] Define island unlock cost formula
+- [x] Implement `unlockTileOnIsland(game, islandId, coord)` for tile unlocking within islands
 
 ### Phase 3: Production Logic
-- [ ] Update `tick()` to iterate over all islands
-- [ ] Update wheat/wood/stone/faith harvesting to use `allUnlockedTiles`
+- [x] Update `tick()` to iterate over all islands
+- [x] Update wheat/wood/stone/faith harvesting to use `allUnlockedTiles`
 - [ ] Update bureau logic to be island-scoped
 - [ ] Update politician influence to be island-scoped
 - [ ] Update farm boost calculations to be island-scoped
@@ -393,20 +393,20 @@ def migrateOldSave(old: OldTileKingdomGame): TileKingdomGame =
 ### Phase 7: Build Menu Adjustments
 - [ ] Update build menu to use island-local coords
 - [ ] Update unlockable tile logic to be island-scoped
-- [ ] All tiles on a new island start **locked**
-- [ ] First tile on each island is free to unlock (or player has enough starting gold)
+- [x] All tiles on a new island start **locked**
+- [x] First tile on each island is free to unlock (or player has enough starting gold)
 
 ### Phase 8: State Signals
 - [ ] Add `currentIslandSignal` to `TileKingdomState`
-- [ ] Add `currentIslandIndexSignal`
-- [ ] Add `totalIslandsSignal`
-- [ ] Add `canUnlockIslandSignal`
+- [x] Add `currentIslandIndexSignal`
+- [x] Add `totalIslandsSignal`
+- [x] Add `canUnlockIslandSignal`
 - [ ] Update derived signals for island-scoped data
 
 ### Phase 9: Sail/Abdication Adjustments
-- [ ] Update abdication to clear all buildings on all islands (islands remain)
-- [ ] Update sail to reset back to one starting island
-- [ ] Change sail requirement from "25 tiles" to "2 islands"
+- [x] Update abdication to clear all buildings on all islands (islands remain)
+- [x] Update sail to reset back to one starting island
+- [x] Change sail requirement from "25 tiles" to "2 islands"
 
 ### Phase 10: Polish
 - [ ] Update skill tree if any skills reference tile counts
@@ -419,7 +419,7 @@ def migrateOldSave(old: OldTileKingdomGame): TileKingdomGame =
 - [ ] Test production runs on all islands
 - [ ] Test politician effects are island-scoped
 - [ ] Test bureau auto-upgrades are island-scoped
-- [ ] Test save migration from old format
+- [ ] ~~Test save migration from old format~~ (dropped)
 - [ ] Test navigation between islands
 - [ ] Test island unlock flow
 
