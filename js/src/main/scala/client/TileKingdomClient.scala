@@ -11,6 +11,8 @@ import client.components.laminar.tilekingdom.{TileGrid, TileGridState, TileRende
 import com.raquo.laminar.api.L.render as laminarRender
 
 def initializeTileKingdom(): Unit =
+  org.scalajs.dom.window.alert("Hello world 9")
+
   TileKingdomClient.init()
 
 object TileKingdomClient:
