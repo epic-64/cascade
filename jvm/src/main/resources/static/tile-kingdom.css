@@ -1808,6 +1808,7 @@
   pointer-events: none;
   animation: floatUp 1s ease-out forwards;
   z-index: 100;
+  white-space: nowrap;
 }
 
 /* Red variant for spending resources */
