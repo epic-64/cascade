@@ -318,14 +318,15 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
         result.value.tilePoints shouldBe gameWith2Tiles.tilePoints + 1
         result.value.tiles(coord).unlocked shouldBe false
 
-      it("should not allow destroying the last tile"):
+      it("should allow destroying the last tile"):
         val game = TileKingdomLogic.newGame(1000L).copy(gold = 1000)
         // Unlock one tile
         val gameWith1Tile = TileKingdomLogic.unlockTile(game, Coord(2, 1)).value
 
         val result = TileKingdomLogic.destroyTile(gameWith1Tile, Coord(2, 1))
 
-        result.isLeft shouldBe true
+        result.isRight shouldBe true
+        result.value.tilePoints shouldBe gameWith1Tile.tilePoints + 1
 
     describe("Feature: Skill system"):
 
