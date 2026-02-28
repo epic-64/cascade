@@ -16,6 +16,11 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
     val tile = game.currentIsland.tiles.getOrElse(coord, Tile(coord, TileType.Empty, unlocked = false))
     gameWithTiles(game, Map(coord -> tile.copy(unlocked = true)))
 
+  // Helper to create a new game with center tile unlocked (for tests that need a starting tile)
+  private def newGameWithCenterUnlocked(): TileKingdomGame =
+    val game = TileKingdomLogic.newGame(1000L)
+    unlockTileAt(game, Coord(2, 1))
+
   describe("TileKingdomLogic"):
 
     describe("Feature: Creating a new game"):
@@ -30,41 +35,43 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
         game.gold shouldBe TileKingdomLogic.StartingGold
         game.islands.size shouldBe 1
         game.currentIsland.tiles.size shouldBe 15 // 3x5 grid
-        game.currentIsland.unlockedTiles.size shouldBe 1 // Only center tile
+        game.currentIsland.unlockedTiles.size shouldBe 0 // No tiles unlocked initially
 
-      it("should create an island with only the center tile unlocked"):
+      it("should create an island with all tiles locked"):
         val game = TileKingdomLogic.newGame(1000L)
-        val centerTile = Coord(2, 1) // Center of 3x5 grid
 
-        game.currentIsland.tiles(centerTile).unlocked shouldBe true
-        game.currentIsland.tiles.values.count(_.unlocked) shouldBe 1
+        game.currentIsland.tiles.values.count(_.unlocked) shouldBe 0
         game.currentIsland.tiles.values.foreach(_.isEmpty shouldBe true)
 
     describe("Feature: Building wheat fields"):
 
       it("should allow building a wheat field on an empty unlocked tile with enough wheat"):
         val game = TileKingdomLogic.newGame(1000L)
-        val coord = Coord(2, 1) // Center tile (unlocked)
+        val coord = Coord(2, 1) // Center tile
+        // First unlock the tile
+        val gameWithTile = TileKingdomLogic.unlockTile(game, coord).getOrElse(fail("Should unlock tile"))
 
-        val result = TileKingdomLogic.buildWheatField(game, coord)
+        val result = TileKingdomLogic.buildWheatField(gameWithTile, coord)
 
         result.isRight shouldBe true
         result.value.tiles(coord).tileType shouldBe TileType.WheatField(1)
-        result.value.wheat shouldBe <(game.wheat)
+        result.value.wheat shouldBe <(gameWithTile.wheat)
 
       it("should reject building on a locked tile"):
         val game = TileKingdomLogic.newGame(1000L)
-        val lockedCoord = Coord(0, 0) // Not the center, so locked
+        val lockedCoord = Coord(0, 0) // Not unlocked
 
         val result = TileKingdomLogic.buildWheatField(game, lockedCoord)
 
         result.isLeft shouldBe true
 
       it("should reject building when not enough resources"):
-        val game = TileKingdomLogic.newGame(1000L).copy(wheat = 0)
-        val coord = Coord(2, 1) // Center tile
+        val game = TileKingdomLogic.newGame(1000L)
+        val coord = Coord(2, 1)
+        // First unlock the tile, then set wheat to 0
+        val gameWithTile = TileKingdomLogic.unlockTile(game, coord).getOrElse(fail("Should unlock tile")).copy(wheat = 0)
 
-        val result = TileKingdomLogic.buildWheatField(game, coord)
+        val result = TileKingdomLogic.buildWheatField(gameWithTile, coord)
 
         result.isLeft shouldBe true
         result.left.value should include("wheat")
@@ -74,21 +81,23 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
       it("should require a wheat field before building a farm"):
         val game = TileKingdomLogic.newGame(1000L)
         val coord = Coord(2, 1)
+        // First unlock the tile
+        val gameWithTile = TileKingdomLogic.unlockTile(game, coord).getOrElse(fail("Should unlock tile"))
 
-        val result = TileKingdomLogic.buildFarm(game, coord)
+        val result = TileKingdomLogic.buildFarm(gameWithTile, coord)
 
         result.isLeft shouldBe true
         result.left.value should include("wheat field")
 
       it("should allow building a farm after building a wheat field"):
-        val game = TileKingdomLogic.newGame(1000L)
+        val game = newGameWithCenterUnlocked()
         val wheatCoord = Coord(2, 1)
         val farmCoord = Coord(1, 1) // Adjacent to center
         
         // Build wheat field, then unlock adjacent tile for farm
         val gameWithWheatField = TileKingdomLogic.buildWheatField(game, wheatCoord).value
           .copy(wheat = 100, gold = 1000)
-        val gameWithUnlockedFarmTile = TileKingdomLogic.unlockTile(gameWithWheatField, farmCoord).value
+        val gameWithUnlockedFarmTile = unlockTileAt(gameWithWheatField, farmCoord)
 
         val result = TileKingdomLogic.buildFarm(gameWithUnlockedFarmTile, farmCoord)
 
@@ -98,7 +107,7 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
     describe("Feature: Building woodcutters"):
 
       it("should require a farm before building a woodcutter"):
-        val game = TileKingdomLogic.newGame(1000L)
+        val game = newGameWithCenterUnlocked()
         val coord = Coord(2, 1)
 
         val result = TileKingdomLogic.buildWoodcutter(game, coord)
@@ -109,7 +118,7 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
     describe("Feature: Leveling up tiles"):
 
       it("should increase the level of a wheat field"):
-        val game = TileKingdomLogic.newGame(1000L)
+        val game = newGameWithCenterUnlocked()
         val coord = Coord(2, 1)
         val gameWithField = TileKingdomLogic.buildWheatField(game, coord).value
           .copy(wheat = 1000)
@@ -120,7 +129,7 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
         result.value.tiles(coord).level shouldBe 2
 
       it("should deduct the upgrade cost"):
-        val game = TileKingdomLogic.newGame(1000L)
+        val game = newGameWithCenterUnlocked()
         val coord = Coord(2, 1)
         val gameWithField = TileKingdomLogic.buildWheatField(game, coord).value
           .copy(wheat = 1000)
@@ -131,7 +140,7 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
         result.value.wheat shouldBe <(wheatBefore)
 
       it("should reject leveling up an empty tile"):
-        val game = TileKingdomLogic.newGame(1000L)
+        val game = newGameWithCenterUnlocked()
         val coord = Coord(2, 1)
 
         val result = TileKingdomLogic.levelUp(game, coord)
@@ -141,7 +150,7 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
     describe("Feature: Production calculations"):
 
       it("should calculate wheat production based on wheat field level"):
-        val game = TileKingdomLogic.newGame(1000L)
+        val game = newGameWithCenterUnlocked()
         val coord = Coord(2, 1)
         val gameWithField = TileKingdomLogic.buildWheatField(game, coord).value
 
@@ -175,7 +184,7 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
     describe("Feature: Game tick"):
 
       it("should accumulate resources over time"):
-        val game = TileKingdomLogic.newGame(1000L)
+        val game = newGameWithCenterUnlocked()
         val coord = Coord(2, 1)
         val gameWithField = TileKingdomLogic.buildWheatField(game, coord).value
 
@@ -223,7 +232,7 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
     describe("Feature: Abdication"):
 
       it("should reset buildings and grant gold"):
-        val game = TileKingdomLogic.newGame(1000L)
+        val game = newGameWithCenterUnlocked()
         val coord = Coord(2, 1)
         val gameWithField = TileKingdomLogic.buildWheatField(game, coord).value
 
@@ -264,41 +273,43 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
 
     describe("Feature: Unlocking tiles"):
 
-      it("should allow unlocking adjacent tiles with gold"):
+      it("should allow unlocking any tile with gold"):
         val game = TileKingdomLogic.newGame(1000L).copy(gold = 1000)
-        val adjacentCoord = Coord(1, 1) // Adjacent to center (2,1)
+        val coord = Coord(1, 1) // Any tile
 
-        val result = TileKingdomLogic.unlockTile(game, adjacentCoord)
+        val result = TileKingdomLogic.unlockTile(game, coord)
 
         result.isRight shouldBe true
-        result.value.tiles(adjacentCoord).unlocked shouldBe true
+        result.value.tiles(coord).unlocked shouldBe true
         result.value.gold shouldBe <(game.gold)
 
       it("should use tile points instead of gold when available"):
         val game = TileKingdomLogic.newGame(1000L).copy(gold = 1000, tilePoints = 1)
-        val adjacentCoord = Coord(1, 1)
+        val coord = Coord(1, 1)
         val goldBefore = game.gold
 
-        val result = TileKingdomLogic.unlockTile(game, adjacentCoord)
+        val result = TileKingdomLogic.unlockTile(game, coord)
 
         result.isRight shouldBe true
         result.value.gold shouldBe goldBefore
         result.value.tilePoints shouldBe 0
 
-      it("should reject unlocking non-adjacent tiles"):
+      it("should allow unlocking any tile on the island"):
         val game = TileKingdomLogic.newGame(1000L).copy(gold = 1000)
-        val farCoord = Coord(0, 0) // Not adjacent to center
+        val farCoord = Coord(0, 0) // Corner of the grid
 
         val result = TileKingdomLogic.unlockTile(game, farCoord)
 
-        result.isLeft shouldBe true
+        result.isRight shouldBe true
+        result.value.tiles(farCoord).unlocked shouldBe true
 
     describe("Feature: Destroying tiles"):
 
       it("should award a tile point when destroying a tile"):
         val game = TileKingdomLogic.newGame(1000L).copy(gold = 1000)
-        // First unlock another tile so we have 2
-        val gameWith2Tiles = TileKingdomLogic.unlockTile(game, Coord(1, 1)).value
+        // First unlock two tiles so we have at least 2
+        val gameWith1Tile = TileKingdomLogic.unlockTile(game, Coord(2, 1)).value
+        val gameWith2Tiles = TileKingdomLogic.unlockTile(gameWith1Tile, Coord(1, 1)).value
         val coord = Coord(1, 1)
 
         val result = TileKingdomLogic.destroyTile(gameWith2Tiles, coord)
@@ -308,10 +319,11 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
         result.value.tiles(coord).unlocked shouldBe false
 
       it("should not allow destroying the last tile"):
-        val game = TileKingdomLogic.newGame(1000L)
-        val centerCoord = Coord(2, 1)
+        val game = TileKingdomLogic.newGame(1000L).copy(gold = 1000)
+        // Unlock one tile
+        val gameWith1Tile = TileKingdomLogic.unlockTile(game, Coord(2, 1)).value
 
-        val result = TileKingdomLogic.destroyTile(game, centerCoord)
+        val result = TileKingdomLogic.destroyTile(gameWith1Tile, Coord(2, 1))
 
         result.isLeft shouldBe true
 
