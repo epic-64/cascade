@@ -266,148 +266,64 @@ class DIComparisonSpec extends AnyFunSuite:
 
     assert(true) // This test is just documentation of the difference
 
-  test("Task2 with given/using - best of both worlds"):
+  test("Task2 with given: provide the environment, not individual services"):
     import shared.task.Task2.*
 
-    // Define service traits
+    // Define services as before
     trait UserDb:
       def findUser(id: String): Result[String]
 
     trait Smtp:
       def send(to: String, body: String): Result[Unit]
 
-    trait AuditLog:
-      def log(event: String): Result[Unit]
+    // Pure Task2 functions - no using clauses, requirements in return type
+    def getUser(id: String): Task2[UserDb, String] =
+      Task2.serviceWithTask[UserDb, String](_.findUser(id))
 
-    // Service implementations provided via given
-    given UserDb with
-      def findUser(id: String): Result[String] = Right(s"$id@test.com")
+    def sendEmail(to: String, body: String): Task2[Smtp, Unit] =
+      Task2.serviceWithTask[Smtp, Unit](_.send(to, body))
 
-    given Smtp with
-      def send(to: String, body: String): Result[Unit] = Right(())
-
-    given AuditLog with
-      def log(event: String): Result[Unit] = Right(())
-
-    // Functions return Task2 but ALSO take services via using
-    // This lets you:
-    // 1. See accumulated requirements in return type (Task2)
-    // 2. Have compiler auto-wire dependencies (using)
-    def getUser(id: String)(using db: UserDb): Task2[Any, String] =
-      Task2(_ => db.findUser(id))
-
-    def sendEmail(to: String, body: String)(using smtp: Smtp): Task2[Any, Unit] =
-      Task2(_ => smtp.send(to, body))
-
-    def audit(event: String)(using auditLog: AuditLog): Task2[Any, Unit] =
-      Task2(_ => auditLog.log(event))
-
-    // Workflow composes them - givens are auto-wired!
-    def welcomeUser(id: String)(using UserDb, Smtp, AuditLog): Task2[Any, Unit] =
+    def welcomeUser(id: String): Task2[UserDb & Smtp, Unit] =
       for
         email <- getUser(id)
         _     <- sendEmail(email, "Welcome!")
-        _     <- audit(s"Welcomed $id")
       yield ()
 
-    // Run with empty environment since services come from givens
-    val result = welcomeUser("user123").run(())
-    assert(result == Right(()))
-
-  test("Task2 with given/using - tracking requirements in return type"):
-    import shared.task.Task2.*
-
-    // Services that will be in Task2's R type (runtime provided)
-    trait RuntimeConfig:
-      def getFeatureFlag(name: String): Result[Boolean]
-
-    // Services that will be given (compile-time wired)
-    trait Logger:
-      def info(msg: String): Unit
-
-    given Logger with
-      def info(msg: String): Unit = ()
-
-    // This function needs RuntimeConfig at runtime, but Logger is auto-wired
-    def checkFeature(name: String)(using logger: Logger): Task2[RuntimeConfig, Boolean] =
-      for
-        _       <- Task2.succeed(logger.info(s"Checking feature $name"))
-        enabled <- Task2.serviceWithTask[RuntimeConfig, Boolean](_.getFeatureFlag(name))
-        _       <- Task2.succeed(logger.info(s"Feature $name = $enabled"))
-      yield enabled
-
-    // The return type shows RuntimeConfig is needed at runtime
-    // But Logger is invisibly auto-wired via given
-    def workflow(using Logger): Task2[RuntimeConfig, String] =
-      for
-        premium <- checkFeature("premium")
-        message  = if premium then "Welcome, premium user!" else "Welcome!"
-      yield message
-
-    // Only need to provide RuntimeConfig - Logger comes from given
-    val config = new RuntimeConfig:
-      def getFeatureFlag(name: String): Result[Boolean] = Right(true)
-
-    val result = workflow.run(config)
-    assert(result == Right("Welcome, premium user!"))
-
-  test("hybrid approach - some services in R, some via given"):
-    import shared.task.Task2.*
-
-    // "Infrastructure" services - provided via given (same across all calls)
-    trait Logger:
-      def info(msg: String): Unit
-
-    trait Metrics:
-      def increment(name: String): Unit
-
-    given Logger with
-      def info(msg: String): Unit = ()
-
-    given Metrics with
-      def increment(name: String): Unit = ()
-
-    // "Business" services - in Task2's R type (may vary per request)
-    trait UserRepository:
-      def find(id: String): Result[String]
-
-    trait EmailService:
-      def send(to: String, body: String): Result[Unit]
-
-    // Functions use both: given for infra, Task2[R, _] for business
-    def getUser(id: String)(using Logger, Metrics): Task2[UserRepository, String] =
-      for
-        _     <- Task2.succeed(summon[Logger].info(s"Looking up $id"))
-        _     <- Task2.succeed(summon[Metrics].increment("user.lookup"))
-        email <- Task2.serviceWithTask[UserRepository, String](_.find(id))
-      yield email
-
-    def notifyUser(to: String, msg: String)(using logger: Logger, metrics: Metrics): Task2[EmailService, Unit] =
-      for
-        _ <- Task2.succeed(logger.info(s"Sending to $to"))
-        _ <- Task2.succeed(metrics.increment("email.sent"))
-        _ <- Task2.serviceWithTask[EmailService, Unit](_.send(to, msg))
-      yield ()
-
-    // Composed workflow - R accumulates business services only
-    def welcomeUser(id: String)(using Logger, Metrics): Task2[UserRepository & EmailService, Unit] =
-      for
-        email <- getUser(id)
-        _     <- notifyUser(email, "Welcome!")
-      yield ()
-
-    // Provide only the business services at runtime
-    val env = new UserRepository with EmailService:
-      def find(id: String): Result[String] = Right(s"$id@test.com")
+    // The environment is provided via given - ONE object, not separate services
+    given (UserDb & Smtp) = new UserDb with Smtp:
+      def findUser(id: String): Result[String] = Right(s"$id@test.com")
       def send(to: String, body: String): Result[Unit] = Right(())
 
-    val result = welcomeUser("user123").run(env)
+    // Extension method to run with given environment
+    extension [R, A](task: Task2[R, A])
+      def execute(using env: R): Result[A] = task.run(env)
+
+    // Now we get auto-wiring at the call site!
+    val result = welcomeUser("user123").execute
     assert(result == Right(()))
 
     // Benefits:
-    // ✅ Infrastructure (logging, metrics) auto-wired via given - less boilerplate
-    // ✅ Business services tracked in return type - clear dependencies
-    // ✅ Business services can vary per test/request
-    // ✅ Adding new infra doesn't change signatures (just add given)
-    // ✅ Adding new business deps shows up in return type
+    // ✅ Return type shows requirements (Task2[UserDb & Smtp, Unit])
+    // ✅ Requirements accumulate automatically
+    // ✅ given auto-wires at call site (no manual .run(env))
+    // ✅ Single place to define test environment
 
+  test("pick one approach and commit"):
+    // The three approaches are alternatives, not ingredients to mix.
+    //
+    // Task2[R, A]:
+    //   + Requirements visible in return type
+    //   + Automatic accumulation across modules
+    //   - Must thread environment through .run()
+    //
+    // (using R) => Task[A]:
+    //   + Compiler auto-wires at call sites
+    //   + Familiar Scala idiom
+    //   - Must manually declare transitive deps
+    //
+    // Plain parameters:
+    //   + Most explicit
+    //   + No magic
+    //   - Verbose
+
+    succeed
