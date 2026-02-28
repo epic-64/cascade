@@ -328,13 +328,16 @@ object TileKingdomClient:
     gameTickerHandle.foreach(window.clearInterval)
     gameTickerHandle = None
 
-  /** Process a group of producing tiles, advancing progress and collecting harvests. */
+  /** Process a group of producing tiles, advancing progress and collecting harvests.
+    * Only shows floating rewards for tiles that are in currentIslandTiles.
+    */
   private def harvestProducingTiles(
       tiles: List[Tile],
       elapsedMs: Double,
       productionFn: Tile => Double,
       emoji: String,
-      intervalMultiplier: Double = 1.0
+      intervalMultiplier: Double = 1.0,
+      currentIslandTiles: Set[Tile] = Set.empty
   ): Double =
     var totalHarvested = 0.0
     tiles.foreach: tile =>
@@ -345,7 +348,9 @@ object TileKingdomClient:
         val production = productionFn(tile)
         totalHarvested += production * harvests
         tileProgress = tileProgress.updated(tile.coord, newProgress - harvests)
-        showFloatingReward(tile.coord, (production * harvests).toInt, emoji, isSpend = false, offsetIndex = 0)
+        // Only show floating reward if this exact tile is on the current island
+        if currentIslandTiles.contains(tile) then
+          showFloatingReward(tile.coord, (production * harvests).toInt, emoji, isSpend = false, offsetIndex = 0)
       else
         tileProgress = tileProgress.updated(tile.coord, newProgress)
     totalHarvested
@@ -354,20 +359,27 @@ object TileKingdomClient:
     val currentTime = System.currentTimeMillis()
     val elapsedMs = (currentTime - currentGame.lastTickTime).toDouble
 
+    // Get the actual tile objects on the current island (for showing floating rewards)
+    val currentIslandTiles = currentGame.currentIsland.unlockedTiles.toSet
+
     // Update progress for each producing tile and collect harvests
     val totalWheatHarvested = harvestProducingTiles(
       currentGame.unlockedTiles.filter(_.isWheatField), elapsedMs,
       TileKingdomLogic.productionPerHarvest(currentGame, _), "🌾",
-      TileKingdomLogic.agriculture2AIntervalMultiplier(currentGame))
+      TileKingdomLogic.agriculture2AIntervalMultiplier(currentGame),
+      currentIslandTiles)
     val totalWoodHarvested = harvestProducingTiles(
       currentGame.unlockedTiles.filter(_.isWoodcutter), elapsedMs,
-      TileKingdomLogic.woodProductionPerHarvest(currentGame, _), "🪵")
+      TileKingdomLogic.woodProductionPerHarvest(currentGame, _), "🪵",
+      currentIslandTiles = currentIslandTiles)
     val totalFaithHarvested = harvestProducingTiles(
       currentGame.unlockedTiles.filter(_.isTemple), elapsedMs,
-      TileKingdomLogic.faithProductionPerHarvest(currentGame, _), "✨")
+      TileKingdomLogic.faithProductionPerHarvest(currentGame, _), "✨",
+      currentIslandTiles = currentIslandTiles)
     val totalStoneHarvested = harvestProducingTiles(
       currentGame.unlockedTiles.filter(_.isQuarry), elapsedMs,
-      TileKingdomLogic.stoneProductionPerHarvest(currentGame, _), "🪨")
+      TileKingdomLogic.stoneProductionPerHarvest(currentGame, _), "🪨",
+      currentIslandTiles = currentIslandTiles)
 
     // Process bureaus
     val bureaus = currentGame.unlockedTiles.filter(_.isBureau)
@@ -449,21 +461,25 @@ object TileKingdomClient:
     destroyedPoliticians.foreach: name =>
       showNotification(s"$name has reached the end of their term!")
 
-    // Show projectile and floating text for bureau upgrades
+    // Show projectile and floating text for bureau upgrades (only on current island)
     bureauUpgrades.foreach: (upgradedCoord, newLevel, bureauCoord, cost, costResource, wasTurbo) =>
-      val woodCost = TileKingdomLogic.effectiveBureauWoodCost(currentGame)
-      if woodCost > 0 then
-        showFloatingReward(bureauCoord, woodCost, "🪵", isSpend = true, offsetIndex = 0)
-      if wasTurbo then
-        val previousLevel = newLevel - 1
-        val faithCost = TileKingdomLogic.effectiveBureauFaithCostForLevel(currentGame, previousLevel)
-        showFloatingReward(bureauCoord, faithCost, "✨", isSpend = true, offsetIndex = 1)
+      // Only show floating effects if the bureau is on the current island
+      // Check if any tile at bureauCoord is in currentIslandTiles (by coord match)
+      val isOnCurrentIsland = currentIslandTiles.exists(_.coord == bureauCoord)
+      if isOnCurrentIsland then
+        val woodCost = TileKingdomLogic.effectiveBureauWoodCost(currentGame)
+        if woodCost > 0 then
+          showFloatingReward(bureauCoord, woodCost, "🪵", isSpend = true, offsetIndex = 0)
+        if wasTurbo then
+          val previousLevel = newLevel - 1
+          val faithCost = TileKingdomLogic.effectiveBureauFaithCostForLevel(currentGame, previousLevel)
+          showFloatingReward(bureauCoord, faithCost, "✨", isSpend = true, offsetIndex = 1)
 
-      showBureauProjectile(bureauCoord, upgradedCoord, () =>
-        val costEmoji = resourceEmoji(costResource)
-        showFloatingReward(upgradedCoord, cost, costEmoji, isSpend = true, offsetIndex = 0)
-        showFloatingLevel(upgradedCoord, newLevel)
-      )
+        showBureauProjectile(bureauCoord, upgradedCoord, () =>
+          val costEmoji = resourceEmoji(costResource)
+          showFloatingReward(upgradedCoord, cost, costEmoji, isSpend = true, offsetIndex = 0)
+          showFloatingLevel(upgradedCoord, newLevel)
+        )
 
   // ============================================================================
   // Persistence
