@@ -147,13 +147,43 @@ object TileGridState:
   def updateGridPosition(): Unit =
     () // Position is managed by the panOffset signal - components react automatically
 
-  /** Center the view on the kingdom */
+  /** Center the view on the kingdom and adjust zoom to fit */
   def centerOnKingdom(game: TileKingdomGame, animated: Boolean): Unit =
+    // Calculate optimal zoom to fit the 3x5 grid with some padding
+    val optimalZoom = calculateOptimalZoom()
+    zoomLevel.set(optimalZoom)
+    
     val target = calculateCenterOffset(game)
     if animated then
       animateTo(target)
     else
       panOffset.set(target)
+
+  /** Calculate the optimal zoom level to fit the 3x5 island grid on screen */
+  private def calculateOptimalZoom(): Double =
+    val viewportWidth = window.innerWidth
+    val viewportHeight = window.innerHeight
+    
+    // Grid dimensions: 3 columns, 5 rows
+    // Each tile is BaseTileSize (74px = 70px tile + 4px gap)
+    val gridWidth = Island.Width * BaseTileSize   // 3 * 74 = 222px at zoom 1.0
+    val gridHeight = Island.Height * BaseTileSize // 5 * 74 = 370px at zoom 1.0
+    
+    // Leave some padding around the grid (for UI elements like island navigator)
+    val horizontalPadding = 40  // 20px on each side
+    val verticalPadding = 160   // Space for island navigator at bottom + some top margin
+    
+    val availableWidth = viewportWidth - horizontalPadding
+    val availableHeight = viewportHeight - verticalPadding
+    
+    // Calculate zoom to fit width and height
+    val zoomForWidth = availableWidth.toDouble / gridWidth
+    val zoomForHeight = availableHeight.toDouble / gridHeight
+    
+    // Use the smaller zoom to ensure it fits in both dimensions
+    // Clamp to reasonable bounds
+    val optimalZoom = math.min(zoomForWidth, zoomForHeight)
+    math.max(MinZoom, math.min(MaxZoom, optimalZoom))
 
   /** Calculate the offset needed to center on the current island.
     * For a 3x5 island grid, centers on the middle of the grid (row 2, col 1).
