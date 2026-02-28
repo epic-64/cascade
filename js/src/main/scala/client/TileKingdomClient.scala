@@ -7,7 +7,7 @@ import scala.util.chaining.*
 import shared.TileKingdom.*
 import shared.TileKingdom.AcademyMode.FasterPoliticians
 import client.components.laminar.{ActionBar, DevToolsPopup, HelpPopup, NotificationSystem, PoliticianRosterPanel, ResourcePanel, SaveRecoveryModal, SkillTree, TileKingdomState, WelcomeBackModal}
-import client.components.laminar.tilekingdom.{FloatingEffects, TileGrid, TileGridState, TileRenderer, TileUtils}
+import client.components.laminar.tilekingdom.{FloatingEffects, IslandNavigator, TileGrid, TileGridState, TileRenderer, TileUtils}
 import com.raquo.laminar.api.L.render as laminarRender
 
 def initializeTileKingdom(): Unit =
@@ -58,12 +58,25 @@ object TileKingdomClient:
     startGameTicker()
     startSaveTimer()
     registerLifecycleHooks()
+    setupKeyboardNavigation()
 
   def cleanup(): Unit =
     println("[TileKingdom] Cleaning up Tile Kingdom game")
     stopGameTicker()
     stopSaveTimer()
     saveIfDirty()
+
+  private def setupKeyboardNavigation(): Unit =
+    document.addEventListener("keydown", (event: KeyboardEvent) =>
+      event.key match
+        case "ArrowLeft" =>
+          event.preventDefault()
+          handlePreviousIsland()
+        case "ArrowRight" =>
+          event.preventDefault()
+          handleNextIsland()
+        case _ => ()
+    )
 
   // ============================================================================
   // UI Building
@@ -85,6 +98,7 @@ object TileKingdomClient:
     container.appendChild(div.idx("laminar-resource-panel"))
     container.appendChild(div.idx("laminar-politician-roster-panel"))
     container.appendChild(div.idx("laminar-meta-panel"))
+    container.appendChild(div.idx("laminar-island-navigator"))
     container.appendChild(buildActions())
     container.appendChild(buildNotification())
     container.appendChild(buildWelcomeBackModal())
@@ -117,6 +131,13 @@ object TileKingdomClient:
       ))
     getElementById("laminar-politician-roster-panel").foreach: container =>
       laminarRender(container, PoliticianRosterPanel(handleDiscardPolitician))
+    getElementById("laminar-island-navigator").foreach: container =>
+      val actions = IslandNavigator.Actions(
+        onPreviousIsland = () => handlePreviousIsland(),
+        onNextIsland = () => handleNextIsland(),
+        onUnlockNewIsland = () => handleUnlockNewIsland()
+      )
+      laminarRender(container, IslandNavigator(actions))
     getElementById("laminar-notification").foreach: container =>
       laminarRender(container, NotificationSystem())
     getElementById("laminar-skill-tree-modal").foreach: container =>
@@ -762,6 +783,33 @@ object TileKingdomClient:
             showNotification(notification)
           case Left(error) =>
             showNotification(error)
+
+  // ============================================================================
+  // Island Navigation
+  // ============================================================================
+
+  private def handlePreviousIsland(): Unit =
+    if currentGame.canGoPreviousIsland then
+      currentGame = TileKingdomLogic.previousIsland(currentGame)
+      TileKingdomState.update(currentGame)
+      TileGridState.centerOnKingdom(currentGame, animated = true)
+
+  private def handleNextIsland(): Unit =
+    if currentGame.canGoNextIsland then
+      currentGame = TileKingdomLogic.nextIsland(currentGame)
+      TileKingdomState.update(currentGame)
+      TileGridState.centerOnKingdom(currentGame, animated = true)
+
+  private def handleUnlockNewIsland(): Unit =
+    TileKingdomLogic.unlockNewIsland(currentGame) match
+      case Right(newGame) =>
+        currentGame = newGame
+        TileKingdomState.update(currentGame)
+        saveGame()
+        TileGridState.centerOnKingdom(currentGame, animated = true)
+        showNotification(s"🏝️ New island unlocked! Welcome to Island ${currentGame.currentIslandIndex + 1}")
+      case Left(error) =>
+        showNotification(error)
 
   private def handleUnlockTile(coord: Coord): Unit =
     val useTilePoint = currentGame.tilePoints > 0
