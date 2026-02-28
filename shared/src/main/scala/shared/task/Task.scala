@@ -10,6 +10,14 @@ case class Fail(context: String, cause: Any):
 
 type Result[A] = Either[Fail, A]
 
+class Cancellation:
+  @volatile private var cancelled = false
+  def cancel(): Unit = cancelled = true
+  def isCancelled: Boolean = cancelled
+  def checkCancelled(): Result[Unit] =
+    if cancelled then Left(Fail("cancelled", "task was cancelled"))
+    else Right(())
+
 trait Logger:
   def error(fail: Fail): Unit
   def info(msg: String): Unit
@@ -140,4 +148,11 @@ object Task:
     Task(o.toResult(context, ifNone))
   def fromFuture[A](context: String, timeout: FiniteDuration = 30.seconds)(f: => Future[A]): Task[A] =
     Task(Try(Await.result(f, timeout)).toResult(context))
+
+  /** Create a task that checks for cancellation before and during execution. */
+  def cancellable[A](cancellation: Cancellation)(f: (Logger, Timer, Cancellation) ?=> Result[A]): Task[A] =
+    Task:
+      cancellation.checkCancelled() match
+        case Left(fail) => Left(fail)
+        case Right(_) => f(using summon[Logger], summon[Timer], cancellation)
 
