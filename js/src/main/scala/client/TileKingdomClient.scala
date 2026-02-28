@@ -175,7 +175,8 @@ object TileKingdomClient:
     getElementById("laminar-mobile-menu").foreach: container =>
       laminarRender(container, mobile.MobileMenu(
         onHelp = () => toggleHelpPopup(),
-        onReset = () => handleResetGame()
+        onReset = () => handleResetGame(),
+        onDevTools = () => toggleDevTools()
       ))
 
   /** Create TileRenderer.Actions from the existing handlers */
