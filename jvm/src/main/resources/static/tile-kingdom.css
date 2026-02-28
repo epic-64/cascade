@@ -2469,3 +2469,36 @@
     padding: 0 0.75rem;
   }
 }
+
+/* ============================================================================
+   Mobile Layout - Hide desktop UI, fit grid to screen
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  /* Hide all desktop overlay panels */
+  .draggable-panel,
+  .draggable-panel.resource-panel,
+  .draggable-panel.meta-panel,
+  .draggable-panel.politician-panel,
+  .tile-kingdom-actions,
+  .tile-kingdom-header {
+    display: none !important;
+  }
+
+  /* Full-screen grid viewport */
+  .tile-kingdom-grid-viewport {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Remove grab cursor since pan is disabled */
+  .tile-kingdom-grid-viewport,
+  .tile-kingdom-grid-viewport:active {
+    cursor: default;
+  }
+}
+

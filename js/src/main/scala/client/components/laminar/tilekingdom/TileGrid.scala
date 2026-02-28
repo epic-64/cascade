@@ -123,12 +123,23 @@ object TileGrid:
         InfluenceLines()
       ),
 
-      // Center the grid on mount and when island changes
-      onMountCallback { ctx =>
+      // Center the grid on mount and handle resize
+      onMountCallback { _ =>
         // Initial centering
         TileGridState.centerOnKingdom(TileKingdomState.currentGame, animated = false)
+        
+        // Re-center on window resize (handles orientation change on mobile)
+        dom.window.addEventListener("resize", TileGrid.resizeHandler)
+      },
+      
+      onUnmountCallback { _ =>
+        dom.window.removeEventListener("resize", TileGrid.resizeHandler)
       }
     )
+
+  /** Resize handler for recentering on viewport change */
+  private val resizeHandler: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) =>
+    TileGridState.centerOnKingdom(TileKingdomState.currentGame, animated = false)
 
   /** Check if element or any ancestor has draggable="true" */
   private def hasDraggableAncestor(elem: dom.Element): Boolean =
