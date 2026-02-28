@@ -247,10 +247,12 @@ object TileKingdomClient:
   private def simulateTimeSkip(hours: Int): Unit =
     val previousGame = currentGame
     val skipMs = hours * 60L * 60L * 1000L
-    val futureTime = System.currentTimeMillis() + skipMs
     
-    // Set lastTickTime to the past so tick() thinks time has passed
-    val gameInPast = currentGame.copy(lastTickTime = currentGame.lastTickTime - skipMs)
+    // Set lastTickTime and lastPoliticianGeneration to the past so tick() thinks time has passed
+    val gameInPast = currentGame.copy(
+      lastTickTime = currentGame.lastTickTime - skipMs,
+      lastPoliticianGeneration = currentGame.lastPoliticianGeneration - skipMs
+    )
     currentGame = TileKingdomLogic.tick(gameInPast, System.currentTimeMillis())
     
     // Reset tile progress
