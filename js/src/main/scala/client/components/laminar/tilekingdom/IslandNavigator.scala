@@ -30,6 +30,7 @@ object IslandNavigator:
     // Calculate unlock cost for next island
     val unlockCostSignal = gameSignal.map: game =>
       TileKingdomLogic.islandUnlockCost(game.islands.size)
+    .distinct
 
     div(
       cls := "island-navigator",
