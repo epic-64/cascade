@@ -49,6 +49,10 @@ object Task2:
   def fromOption[A](context: String, ifNone: => Any = "not found")(o: => Option[A]): Task2[Any, A] =
     _ => o.toResult(context, ifNone)
 
+  /** Lift an Either into a Task2 */
+  def fromEither[A](context: String)(e: => Either[Any, A]): Task2[Any, A] =
+    _ => e.left.map(err => Fail(context, err))
+
   // === Extension methods ===
 
   extension [R, A](self: Task2[R, A])
