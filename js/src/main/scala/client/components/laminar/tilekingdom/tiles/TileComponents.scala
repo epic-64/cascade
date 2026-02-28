@@ -33,8 +33,7 @@ object TileComponents:
     div(
       idAttr := TileUtils.tileId(coord),
       cls := s"tile-kingdom-tile unlocked $tileType",
-      cls <-- TileGridState.zoomTierClass.combineWith(extraCls).map:
-        case (zoom, extra) => s"$zoom $extra".trim,
+      cls <-- extraCls,
       level.map(l => dataAttr("level") := l.toString),
       styleAttr <-- TileGridState.tileStyle(coord),
       onMouseEnter --> { _ => TileGridState.hoveredTileCoord.set(Some(coord)) },

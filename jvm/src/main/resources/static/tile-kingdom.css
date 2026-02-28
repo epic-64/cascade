@@ -287,29 +287,30 @@
   transform: none;
 }
 
-/* Zoom tiers — hide everything by default, then show back selectively */
-
-/* Middle zoom: show only the big tile emoji */
-.tile-kingdom-tile.zoom-icons .tile-content > *:not(.tile-icon) {
+/* Zen Mode - hide all text, show only emojis */
+.zen-mode .tile-kingdom-tile .tile-content > *:not(.tile-icon) {
   display: none !important;
 }
 
-.tile-kingdom-tile.zoom-icons .tile-content {
+.zen-mode .tile-kingdom-tile .tile-content {
   justify-content: center;
 }
 
-.tile-kingdom-tile.zoom-icons .tile-icon {
-  font-size: 1.4em;
+.zen-mode .tile-kingdom-tile .tile-icon {
+  font-size: 1.6em;
 }
 
-/* Far zoom: hide everything including the emoji */
-.tile-kingdom-tile.zoom-minimal .tile-content > * {
+/* Also hide build menu text in zen mode */
+.zen-mode .build-menu-category span,
+.zen-mode .build-menu-item span,
+.zen-mode .tile-cost,
+.zen-mode .tile-label,
+.zen-mode .tile-level,
+.zen-mode .tile-production,
+.zen-mode .tile-upgrade {
   display: none !important;
 }
 
-.tile-kingdom-tile.zoom-minimal .tile-content {
-  justify-content: center;
-}
 
 .tile-kingdom-tile.empty {
   background: #f1f5f9;

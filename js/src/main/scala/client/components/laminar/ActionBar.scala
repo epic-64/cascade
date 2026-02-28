@@ -19,6 +19,7 @@ object ActionBar:
       AbdicationButton(onAbdicate),
       SailButton(onSail),
       SkillsButton(onToggleSkillTree),
+      ZenModeButton(),
       InfluenceLinesButton(),
       AutoLayoutButton(),
       ResetButton(onReset),
