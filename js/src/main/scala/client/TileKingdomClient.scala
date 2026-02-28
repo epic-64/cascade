@@ -550,8 +550,15 @@ object TileKingdomClient:
         val offlineWheat = (currentGame.wheat - previousGame.wheat).toInt
         val offlineWood = (currentGame.wood - previousGame.wood).toInt
         val offlineFaith = (currentGame.faith - previousGame.faith).toInt
-        if offlineWheat > 0 || offlineWood > 0 || offlineFaith > 0 then
-          showNotification(s"Welcome back! +${offlineWheat}🌾 +${offlineWood}🪵 +${offlineFaith}✨")
+        val offlineStone = (currentGame.stone - previousGame.stone).toInt
+        if offlineWheat > 0 || offlineWood > 0 || offlineFaith > 0 || offlineStone > 0 then
+          val parts = List(
+            Option.when(offlineWheat > 0)(s"+$offlineWheat🌾"),
+            Option.when(offlineWood > 0)(s"+$offlineWood🪵"),
+            Option.when(offlineFaith > 0)(s"+$offlineFaith✨"),
+            Option.when(offlineStone > 0)(s"+$offlineStone🪨")
+          ).flatten.mkString(" ")
+          showNotification(s"Welcome back! $parts")
 
   private def loadGame(): Unit =
     Try:
@@ -568,8 +575,9 @@ object TileKingdomClient:
             val offlineWheat = (currentGame.wheat - loadedGame.wheat).toInt
             val offlineWood = (currentGame.wood - loadedGame.wood).toInt
             val offlineFaith = (currentGame.faith - loadedGame.faith).toInt
-            if offlineWheat > 0 || offlineWood > 0 || offlineFaith > 0 then
-              showWelcomeBackModal(offlineWheat, offlineWood, offlineFaith, offlineSeconds)
+            val offlineStone = (currentGame.stone - loadedGame.stone).toInt
+            if offlineWheat > 0 || offlineWood > 0 || offlineFaith > 0 || offlineStone > 0 then
+              showWelcomeBackModal(offlineWheat, offlineWood, offlineFaith, offlineStone, offlineSeconds)
 
           println(s"[TileKingdom] Game loaded from localStorage")
         case None =>
@@ -920,8 +928,8 @@ object TileKingdomClient:
   private def showNotification(message: String): Unit =
     NotificationSystem.show(message, 2000)
 
-  private def showWelcomeBackModal(wheatGain: Int, woodGain: Int, faithGain: Int, offlineSeconds: Double): Unit =
-    WelcomeBackModal.show(wheatGain, woodGain, faithGain, offlineSeconds)
+  private def showWelcomeBackModal(wheatGain: Int, woodGain: Int, faithGain: Int, stoneGain: Int, offlineSeconds: Double): Unit =
+    WelcomeBackModal.show(wheatGain, woodGain, faithGain, stoneGain, offlineSeconds)
 
   private def showFloatingReward(coord: Coord, amount: Int, emoji: String, isSpend: Boolean, offsetIndex: Int): Unit =
     getElementById("tile-kingdom-grid").foreach: grid =>
