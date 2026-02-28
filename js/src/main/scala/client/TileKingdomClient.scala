@@ -6,13 +6,13 @@ import scala.util.Try
 import scala.util.chaining.*
 import shared.TileKingdom.*
 import shared.TileKingdom.AcademyMode.FasterPoliticians
-import client.components.laminar.{TileKingdomState, ResourcePanel, ActionBar, NotificationSystem, PoliticianRosterPanel, SkillTree, HelpPopup, DevToolsPopup, WelcomeBackModal, SaveRecoveryModal}
-import client.components.laminar.tilekingdom.{TileGrid, TileGridState, TileRenderer, FloatingEffects, TileUtils}
+import client.components.laminar.{ActionBar, DevToolsPopup, HelpPopup, NotificationSystem, PoliticianRosterPanel, ResourcePanel, SaveRecoveryModal, SkillTree, TileKingdomState, WelcomeBackModal}
+import client.components.laminar.tilekingdom.{FloatingEffects, TileGrid, TileGridState, TileRenderer, TileUtils}
 import com.raquo.laminar.api.L.render as laminarRender
+import org.scalajs.dom.window.alert
 
 def initializeTileKingdom(): Unit =
-  org.scalajs.dom.window.alert("Hello world 9")
-
+  alert("hll")
   TileKingdomClient.init()
 
 object TileKingdomClient:

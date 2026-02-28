@@ -165,7 +165,6 @@ object WebServer extends MainRoutes:
   logger.info(s"Static files directory: ${Config.staticFilesDir}")
   logger.info(s"Cache duration: ${Config.cacheDuration}s")
   logger.info(s"Environment: ${if Config.isProd then "production" else "development"}")
-  logger.info(s"JS build: ${JsChanged.timestamp}")
   logger.info("=" * 60)
 
   startCleanupTask()
