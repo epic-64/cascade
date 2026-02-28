@@ -1552,7 +1552,7 @@ object TileKingdomLogic:
   /** Simulate a single tick interval worth of game mechanics.
     * This is the core game loop that handles:
     * - Resource production (wheat, wood, faith, stone)
-    * - Bureau auto-upgrades
+    * - Bureau auto-upgrades (proportional to elapsed time)
     * - Politician lifespan ticking
     * - Politician generation
     * 
@@ -1579,11 +1579,19 @@ object TileKingdomLogic:
     )
     
     // 2. Process bureau auto-upgrades (for all islands)
+    // Calculate how many upgrades each bureau should perform based on elapsed time
+    val bureauIntervalMs = BureauIntervalSeconds * 1000.0
     currentGame.islands.foreach { island =>
       island.unlockedTiles.filter(_.isBureau).foreach { tile =>
-        bureauAutoUpgrade(currentGame, tile.coord, currentTime) match
-          case Some((newGame, _)) => currentGame = newGame
-          case None => ()
+        val speedMultiplier = bureauSpeedMultiplier(currentGame, tile.coord)
+        val upgradesThisTick = (elapsedMs * speedMultiplier / bureauIntervalMs).toInt.max(0)
+        
+        // Perform multiple upgrades if enough time has passed
+        (0 until upgradesThisTick).foreach { _ =>
+          bureauAutoUpgrade(currentGame, tile.coord, currentTime) match
+            case Some((newGame, _)) => currentGame = newGame
+            case None => () // Can't upgrade (no targets or not enough resources)
+        }
       }
     }
     
