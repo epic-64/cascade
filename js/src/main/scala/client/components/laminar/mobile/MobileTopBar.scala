@@ -23,6 +23,14 @@ object MobileTopBar:
       val max = TileKingdomLogic.maxPoliticianRosterSize(game)
       s"$current/$max"
 
+    // Countdown timer for next politician (shows "full" if at max, empty if no town hall)
+    val politicianTimerSignal = TileKingdomState.politicianTimerSignal
+      .combineWith(TileKingdomState.rosterFullSignal)
+      .map:
+        case (_, true) => "full"
+        case (Some((seconds, _)), false) => s"${seconds}s"
+        case (None, false) => ""
+
     div(
       cls := "mobile-top-bar",
       
@@ -34,11 +42,12 @@ object MobileTopBar:
         resourceItemWithIncome("🪨", TileKingdomState.stoneSignal, TileKingdomState.stoneIncomeSignal),
         resourceItemWithIncome("✨", TileKingdomState.faithSignal, TileKingdomState.faithIncomeSignal),
         resourceItem("💰", TileKingdomState.goldSignal.map(_.toDouble)),
-        // Politician counter
+        // Politician counter with countdown
         div(
           cls := "mobile-resource-item politicians",
           span(cls := "mobile-resource-icon", "👔"),
-          span(cls := "mobile-resource-value", child.text <-- politicianCountSignal)
+          span(cls := "mobile-resource-value", child.text <-- politicianCountSignal),
+          span(cls := "mobile-resource-income", child.text <-- politicianTimerSignal)
         )
       ),
       
