@@ -21,6 +21,8 @@ object MobileMenu:
     val legacySignal = TileKingdomState.legacyPointsSignal
     val skillPointsSignal = TileKingdomState.skillPointsSignal
     val tileCountSignal = TileKingdomState.tileCountSignal
+    val sailTileThresholdSignal = TileKingdomState.sailTileThresholdSignal
+    val sailedCountSignal = TileKingdomState.sailedCountSignal
     val totalIslandsSignal = TileKingdomState.totalIslandsSignal
     val abdicationsSignal = TileKingdomState.totalAbdicationsSignal
     val influenceLinesSignal = TileGridState.showInfluenceLines.signal
@@ -58,7 +60,8 @@ object MobileMenu:
             cls := "mobile-menu-stats",
             statItem("👑", "Reigns", abdicationsSignal.map(_.toString)),
             statItem("🏝️", "Islands", totalIslandsSignal.map(_.toString)),
-            statItem("🗺️", "Tiles", tileCountSignal.map(_.toString)),
+            statItem("⛵", "Voyages", sailedCountSignal.map(_.toString)),
+            statItem("🗺️", "Tiles", tileCountSignal.combineWith(sailTileThresholdSignal).map { case (c, t) => s"$c/$t" }),
             statItem("🏅", "Legacy", legacySignal.map(_.toString)),
             statItem("⭐", "Skills", skillPointsSignal.map(_.toString))
           )

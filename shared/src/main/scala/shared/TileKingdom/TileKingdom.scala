@@ -490,13 +490,15 @@ case class TileKingdomGame(
     politicianRoster: List[Politician] = List.empty, // Available politicians to assign
     lastPoliticianGeneration: Long = 0L,             // Timestamp of last politician generation tick
     politicianGenerationProgress: Double = 0.0,     // Progress towards next politician (0.0 to 1.0)
-    legacyPoints: Int = 0,        // Legacy points earned from Sailing (second tier prestige)
-    skillPoints: Int = 0,         // Skill points (1 per 25 legacy points)
+    legacyPoints: Int = 0,        // Legacy points: total tiles lost due to sailing (never decreases)
+    skillPoints: Int = 0,         // Skill points available to spend
     unlockedSkills: Set[Skill] = Set.empty, // Skills unlocked via skill tree
     hasSailed: Boolean = false,   // Whether player has sailed at least once (unlocks skill tree)
     hasPlacedBuilding: Boolean = false, // Whether any building has been placed since last abdication/sail
     tilePoints: Int = 0,          // Tile points earned by destroying tiles, used for free tile unlocks
-    totalSkillPointsEarned: Int = 0 // Cumulative skill points ever earned (for save recovery)
+    totalSkillPointsEarned: Int = 0, // Cumulative skill points ever earned (for save recovery)
+    sailedCount: Int = 0,         // Number of times the player has sailed
+    sailTileThreshold: Int = 12   // Current tile threshold for sailing (starts at 12, increases with each sail)
 ) derives ReadWriter:
 
   // ============================================================================
@@ -626,10 +628,19 @@ case class TileKingdomGame(
   def abdicationGoldReward: Int =
     TileKingdomLogic.abdicationReward(totalIncomeRate)
 
-  // Sail (second tier prestige) - requires 2+ islands
-  def canSail: Boolean = islands.size >= TileKingdomLogic.SailMinIslands
+  // Sail (second tier prestige) - requires enough unlocked tiles
+  def canSail: Boolean = totalUnlockedTileCount >= sailTileThreshold
 
-  def sailLegacyReward: Int = totalUnlockedTileCount // 1 legacy point per tile destroyed
+  /** Tiles to destroy when sailing (equal to tiles currently unlocked) */
+  def sailLegacyReward: Int = totalUnlockedTileCount
+
+  /** Skill points earned from sailing at current tile count */
+  def sailSkillPointReward: Int =
+    // Earn skill points for tiles above the threshold - 1 (minimum 1)
+    math.max(1, totalUnlockedTileCount - sailTileThreshold + 1)
+
+  /** Next tile threshold after sailing at current count */
+  def sailNextThreshold: Int = totalUnlockedTileCount + 1
 
   // Skill helpers
   def hasSkill(skill: Skill): Boolean = unlockedSkills.contains(skill)
@@ -2032,15 +2043,18 @@ object TileKingdomLogic:
       hasPlacedBuilding = false // Fresh abdication
     ))
 
-  // Sail: second tier prestige - reset everything including gold, gain legacy points for tiles
+  // Sail: second tier prestige - reset everything including gold, gain skill points directly
   def sail(game: TileKingdomGame, currentTimeMillis: Long): Either[String, TileKingdomGame] =
     if !game.canSail then
-      Left(s"Must have at least $SailMinIslands islands to sail")
+      Left(s"Need at least ${game.sailTileThreshold} tiles to sail (have ${game.totalUnlockedTileCount})")
     else
       val tilesDestroyed = game.totalUnlockedTileCount
-      val totalLegacyPoints = game.legacyPoints + tilesDestroyed
-      val skillPointsEarned = totalLegacyPoints / LegacyPointsPerSkillPoint
-      val remainingLegacyPoints = totalLegacyPoints % LegacyPointsPerSkillPoint
+      // Legacy points track total tiles lost to sailing (only goes up)
+      val newLegacyPoints = game.legacyPoints + tilesDestroyed
+      // Skill points = tiles above threshold + 1 (minimum 1)
+      val skillPointsEarned = game.sailSkillPointReward
+      // New threshold is current tile count + 1
+      val newThreshold = game.sailNextThreshold
 
       // Reset to single starting island
       val startingIsland = Island.create(0)
@@ -2063,11 +2077,13 @@ object TileKingdomLogic:
         townHallDirection = Map.empty,
         politicianRoster = List.empty,
         politicianGenerationProgress = 0.0,
-        legacyPoints = remainingLegacyPoints,
+        legacyPoints = newLegacyPoints,
         skillPoints = newTotalSkillPoints,
         hasSailed = true, // Mark that player has sailed at least once
         hasPlacedBuilding = false, // Fresh sail
-        totalSkillPointsEarned = newTotalEarned
+        totalSkillPointsEarned = newTotalEarned,
+        sailedCount = game.sailedCount + 1,
+        sailTileThreshold = newThreshold
       ))
 
   // Get all coords that can be unlocked on current island (locked tiles adjacent to unlocked tiles)
