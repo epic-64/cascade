@@ -109,7 +109,7 @@ object TileKingdomClient:
     container.appendChild(buildDevToolsPopup())
     container.appendChild(buildSkillTreeModal())
     container.appendChild(buildSaveRecoveryModal())
-    
+
     // Mobile UI containers
     container.appendChild(div.idx("laminar-mobile-top-bar"))
     container.appendChild(div.idx("laminar-mobile-action-bar"))
@@ -164,7 +164,7 @@ object TileKingdomClient:
       laminarRender(container, WelcomeBackModal())
     getElementById("laminar-save-recovery-modal").foreach: container =>
       laminarRender(container, SaveRecoveryModal())
-    
+
     // Mobile UI components
     getElementById("laminar-mobile-top-bar").foreach: container =>
       laminarRender(container, mobile.MobileTopBar(() => mobile.MobileMenu.open()))
@@ -247,21 +247,21 @@ object TileKingdomClient:
   private def simulateTimeSkip(hours: Int): Unit =
     val previousGame = currentGame
     val skipMs = hours * 60L * 60L * 1000L
-    
+
     // Set lastTickTime and lastPoliticianGeneration to the past so tick() thinks time has passed
     val gameInPast = currentGame.copy(
       lastTickTime = currentGame.lastTickTime - skipMs,
       lastPoliticianGeneration = currentGame.lastPoliticianGeneration - skipMs
     )
     currentGame = TileKingdomLogic.tick(gameInPast, System.currentTimeMillis())
-    
+
     // Reset tile progress
     tileProgress = Map.empty
     TileGridState.tileProgress.set(Map.empty)
-    
+
     TileKingdomState.update(currentGame)
     saveGame()
-    
+
     // Show what happened
     val offlineWheat = (currentGame.wheat - previousGame.wheat).toInt
     val offlineWood = (currentGame.wood - previousGame.wood).toInt
@@ -370,14 +370,14 @@ object TileKingdomClient:
     // Track state before tick for visual effects
     val previousGame = currentGame
     val previousRosterSize = previousGame.politicianRoster.size
-    
+
     // Track resources harvested and bureau upgrades for visual effects
     var totalWheatHarvested = 0.0
     var totalWoodHarvested = 0.0
     var totalFaithHarvested = 0.0
     var totalStoneHarvested = 0.0
     var bureauUpgrades: List[(Coord, Int, Coord, Int, Resource, Boolean, Int)] = List.empty
-    
+
     // Update tile progress bars and collect harvests
     val currentIslandIndex = currentGame.currentIslandIndex
     currentGame.islands.zipWithIndex.foreach: (island, islandIndex) =>
@@ -391,7 +391,7 @@ object TileKingdomClient:
           if newProgress >= 1.0 then
             val harvests = newProgress.toInt
             tileProgress = tileProgress.updated(key, newProgress - harvests)
-            
+
             // Calculate and accumulate production
             val production = tile.tileType match
               case TileType.WheatField(_) => TileKingdomLogic.productionPerHarvest(currentGame, tile) * harvests
@@ -399,14 +399,14 @@ object TileKingdomClient:
               case TileType.Temple(_) => TileKingdomLogic.faithProductionPerHarvest(currentGame, tile) * harvests
               case TileType.Quarry(_) => TileKingdomLogic.stoneProductionPerHarvest(currentGame, tile) * harvests
               case _ => 0.0
-            
+
             tile.tileType match
               case TileType.WheatField(_) => totalWheatHarvested += production
               case TileType.Woodcutter(_) => totalWoodHarvested += production
               case TileType.Temple(_) => totalFaithHarvested += production
               case TileType.Quarry(_) => totalStoneHarvested += production
               case _ => ()
-            
+
             // Show floating reward for current island only
             if islandIndex == currentIslandIndex && production > 0 then
               val emoji = tile.tileType match
@@ -418,7 +418,7 @@ object TileKingdomClient:
               showFloatingReward(tile.coord, production.toInt, emoji, isSpend = false, offsetIndex = 0)
           else
             tileProgress = tileProgress.updated(key, newProgress)
-      
+
       // Update bureau progress (but don't process upgrades yet - need resources first)
       island.unlockedTiles.filter(_.isBureau).foreach: tile =>
         val key = (islandIndex, tile.coord)
@@ -436,13 +436,13 @@ object TileKingdomClient:
       stone = currentGame.stone + totalStoneHarvested,
       lastTickTime = currentTime
     )
-    
+
     // Process bureau auto-upgrades (after resources are updated)
     currentGame.islands.zipWithIndex.foreach: (island, islandIndex) =>
       island.unlockedTiles.filter(_.isBureau).foreach: tile =>
         val key = (islandIndex, tile.coord)
         val currentProgress = tileProgress.getOrElse(key, 0.0)
-        
+
         if currentProgress >= 1.0 then
           val isTurbo = TileKingdomLogic.isBureauTurbo(currentGame, tile.coord)
           val nearbyCoords = TileKingdomLogic.bureauAffectedCoords(currentGame, tile.coord)
@@ -454,7 +454,7 @@ object TileKingdomClient:
             .getOrElse(1)
           val minFaithCost = TileKingdomLogic.effectiveBureauFaithCostForLevel(currentGame, minLevel)
           val effectivelyTurbo = isTurbo && currentGame.faith >= minFaithCost
-          
+
           TileKingdomLogic.bureauAutoUpgrade(currentGame, tile.coord, currentTime) match
             case Some((newGame, upgradedCoord)) if upgradedCoord != tile.coord =>
               val upgradedTile = currentGame.tiles.get(upgradedCoord)
@@ -470,14 +470,14 @@ object TileKingdomClient:
               tileProgress = tileProgress.updated(key, 1.0)
             case None =>
               tileProgress = tileProgress.updated(key, 1.0)
-    
+
     // Tick politician lifespans
     val (gameAfterLifespan, destroyedPoliticianNames) = TileKingdomLogic.tickPoliticianLifespans(currentGame, elapsedMs.toLong)
     currentGame = gameAfterLifespan
-    
+
     // Generate new politicians
     currentGame = TileKingdomLogic.generateNewPoliticians(currentGame, currentTime)
-    
+
     // Check for new politicians
     val newPoliticianGenerated = currentGame.politicianRoster.size > previousRosterSize
 
@@ -564,16 +564,16 @@ object TileKingdomClient:
     val currentTime = System.currentTimeMillis()
     val previousGame = currentGame
     val offlineMs = currentTime - previousGame.lastTickTime
-    
+
     // Only apply offline progression if significant time has passed (> 1 second)
     if offlineMs > 1000 then
       currentGame = TileKingdomLogic.tick(previousGame, currentTime)
       TileKingdomState.update(currentGame)
-      
+
       // Reset tile progress to avoid visual glitches from stale progress
       tileProgress = Map.empty
       TileGridState.tileProgress.set(Map.empty)
-      
+
       val offlineSeconds = offlineMs / 1000.0
       if offlineSeconds > 5 then
         val offlineWheat = (currentGame.wheat - previousGame.wheat).toInt
@@ -717,6 +717,13 @@ object TileKingdomClient:
         showNotification(if wasFull then "Politician swapped!" else "Politician assigned!")
       case Left(error) =>
         showNotification(error)
+
+  private def handleOpenMobileRoster(townHallCoord: Coord): Unit =
+    mobile.MobilePoliticianRoster.open(
+      townHallCoord,
+      (coord, politicianId) => handleAssignPolitician(politicianId, coord),
+      handleDiscardPolitician
+    )
 
   private def handleRemovePolitician(townHallCoord: Coord): Unit =
     TileKingdomLogic.removePolitician(currentGame, townHallCoord) match

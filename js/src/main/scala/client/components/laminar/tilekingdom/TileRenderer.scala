@@ -39,7 +39,9 @@ object TileRenderer:
     onSwapPoliticians: (Coord, Coord) => Unit,
     onSetTownHallDirection: (Coord, BureauDirection) => Unit,
     // Unlock
-    onUnlockTile: Coord => Unit
+    onUnlockTile: Coord => Unit,
+    // Mobile
+    onOpenMobileRoster: Coord => Unit = _ => ()
   )
 
   /** Render a tile at the given coordinate */
@@ -138,7 +140,8 @@ object TileRenderer:
             onRemovePolitician = () => actions.onRemovePolitician(coord),
             onSwapPoliticians = fromCoord => actions.onSwapPoliticians(fromCoord, coord),
             onSetDirection = dir => actions.onSetTownHallDirection(coord, dir),
-            onDestroy = () => actions.onDestroy(coord)
+            onDestroy = () => actions.onDestroy(coord),
+            onOpenMobileRoster = () => actions.onOpenMobileRoster(coord)
           )
         )
 

@@ -2871,4 +2871,197 @@
   background: var(--bg-tertiary);
 }
 
+/* ============================================================================
+   Mobile Politician Roster
+   ============================================================================ */
 
+.mobile-politician-roster-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: none;
+}
+
+.mobile-politician-roster-overlay.show {
+  display: block;
+}
+
+.mobile-politician-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.mobile-politician-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 70vh;
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.2s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.mobile-politician-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.mobile-politician-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.mobile-politician-header .roster-count {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.mobile-politician-close {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.mobile-politician-target {
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  text-align: center;
+}
+
+.mobile-politician-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mobile-politician-empty {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.mobile-politician-card {
+  display: flex;
+  align-items: stretch;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.mobile-politician-card.rare {
+  border-color: var(--accent-amber);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, var(--bg-secondary) 100%);
+}
+
+.mobile-politician-card-main {
+  flex: 1;
+  display: flex;
+  padding: 0.75rem;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.mobile-politician-card-main:active {
+  background: var(--bg-tertiary);
+}
+
+.mobile-politician-emoji {
+  font-size: 2rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+
+.mobile-politician-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.mobile-politician-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-politician-title {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.mobile-politician-effect {
+  font-size: 0.75rem;
+  color: var(--accent-indigo);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-politician-lifespan {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.mobile-politician-lifespan.lifespan-warning {
+  color: var(--accent-amber);
+}
+
+.mobile-politician-lifespan.lifespan-critical {
+  color: #f87171;
+}
+
+.mobile-politician-discard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: none;
+  border-left: 1px solid var(--border-subtle);
+  color: #fca5a5;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.mobile-politician-discard:active {
+  background: rgba(239, 68, 68, 0.25);
+}

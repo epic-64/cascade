@@ -1,6 +1,7 @@
 package client.components.laminar.tilekingdom.tiles
 
 import com.raquo.laminar.api.L.*
+import org.scalajs.dom
 import org.scalajs.dom.{DragEvent, HTMLElement, DataTransferEffectAllowedKind}
 import shared.TileKingdom.*
 import client.components.laminar.tilekingdom.{TileGridState, TileUtils}
@@ -14,13 +15,17 @@ import TileComponents.*
   */
 object TownHallTile:
 
+  /** Check if we're on mobile (screen width <= 768px) */
+  private def isMobile: Boolean = dom.window.innerWidth <= 768
+
   /** Town Hall-specific actions (politician management + direction) */
   case class Actions(
     onAssignPolitician: String => Unit,
     onRemovePolitician: () => Unit,
     onSwapPoliticians: Coord => Unit,
     onSetDirection: BureauDirection => Unit,
-    onDestroy: () => Unit
+    onDestroy: () => Unit,
+    onOpenMobileRoster: () => Unit = () => () // Opens mobile politician roster
   )
 
   /** Format lifespan for display */
@@ -93,6 +98,14 @@ object TownHallTile:
         )
       ),
 
+
+      // Click handler for mobile - open politician roster
+      onClick --> { e =>
+        if isMobile then
+          e.preventDefault()
+          e.stopPropagation()
+          actions.onOpenMobileRoster()
+      },
 
       // Drag-drop handlers for receiving politicians
       onDragOver --> { e =>
