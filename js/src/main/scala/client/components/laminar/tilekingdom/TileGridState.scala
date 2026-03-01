@@ -189,9 +189,9 @@ object TileGridState:
 
     // Leave padding for UI elements
     val horizontalPadding = 40  // 20px on each side
-    // Mobile: top bar (48px) + island nav (44px) at top, action bar (56px) at bottom + margins
+    // Mobile: top bar (48px) + island nav (44px) + spacing at top, action bar (56px) at bottom + margins
     // Desktop: island navigator at bottom + some margin
-    val verticalPadding = if isMobile then 180 else 160
+    val verticalPadding = if isMobile then 190 else 160
 
     val availableWidth = viewportWidth - horizontalPadding
     val availableHeight = viewportHeight - verticalPadding
@@ -222,9 +222,9 @@ object TileGridState:
     val isMobile = viewportWidth <= 768
 
     // On mobile, offset the center to account for top bar + nav at top and action bar at bottom
-    // Top: 48px + 44px = 92px, Bottom: 56px
-    // So shift the visual center down by (92 - 56) / 2 = 18px
-    val verticalOffset = if isMobile then -18 else 0
+    // Top: 48px + 44px + spacing = ~100px, Bottom: 56px
+    // So shift the visual center down by (100 - 56) / 2 = 22px
+    val verticalOffset = if isMobile then -22 else 0
 
     // World center in pixels, then multiply by zoom to get screen pixels
     val targetX = viewportWidth / 2 - (centerCol + 0.5) * BaseTileSize * zoom
