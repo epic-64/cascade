@@ -2496,6 +2496,28 @@
   }
 }
 
+/* Mobile actions toggle button - hidden on desktop, shown on mobile */
+.mobile-actions-toggle {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-actions-toggle {
+    display: flex;
+    width: 32px;
+    height: 32px;
+    font-size: var(--font-md);
+    background: var(--bg-tertiary);
+    border-color: var(--border-medium);
+  }
+
+  .mobile-actions-toggle.active {
+    background: var(--accent-purple);
+    border-color: var(--accent-purple);
+    color: white;
+  }
+}
+
 /* ============================================================================
    Mobile Layout - Hide desktop UI, fit grid to screen
    ============================================================================ */
@@ -2619,11 +2641,18 @@
   padding: 0.5rem;
   gap: 0.5rem;
   justify-content: center;
+  opacity: 0;
+  transform: translateY(100%);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 @media (max-width: 768px) {
-  .mobile-action-bar {
+  .mobile-action-bar.expanded {
     display: flex;
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
   }
 }
 

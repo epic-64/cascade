@@ -7,6 +7,13 @@ import client.components.laminar.tilekingdom.TileGridState
 /** Mobile bottom action bar with main game actions. */
 object MobileActionBar:
 
+  /** State for whether the action bar is expanded (visible) */
+  val expanded: Var[Boolean] = Var(false)
+  val expandedSignal: Signal[Boolean] = expanded.signal
+
+  def toggle(): Unit = expanded.update(!_)
+  def collapse(): Unit = expanded.set(false)
+
   def apply(
     onAbdicate: () => Unit,
     onSail: () => Unit,
@@ -19,6 +26,7 @@ object MobileActionBar:
 
     div(
       cls := "mobile-action-bar",
+      cls <-- expandedSignal.map(exp => if exp then "expanded" else ""),
       
       // Abdicate button
       button(
