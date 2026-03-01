@@ -1,6 +1,7 @@
 package client.components.laminar.mobile
 
 import com.raquo.laminar.api.L.*
+import org.scalajs.dom
 import shared.TileKingdom.*
 import client.components.laminar.TileKingdomState
 
@@ -17,10 +18,12 @@ object MobilePoliticianRoster:
   private val onDiscardCallback: Var[Option[String => Unit]] = Var(None)
 
   def open(coord: Coord, onAssign: (Coord, String) => Unit, onDiscard: String => Unit): Unit =
+    dom.console.log(s"MobilePoliticianRoster.open called for coord $coord")
     targetTownHall.set(Some(coord))
     onAssignCallback.set(Some(onAssign))
     onDiscardCallback.set(Some(onDiscard))
     isOpen.set(true)
+    dom.console.log(s"MobilePoliticianRoster.isOpen is now ${isOpen.now()}")
 
   def close(): Unit =
     isOpen.set(false)

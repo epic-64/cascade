@@ -101,9 +101,11 @@ object TownHallTile:
 
       // Click handler for mobile - open politician roster
       onClick --> { e =>
+        dom.console.log(s"TownHall clicked, isMobile=$isMobile, width=${dom.window.innerWidth}")
         if isMobile then
           e.preventDefault()
           e.stopPropagation()
+          dom.console.log("Opening mobile roster")
           actions.onOpenMobileRoster()
       },
 
