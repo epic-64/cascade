@@ -299,6 +299,16 @@
   transform: none;
 }
 
+/* Locked tile cost text */
+.tile-kingdom-tile.locked-empty .locked-cost {
+  font-size: var(--font-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  text-align: center;
+  white-space: nowrap;
+}
+
 /* Zen Mode - hide all text, show only emojis */
 .zen-mode .tile-kingdom-tile .tile-content > *:not(.tile-icon) {
   display: none !important;
