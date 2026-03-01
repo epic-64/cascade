@@ -2,6 +2,7 @@ package client.components.laminar.mobile
 
 import com.raquo.laminar.api.L.*
 import client.components.laminar.TileKingdomState
+import shared.TileKingdom.TileKingdomLogic
 
 /** Mobile top bar showing compact resource display. */
 object MobileTopBar:
@@ -12,18 +13,33 @@ object MobileTopBar:
     else if n == n.toInt then n.toInt.toString
     else f"$n%.0f"
 
+  private def formatIncome(rate: Double): String =
+    if rate <= 0 then ""
+    else s"+${formatNumber(rate)}"
+
   def apply(onMenuClick: () => Unit): HtmlElement =
+    val politicianCountSignal = TileKingdomState.gameSignal.map: game =>
+      val current = game.politicianRoster.size
+      val max = TileKingdomLogic.maxPoliticianRosterSize(game)
+      s"$current/$max"
+
     div(
       cls := "mobile-top-bar",
       
-      // Resources row
+      // Resources row with integrated income
       div(
         cls := "mobile-resources",
-        resourceItem("🌾", TileKingdomState.wheatSignal),
-        resourceItem("🪵", TileKingdomState.woodSignal),
-        resourceItem("🪨", TileKingdomState.stoneSignal),
-        resourceItem("✨", TileKingdomState.faithSignal),
-        resourceItem("💰", TileKingdomState.goldSignal.map(_.toDouble))
+        resourceItemWithIncome("🌾", TileKingdomState.wheatSignal, TileKingdomState.wheatIncomeSignal),
+        resourceItemWithIncome("🪵", TileKingdomState.woodSignal, TileKingdomState.woodIncomeSignal),
+        resourceItemWithIncome("🪨", TileKingdomState.stoneSignal, TileKingdomState.stoneIncomeSignal),
+        resourceItemWithIncome("✨", TileKingdomState.faithSignal, TileKingdomState.faithIncomeSignal),
+        resourceItem("💰", TileKingdomState.goldSignal.map(_.toDouble)),
+        // Politician counter
+        div(
+          cls := "mobile-resource-item politicians",
+          span(cls := "mobile-resource-icon", "👔"),
+          span(cls := "mobile-resource-value", child.text <-- politicianCountSignal)
+        )
       ),
       
       // Menu button
@@ -39,5 +55,13 @@ object MobileTopBar:
       cls := "mobile-resource-item",
       span(cls := "mobile-resource-icon", emoji),
       span(cls := "mobile-resource-value", child.text <-- valueSignal.map(formatNumber))
+    )
+
+  private def resourceItemWithIncome(emoji: String, valueSignal: Signal[Double], incomeSignal: Signal[Double]): HtmlElement =
+    div(
+      cls := "mobile-resource-item",
+      span(cls := "mobile-resource-icon", emoji),
+      span(cls := "mobile-resource-value", child.text <-- valueSignal.map(formatNumber)),
+      span(cls := "mobile-resource-income", child.text <-- incomeSignal.map(formatIncome))
     )
 
