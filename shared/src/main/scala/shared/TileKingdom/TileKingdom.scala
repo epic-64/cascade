@@ -696,13 +696,13 @@ object TileKingdomLogic:
   // Island constants
   val SailMinIslands: Int = 2 // Minimum islands required to sail
 
-  // Island unlock costs
+  // Island unlock costs (reduced by 20x)
   def islandUnlockCost(currentIslandCount: Int): Int =
     currentIslandCount match
-      case 1 => 1000     // Island 2: 1,000 gold
-      case 2 => 5000     // Island 3: 5,000 gold
-      case 3 => 25000    // Island 4: 25,000 gold
-      case n => 25000 * math.pow(2, n - 3).toInt // Island 5+: exponential
+      case 1 => 50       // Island 2: 50 gold (was 1,000)
+      case 2 => 250      // Island 3: 250 gold (was 5,000)
+      case 3 => 1250     // Island 4: 1,250 gold (was 25,000)
+      case n => 1250 * math.pow(2, n - 3).toInt // Island 5+: exponential
 
   // Bureau constants
   val BureauIntervalSeconds: Int = 5 // Bureau attempts upgrade every 5 seconds
@@ -747,7 +747,7 @@ object TileKingdomLogic:
 
   // Sail (second tier prestige) constants
   val LegacyPointsPerSkillPoint: Int = 25 // Legacy points needed for 1 skill point
-  val SkillRefundGoldCost: Int = 1000 // Gold cost per skill point refunded
+  val SkillRefundGoldCost: Int = 50 // Gold cost per skill point refunded (was 1000)
 
   // Politician definitions
   val PoliticianPool: List[(String, String, PoliticianEffect, String)] = List(
@@ -1527,20 +1527,37 @@ object TileKingdomLogic:
     currentLevel * 20 * tierMultiplier(currentLevel) // Level 1→2 costs 20 wheat, 2→3 costs 40 wheat, etc.
 
   // Cost to unlock next tile (starts cheap, scales up)
+  // Tiles 0-4: fixed costs (25, 50, 100, 200, 400)
+  // Tiles 5-14: doubles each tile (800, 1600, ..., 204800)
+  // Tiles 15-29: +25% each tile
+  // Tiles 30+: +5% each tile
   def tileUnlockCost(currentUnlockedCount: Int): Int =
     currentUnlockedCount match
-      case 0 => 25
-      case 1 => 50
-      case 2 => 100
-      case 3 => 200
-      case 4 => 400
+      case 0 => 1  // Reduced from 25
+      case 1 => 2  // Reduced from 50
+      case 2 => 5  // Reduced from 100
+      case 3 => 10 // Reduced from 200
+      case 4 => 20 // Reduced from 400
+      case n if n < 15 =>
+        val baseCost = 20 * math.pow(2, n - 4).toInt // Doubles every tile (tiles 5-14)
+        if baseCost > 100_000_000 then 100_000_000 else baseCost
+      case n if n < 30 =>
+        // After tile 15, grow by 25% each tile
+        val tile14Cost = 20 * math.pow(2, 10).toInt // Cost of tile 14 (20 * 1024 = 20480)
+        val growthFactor = math.pow(1.25, n - 14)
+        val cost = (tile14Cost * growthFactor).toInt
+        if cost > 100_000_000 then 100_000_000 else cost
       case n =>
-        val baseCost = 400 * math.pow(2, n - 4).toInt // Doubles every tile after the 5th
-        if baseCost > 100_000_000 then 100_000_000 else baseCost // Cap unlock cost
+        // After tile 30, grow by only 5% each tile
+        val tile14Cost = 20 * math.pow(2, 10).toInt // 20480
+        val tile29Cost = (tile14Cost * math.pow(1.25, 15)).toInt // Cost at tile 29
+        val growthFactor = math.pow(1.05, n - 29)
+        val cost = (tile29Cost * growthFactor).toInt
+        if cost > 100_000_000 then 100_000_000 else cost
 
   // Gold reward for abdication based on total income rate
   def abdicationReward(totalIncomeRate: Double): Int =
-    math.max(10, (totalIncomeRate * 20).toInt) // 20 gold per wheat/second
+    math.max(1, totalIncomeRate.toInt) // 1 gold per resource/second
 
   // Create initial game state
   def newGame(currentTimeMillis: Long): TileKingdomGame =

@@ -45,7 +45,7 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
 
     describe("Feature: Building wheat fields"):
 
-      it("should allow building a wheat field on an empty unlocked tile with enough wheat"):
+      it("should allow building a wheat field on an empty unlocked tile"):
         val game = TileKingdomLogic.newGame(1000L)
         val coord = Coord(2, 1) // Center tile
         // First unlock the tile
@@ -55,7 +55,8 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
 
         result.isRight shouldBe true
         result.value.tiles(coord).tileType shouldBe TileType.WheatField(1)
-        result.value.wheat shouldBe <(gameWithTile.wheat)
+        // Wheat fields are free to build (cost is 0)
+        result.value.wheat shouldBe gameWithTile.wheat
 
       it("should reject building on a locked tile"):
         val game = TileKingdomLogic.newGame(1000L)
@@ -65,16 +66,17 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
 
         result.isLeft shouldBe true
 
-      it("should reject building when not enough resources"):
+      it("should reject building on a tile that already has a building"):
         val game = TileKingdomLogic.newGame(1000L)
         val coord = Coord(2, 1)
-        // First unlock the tile, then set wheat to 0
-        val gameWithTile = TileKingdomLogic.unlockTile(game, coord).getOrElse(fail("Should unlock tile")).copy(wheat = 0)
+        // First unlock the tile and build a wheat field
+        val gameWithTile = TileKingdomLogic.unlockTile(game, coord).getOrElse(fail("Should unlock tile"))
+        val gameWithField = TileKingdomLogic.buildWheatField(gameWithTile, coord).getOrElse(fail("Should build field"))
 
-        val result = TileKingdomLogic.buildWheatField(gameWithTile, coord)
+        // Try to build another wheat field on the same tile
+        val result = TileKingdomLogic.buildWheatField(gameWithField, coord)
 
         result.isLeft shouldBe true
-        result.left.value should include("wheat")
 
     describe("Feature: Building farms"):
 
