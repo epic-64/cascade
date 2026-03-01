@@ -691,7 +691,7 @@ object TileKingdomLogic:
   val ProductionIntervalSeconds: Int = 10 // Wheat fields produce every 10 seconds
   val InitialTileCount: Int = 0 // Start with 0 unlocked tiles per island
   val FarmBoostPerLevel: Double = 0.25 // 25% boost per farm level
-  val StartingGold: Int = 25 // Enough to unlock first tile
+  val StartingGold: Int = 1 // Enough to unlock first tile
 
   // Island constants
   val SailMinIslands: Int = 2 // Minimum islands required to sail
