@@ -3,7 +3,6 @@ package client.components.laminar.tilekingdom
 import com.raquo.laminar.api.L.*
 import shared.TileKingdom.*
 import client.components.laminar.TileKingdomState
-import client.components.laminar.mobile.MobileActionBar
 
 /** Island navigation component for switching between islands.
   *
@@ -36,13 +35,6 @@ object IslandNavigator:
     div(
       cls := "island-navigator",
 
-      // Mobile-only: toggle button for action bar
-      button(
-        cls := "island-nav-btn mobile-actions-toggle",
-        cls <-- MobileActionBar.expandedSignal.map(exp => if exp then "active" else ""),
-        onClick --> (_ => MobileActionBar.toggle()),
-        child.text <-- MobileActionBar.expandedSignal.map(exp => if exp then "✕" else "⚙️")
-      ),
 
       // Previous island button
       button(
