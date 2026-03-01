@@ -100,14 +100,17 @@ object ResourcePanel:
       // Islands count
       resourceItem("🏝️", totalIslandsSignal.map(_.toString), label = "islands"),
 
-      // Legacy points with /25 label
+      // Sailed count (only show if > 0)
       div(
         cls := "resource-item prestige",
-        span(cls := "resource-label", "🏅"),
-        span(cls := "resource-value", child.text <-- legacyPointsSignal.map(_.toString)),
-        span(cls := "resource-label-small", "/25"),
-        span(cls := "resource-name", "LEGACY")
+        display <-- sailedCountSignal.map(sc => if sc > 0 then "flex" else "none"),
+        span(cls := "resource-label", "⛵"),
+        span(cls := "resource-value", child.text <-- sailedCountSignal.map(_.toString)),
+        span(cls := "resource-name", "VOYAGES")
       ),
+
+      // Legacy points (total tiles sacrificed to sailing)
+      resourceItem("🏅", legacyPointsSignal.map(_.toString), extraClass = "prestige", label = "legacy"),
 
       // Skill points
       resourceItem("⭐", skillPointsSignal.map(_.toString), extraClass = "prestige", label = "skills"),
@@ -121,8 +124,17 @@ object ResourcePanel:
         span(cls := "resource-name", "TILES")
       ),
 
-      // Unlocked tiles count
-      resourceItem("🗺️", tileCountSignal.map(_.toString), label = "tiles"),
+      // Unlocked tiles count with sail threshold
+      div(
+        cls := "resource-item",
+        span(cls := "resource-label", "🗺️"),
+        span(
+          cls := "resource-value",
+          child.text <-- tileCountSignal.combineWith(sailTileThresholdSignal).map:
+            case (count, threshold) => s"$count/$threshold"
+        ),
+        span(cls := "resource-name", "TILES TO SAIL")
+      ),
 
       // Next tile unlock costs
       div(

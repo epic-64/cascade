@@ -891,11 +891,10 @@ object TileKingdomClient:
 
   private def handleSail(): Unit =
     if currentGame.canSail then
-      val legacyReward = currentGame.sailLegacyReward
-      val totalLegacy = currentGame.legacyPoints + legacyReward
-      val skillPointsEarned = totalLegacy / TileKingdomLogic.LegacyPointsPerSkillPoint
-      val skillMsg = if skillPointsEarned > 0 then s" (+$skillPointsEarned ⭐)" else ""
-      if window.confirm(s"Sail away and earn $legacyReward legacy points?$skillMsg\n\nThis will reset ALL progress including gold and tiles!") then
+      val skillPointsEarned = currentGame.sailSkillPointReward
+      val legacyTiles = currentGame.sailLegacyReward
+      val newThreshold = currentGame.sailNextThreshold
+      if window.confirm(s"Sail away and earn $skillPointsEarned skill point(s)?\n\nYou will sacrifice $legacyTiles tiles.\nNext sail requires $newThreshold tiles.\n\nThis will reset ALL progress including gold and tiles!") then
         TileKingdomLogic.sail(currentGame, System.currentTimeMillis()) match
           case Right(newGame) =>
             currentGame = newGame
@@ -903,8 +902,7 @@ object TileKingdomClient:
             TileKingdomState.update(currentGame)
             saveGame()
             TileGridState.centerOnKingdom(currentGame, animated = false)
-            val notification = if skillPointsEarned > 0 then s"Sailed! +$legacyReward 🏅, +$skillPointsEarned ⭐" else s"Sailed! +$legacyReward 🏅"
-            showNotification(notification)
+            showNotification(s"Sailed! +$skillPointsEarned ⭐")
           case Left(error) =>
             showNotification(error)
 

@@ -6,7 +6,7 @@ import shared.TileKingdom.*
 /** Laminar-based sail button for TileKingdom.
   *
   * Automatically updates the button text and enabled state
-  * based on whether the player can sail and the legacy reward.
+  * based on whether the player can sail and the skill point reward.
   */
 object SailButton:
 
@@ -15,9 +15,9 @@ object SailButton:
     import TileKingdomState.*
 
     val buttonTextSignal: Signal[String] = 
-      canSailSignal.combineWith(sailLegacyRewardSignal, totalIslandsSignal).map:
-        case (true, reward, _) => s"⛵ Sail (+$reward 🏅)"
-        case (false, _, islandCount) => s"⛵ Sail ($islandCount/${TileKingdomLogic.SailMinIslands} islands)"
+      canSailSignal.combineWith(sailSkillPointRewardSignal, tileCountSignal, sailTileThresholdSignal).map:
+        case (true, skillPoints, _, _) => s"⛵ Sail (+$skillPoints ⭐)"
+        case (false, _, tileCount, threshold) => s"⛵ Sail ($tileCount/$threshold tiles)"
 
     button(
       idAttr := "tile-kingdom-sail-btn",

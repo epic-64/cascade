@@ -245,31 +245,81 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
 
     describe("Feature: Sailing (second tier prestige)"):
 
-      it("should require minimum islands to sail"):
+      it("should require minimum tiles to sail"):
         val game = TileKingdomLogic.newGame(1000L)
+        // Start with default threshold of 12 tiles, game has 0 unlocked tiles
+        game.sailTileThreshold shouldBe 12
+        game.totalUnlockedTileCount shouldBe 0
 
         val result = TileKingdomLogic.sail(game, 2000L)
 
         result.isLeft shouldBe true
-        result.left.value should include("islands")
+        result.left.value should include("tiles")
 
-      it("should reset everything and grant legacy points when sailing"):
-        val game = TileKingdomLogic.newGame(1000L)
-        // Create a game with 2 islands to meet sail requirements
-        val secondIsland = Island.create(1)
-        val bigGame = game.copy(
-          islands = game.islands :+ secondIsland,
-          gold = 1000
-        )
-        bigGame.islands.size should be >= TileKingdomLogic.SailMinIslands
+      it("should reset everything and grant skill points when sailing"):
+        val game = TileKingdomLogic.newGame(1000L).copy(gold = 10_000_000)
+        // Unlock 12 tiles to meet sail requirements
+        // Island is 3 cols (0-2) x 5 rows (0-4), use row-major order
+        val coordsToUnlock = for
+          row <- 0 until 4
+          col <- 0 until 3
+        yield Coord(row, col)
+        
+        val gameWithTiles = coordsToUnlock.foldLeft(game): (g, coord) =>
+          TileKingdomLogic.unlockTile(g, coord) match
+            case Right(newGame) => newGame
+            case Left(err) => fail(s"Failed to unlock $coord: $err")
+        gameWithTiles.totalUnlockedTileCount shouldBe 12
+        gameWithTiles.canSail shouldBe true
 
-        val result = TileKingdomLogic.sail(bigGame, 2000L)
+        val result = TileKingdomLogic.sail(gameWithTiles, 2000L)
 
         result.isRight shouldBe true
         val sailedGame = result.value
         sailedGame.gold shouldBe TileKingdomLogic.StartingGold
         sailedGame.islands.size shouldBe 1
         sailedGame.hasSailed shouldBe true
+        sailedGame.skillPoints shouldBe 1 // Minimum 1 skill point
+        sailedGame.sailedCount shouldBe 1
+        sailedGame.sailTileThreshold shouldBe 13 // 12 + 1
+
+      it("should grant extra skill points for tiles above threshold"):
+        val game = TileKingdomLogic.newGame(1000L).copy(gold = 10_000_000)
+        // Unlock all 15 tiles (3 above threshold of 12)
+        val coordsToUnlock = for
+          row <- 0 until 5
+          col <- 0 until 3
+        yield Coord(row, col)
+        
+        val gameWithTiles = coordsToUnlock.foldLeft(game): (g, coord) =>
+          TileKingdomLogic.unlockTile(g, coord) match
+            case Right(newGame) => newGame
+            case Left(err) => fail(s"Failed to unlock $coord: $err")
+        gameWithTiles.totalUnlockedTileCount shouldBe 15
+
+        val result = TileKingdomLogic.sail(gameWithTiles, 2000L)
+
+        result.isRight shouldBe true
+        val sailedGame = result.value
+        // 15 tiles - 12 threshold + 1 = 4 skill points
+        sailedGame.skillPoints shouldBe 4
+        sailedGame.sailTileThreshold shouldBe 16 // 15 + 1
+
+      it("should accumulate legacy points representing tiles lost"):
+        val game = TileKingdomLogic.newGame(1000L).copy(gold = 10_000_000)
+        // Unlock 12 tiles
+        val coordsToUnlock = for
+          row <- 0 until 4
+          col <- 0 until 3
+        yield Coord(row, col)
+        
+        val gameWithTiles = coordsToUnlock.foldLeft(game): (g, coord) =>
+          TileKingdomLogic.unlockTile(g, coord) match
+            case Right(newGame) => newGame
+            case Left(err) => fail(s"Failed to unlock $coord: $err")
+
+        val sailedGame = TileKingdomLogic.sail(gameWithTiles, 2000L).value
+        sailedGame.legacyPoints shouldBe 12 // Lost 12 tiles
 
     describe("Feature: Unlocking tiles"):
 
