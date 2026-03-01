@@ -114,6 +114,7 @@ object TileKingdomClient:
     container.appendChild(div.idx("laminar-mobile-top-bar"))
     container.appendChild(div.idx("laminar-mobile-action-bar"))
     container.appendChild(div.idx("laminar-mobile-menu"))
+    container.appendChild(div.idx("laminar-mobile-politician-roster"))
 
     // Mount Laminar components AFTER elements are in the DOM
     mountLaminarComponents()
@@ -180,6 +181,8 @@ object TileKingdomClient:
         onReset = () => handleResetGame(),
         onDevTools = () => toggleDevTools()
       ))
+    getElementById("laminar-mobile-politician-roster").foreach: container =>
+      laminarRender(container, mobile.MobilePoliticianRoster())
 
   /** Create TileRenderer.Actions from the existing handlers */
   private def tileRendererActions: TileRenderer.Actions = TileRenderer.Actions(
@@ -203,7 +206,8 @@ object TileKingdomClient:
     onRemovePolitician = handleRemovePolitician,
     onSwapPoliticians = handleSwapPoliticians,
     onSetTownHallDirection = handleSetTownHallDirection,
-    onUnlockTile = handleUnlockTile
+    onUnlockTile = handleUnlockTile,
+    onOpenMobileRoster = handleOpenMobileRoster
   )
 
   /** Dev tools actions for the dev popup */
@@ -719,6 +723,7 @@ object TileKingdomClient:
         showNotification(error)
 
   private def handleOpenMobileRoster(townHallCoord: Coord): Unit =
+    println(s"handleOpenMobileRoster called for $townHallCoord")
     mobile.MobilePoliticianRoster.open(
       townHallCoord,
       (coord, politicianId) => handleAssignPolitician(politicianId, coord),
