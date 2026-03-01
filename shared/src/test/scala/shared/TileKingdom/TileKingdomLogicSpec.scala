@@ -325,6 +325,19 @@ class TileKingdomLogicSpec extends AnyFunSpec with Matchers with EitherValues:
 
     describe("Feature: Unlocking tiles"):
 
+      it("should have expected costs at key tile thresholds"):
+        // Tile costs follow different scaling rules:
+        // Tiles 0-4: fixed costs (1, 2, 5, 10, 20)
+        // Tiles 5-14: doubles each tile
+        // Tiles 15-29: +25% each tile
+        // Tiles 30+: +5% each tile
+        TileKingdomLogic.tileUnlockCost(12) shouldBe 5120
+        TileKingdomLogic.tileUnlockCost(15) shouldBe 25600
+        TileKingdomLogic.tileUnlockCost(16) shouldBe 32000
+        TileKingdomLogic.tileUnlockCost(30) shouldBe 611179
+        TileKingdomLogic.tileUnlockCost(31) shouldBe 641738
+        TileKingdomLogic.tileUnlockCost(45) shouldBe 1270598
+
       it("should allow unlocking any tile with gold"):
         val game = TileKingdomLogic.newGame(1000L).copy(gold = 1000)
         val coord = Coord(1, 1) // Any tile
