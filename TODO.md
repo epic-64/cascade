@@ -96,9 +96,9 @@
 ## Done 2026-03-03
 - The Zen button changes its content to "TEXT" when active and also changes its emoji. It do not want that.
 - Please create a manifest.json (PWA) specifically for the Tile Kingdom page. Make sure it is locked into portrait mode.
+- on mobile, the skill alternatives are displayed one per row, but I want them to be displayed next to each other.
 
 ## Todos
-- on mobile, the skill alternatives are displayed one per row, but I want them to be displayed next to each other.
 - when re-opening the game after a while, we compute the offline progression and show it in a modal.
   but, when re-activating the game (re-focusing the tab), we do something slightly different. I want that the re-focusing uses exactly the same process of calculating progress and then displaying the modal.
 - the offline progress modal should show how many tiles (of each type) have been upgraded
