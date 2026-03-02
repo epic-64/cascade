@@ -249,29 +249,15 @@ object TileKingdomClient:
 
   /** Simulate being away for a number of hours to test offline progression */
   private def simulateTimeSkip(hours: Int): Unit =
-    val previousGame = currentGame
     val skipMs = hours * 60L * 60L * 1000L
 
-    // Set lastTickTime and lastPoliticianGeneration to the past so tick() thinks time has passed
-    val gameInPast = currentGame.copy(
+    // Set lastTickTime and lastPoliticianGeneration to the past, save, then reload
+    currentGame = currentGame.copy(
       lastTickTime = currentGame.lastTickTime - skipMs,
       lastPoliticianGeneration = currentGame.lastPoliticianGeneration - skipMs
     )
-    currentGame = TileKingdomLogic.tick(gameInPast, System.currentTimeMillis())
-
-    // Reset tile progress
-    tileProgress = Map.empty
-    TileGridState.tileProgress.set(Map.empty)
-
-    TileKingdomState.update(currentGame)
     saveGame()
-
-    // Show what happened
-    val offlineWheat = (currentGame.wheat - previousGame.wheat).toInt
-    val offlineWood = (currentGame.wood - previousGame.wood).toInt
-    val offlineFaith = (currentGame.faith - previousGame.faith).toInt
-    val offlineStone = (currentGame.stone - previousGame.stone).toInt
-    showWelcomeBackModal(offlineWheat, offlineWood, offlineFaith, offlineStone, hours * 3600.0)
+    loadGame(createIfMissing = false)
 
   /** Helper for dev actions - updates state and saves */
   private def devAction(transform: => Unit): Unit =
@@ -559,11 +545,12 @@ object TileKingdomClient:
         stopGameTicker()
       else
         // Tab is becoming visible again - reload game state with offline progression
-        loadGame()
+        loadGame(createIfMissing = false)
         startGameTicker()
     )
 
-  private def loadGame(): Unit =
+  /** Load game from localStorage. If createIfMissing is true, creates a new game when no save exists. */
+  private def loadGame(createIfMissing: Boolean = true): Unit =
     Try:
       Option(window.localStorage.getItem(StorageKey)) match
         case Some(json) =>
@@ -587,11 +574,13 @@ object TileKingdomClient:
               showWelcomeBackModal(offlineWheat, offlineWood, offlineFaith, offlineStone, offlineSeconds)
 
           println(s"[TileKingdom] Game loaded from localStorage")
-        case None =>
+        case None if createIfMissing =>
           println(s"[TileKingdom] No saved game found, starting new game")
           currentGame = TileKingdomLogic.newGame(System.currentTimeMillis())
           TileKingdomState.update(currentGame)
           saveGame()
+        case None =>
+          println(s"[TileKingdom] No saved game found, keeping current state")
     .recover:
       case ex =>
         println(s"[TileKingdom] Failed to load game: ${ex.getMessage}")
