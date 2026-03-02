@@ -13,7 +13,7 @@ object WelcomeBackModal:
 
   case class IncomeChange(oldRate: Double, newRate: Double)
   
-  case class TileBuilds(
+  case class TileUpgrades(
     wheatFields: Int = 0,
     woodcutters: Int = 0,
     quarries: Int = 0,
@@ -27,7 +27,7 @@ object WelcomeBackModal:
     faithGain: Int,
     stoneGain: Int,
     timeAway: String,
-    tileBuilds: TileBuilds = TileBuilds(),
+    tileUpgrades: TileUpgrades = TileUpgrades(),
     wheatIncome: Option[IncomeChange] = None,
     woodIncome: Option[IncomeChange] = None,
     stoneIncome: Option[IncomeChange] = None,
@@ -48,7 +48,7 @@ object WelcomeBackModal:
     faithGain: Int,
     stoneGain: Int,
     offlineSeconds: Double,
-    tileBuilds: TileBuilds = TileBuilds(),
+    tileUpgrades: TileUpgrades = TileUpgrades(),
     wheatIncome: Option[IncomeChange] = None,
     woodIncome: Option[IncomeChange] = None,
     stoneIncome: Option[IncomeChange] = None,
@@ -61,7 +61,7 @@ object WelcomeBackModal:
 
     contentVar.set(Some(WelcomeContent(
       wheatGain, woodGain, faithGain, stoneGain, timeAway,
-      tileBuilds, wheatIncome, woodIncome, stoneIncome, faithIncome
+      tileUpgrades, wheatIncome, woodIncome, stoneIncome, faithIncome
     )))
     isVisibleVar.set(true)
 
@@ -103,16 +103,16 @@ object WelcomeBackModal:
       Option.when(content.stoneGain > 0)(p(cls := "welcome-resource", s"🪨 +${formatNumber(content.stoneGain)} stone"))
     ).flatten
 
-    val tileBuildsSection = if content.tileBuilds.nonEmpty then
-      val builds = List(
-        Option.when(content.tileBuilds.wheatFields > 0)(s"🌾 ${content.tileBuilds.wheatFields} wheat fields"),
-        Option.when(content.tileBuilds.woodcutters > 0)(s"🌲 ${content.tileBuilds.woodcutters} woodcutters"),
-        Option.when(content.tileBuilds.quarries > 0)(s"🪨 ${content.tileBuilds.quarries} quarries"),
-        Option.when(content.tileBuilds.temples > 0)(s"⛪ ${content.tileBuilds.temples} temples")
+    val tileUpgradesSection = if content.tileUpgrades.nonEmpty then
+      val upgrades = List(
+        Option.when(content.tileUpgrades.wheatFields > 0)(s"🌾 ${content.tileUpgrades.wheatFields} wheat field upgrades"),
+        Option.when(content.tileUpgrades.woodcutters > 0)(s"🌲 ${content.tileUpgrades.woodcutters} woodcutter upgrades"),
+        Option.when(content.tileUpgrades.quarries > 0)(s"🪨 ${content.tileUpgrades.quarries} quarry upgrades"),
+        Option.when(content.tileUpgrades.temples > 0)(s"⛪ ${content.tileUpgrades.temples} temple upgrades")
       ).flatten
       List(
-        p(cls := "welcome-section-label", "Buildings constructed:"),
-        div(cls := "welcome-tile-builds", builds.map(b => p(cls := "welcome-tile-build", b)))
+        p(cls := "welcome-section-label", "Upgrades:"),
+        div(cls := "welcome-tile-builds", upgrades.map(b => p(cls := "welcome-tile-build", b)))
       )
     else List.empty
 
@@ -140,6 +140,6 @@ object WelcomeBackModal:
       p(cls := "welcome-subtitle", "Your kingdom progressed while you were gone:")
     ) ++ 
     (if resources.nonEmpty then List(p(cls := "welcome-section-label", "Resources earned:")) ++ resources else List.empty) ++
-    tileBuildsSection ++
+    tileUpgradesSection ++
     incomeSection
 

@@ -571,14 +571,14 @@ object TileKingdomClient:
             val offlineFaith = (currentGame.faith - loadedGame.faith).toInt
             val offlineStone = (currentGame.stone - loadedGame.stone).toInt
             
-            // Count tile builds by type
-            val oldTileCounts = countTilesByType(loadedGame)
-            val newTileCounts = countTilesByType(currentGame)
-            val tileBuilds = WelcomeBackModal.TileBuilds(
-              wheatFields = newTileCounts.wheatFields - oldTileCounts.wheatFields,
-              woodcutters = newTileCounts.woodcutters - oldTileCounts.woodcutters,
-              quarries = newTileCounts.quarries - oldTileCounts.quarries,
-              temples = newTileCounts.temples - oldTileCounts.temples
+            // Count tile upgrades by type (difference in total levels)
+            val oldLevelSums = sumTileLevelsByType(loadedGame)
+            val newLevelSums = sumTileLevelsByType(currentGame)
+            val tileUpgrades = WelcomeBackModal.TileUpgrades(
+              wheatFields = newLevelSums.wheatFields - oldLevelSums.wheatFields,
+              woodcutters = newLevelSums.woodcutters - oldLevelSums.woodcutters,
+              quarries = newLevelSums.quarries - oldLevelSums.quarries,
+              temples = newLevelSums.temples - oldLevelSums.temples
             )
             
             // Calculate income rate changes
@@ -604,10 +604,10 @@ object TileKingdomClient:
               WelcomeBackModal.IncomeChange(oldFaithIncome, newFaithIncome)
             )
             
-            if offlineWheat > 0 || offlineWood > 0 || offlineFaith > 0 || offlineStone > 0 || tileBuilds.nonEmpty then
+            if offlineWheat > 0 || offlineWood > 0 || offlineFaith > 0 || offlineStone > 0 || tileUpgrades.nonEmpty then
               showWelcomeBackModal(
                 offlineWheat, offlineWood, offlineFaith, offlineStone, offlineSeconds,
-                tileBuilds, wheatIncomeChange, woodIncomeChange, stoneIncomeChange, faithIncomeChange
+                tileUpgrades, wheatIncomeChange, woodIncomeChange, stoneIncomeChange, faithIncomeChange
               )
 
           println(s"[TileKingdom] Game loaded from localStorage")
@@ -641,16 +641,16 @@ object TileKingdomClient:
         .getOrElse(0)
     .getOrElse(0)
 
-  /** Count tiles by type across all islands */
-  private case class TileCounts(wheatFields: Int, woodcutters: Int, quarries: Int, temples: Int)
+  /** Sum tile levels by type across all islands */
+  private case class TileLevelSums(wheatFields: Int, woodcutters: Int, quarries: Int, temples: Int)
   
-  private def countTilesByType(game: TileKingdomGame): TileCounts =
+  private def sumTileLevelsByType(game: TileKingdomGame): TileLevelSums =
     val allTiles = game.islands.flatMap(_.unlockedTiles)
-    TileCounts(
-      wheatFields = allTiles.count(t => t.tileType match { case TileType.WheatField(_) => true; case _ => false }),
-      woodcutters = allTiles.count(t => t.tileType match { case TileType.Woodcutter(_) => true; case _ => false }),
-      quarries = allTiles.count(t => t.tileType match { case TileType.Quarry(_) => true; case _ => false }),
-      temples = allTiles.count(t => t.tileType match { case TileType.Temple(_) => true; case _ => false })
+    TileLevelSums(
+      wheatFields = allTiles.collect { case t if t.tileType match { case TileType.WheatField(lvl) => true; case _ => false } => t.tileType match { case TileType.WheatField(lvl) => lvl; case _ => 0 } }.sum,
+      woodcutters = allTiles.collect { case t if t.tileType match { case TileType.Woodcutter(lvl) => true; case _ => false } => t.tileType match { case TileType.Woodcutter(lvl) => lvl; case _ => 0 } }.sum,
+      quarries = allTiles.collect { case t if t.tileType match { case TileType.Quarry(lvl) => true; case _ => false } => t.tileType match { case TileType.Quarry(lvl) => lvl; case _ => 0 } }.sum,
+      temples = allTiles.collect { case t if t.tileType match { case TileType.Temple(lvl) => true; case _ => false } => t.tileType match { case TileType.Temple(lvl) => lvl; case _ => 0 } }.sum
     )
 
   // ============================================================================
@@ -985,7 +985,7 @@ object TileKingdomClient:
     faithGain: Int,
     stoneGain: Int,
     offlineSeconds: Double,
-    tileBuilds: WelcomeBackModal.TileBuilds = WelcomeBackModal.TileBuilds(),
+    tileUpgrades: WelcomeBackModal.TileUpgrades = WelcomeBackModal.TileUpgrades(),
     wheatIncome: Option[WelcomeBackModal.IncomeChange] = None,
     woodIncome: Option[WelcomeBackModal.IncomeChange] = None,
     stoneIncome: Option[WelcomeBackModal.IncomeChange] = None,
@@ -993,7 +993,7 @@ object TileKingdomClient:
   ): Unit =
     WelcomeBackModal.show(
       wheatGain, woodGain, faithGain, stoneGain, offlineSeconds,
-      tileBuilds, wheatIncome, woodIncome, stoneIncome, faithIncome
+      tileUpgrades, wheatIncome, woodIncome, stoneIncome, faithIncome
     )
 
   private def showFloatingReward(coord: Coord, amount: Int, emoji: String, isSpend: Boolean, offsetIndex: Int): Unit =
