@@ -21,26 +21,28 @@ object SkillTrainingView:
     val skillStateSignal = VelorIdleState.skillStateSignal(skill)
 
     div(
-      // Back button + Skill header
+      // Skill header card with XP bar
       div(
-        cls := "velor-training-header",
-        button(
-          cls := "velor-back-btn",
-          "← Back",
-          onClick --> { _ => VelorIdleState.setViewMode(VelorIdleState.ViewMode.SkillSelect) }
-        ),
+        cls := "velor-skill-header-card",
         div(
-          cls := "velor-training-title",
-          span(cls := "velor-training-icon", Skill.icon(skill)),
-          span(Skill.displayName(skill)),
-          span(cls := "velor-training-level", child.text <-- skillStateSignal.map(s => s"Lv.${s.level}"))
-        )
+          cls := "velor-training-header",
+          button(
+            cls := "velor-back-btn",
+            "←",
+            onClick --> { _ => VelorIdleState.setViewMode(VelorIdleState.ViewMode.SkillSelect) }
+          ),
+          div(
+            cls := "velor-training-title",
+            span(cls := "velor-training-icon", Skill.icon(skill)),
+            span(Skill.displayName(skill)),
+            span(cls := "velor-training-level", child.text <-- skillStateSignal.map(s => s"Lv.${s.level}"))
+          )
+        ),
+        // XP Progress bar inside the header card
+        xpProgressBar(skillStateSignal)
       ),
 
-      // XP Progress bar
-      xpProgressBar(skillStateSignal),
-
-      // Action progress (if active)
+      // Action progress (if active) - in its own card
       actionProgress(onStopAction),
 
       // Action selector based on skill type

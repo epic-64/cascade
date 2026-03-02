@@ -128,25 +128,35 @@
   gap: var(--velor-spacing-md);
 }
 
+.velor-skill-header-card {
+  background: var(--velor-card);
+  border-radius: var(--velor-radius-lg);
+  padding: var(--velor-spacing-md);
+  border: 1px solid var(--velor-border);
+}
+
 .velor-training-header {
   display: flex;
   align-items: center;
   gap: var(--velor-spacing-md);
-  padding: var(--velor-spacing-sm);
-  background: var(--velor-card);
-  border-radius: var(--velor-radius-md);
+  margin-bottom: var(--velor-spacing-md);
 }
 
 .velor-back-btn {
-  padding: var(--velor-spacing-sm) var(--velor-spacing-md);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: var(--velor-bg-secondary);
   border: 1px solid var(--velor-border);
   border-radius: var(--velor-radius-sm);
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
 .velor-back-btn:hover {
@@ -209,7 +219,7 @@
 
 /* XP Progress Bar */
 .velor-xp-bar-container {
-  margin-bottom: var(--velor-spacing-lg);
+  /* No margin - contained within header card */
 }
 
 .velor-xp-bar-label {
