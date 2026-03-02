@@ -585,13 +585,7 @@ object TileKingdomClient:
         val offlineFaith = (currentGame.faith - previousGame.faith).toInt
         val offlineStone = (currentGame.stone - previousGame.stone).toInt
         if offlineWheat > 0 || offlineWood > 0 || offlineFaith > 0 || offlineStone > 0 then
-          val parts = List(
-            Option.when(offlineWheat > 0)(s"+$offlineWheat🌾"),
-            Option.when(offlineWood > 0)(s"+$offlineWood🪵"),
-            Option.when(offlineFaith > 0)(s"+$offlineFaith✨"),
-            Option.when(offlineStone > 0)(s"+$offlineStone🪨")
-          ).flatten.mkString(" ")
-          showNotification(s"Welcome back! $parts")
+          showWelcomeBackModal(offlineWheat, offlineWood, offlineFaith, offlineStone, offlineSeconds)
 
   private def loadGame(): Unit =
     Try:
