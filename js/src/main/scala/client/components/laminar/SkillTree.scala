@@ -98,7 +98,7 @@ object SkillTree:
   /** Render a single skill branch */
   private def renderBranch(branchName: String, state: SkillTreeState, actions: Actions): HtmlElement =
     val skills = Skill.branchSkills(branchName)
-    val skillsByCost = skills.groupBy(Skill.cost).toList.sortBy(_._1)
+    val skillsByTier = skills.groupBy(Skill.tier).toList.sortBy(_._1)
 
     div(
       cls := "skill-branch",
@@ -109,12 +109,12 @@ object SkillTree:
       ),
       div(
         cls := "skill-branch-nodes",
-        skillsByCost.flatMap: (cost, skillsAtLevel) =>
-          val isDualTrack = skillsAtLevel.exists(s => Skill.mutuallyExclusive(s).isDefined)
+        skillsByTier.flatMap: (tier, skillsAtTier) =>
+          val isDualTrack = skillsAtTier.exists(s => Skill.mutuallyExclusive(s).isDefined)
           if isDualTrack then
-            List(renderDualTrack(skillsAtLevel, state, actions))
+            List(renderDualTrack(skillsAtTier, state, actions))
           else
-            skillsAtLevel.map(skill => renderSkillNode(skill, state, actions)).toList
+            skillsAtTier.map(skill => renderSkillNode(skill, state, actions)).toList
       )
     )
 
