@@ -101,6 +101,6 @@
   but, when re-activating the game (re-focusing the tab), we do something slightly different. I want that the re-focusing uses exactly the same process of calculating progress and then displaying the modal.
 - the offline progress modal should show how many tiles (of each type) have been upgraded
 - Please change all skill unlock costs to 1. We already make it harder to gain skill points inherently.
+- In Zen mode, I want to hide all contents from the tiles, including the progress bars and the emojis. Also, I want to hide most of the UI, except the Zen mode button itself.
 
 ## Todos
-- In Zen mode, I want to hide all contents from the tiles, including the progress bars and the emojis. Also, I want to hide most of the UI, except the Zen mode button itself.
