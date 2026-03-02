@@ -53,6 +53,12 @@ object VelorIdleState:
       case Some(skill) if Skill.isGathering(skill) => GatheringActions.forSkill(skill)
       case _ => Vector.empty
 
+  /** Available processing actions for current skill */
+  val availableProcessingActionsSignal: Signal[Vector[ProcessingAction]] =
+    currentSkillSignal.map:
+      case Some(skill) if Skill.isProcessing(skill) => ProcessingActions.forSkill(skill)
+      case _ => Vector.empty
+
   // ============================================================================
   // UI State (not persisted)
   // ============================================================================

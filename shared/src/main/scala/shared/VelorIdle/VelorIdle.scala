@@ -313,6 +313,60 @@ object GatheringActions:
     case _ => Vector.empty
 
 // ============================================================================
+// Processing Actions
+// ============================================================================
+
+case class ProcessingAction(
+  id: String,
+  name: String,
+  icon: String,
+  levelRequired: Int,
+  xpGain: Int,
+  timeSeconds: Double,
+  inputs: Vector[(Item, Int)],  // (item, count) pairs
+  output: Item,
+  outputCount: Int = 1,
+  burnChance: Option[Double] = None,  // For cooking - base burn chance
+  burnOutput: Option[Item] = None
+) derives ReadWriter
+
+object ProcessingActions:
+  // Cooking recipes
+  val cooking: Vector[ProcessingAction] = Vector(
+    ProcessingAction("cook_shrimp", "Cook Shrimp", "🍤", 1, 10, 2.5,
+      Vector((Item.RawShrimp, 1)), Item.CookedShrimp, burnChance = Some(0.30), burnOutput = Some(Item.BurntFish)),
+    ProcessingAction("cook_sardine", "Cook Sardine", "🍣", 10, 20, 3.0,
+      Vector((Item.RawSardine, 1)), Item.CookedSardine, burnChance = Some(0.25), burnOutput = Some(Item.BurntFish)),
+    ProcessingAction("cook_trout", "Cook Trout", "🍣", 20, 40, 3.5,
+      Vector((Item.RawTrout, 1)), Item.CookedTrout, burnChance = Some(0.25), burnOutput = Some(Item.BurntFish)),
+    ProcessingAction("cook_salmon", "Cook Salmon", "🍣", 35, 65, 4.0,
+      Vector((Item.RawSalmon, 1)), Item.CookedSalmon, burnChance = Some(0.20), burnOutput = Some(Item.BurntFish)),
+    ProcessingAction("cook_lobster", "Cook Lobster", "🦞", 50, 100, 4.5,
+      Vector((Item.RawLobster, 1)), Item.CookedLobster, burnChance = Some(0.15), burnOutput = Some(Item.BurntFish)),
+    ProcessingAction("cook_swordfish", "Cook Swordfish", "🍣", 65, 150, 5.0,
+      Vector((Item.RawSwordfish, 1)), Item.CookedSwordfish, burnChance = Some(0.10), burnOutput = Some(Item.BurntFish))
+  )
+
+  // Smithing recipes (bars)
+  val smithing: Vector[ProcessingAction] = Vector(
+    ProcessingAction("smelt_bronze", "Smelt Bronze Bar", "🟫", 1, 15, 4.0,
+      Vector((Item.CopperOre, 1), (Item.TinOre, 1)), Item.BronzeBar),
+    ProcessingAction("smelt_iron", "Smelt Iron Bar", "⬜", 15, 30, 5.0,
+      Vector((Item.IronOre, 1)), Item.IronBar),
+    ProcessingAction("smelt_steel", "Smelt Steel Bar", "🔲", 30, 55, 6.0,
+      Vector((Item.IronOre, 1), (Item.Coal, 2)), Item.SteelBar),
+    ProcessingAction("smelt_gold", "Smelt Gold Bar", "🟨", 45, 80, 5.5,
+      Vector((Item.GoldOre, 1)), Item.GoldBar),
+    ProcessingAction("smelt_mithril", "Smelt Mithril Bar", "🟦", 60, 130, 7.0,
+      Vector((Item.MithrilOre, 1), (Item.Coal, 4)), Item.MithrilBar)
+  )
+
+  def forSkill(skill: Skill): Vector[ProcessingAction] = skill match
+    case Skill.Cooking => cooking
+    case Skill.Smithing => smithing
+    case _ => Vector.empty
+
+// ============================================================================
 // Inventory
 // ============================================================================
 
@@ -389,6 +443,7 @@ object Inventory:
 
 enum ActiveAction derives ReadWriter:
   case Gathering(action: GatheringAction)
+  case Processing(action: ProcessingAction)
   case Idle
 
 case class VelorIdleGame(
