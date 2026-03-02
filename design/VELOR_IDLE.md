@@ -431,53 +431,53 @@ case class ItemStack(
 ## Implementation Phases
 
 ### Phase 1: Foundation ✅
-- [ ] Create HTML entry point (`velor-idle.html`)
-- [ ] Create CSS file (`velor-idle.css`) with base styles
-- [ ] Create PWA manifest
-- [ ] Add route in `ClientMain.scala`
-- [ ] Create `VelorIdleClient.scala` with basic init
+- [x] Create HTML entry point (`velor-idle.html`)
+- [x] Create CSS file (`velor-idle.css`) with base styles
+- [x] Create PWA manifest
+- [x] Add route in `ClientMain.scala`
+- [x] Create `VelorIdleClient.scala` with basic init
 
-### Phase 2: Domain Model
-- [ ] Define `Skill` enum with all 10 skills
-- [ ] Define `Item` enum with basic items
-- [ ] Define `Action` types per skill
-- [ ] Create `VelorIdleGame` state model
-- [ ] Create `SkillState` with XP calculations
-- [ ] Create `Inventory` with slot management
-- [ ] Implement XP-to-level calculations (linear curve)
-- [ ] Implement level-to-XP requirements
+### Phase 2: Domain Model ✅
+- [x] Define `Skill` enum with all 10 skills
+- [x] Define `Item` enum with basic items
+- [x] Define `Action` types per skill
+- [x] Create `VelorIdleGame` state model
+- [x] Create `SkillState` with XP calculations
+- [x] Create `Inventory` with slot management
+- [x] Implement XP-to-level calculations (linear curve)
+- [x] Implement level-to-XP requirements
 
-### Phase 3: Core Logic
-- [ ] Implement `VelorIdleLogic.tick()` - advances game state
-- [ ] Implement action completion handling
-- [ ] Implement XP granting and level-ups
-- [ ] Implement item generation on action complete
-- [ ] Implement inventory add/remove logic
-- [ ] Implement gold transactions
+### Phase 3: Core Logic ✅
+- [x] Implement `VelorIdleLogic.tick()` - advances game state
+- [x] Implement action completion handling
+- [x] Implement XP granting and level-ups
+- [x] Implement item generation on action complete
+- [x] Implement inventory add/remove logic
+- [x] Implement gold transactions
 
-### Phase 4: Basic UI
-- [ ] Create `VelorIdleState.scala` with reactive Vars
-- [ ] Create `Header.scala` - title, gold display
-- [ ] Create `SkillSelector.scala` - 3x3 grid of skills
-- [ ] Create `SkillCard.scala` - current skill display
-- [ ] Create `ProgressBar.scala` - reusable progress component
-- [ ] Wire up skill selection to change current skill
+### Phase 4: Basic UI ✅
+- [x] Create `VelorIdleState.scala` with reactive Vars
+- [x] Create `Header.scala` - title, gold display
+- [x] Create `SkillSelector.scala` - grid of skills
+- [x] Create `SkillCard.scala` - current skill display
+- [x] Create `ProgressBar.scala` - reusable progress component
+- [x] Wire up skill selection to change current skill
 
-### Phase 5: Action System
-- [ ] Create `ActionSelector.scala` - pick action within skill
-- [ ] Implement action progress tick (visual)
-- [ ] Implement action completion with rewards
-- [ ] Add floating XP/item notifications
-- [ ] Implement Woodcutting with all tree types
-- [ ] Implement Mining with all rock types
-- [ ] Implement Fishing with all fish types
-- [ ] Implement Herbalism with all herb types
+### Phase 5: Action System ✅
+- [x] Create `ActionSelector.scala` - pick action within skill
+- [x] Implement action progress tick (visual)
+- [x] Implement action completion with rewards
+- [x] Add floating XP/item notifications
+- [x] Implement Woodcutting with all tree types
+- [x] Implement Mining with all rock types
+- [x] Implement Fishing with all fish types
+- [x] Implement Herbalism with all herb types
 
-### Phase 6: Inventory & Shop
-- [ ] Create `InventoryPanel.scala` - item grid
-- [ ] Implement item stacking logic
+### Phase 6: Inventory & Shop (Partial)
+- [x] Create `InventoryPanel.scala` - item grid
+- [x] Implement item stacking logic
 - [ ] Create `ShopPanel.scala` - sell interface
-- [ ] Implement selling items for gold
+- [x] Implement selling items for gold
 - [ ] Implement inventory slot purchases
 - [ ] Add inventory full handling
 
@@ -497,9 +497,9 @@ case class ItemStack(
 - [ ] Implement Astrology (stardust, constellations)
 - [ ] Create constellation UI
 
-### Phase 9: Persistence
-- [ ] Implement localStorage save/load
-- [ ] Add auto-save timer (every 30s)
+### Phase 9: Persistence (Partial)
+- [x] Implement localStorage save/load
+- [x] Add auto-save timer (every 30s)
 - [ ] Implement offline progress calculation
 - [ ] Create welcome-back modal showing offline gains
 
