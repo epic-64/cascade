@@ -94,6 +94,7 @@
 - it seems resources are now generated per second rather than waiting for the tile progress to complete
 
 ## Done 2026-03-03
+- The Zen button changes its content to "TEXT" when active and also changes its emoji. It do not want that.
 
 ## Todos
 - on mobile, the skill alternatives are displayed one per row, but I want them to be displayed next to each other.
@@ -103,5 +104,4 @@
 - Please create a manifest.json (PWA) specifically for the Tile Kingdom page. Make sure it is locked into portrait mode.
 - Please change all skill unlock costs to 1. We already make it harder to gain skill points inherently.
 - In Zen mode, I want to hide all contents from the tiles, including the progress bars and the emojis. Also, I want to hide most of the UI, except the Zen mode button itself.
-- THe Zen button changes its content to "TEXT" when active and also changes its emoji. It do not want that.
 - 
