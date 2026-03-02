@@ -309,28 +309,37 @@
   white-space: nowrap;
 }
 
-/* Zen Mode - hide all text, show only emojis */
-.zen-mode .tile-kingdom-tile .tile-content > *:not(.tile-icon) {
-  display: none !important;
-}
-
+/* Zen Mode - hide all tile contents and most UI */
 .zen-mode .tile-kingdom-tile .tile-content {
-  justify-content: center;
-}
-
-.zen-mode .tile-kingdom-tile .tile-icon {
-  font-size: 1.6em;
-}
-
-/* Also hide build menu text in zen mode */
-.zen-mode .build-menu-category span,
-.zen-mode .build-menu-item span,
-.zen-mode .tile-cost,
-.zen-mode .tile-label,
-.zen-mode .tile-level,
-.zen-mode .tile-production,
-.zen-mode .tile-upgrade {
   display: none !important;
+}
+
+.zen-mode .tile-kingdom-tile .tile-progress-bar {
+  display: none !important;
+}
+
+/* Hide all UI panels and elements in zen mode */
+.zen-mode .draggable-panel,
+.zen-mode .tile-kingdom-header,
+.zen-mode .island-navigator,
+.zen-mode .tile-kingdom-left-sidebar,
+.zen-mode .mobile-top-bar,
+.zen-mode .mobile-action-bar,
+.zen-mode .influence-toggle-container {
+  display: none !important;
+}
+
+/* Hide all buttons in action bar except Zen button */
+.zen-mode .tile-kingdom-actions > *:not(#tile-kingdom-zen-btn) {
+  display: none !important;
+}
+
+/* Keep the action bar visible but minimal */
+.zen-mode .tile-kingdom-actions {
+  background: transparent;
+  box-shadow: none;
+  border: none;
+  padding: 0;
 }
 
 
