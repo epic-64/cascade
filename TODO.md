@@ -91,6 +91,14 @@
   - Management3: Town halls can hold 2 politicians at the same time. OR: Normal politicians have 2 effects, rare politicians have 3 effects.
 - there are currently influence indicator lines (lines between tiles). Please make them solid (not dotted), and brighter, but thinner.
 - cache forest adjacency group bonus to fix performance sink
+- it seems resources are now generated per second rather than waiting for the tile progress to complete
+
+## Done 2026-03-03
 
 ## Todos
-- it seems resources are now generated per second rather than waiting for the tile progress to complete
+- on mobile, the skill alternatives are displayed one per row, but I want them to be displayed next to each other.
+- when re-opening the game after a while, we compute the offline progression and show it in a modal.
+  but, when re-activating the game (re-focusing the tab), we do something slightly different. I want that the re-focusing uses exactly the same process of calculating progress and then displaying the modal.
+- the offline progress modal should show how many tiles (of each type) have been upgraded
+- Please create a manifest.json (PWA) specifically for the Tile Kingdom page. Make sure it is locked into portrait mode.
+- Please change all skill unlock costs to 1. We already make it harder to gain skill points inherently.
