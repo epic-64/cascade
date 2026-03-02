@@ -2001,6 +2001,49 @@
   font-size: var(--font-xl);
 }
 
+.welcome-section-label {
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  margin: 1rem 0 0.5rem 0;
+  font-weight: 600;
+}
+
+.welcome-resource {
+  font-size: var(--font-lg);
+  color: var(--accent-green);
+  margin: 0.25rem 0;
+}
+
+.welcome-tile-builds {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.welcome-tile-build {
+  font-size: var(--font-md);
+  color: var(--text-primary);
+  margin: 0;
+  padding: 0.25rem 0.5rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.welcome-income-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.welcome-income-change {
+  font-size: var(--font-md);
+  color: var(--text-primary);
+  margin: 0;
+  padding: 0.25rem 0.5rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+
 /* Skill Tree Modal */
 .skill-tree-modal {
   position: fixed;

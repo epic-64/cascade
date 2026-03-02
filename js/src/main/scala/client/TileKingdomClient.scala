@@ -570,8 +570,45 @@ object TileKingdomClient:
             val offlineWood = (currentGame.wood - loadedGame.wood).toInt
             val offlineFaith = (currentGame.faith - loadedGame.faith).toInt
             val offlineStone = (currentGame.stone - loadedGame.stone).toInt
-            if offlineWheat > 0 || offlineWood > 0 || offlineFaith > 0 || offlineStone > 0 then
-              showWelcomeBackModal(offlineWheat, offlineWood, offlineFaith, offlineStone, offlineSeconds)
+            
+            // Count tile builds by type
+            val oldTileCounts = countTilesByType(loadedGame)
+            val newTileCounts = countTilesByType(currentGame)
+            val tileBuilds = WelcomeBackModal.TileBuilds(
+              wheatFields = newTileCounts.wheatFields - oldTileCounts.wheatFields,
+              woodcutters = newTileCounts.woodcutters - oldTileCounts.woodcutters,
+              quarries = newTileCounts.quarries - oldTileCounts.quarries,
+              temples = newTileCounts.temples - oldTileCounts.temples
+            )
+            
+            // Calculate income rate changes
+            val oldWheatIncome = TileKingdomLogic.totalWheatProductionRate(loadedGame)
+            val newWheatIncome = TileKingdomLogic.totalWheatProductionRate(currentGame)
+            val oldWoodIncome = TileKingdomLogic.totalWoodProductionRate(loadedGame)
+            val newWoodIncome = TileKingdomLogic.totalWoodProductionRate(currentGame)
+            val oldStoneIncome = TileKingdomLogic.totalStoneProductionRate(loadedGame)
+            val newStoneIncome = TileKingdomLogic.totalStoneProductionRate(currentGame)
+            val oldFaithIncome = TileKingdomLogic.totalFaithProductionRate(loadedGame)
+            val newFaithIncome = TileKingdomLogic.totalFaithProductionRate(currentGame)
+            
+            val wheatIncomeChange = Option.when(oldWheatIncome != newWheatIncome)(
+              WelcomeBackModal.IncomeChange(oldWheatIncome, newWheatIncome)
+            )
+            val woodIncomeChange = Option.when(oldWoodIncome != newWoodIncome)(
+              WelcomeBackModal.IncomeChange(oldWoodIncome, newWoodIncome)
+            )
+            val stoneIncomeChange = Option.when(oldStoneIncome != newStoneIncome)(
+              WelcomeBackModal.IncomeChange(oldStoneIncome, newStoneIncome)
+            )
+            val faithIncomeChange = Option.when(oldFaithIncome != newFaithIncome)(
+              WelcomeBackModal.IncomeChange(oldFaithIncome, newFaithIncome)
+            )
+            
+            if offlineWheat > 0 || offlineWood > 0 || offlineFaith > 0 || offlineStone > 0 || tileBuilds.nonEmpty then
+              showWelcomeBackModal(
+                offlineWheat, offlineWood, offlineFaith, offlineStone, offlineSeconds,
+                tileBuilds, wheatIncomeChange, woodIncomeChange, stoneIncomeChange, faithIncomeChange
+              )
 
           println(s"[TileKingdom] Game loaded from localStorage")
         case None if createIfMissing =>
@@ -603,6 +640,18 @@ object TileKingdomClient:
         .flatMap(json => Try(json("totalSkillPointsEarned").num.toInt).toOption)
         .getOrElse(0)
     .getOrElse(0)
+
+  /** Count tiles by type across all islands */
+  private case class TileCounts(wheatFields: Int, woodcutters: Int, quarries: Int, temples: Int)
+  
+  private def countTilesByType(game: TileKingdomGame): TileCounts =
+    val allTiles = game.islands.flatMap(_.unlockedTiles)
+    TileCounts(
+      wheatFields = allTiles.count(t => t.tileType match { case TileType.WheatField(_) => true; case _ => false }),
+      woodcutters = allTiles.count(t => t.tileType match { case TileType.Woodcutter(_) => true; case _ => false }),
+      quarries = allTiles.count(t => t.tileType match { case TileType.Quarry(_) => true; case _ => false }),
+      temples = allTiles.count(t => t.tileType match { case TileType.Temple(_) => true; case _ => false })
+    )
 
   // ============================================================================
   // Event Handlers
@@ -930,8 +979,22 @@ object TileKingdomClient:
   private def showNotification(message: String): Unit =
     NotificationSystem.show(message, 2000)
 
-  private def showWelcomeBackModal(wheatGain: Int, woodGain: Int, faithGain: Int, stoneGain: Int, offlineSeconds: Double): Unit =
-    WelcomeBackModal.show(wheatGain, woodGain, faithGain, stoneGain, offlineSeconds)
+  private def showWelcomeBackModal(
+    wheatGain: Int,
+    woodGain: Int,
+    faithGain: Int,
+    stoneGain: Int,
+    offlineSeconds: Double,
+    tileBuilds: WelcomeBackModal.TileBuilds = WelcomeBackModal.TileBuilds(),
+    wheatIncome: Option[WelcomeBackModal.IncomeChange] = None,
+    woodIncome: Option[WelcomeBackModal.IncomeChange] = None,
+    stoneIncome: Option[WelcomeBackModal.IncomeChange] = None,
+    faithIncome: Option[WelcomeBackModal.IncomeChange] = None
+  ): Unit =
+    WelcomeBackModal.show(
+      wheatGain, woodGain, faithGain, stoneGain, offlineSeconds,
+      tileBuilds, wheatIncome, woodIncome, stoneIncome, faithIncome
+    )
 
   private def showFloatingReward(coord: Coord, amount: Int, emoji: String, isSpend: Boolean, offsetIndex: Int): Unit =
     getElementById("tile-kingdom-grid").foreach: grid =>
