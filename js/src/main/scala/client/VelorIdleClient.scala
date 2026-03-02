@@ -194,13 +194,15 @@ object VelorIdleClient:
     val (newGame, events) = VelorIdleLogic.tick(currentGame, currentTime)
     
     if events.nonEmpty then
+      // Meaningful change - update full game state
       currentGame = newGame
       VelorIdleState.update(currentGame)
       isDirty = true
       processEvents(events)
     else if newGame.actionProgress != currentGame.actionProgress then
+      // Only progress changed - update just the progress signal
       currentGame = newGame
-      VelorIdleState.update(currentGame)
+      VelorIdleState.updateProgress(newGame.actionProgress)
 
   private def processEvents(events: Vector[GameEvent]): Unit =
     events.foreach:
