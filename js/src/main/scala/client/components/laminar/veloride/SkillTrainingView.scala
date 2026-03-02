@@ -21,6 +21,7 @@ object SkillTrainingView:
     val skillStateSignal = VelorIdleState.skillStateSignal(skill)
 
     div(
+      cls := "velor-training-content",
       // Skill header card with XP bar
       div(
         cls := "velor-skill-header-card",

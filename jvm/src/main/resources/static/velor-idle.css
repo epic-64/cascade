@@ -128,6 +128,12 @@
   gap: var(--velor-spacing-md);
 }
 
+.velor-training-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-md);
+}
+
 .velor-skill-header-card {
   background: var(--velor-card);
   border-radius: var(--velor-radius-lg);
@@ -246,9 +252,10 @@
 
 /* Action Progress Bar */
 .velor-action-container {
-  background: var(--velor-bg-secondary);
-  border-radius: var(--velor-radius-md);
+  background: var(--velor-card);
+  border-radius: var(--velor-radius-lg);
   padding: var(--velor-spacing-md);
+  border: 1px solid var(--velor-border);
 }
 
 .velor-action-info {
