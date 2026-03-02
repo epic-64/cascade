@@ -10,14 +10,17 @@ object BottomNav:
   def apply(): HtmlElement =
     div(
       cls := "velor-bottom-nav",
-      navButton("⚔️", "Skills", ViewMode.Skills),
-      navButton("📦", "Inventory", ViewMode.Inventory),
-      navButton("🏪", "Shop", ViewMode.Shop),
-      navButton("⚙️", "Settings", ViewMode.Settings)
+      navButton("⚔️", "Skills", VelorIdleState.ViewMode.SkillSelect),
+      navButton("📦", "Inventory", VelorIdleState.ViewMode.Inventory),
+      navButton("🏪", "Shop", VelorIdleState.ViewMode.Shop),
+      navButton("⚙️", "Settings", VelorIdleState.ViewMode.Settings)
     )
 
-  private def navButton(icon: String, label: String, mode: ViewMode): HtmlElement =
-    val isActive = VelorIdleState.viewModeSignal.map(_ == mode)
+  private def navButton(icon: String, label: String, mode: VelorIdleState.ViewMode): HtmlElement =
+    val isActive = VelorIdleState.viewModeSignal.map:
+      case m if m == mode => true
+      case VelorIdleState.ViewMode.SkillTraining if mode == VelorIdleState.ViewMode.SkillSelect => true
+      case _ => false
     
     button(
       cls <-- isActive.map(active => if active then "velor-nav-btn active" else "velor-nav-btn"),

@@ -62,12 +62,21 @@ object VelorIdleState:
   // ============================================================================
   // UI State (not persisted)
   // ============================================================================
-
+  
   enum ViewMode:
-    case Skills, Inventory, Shop, Settings
-
-  val viewModeVar: Var[ViewMode] = Var(ViewMode.Skills)
+    case SkillSelect    // Grid of all skills to choose from
+    case SkillTraining  // Active skill training screen
+    case Inventory
+    case Shop
+    case Settings
+  
+  val viewModeVar: Var[ViewMode] = Var(ViewMode.SkillSelect)
   val viewModeSignal: Signal[ViewMode] = viewModeVar.signal
-
+  
   def setViewMode(mode: ViewMode): Unit = viewModeVar.set(mode)
+  
+  /** Enter a skill's training screen */
+  def enterSkill(skill: Skill): Unit =
+    modify(g => g.copy(currentSkill = Some(skill), activeAction = ActiveAction.Idle, actionProgress = 0.0))
+    viewModeVar.set(ViewMode.SkillTraining)
 
