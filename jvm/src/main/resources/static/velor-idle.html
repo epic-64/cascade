@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Velor Idle - Cascade</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#4ade80" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+    <link rel="manifest" href="/static/velor-idle-manifest.json" />
+    <!-- Cache-buster: loads static assets with server version query param -->
+    <script>
+      (function() {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', '/api/version', false);
+        try { xhr.send(); } catch (e) { return; }
+        if (xhr.status !== 200) return;
+        const v = JSON.parse(xhr.responseText)['buildVersion'];
+
+        const baseCss = document.createElement('link');
+        baseCss.rel = 'stylesheet';
+        baseCss.href = '/static/base.css?v=' + v;
+        document.head.appendChild(baseCss);
+
+        const css = document.createElement('link');
+        css.rel = 'stylesheet';
+        css.href = '/static/velor-idle.css?v=' + v;
+        document.head.appendChild(css);
+
+        const js = document.createElement('script');
+        js.src = '/static/js/main.js?v=' + v;
+        document.head.appendChild(js);
+      })();
+    </script>
+    <noscript>
+      <link rel="stylesheet" href="/static/base.css">
+      <link rel="stylesheet" href="/static/velor-idle.css">
+    </noscript>
+  </head>
+  <body>
+    <div id="velor-idle-container" class="velor-container">
+      <!-- UI built dynamically by VelorIdleClient -->
+    </div>
+  </body>
+</html>
+

@@ -138,6 +138,10 @@ object WebServer extends MainRoutes:
   def tileKingdom(): cask.Response[java.io.InputStream] =
     serveGamePage("tile-kingdom.html")
 
+  @cask.get("/velor-idle")
+  def velorIdle(): cask.Response[java.io.InputStream] =
+    serveGamePage("velor-idle.html")
+
   @cask.get("/ai-chat")
   def aiChat(): cask.Response[java.io.InputStream] =
     serveGamePage("ai-chat.html")

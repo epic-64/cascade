@@ -1,0 +1,21 @@
+{
+  "name": "Velor Idle - Cascade",
+  "short_name": "Velor Idle",
+  "description": "A minimalistic idle RPG with linear progression - gather, craft, and master skills",
+  "start_url": "/velor-idle",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#4ade80",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/static/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "entertainment"],
+  "screenshots": []
+}
+

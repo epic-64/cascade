@@ -1,0 +1,756 @@
+/* Velor Idle - Game Styles */
+
+/* ============================================================================
+   CSS Variables - Velor Theme
+   ============================================================================ */
+
+:root {
+  /* Velor-specific colors */
+  --velor-bg: #1a1a2e;
+  --velor-bg-secondary: #252540;
+  --velor-card: #2a2a45;
+  --velor-card-hover: #353555;
+  --velor-border: rgba(74, 222, 128, 0.2);
+  --velor-border-bright: rgba(74, 222, 128, 0.4);
+  
+  /* Progress colors */
+  --velor-accent: #4ade80;          /* Green for action progress */
+  --velor-accent-dark: #22c55e;
+  --velor-xp: #fbbf24;              /* Yellow/gold for XP */
+  --velor-xp-dark: #f59e0b;
+  
+  /* Skill colors */
+  --velor-skill-wood: #8b5a2b;
+  --velor-skill-mine: #6b7280;
+  --velor-skill-fish: #3b82f6;
+  --velor-skill-herbalism: #16a34a;
+  --velor-skill-cook: #ef4444;
+  --velor-skill-smith: #f97316;
+  --velor-skill-alchemy: #22c55e;
+  --velor-skill-summon: #06b6d4;
+  --velor-skill-thieve: #8b5cf6;
+  --velor-skill-astro: #a855f7;
+  
+  /* Spacing */
+  --velor-spacing-xs: 0.25rem;
+  --velor-spacing-sm: 0.5rem;
+  --velor-spacing-md: 1rem;
+  --velor-spacing-lg: 1.5rem;
+  --velor-spacing-xl: 2rem;
+  
+  /* Border radius */
+  --velor-radius-sm: 6px;
+  --velor-radius-md: 10px;
+  --velor-radius-lg: 14px;
+}
+
+/* ============================================================================
+   Container & Layout
+   ============================================================================ */
+
+.velor-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--velor-bg);
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ============================================================================
+   Header
+   ============================================================================ */
+
+.velor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--velor-spacing-sm) var(--velor-spacing-md);
+  background: var(--velor-bg-secondary);
+  border-bottom: 1px solid var(--velor-border);
+  flex-shrink: 0;
+}
+
+.velor-header-title {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-sm);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.velor-header-title span {
+  background: linear-gradient(135deg, var(--velor-accent) 0%, #22d3ee 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.velor-gold-display {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-xs);
+  padding: var(--velor-spacing-xs) var(--velor-spacing-sm);
+  background: var(--velor-card);
+  border-radius: var(--velor-radius-sm);
+  font-weight: 600;
+  color: var(--velor-xp);
+}
+
+/* ============================================================================
+   Main Content Area
+   ============================================================================ */
+
+.velor-main {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--velor-spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-md);
+}
+
+/* ============================================================================
+   Skill Card (Current Skill Display)
+   ============================================================================ */
+
+.velor-skill-card {
+  background: var(--velor-card);
+  border-radius: var(--velor-radius-lg);
+  padding: var(--velor-spacing-lg);
+  border: 1px solid var(--velor-border);
+}
+
+.velor-skill-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--velor-spacing-md);
+}
+
+.velor-skill-card-title {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-sm);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.velor-skill-card-level {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* XP Progress Bar */
+.velor-xp-bar-container {
+  margin-bottom: var(--velor-spacing-lg);
+}
+
+.velor-xp-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--velor-spacing-xs);
+}
+
+.velor-xp-bar {
+  height: 8px;
+  background: var(--velor-bg);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.velor-xp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--velor-xp-dark) 0%, var(--velor-xp) 100%);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* Action Progress Bar */
+.velor-action-container {
+  background: var(--velor-bg-secondary);
+  border-radius: var(--velor-radius-md);
+  padding: var(--velor-spacing-md);
+}
+
+.velor-action-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--velor-spacing-sm);
+}
+
+.velor-action-name {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-sm);
+}
+
+.velor-action-time {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.velor-action-bar {
+  height: 24px;
+  background: var(--velor-bg);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.velor-action-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--velor-accent-dark) 0%, var(--velor-accent) 100%);
+  border-radius: 12px;
+  transition: width 0.1s linear;
+}
+
+.velor-action-rewards {
+  display: flex;
+  justify-content: center;
+  gap: var(--velor-spacing-lg);
+  margin-top: var(--velor-spacing-md);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.velor-action-reward {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-xs);
+}
+
+.velor-action-reward-xp {
+  color: var(--velor-xp);
+}
+
+/* ============================================================================
+   Skill Selector Grid
+   ============================================================================ */
+
+.velor-skill-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--velor-spacing-sm);
+}
+
+@media (max-width: 400px) {
+  .velor-skill-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.velor-skill-tile {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--velor-spacing-xs);
+  background: var(--velor-card);
+  border-radius: var(--velor-radius-md);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: var(--velor-spacing-sm);
+}
+
+.velor-skill-tile:hover {
+  background: var(--velor-card-hover);
+  border-color: var(--velor-border);
+}
+
+.velor-skill-tile.active {
+  border-color: var(--velor-accent);
+  background: var(--velor-card-hover);
+}
+
+.velor-skill-tile-icon {
+  font-size: 1.75rem;
+}
+
+.velor-skill-tile-name {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.velor-skill-tile-level {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Skill-specific colors for tiles */
+.velor-skill-tile[data-skill="woodcutting"] { --tile-color: var(--velor-skill-wood); }
+.velor-skill-tile[data-skill="mining"] { --tile-color: var(--velor-skill-mine); }
+.velor-skill-tile[data-skill="fishing"] { --tile-color: var(--velor-skill-fish); }
+.velor-skill-tile[data-skill="herbalism"] { --tile-color: var(--velor-skill-herbalism); }
+.velor-skill-tile[data-skill="cooking"] { --tile-color: var(--velor-skill-cook); }
+.velor-skill-tile[data-skill="smithing"] { --tile-color: var(--velor-skill-smith); }
+.velor-skill-tile[data-skill="alchemy"] { --tile-color: var(--velor-skill-alchemy); }
+.velor-skill-tile[data-skill="summoning"] { --tile-color: var(--velor-skill-summon); }
+.velor-skill-tile[data-skill="thieving"] { --tile-color: var(--velor-skill-thieve); }
+.velor-skill-tile[data-skill="astrology"] { --tile-color: var(--velor-skill-astro); }
+
+.velor-skill-tile.active {
+  border-color: var(--tile-color, var(--velor-accent));
+  box-shadow: 0 0 12px rgba(74, 222, 128, 0.2);
+}
+
+/* ============================================================================
+   Action Selector (within a skill)
+   ============================================================================ */
+
+.velor-action-selector {
+  background: var(--velor-card);
+  border-radius: var(--velor-radius-lg);
+  padding: var(--velor-spacing-md);
+  border: 1px solid var(--velor-border);
+}
+
+.velor-action-selector-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--velor-spacing-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.velor-action-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-xs);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.velor-action-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--velor-spacing-sm) var(--velor-spacing-md);
+  background: var(--velor-bg-secondary);
+  border-radius: var(--velor-radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.velor-action-item:hover {
+  background: var(--velor-bg);
+  border-color: var(--velor-border);
+}
+
+.velor-action-item.active {
+  border-color: var(--velor-accent);
+  background: var(--velor-bg);
+}
+
+.velor-action-item.locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.velor-action-item-left {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-sm);
+}
+
+.velor-action-item-icon {
+  font-size: 1.25rem;
+}
+
+.velor-action-item-name {
+  font-weight: 600;
+}
+
+.velor-action-item-level {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.velor-action-item-right {
+  text-align: right;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.velor-action-item-xp {
+  color: var(--velor-xp);
+  font-weight: 600;
+}
+
+/* ============================================================================
+   Bottom Navigation
+   ============================================================================ */
+
+.velor-bottom-nav {
+  display: flex;
+  justify-content: space-around;
+  padding: var(--velor-spacing-sm) var(--velor-spacing-md);
+  background: var(--velor-bg-secondary);
+  border-top: 1px solid var(--velor-border);
+  flex-shrink: 0;
+}
+
+.velor-nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--velor-spacing-sm) var(--velor-spacing-md);
+  background: transparent;
+  border: none;
+  border-radius: var(--velor-radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.velor-nav-btn:hover {
+  background: var(--velor-card);
+  color: var(--text-primary);
+}
+
+.velor-nav-btn.active {
+  color: var(--velor-accent);
+}
+
+.velor-nav-btn-icon {
+  font-size: 1.25rem;
+}
+
+/* ============================================================================
+   Inventory Panel
+   ============================================================================ */
+
+.velor-inventory {
+  background: var(--velor-card);
+  border-radius: var(--velor-radius-lg);
+  padding: var(--velor-spacing-md);
+  border: 1px solid var(--velor-border);
+}
+
+.velor-inventory-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--velor-spacing-md);
+}
+
+.velor-inventory-title {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.velor-inventory-slots {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.velor-inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--velor-spacing-xs);
+}
+
+@media (min-width: 500px) {
+  .velor-inventory-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+.velor-item-slot {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--velor-bg-secondary);
+  border-radius: var(--velor-radius-sm);
+  border: 1px solid var(--velor-border);
+  position: relative;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.velor-item-slot:hover {
+  border-color: var(--velor-border-bright);
+}
+
+.velor-item-slot.empty {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.velor-item-slot-icon {
+  font-size: 1.5rem;
+}
+
+.velor-item-slot-count {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* ============================================================================
+   Floating Notifications
+   ============================================================================ */
+
+.velor-floating {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+  font-weight: 700;
+  font-size: 1rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  animation: velor-float-up 1.5s ease-out forwards;
+}
+
+.velor-floating-xp {
+  color: var(--velor-xp);
+}
+
+.velor-floating-item {
+  color: var(--velor-accent);
+}
+
+@keyframes velor-float-up {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-60px) scale(0.8);
+  }
+}
+
+/* ============================================================================
+   Toast Notifications
+   ============================================================================ */
+
+.velor-toast-container {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-sm);
+  pointer-events: none;
+}
+
+.velor-toast {
+  padding: var(--velor-spacing-sm) var(--velor-spacing-lg);
+  background: var(--velor-card);
+  border: 1px solid var(--velor-accent);
+  border-radius: var(--velor-radius-md);
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  animation: velor-toast-in 0.3s ease-out;
+}
+
+.velor-toast.level-up {
+  border-color: var(--velor-xp);
+  background: linear-gradient(135deg, var(--velor-card) 0%, rgba(251, 191, 36, 0.1) 100%);
+}
+
+@keyframes velor-toast-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================================
+   Modals & Overlays
+   ============================================================================ */
+
+.velor-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--velor-spacing-md);
+  animation: velor-fade-in 0.2s ease-out;
+}
+
+.velor-modal {
+  background: var(--velor-card);
+  border-radius: var(--velor-radius-lg);
+  padding: var(--velor-spacing-lg);
+  max-width: 400px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  border: 1px solid var(--velor-border);
+}
+
+.velor-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--velor-spacing-md);
+}
+
+.velor-modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.velor-modal-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--velor-bg-secondary);
+  border: none;
+  border-radius: 50%;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.velor-modal-close:hover {
+  background: var(--velor-bg);
+  color: var(--text-primary);
+}
+
+@keyframes velor-fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* ============================================================================
+   Utility Classes
+   ============================================================================ */
+
+.velor-hidden {
+  display: none !important;
+}
+
+.velor-text-muted {
+  color: var(--text-muted);
+}
+
+.velor-text-xp {
+  color: var(--velor-xp);
+}
+
+.velor-text-accent {
+  color: var(--velor-accent);
+}
+
+/* ============================================================================
+   Desktop Enhancements (>768px)
+   ============================================================================ */
+
+@media (min-width: 768px) {
+  .velor-container {
+    flex-direction: row;
+  }
+  
+  .velor-sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--velor-border);
+    display: flex;
+    flex-direction: column;
+    background: var(--velor-bg-secondary);
+  }
+  
+  .velor-sidebar-header {
+    padding: var(--velor-spacing-md);
+    border-bottom: 1px solid var(--velor-border);
+  }
+  
+  .velor-main-desktop {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .velor-skill-grid {
+    grid-template-columns: repeat(2, 1fr);
+    padding: var(--velor-spacing-md);
+  }
+  
+  .velor-skill-tile {
+    aspect-ratio: auto;
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: var(--velor-spacing-md);
+    gap: var(--velor-spacing-md);
+  }
+  
+  .velor-skill-tile-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .velor-bottom-nav {
+    display: none;
+  }
+}
+
+/* ============================================================================
+   Scrollbar Styling
+   ============================================================================ */
+
+.velor-main::-webkit-scrollbar,
+.velor-action-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.velor-main::-webkit-scrollbar-track,
+.velor-action-list::-webkit-scrollbar-track {
+  background: var(--velor-bg);
+}
+
+.velor-main::-webkit-scrollbar-thumb,
+.velor-action-list::-webkit-scrollbar-thumb {
+  background: var(--velor-border);
+  border-radius: 3px;
+}
+
+.velor-main::-webkit-scrollbar-thumb:hover,
+.velor-action-list::-webkit-scrollbar-thumb:hover {
+  background: var(--velor-border-bright);
+}
+
