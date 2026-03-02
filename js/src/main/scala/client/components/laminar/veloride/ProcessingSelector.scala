@@ -3,47 +3,59 @@ package client.components.laminar.veloride
 import com.raquo.laminar.api.L.*
 import shared.VelorIdle.*
 
-/** Processing action selector - list of available recipes with ingredient requirements */
+/** Processing action selector - list of available recipes with ingredient requirements.
+  *
+  * Uses stable element creation to prevent scroll reset on state updates.
+  */
 object ProcessingSelector:
 
   def apply(skill: Skill, onStartAction: String => Unit): HtmlElement =
-    val actionsSignal = VelorIdleState.availableProcessingActionsSignal
-    val skillStateSignal = VelorIdleState.skillStateSignal(skill)
-    val activeActionSignal = VelorIdleState.activeActionSignal
-    val inventorySignal = VelorIdleState.inventorySignal
+    // Get actions once (they don't change for a skill)
+    val actions = ProcessingActions.forSkill(skill)
     
     div(
       cls := "velor-action-list",
-      children <-- actionsSignal.combineWith(skillStateSignal, activeActionSignal, inventorySignal).map {
-        case (actions, state, active, inventory) =>
-          actions.map(action => processingItem(action, state.level, active, inventory, onStartAction))
-      }
+      // Create items once, use reactive bindings for dynamic parts
+      actions.map(action => processingItem(skill, action, onStartAction))
     )
 
   private def processingItem(
+    skill: Skill,
     action: ProcessingAction,
-    playerLevel: Int,
-    activeAction: ActiveAction,
-    inventory: Inventory,
     onStart: String => Unit
   ): HtmlElement =
-    val isLocked = playerLevel < action.levelRequired
-    val hasIngredients = action.inputs.forall { case (item, count) =>
-      inventory.getCount(item) >= count
+    val skillStateSignal = VelorIdleState.skillStateSignal(skill)
+    val activeActionSignal = VelorIdleState.activeActionSignal
+    val inventorySignal = VelorIdleState.inventorySignal
+
+    // Derive reactive signals for this specific action
+    val isLockedSignal = skillStateSignal.map(_.level < action.levelRequired)
+    val hasIngredientsSignal = inventorySignal.map { inventory =>
+      action.inputs.forall { case (item, count) =>
+        inventory.getCount(item) >= count
+      }
     }
-    val isActive = activeAction match
+    val isActiveSignal = activeActionSignal.map:
       case ActiveAction.Processing(a) => a.id == action.id
       case _ => false
 
-    val itemCls =
-      if isLocked then "velor-action-item locked"
-      else if !hasIngredients then "velor-action-item locked"
-      else if isActive then "velor-action-item active"
-      else "velor-action-item"
+    val itemClsSignal = isLockedSignal.combineWith(hasIngredientsSignal, isActiveSignal).map:
+      case (true, _, _) => "velor-action-item locked"
+      case (_, false, _) => "velor-action-item locked"
+      case (_, _, true) => "velor-action-item active"
+      case _ => "velor-action-item"
 
     div(
-      cls := itemCls,
-      onClick --> { _ => if !isLocked && hasIngredients then onStart(action.id) },
+      cls <-- itemClsSignal,
+      onClick --> { _ => 
+        // Check state at click time via current game state
+        val game = VelorIdleState.current
+        val currentLevel = game.skills.getOrElse(skill, SkillState.initial).level
+        val hasIngredients = action.inputs.forall { case (item, count) =>
+          game.inventory.getCount(item) >= count
+        }
+        if currentLevel >= action.levelRequired && hasIngredients then onStart(action.id)
+      },
 
       div(
         cls := "velor-action-item-left",
@@ -52,8 +64,10 @@ object ProcessingSelector:
           div(cls := "velor-action-item-name", action.name),
           div(
             cls := "velor-action-item-level",
-            if isLocked then s"🔒 Level ${action.levelRequired}"
-            else ingredientsList(action.inputs, inventory)
+            child.text <-- isLockedSignal.combineWith(inventorySignal).map { case (locked, inventory) =>
+              if locked then s"🔒 Level ${action.levelRequired}"
+              else ingredientsList(action.inputs, inventory)
+            }
           )
         )
       ),
@@ -70,4 +84,3 @@ object ProcessingSelector:
       val icon = Item.icon(item)
       s"$icon $have/$count"
     }.mkString(" ")
-
