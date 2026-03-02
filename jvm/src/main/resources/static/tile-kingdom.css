@@ -2367,28 +2367,9 @@
     margin-top: 0.5rem;
   }
 
-  .skill-node {
-    flex-wrap: wrap;
-  }
-
-  .skill-node-desc {
-    flex: 0 0 100%;
-    order: 3;
-    margin-top: 0.5rem;
-  }
-
-  .skill-dual-track {
-    flex-direction: column;
-  }
-
-  .skill-dual-track .skill-node {
-    flex-direction: row;
-    text-align: left;
-  }
-
   .skill-or-separator {
     justify-content: center;
-    padding: 0.25rem 0;
+    padding: 0 0.25rem;
   }
 }
 
