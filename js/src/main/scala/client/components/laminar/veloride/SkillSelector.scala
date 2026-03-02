@@ -6,19 +6,19 @@ import shared.VelorIdle.*
 /** Skill selector grid - displays all skills with levels */
 object SkillSelector:
 
-  def apply(): HtmlElement =
+  def apply(onSelectSkill: Skill => Unit): HtmlElement =
     div(
       cls := "velor-skill-grid",
-      Skill.values.toSeq.map(skill => skillTile(skill))
+      Skill.values.toSeq.map(skill => skillTile(skill, onSelectSkill))
     )
 
-  private def skillTile(skill: Skill): HtmlElement =
+  private def skillTile(skill: Skill, onSelect: Skill => Unit): HtmlElement =
     val levelSignal = VelorIdleState.skillStateSignal(skill).map(_.level)
     
     div(
       cls := "velor-skill-tile",
       dataAttr("skill") := skill.toString.toLowerCase,
-      onClick --> { _ => VelorIdleState.enterSkill(skill) },
+      onClick --> { _ => onSelect(skill) },
       
       div(cls := "velor-skill-tile-icon", Skill.icon(skill)),
       div(cls := "velor-skill-tile-name", Skill.displayName(skill)),

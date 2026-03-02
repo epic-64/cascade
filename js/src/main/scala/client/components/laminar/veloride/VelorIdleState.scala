@@ -75,8 +75,7 @@ object VelorIdleState:
   
   def setViewMode(mode: ViewMode): Unit = viewModeVar.set(mode)
   
-  /** Enter a skill's training screen */
-  def enterSkill(skill: Skill): Unit =
-    modify(g => g.copy(currentSkill = Some(skill), activeAction = ActiveAction.Idle, actionProgress = 0.0))
+  /** Navigate to skill training screen (call after selecting skill via client) */
+  def goToSkillTraining(): Unit =
     viewModeVar.set(ViewMode.SkillTraining)
 
