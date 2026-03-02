@@ -324,7 +324,6 @@
 .zen-mode .island-navigator,
 .zen-mode .tile-kingdom-left-sidebar,
 .zen-mode .mobile-top-bar,
-.zen-mode .mobile-action-bar,
 .zen-mode .influence-toggle-container {
   display: none !important;
 }
@@ -340,6 +339,20 @@
   box-shadow: none;
   border: none;
   padding: 0;
+}
+
+/* Hide all mobile action buttons except Zen button */
+.zen-mode .mobile-action-bar .mobile-action-btn:not(.zen) {
+  display: none !important;
+}
+
+/* Keep mobile action bar visible but minimal */
+.zen-mode .mobile-action-bar {
+  background: transparent;
+  box-shadow: none;
+  border: none;
+  padding: 0.5rem;
+  justify-content: center;
 }
 
 
