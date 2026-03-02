@@ -1,0 +1,21 @@
+{
+  "name": "Tile Kingdom - Cascade",
+  "short_name": "Tile Kingdom",
+  "description": "Build your kingdom tile by tile in this strategic empire builder",
+  "start_url": "/tile-kingdom",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#818cf8",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/static/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "entertainment"],
+  "screenshots": []
+}
+

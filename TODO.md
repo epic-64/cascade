@@ -95,13 +95,13 @@
 
 ## Done 2026-03-03
 - The Zen button changes its content to "TEXT" when active and also changes its emoji. It do not want that.
+- Please create a manifest.json (PWA) specifically for the Tile Kingdom page. Make sure it is locked into portrait mode.
 
 ## Todos
 - on mobile, the skill alternatives are displayed one per row, but I want them to be displayed next to each other.
 - when re-opening the game after a while, we compute the offline progression and show it in a modal.
   but, when re-activating the game (re-focusing the tab), we do something slightly different. I want that the re-focusing uses exactly the same process of calculating progress and then displaying the modal.
 - the offline progress modal should show how many tiles (of each type) have been upgraded
-- Please create a manifest.json (PWA) specifically for the Tile Kingdom page. Make sure it is locked into portrait mode.
 - Please change all skill unlock costs to 1. We already make it harder to gain skill points inherently.
 - In Zen mode, I want to hide all contents from the tiles, including the progress bars and the emojis. Also, I want to hide most of the UI, except the Zen mode button itself.
 - 
