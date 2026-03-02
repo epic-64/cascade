@@ -12,13 +12,13 @@
   --velor-card-hover: #353555;
   --velor-border: rgba(74, 222, 128, 0.2);
   --velor-border-bright: rgba(74, 222, 128, 0.4);
-  
+
   /* Progress colors */
   --velor-accent: #4ade80;          /* Green for action progress */
   --velor-accent-dark: #22c55e;
   --velor-xp: #fbbf24;              /* Yellow/gold for XP */
   --velor-xp-dark: #f59e0b;
-  
+
   /* Skill colors */
   --velor-skill-wood: #8b5a2b;
   --velor-skill-mine: #6b7280;
@@ -30,14 +30,14 @@
   --velor-skill-summon: #06b6d4;
   --velor-skill-thieve: #8b5cf6;
   --velor-skill-astro: #a855f7;
-  
+
   /* Spacing */
   --velor-spacing-xs: 0.25rem;
   --velor-spacing-sm: 0.5rem;
   --velor-spacing-md: 1rem;
   --velor-spacing-lg: 1.5rem;
   --velor-spacing-xl: 2rem;
-  
+
   /* Border radius */
   --velor-radius-sm: 6px;
   --velor-radius-md: 10px;
@@ -116,6 +116,63 @@
   display: flex;
   flex-direction: column;
   gap: var(--velor-spacing-md);
+}
+
+/* ============================================================================
+   Skill Training View
+   ============================================================================ */
+
+.velor-training-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-md);
+}
+
+.velor-training-header {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-md);
+  padding: var(--velor-spacing-sm);
+  background: var(--velor-card);
+  border-radius: var(--velor-radius-md);
+}
+
+.velor-back-btn {
+  padding: var(--velor-spacing-sm) var(--velor-spacing-md);
+  background: var(--velor-bg-secondary);
+  border: 1px solid var(--velor-border);
+  border-radius: var(--velor-radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.velor-back-btn:hover {
+  background: var(--velor-bg);
+  color: var(--text-primary);
+  border-color: var(--velor-border-bright);
+}
+
+.velor-training-title {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-sm);
+  font-size: 1.25rem;
+  font-weight: 700;
+  flex: 1;
+}
+
+.velor-training-icon {
+  font-size: 1.5rem;
+}
+
+.velor-training-level {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-left: auto;
 }
 
 /* ============================================================================
@@ -684,7 +741,7 @@
   .velor-container {
     flex-direction: row;
   }
-  
+
   .velor-sidebar {
     width: 280px;
     flex-shrink: 0;
@@ -693,23 +750,23 @@
     flex-direction: column;
     background: var(--velor-bg-secondary);
   }
-  
+
   .velor-sidebar-header {
     padding: var(--velor-spacing-md);
     border-bottom: 1px solid var(--velor-border);
   }
-  
+
   .velor-main-desktop {
     flex: 1;
     display: flex;
     flex-direction: column;
   }
-  
+
   .velor-skill-grid {
     grid-template-columns: repeat(2, 1fr);
     padding: var(--velor-spacing-md);
   }
-  
+
   .velor-skill-tile {
     aspect-ratio: auto;
     flex-direction: row;
@@ -717,13 +774,13 @@
     padding: var(--velor-spacing-md);
     gap: var(--velor-spacing-md);
   }
-  
+
   .velor-skill-tile-info {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .velor-bottom-nav {
     display: none;
   }

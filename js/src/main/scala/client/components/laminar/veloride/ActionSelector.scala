@@ -12,15 +12,11 @@ object ActionSelector:
     val activeActionSignal = VelorIdleState.activeActionSignal
     
     div(
-      cls := "velor-action-selector",
-      div(cls := "velor-action-selector-title", "Actions"),
-      div(
-        cls := "velor-action-list",
-        children <-- actionsSignal.combineWith(skillStateSignal, activeActionSignal).map {
-          case (actions, state, active) =>
-            actions.map(action => actionItem(action, state.level, active, onStartAction))
-        }
-      )
+      cls := "velor-action-list",
+      children <-- actionsSignal.combineWith(skillStateSignal, activeActionSignal).map {
+        case (actions, state, active) =>
+          actions.map(action => actionItem(action, state.level, active, onStartAction))
+      }
     )
 
   private def actionItem(

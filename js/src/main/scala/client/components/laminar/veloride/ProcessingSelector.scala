@@ -11,17 +11,13 @@ object ProcessingSelector:
     val skillStateSignal = VelorIdleState.skillStateSignal(skill)
     val activeActionSignal = VelorIdleState.activeActionSignal
     val inventorySignal = VelorIdleState.inventorySignal
-
+    
     div(
-      cls := "velor-action-selector",
-      div(cls := "velor-action-selector-title", "Recipes"),
-      div(
-        cls := "velor-action-list",
-        children <-- actionsSignal.combineWith(skillStateSignal, activeActionSignal, inventorySignal).map {
-          case (actions, state, active, inventory) =>
-            actions.map(action => processingItem(action, state.level, active, inventory, onStartAction))
-        }
-      )
+      cls := "velor-action-list",
+      children <-- actionsSignal.combineWith(skillStateSignal, activeActionSignal, inventorySignal).map {
+        case (actions, state, active, inventory) =>
+          actions.map(action => processingItem(action, state.level, active, inventory, onStartAction))
+      }
     )
 
   private def processingItem(
