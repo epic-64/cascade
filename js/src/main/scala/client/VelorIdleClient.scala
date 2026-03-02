@@ -127,7 +127,16 @@ object VelorIdleClient:
     isDirty = true
 
   private def handleStartAction(actionId: String): Unit =
-    VelorIdleLogic.startGathering(currentGame, actionId) match
+    // Try gathering first, then processing
+    val result = currentGame.currentSkill match
+      case Some(skill) if Skill.isGathering(skill) =>
+        VelorIdleLogic.startGathering(currentGame, actionId)
+      case Some(skill) if Skill.isProcessing(skill) =>
+        VelorIdleLogic.startProcessing(currentGame, actionId)
+      case _ =>
+        Left("No skill selected")
+    
+    result match
       case Right(newGame) =>
         currentGame = newGame
         VelorIdleState.update(currentGame)
@@ -196,6 +205,10 @@ object VelorIdleClient:
         ToastSystem.showRareDrop(item)
       case GameEvent.InventoryFull =>
         ToastSystem.show("⚠️ Inventory full!")
+      case GameEvent.OutOfMaterials =>
+        ToastSystem.show("⚠️ Out of materials!")
+      case GameEvent.ActionFailed(reason) =>
+        ToastSystem.show(s"🔥 $reason")
       case _ => ()
 
   // ============================================================================

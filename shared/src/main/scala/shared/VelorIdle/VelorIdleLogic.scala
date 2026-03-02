@@ -21,6 +21,9 @@ object VelorIdleLogic:
       case ActiveAction.Gathering(action) =>
         processGatheringTick(game, action, elapsedSeconds, currentTime, random)
 
+      case ActiveAction.Processing(action) =>
+        processProcessingTick(game, action, elapsedSeconds, currentTime, random)
+
   private def processGatheringTick(
     game: VelorIdleGame,
     action: GatheringAction,
@@ -102,6 +105,122 @@ object VelorIdleLogic:
     (updatedGame, events)
 
   // ============================================================================
+  // Processing Tick
+  // ============================================================================
+
+  private def processProcessingTick(
+    game: VelorIdleGame,
+    action: ProcessingAction,
+    elapsedSeconds: Double,
+    currentTime: Long,
+    random: Random
+  ): (VelorIdleGame, Vector[GameEvent]) =
+    game.currentSkill match
+      case None => (game.copy(lastTickTime = currentTime), Vector.empty)
+      case Some(skill) =>
+        val skillState = game.skills.getOrElse(skill, SkillState.initial)
+
+        // Check if we still have ingredients
+        if !canProcess(game, action) then
+          // Stop action - out of materials
+          (game.copy(
+            activeAction = ActiveAction.Idle,
+            actionProgress = 0.0,
+            lastTickTime = currentTime
+          ), Vector(GameEvent.OutOfMaterials))
+
+        else
+          // Calculate effective action time
+          val efficiencyBonus = calculateEfficiencyBonus(skillState.level)
+          val effectiveTime = action.timeSeconds * (1.0 - efficiencyBonus)
+
+          val progressPerSecond = 1.0 / effectiveTime
+          val newProgress = game.actionProgress + (elapsedSeconds * progressPerSecond)
+
+          if newProgress >= 1.0 then
+            val (updatedGame, events) = completeProcessingAction(game, action, skill, skillState, random)
+            val overflowProgress = newProgress - 1.0
+            val finalProgress = if overflowProgress > 0 && overflowProgress < 1.0 then overflowProgress else 0.0
+            (updatedGame.copy(actionProgress = finalProgress, lastTickTime = currentTime), events)
+          else
+            (game.copy(actionProgress = newProgress, lastTickTime = currentTime), Vector.empty)
+
+  private def completeProcessingAction(
+    game: VelorIdleGame,
+    action: ProcessingAction,
+    skill: Skill,
+    skillState: SkillState,
+    random: Random
+  ): (VelorIdleGame, Vector[GameEvent]) =
+    var events = Vector.empty[GameEvent]
+    var updatedGame = game
+
+    // Consume inputs (with recycle chance)
+    val recycleChance = calculateRecycleChance(skillState.level)
+    var inputsConsumed = true
+    
+    for (item, count) <- action.inputs do
+      val recycled = random.nextDouble() < recycleChance
+      if !recycled then
+        val (newInv, removed) = updatedGame.inventory.removeItem(item, count)
+        if removed < count then
+          inputsConsumed = false
+        updatedGame = updatedGame.copy(inventory = newInv)
+
+    if !inputsConsumed then
+      // This shouldn't happen if canProcess was checked, but be safe
+      return (updatedGame, Vector(GameEvent.OutOfMaterials))
+
+    // Grant XP
+    val xpGain = action.xpGain
+    val newXp = skillState.xp + xpGain
+    val oldLevel = skillState.level
+    val newLevel = SkillState.levelFromXp(newXp)
+    val newSkillState = skillState.copy(xp = newXp, level = newLevel)
+    updatedGame = updatedGame.copy(skills = updatedGame.skills.updated(skill, newSkillState))
+    events = events :+ GameEvent.XpGained(skill, xpGain)
+
+    if newLevel > oldLevel then
+      events = events :+ GameEvent.LevelUp(skill, newLevel)
+
+    // Check for burn (cooking)
+    val didBurn = action.burnChance.exists { baseBurn =>
+      val levelDiff = skillState.level - action.levelRequired
+      val effectiveBurn = (baseBurn - levelDiff * 0.02).max(0.05)
+      random.nextDouble() < effectiveBurn
+    }
+
+    if didBurn then
+      // Burned - produce burnt output
+      action.burnOutput.foreach { burnt =>
+        val (inv, _) = updatedGame.inventory.addItem(burnt, 1)
+        updatedGame = updatedGame.copy(inventory = inv)
+        events = events :+ GameEvent.ItemGained(burnt, 1)
+        events = events :+ GameEvent.ActionFailed("Burned!")
+      }
+    else
+      // Success - check for double chance
+      val doubleChance = calculateDoubleChance(skillState.level, isGathering = false)
+      val baseCount = action.outputCount
+      val doubleCount = if random.nextDouble() < doubleChance then baseCount else 0
+      val totalCount = baseCount + doubleCount
+
+      val (inv, overflow) = updatedGame.inventory.addItem(action.output, totalCount)
+      updatedGame = updatedGame.copy(inventory = inv)
+      events = events :+ GameEvent.ItemGained(action.output, totalCount)
+
+      if overflow > 0 then
+        events = events :+ GameEvent.InventoryFull
+
+    (updatedGame, events)
+
+  /** Check if player has all required inputs for a processing action */
+  def canProcess(game: VelorIdleGame, action: ProcessingAction): Boolean =
+    action.inputs.forall { case (item, count) =>
+      game.inventory.getCount(item) >= count
+    }
+
+  // ============================================================================
   // Perk Calculations
   // ============================================================================
 
@@ -174,6 +293,27 @@ object VelorIdleLogic:
                 actionProgress = 0.0
               ))
 
+  /** Start a processing action */
+  def startProcessing(game: VelorIdleGame, actionId: String): Either[String, VelorIdleGame] =
+    game.currentSkill match
+      case None => Left("No skill selected")
+      case Some(skill) if !Skill.isProcessing(skill) => Left("Not a processing skill")
+      case Some(skill) =>
+        val actions = ProcessingActions.forSkill(skill)
+        actions.find(_.id == actionId) match
+          case None => Left("Action not found")
+          case Some(action) =>
+            val skillState = game.skills.getOrElse(skill, SkillState.initial)
+            if skillState.level < action.levelRequired then
+              Left(s"Requires ${Skill.displayName(skill)} level ${action.levelRequired}")
+            else if !canProcess(game, action) then
+              Left("Missing required materials")
+            else
+              Right(game.copy(
+                activeAction = ActiveAction.Processing(action),
+                actionProgress = 0.0
+              ))
+
   /** Stop the current action */
   def stopAction(game: VelorIdleGame): VelorIdleGame =
     game.copy(
@@ -226,4 +366,6 @@ enum GameEvent:
   case RareDrop(item: Item)
   case InventoryFull
   case GoldGained(amount: Long)
+  case OutOfMaterials
+  case ActionFailed(reason: String)
 

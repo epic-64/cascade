@@ -44,9 +44,11 @@ object SkillCard:
       // Action progress (if active)
       actionProgress(skill, onStopAction),
 
-      // Action selector (if gathering skill)
+      // Action selector based on skill type
       if Skill.isGathering(skill) then
         ActionSelector(skill, onStartAction)
+      else if Skill.isProcessing(skill) then
+        ProcessingSelector(skill, onStartAction)
       else
         div(cls := "velor-text-muted", "Coming soon...")
     )
@@ -86,47 +88,62 @@ object SkillCard:
       child <-- activeSignal.map:
         case ActiveAction.Idle => emptyNode
         case ActiveAction.Gathering(action) =>
-          div(
-            div(
-              cls := "velor-action-info",
-              div(
-                cls := "velor-action-name",
-                span(action.icon),
-                span(action.name)
-              ),
-              div(
-                cls := "velor-action-time",
-                child.text <-- progressSignal.map { p =>
-                  val remaining = action.timeSeconds * (1.0 - p)
-                  f"${remaining}%.1fs"
-                }
-              )
-            ),
-            div(
-              cls := "velor-action-bar",
-              div(
-                cls := "velor-action-bar-fill",
-                styleAttr <-- progressSignal.map(p => s"width: ${(p * 100).toInt}%")
-              )
-            ),
-            div(
-              cls := "velor-action-rewards",
-              div(
-                cls := "velor-action-reward velor-action-reward-xp",
-                s"+${action.xpGain} XP"
-              ),
-              div(
-                cls := "velor-action-reward",
-                s"${Item.icon(action.output)} ${Item.displayName(action.output)}"
-              )
-            ),
-            button(
-              cls := "btn btn-secondary",
-              styleAttr := "margin-top: 1rem; width: 100%",
-              "Stop",
-              onClick --> { _ => onStopAction() }
-            )
-          )
+          renderActionProgress(action.icon, action.name, action.timeSeconds, action.xpGain, 
+            action.output, progressSignal, onStopAction)
+        case ActiveAction.Processing(action) =>
+          renderActionProgress(action.icon, action.name, action.timeSeconds, action.xpGain,
+            action.output, progressSignal, onStopAction)
+    )
+
+  private def renderActionProgress(
+    icon: String,
+    name: String,
+    timeSeconds: Double,
+    xpGain: Int,
+    output: Item,
+    progressSignal: Signal[Double],
+    onStopAction: () => Unit
+  ): HtmlElement =
+    div(
+      div(
+        cls := "velor-action-info",
+        div(
+          cls := "velor-action-name",
+          span(icon),
+          span(name)
+        ),
+        div(
+          cls := "velor-action-time",
+          child.text <-- progressSignal.map { p =>
+            val remaining = timeSeconds * (1.0 - p)
+            f"${remaining}%.1fs"
+          }
+        )
+      ),
+      div(
+        cls := "velor-action-bar",
+        div(
+          cls := "velor-action-bar-fill",
+          styleAttr <-- progressSignal.map(p => s"width: ${(p * 100).toInt}%")
+        )
+      ),
+      div(
+        cls := "velor-action-rewards",
+        div(
+          cls := "velor-action-reward velor-action-reward-xp",
+          s"+$xpGain XP"
+        ),
+        div(
+          cls := "velor-action-reward",
+          s"${Item.icon(output)} ${Item.displayName(output)}"
+        )
+      ),
+      button(
+        cls := "btn btn-secondary",
+        styleAttr := "margin-top: 1rem; width: 100%",
+        "Stop",
+        onClick --> { _ => onStopAction() }
+      )
     )
 
   private def formatNumber(n: Long): String =
