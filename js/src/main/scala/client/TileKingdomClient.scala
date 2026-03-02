@@ -559,33 +559,9 @@ object TileKingdomClient:
         stopGameTicker()
       else
         // Tab is becoming visible again - reload game state with offline progression
-        reloadGameState()
+        loadGame()
         startGameTicker()
     )
-
-  /** Reload game state from memory, applying offline progression */
-  private def reloadGameState(): Unit =
-    val currentTime = System.currentTimeMillis()
-    val previousGame = currentGame
-    val offlineMs = currentTime - previousGame.lastTickTime
-
-    // Only apply offline progression if significant time has passed (> 1 second)
-    if offlineMs > 1000 then
-      currentGame = TileKingdomLogic.tick(previousGame, currentTime)
-      TileKingdomState.update(currentGame)
-
-      // Reset tile progress to avoid visual glitches from stale progress
-      tileProgress = Map.empty
-      TileGridState.tileProgress.set(Map.empty)
-
-      val offlineSeconds = offlineMs / 1000.0
-      if offlineSeconds > 5 then
-        val offlineWheat = (currentGame.wheat - previousGame.wheat).toInt
-        val offlineWood = (currentGame.wood - previousGame.wood).toInt
-        val offlineFaith = (currentGame.faith - previousGame.faith).toInt
-        val offlineStone = (currentGame.stone - previousGame.stone).toInt
-        if offlineWheat > 0 || offlineWood > 0 || offlineFaith > 0 || offlineStone > 0 then
-          showWelcomeBackModal(offlineWheat, offlineWood, offlineFaith, offlineStone, offlineSeconds)
 
   private def loadGame(): Unit =
     Try:
@@ -596,6 +572,10 @@ object TileKingdomClient:
           val currentTime = System.currentTimeMillis()
           currentGame = TileKingdomLogic.tick(loadedGame, currentTime)
           TileKingdomState.update(currentGame)
+
+          // Reset tile progress to avoid visual glitches from stale progress
+          tileProgress = Map.empty
+          TileGridState.tileProgress.set(Map.empty)
 
           val offlineSeconds = (currentTime - loadedGame.lastTickTime) / 1000.0
           if offlineSeconds > 5 then
