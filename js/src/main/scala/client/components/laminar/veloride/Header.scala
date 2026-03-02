@@ -3,7 +3,7 @@ package client.components.laminar.veloride
 import com.raquo.laminar.api.L.*
 import shared.VelorIdle.*
 
-/** Header component with title and gold display */
+/** Header component with title, active skill indicator, and gold display */
 object Header:
 
   def apply(): HtmlElement =
@@ -14,11 +14,41 @@ object Header:
         "⚔️",
         span("Velor Idle")
       ),
+      // Active skill indicator
+      activeSkillIndicator(),
       div(
         cls := "velor-gold-display",
         "💰",
         child.text <-- VelorIdleState.goldSignal.map(formatGold)
       )
+    )
+
+  private def activeSkillIndicator(): HtmlElement =
+    val activeActionSignal = VelorIdleState.activeActionSignal
+    val currentSkillSignal = VelorIdleState.currentSkillSignal
+
+    div(
+      cls := "velor-active-skill",
+      child <-- currentSkillSignal.combineWith(activeActionSignal).map:
+        case (Some(skill), ActiveAction.Idle) =>
+          // Skill selected but idle - don't show icon
+          div(
+            cls := "velor-active-skill-content idle",
+            span(cls := "velor-active-skill-status", "Idle")
+          )
+        case (Some(skill), _) =>
+          // Skill actively running - show spinning icon
+          div(
+            cls := "velor-active-skill-content active",
+            span(cls := "velor-active-skill-icon spinning", Skill.icon(skill)),
+            span(cls := "velor-active-skill-status", "Active")
+          )
+        case (None, _) =>
+          // No skill selected
+          div(
+            cls := "velor-active-skill-content none",
+            span(cls := "velor-active-skill-status", "Idle")
+          )
     )
 
   private def formatGold(gold: Long): String =
