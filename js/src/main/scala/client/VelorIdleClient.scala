@@ -83,17 +83,11 @@ object VelorIdleClient:
   private def skillSelectView(): HtmlElement =
     div(
       h2(styleAttr := "margin-bottom: 1rem; text-align: center;", "Choose a Skill"),
-      SkillSelector()
+      SkillSelector(handleSelectSkill)
     )
 
   private def skillTrainingView(): HtmlElement =
     SkillTrainingView(handleStartAction, handleStopAction)
-
-  private def skillsView(): HtmlElement =
-    div(
-      SkillCard(handleStartAction, handleStopAction),
-      SkillSelector()
-    )
 
   private def inventoryView(): HtmlElement =
     InventoryPanel(handleSellItem)
@@ -131,6 +125,11 @@ object VelorIdleClient:
   // Event Handlers
   // ============================================================================
 
+  private def handleSelectSkill(skill: Skill): Unit =
+    currentGame = VelorIdleLogic.selectSkill(currentGame, skill)
+    VelorIdleState.update(currentGame)
+    VelorIdleState.goToSkillTraining()
+    isDirty = true
 
   private def handleStartAction(actionId: String): Unit =
     // Try gathering first, then processing
