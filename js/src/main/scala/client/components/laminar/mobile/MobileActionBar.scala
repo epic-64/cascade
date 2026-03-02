@@ -54,8 +54,8 @@ object MobileActionBar:
       button(
         cls := "mobile-action-btn zen",
         cls <-- zenModeSignal.map(zen => if zen then "active" else ""),
-        span(cls := "mobile-action-icon", child.text <-- zenModeSignal.map(z => if z then "📝" else "🧘")),
-        span(cls := "mobile-action-label", child.text <-- zenModeSignal.map(z => if z then "Text" else "Zen")),
+        span(cls := "mobile-action-icon", "🧘"),
+        span(cls := "mobile-action-label", "Zen"),
         onClick --> { _ => TileGridState.toggleZenMode() }
       )
     )

@@ -15,8 +15,7 @@ object ZenModeButton:
     button(
       idAttr := "tile-kingdom-zen-btn",
       cls := "btn-secondary",
-      child.text <-- zenModeSignal.map: isZen =>
-        if isZen then "📝 Text" else "🧘 Zen",
+      "🧘 Zen",
       title <-- zenModeSignal.map: isZen =>
         if isZen then "Show tile text" else "Hide tile text (Zen Mode)",
       onClick --> { _ => TileGridState.toggleZenMode() }
