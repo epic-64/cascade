@@ -169,11 +169,22 @@ object Skill:
     case Agriculture3A => "Wheat field upgrade costs reduced by 99%"
     case Agriculture3B => "Farms affect neighboring temples at 50% effectiveness"
 
-  // Get skill cost (position in branch)
-  def cost(skill: Skill): Int = skill match
-    case Agriculture1A | Agriculture1B | Management1A | Management1B | Wisdom1 | Education1 | Logistics1A | Logistics1B => 1
-    case Agriculture2A | Agriculture2B | Management2A | Management2B | Wisdom2 | Education2 => 2
-    case Agriculture3A | Agriculture3B | Management3A | Management3B => 3
+  // Get skill cost
+  def cost(skill: Skill): Int = 1
+
+  // Get skill tier (for grouping in UI, independent of cost)
+  def tier(skill: Skill): Int = skill match
+    case Agriculture1A | Agriculture1B => 1
+    case Agriculture2A | Agriculture2B => 2
+    case Agriculture3A | Agriculture3B => 3
+    case Management1A | Management1B => 1
+    case Management2A | Management2B => 2
+    case Management3A | Management3B => 3
+    case Wisdom1 => 1
+    case Wisdom2 => 2
+    case Education1 => 1
+    case Education2 => 2
+    case Logistics1A | Logistics1B => 1
 
   // Get prerequisite skill (if any)
   def prerequisite(skill: Skill): Option[Skill] = skill match
