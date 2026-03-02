@@ -17,7 +17,7 @@ object VelorIdleClient:
   private val StorageKey = "velor_idle_game_state"
   private val SaveIntervalMs: Int = 30_000
   private val TickIntervalMs: Int = 100
-  
+
   private var currentGame: VelorIdleGame = VelorIdleGame.newGame(System.currentTimeMillis())
   private var tickIntervalHandle: Option[Int] = None
   private var saveIntervalHandle: Option[Int] = None
@@ -56,13 +56,13 @@ object VelorIdleClient:
 
     val app = div(
       cls := "velor-container",
-      
+
       // Header
       Header(),
-      
+
       // Toast notifications
       ToastSystem.container(),
-      
+
       // Main content area
       div(
         cls := "velor-main",
@@ -73,7 +73,7 @@ object VelorIdleClient:
           case VelorIdleState.ViewMode.Shop => shopView()
           case VelorIdleState.ViewMode.Settings => settingsView()
       ),
-      
+
       // Bottom navigation
       BottomNav()
     )
@@ -108,7 +108,7 @@ object VelorIdleClient:
         button(
           cls := "btn btn-secondary",
           "💾 Save Game",
-          onClick --> { _ => 
+          onClick --> { _ =>
             saveGame()
             ToastSystem.show("Game saved!")
           }
@@ -140,7 +140,7 @@ object VelorIdleClient:
         VelorIdleLogic.startProcessing(currentGame, actionId)
       case _ =>
         Left("No skill selected")
-    
+
     result match
       case Right(newGame) =>
         currentGame = newGame
@@ -192,7 +192,7 @@ object VelorIdleClient:
   private def gameTick(): Unit =
     val currentTime = System.currentTimeMillis()
     val (newGame, events) = VelorIdleLogic.tick(currentGame, currentTime)
-    
+
     if events.nonEmpty then
       // Meaningful change - update full game state
       currentGame = newGame
