@@ -51,7 +51,7 @@ object SkillTrainingView:
         xpProgressBar(skillStateSignal),
         // Perk bonuses based on skill type
         if Skill.isGathering(skill) then gatheringPerkBonuses(skill, skillStateSignal)
-        else if Skill.isProcessing(skill) then processingPerkBonuses(skillStateSignal)
+        else if Skill.isProcessing(skill) then processingPerkBonuses(skill, skillStateSignal)
         else emptyNode
       ),
 
@@ -75,11 +75,14 @@ object SkillTrainingView:
     )
 
   private def gatheringPerkBonuses(skill: Skill, stateSignal: Signal[SkillState]): HtmlElement =
-    // Get yield from active action (if any gathering action is active for this skill)
-    val yieldSignal = VelorIdleState.activeActionSignal.combineWith(VelorIdleState.gameSignal).map:
+    // Get action bonuses from active action (if any gathering action is active for this skill)
+    val actionBonusesSignal = VelorIdleState.activeActionSignal.combineWith(VelorIdleState.gameSignal).map:
       case (ActiveAction.Gathering(s, action), game) if s == skill =>
         val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
-        Some(VelorIdleLogic.calculateYieldBonus(actionState.level))
+        Some((
+          VelorIdleLogic.calculateEfficiencyBonus(actionState.level),
+          VelorIdleLogic.calculateYieldBonus(actionState.level)
+        ))
       case _ => None
 
     div(
@@ -87,9 +90,9 @@ object SkillTrainingView:
       // Job bonuses
       div(
         cls := "velor-perk-item",
-        span(cls := "velor-perk-label", "Efficiency"),
+        span(cls := "velor-perk-label", "Secondary"),
         span(cls := "velor-perk-value",
-          child.text <-- stateSignal.map(s => f"${VelorIdleLogic.calculateEfficiencyBonus(s.level) * 100}%.0f%%")
+          child.text <-- stateSignal.map(s => f"${VelorIdleLogic.calculateSecondaryChance(s.level) * 100}%.0f%%")
         )
       ),
       div(
@@ -104,25 +107,35 @@ object SkillTrainingView:
       // Action bonuses
       div(
         cls := "velor-perk-item",
+        span(cls := "velor-perk-label", "Efficiency"),
+        span(cls := "velor-perk-value",
+          child.text <-- actionBonusesSignal.map:
+            case Some((eff, _)) => f"${eff * 100}%.0f%%"
+            case None => "—"
+        )
+      ),
+      div(
+        cls := "velor-perk-item",
         span(cls := "velor-perk-label", "Yield"),
         span(cls := "velor-perk-value",
-          child.text <-- yieldSignal.map:
-            case Some(y) => f"${y * 100}%.0f%%"
+          child.text <-- actionBonusesSignal.map:
+            case Some((_, y)) => f"${y * 100}%.0f%%"
             case None => "—"
         )
       )
     )
 
-  private def processingPerkBonuses(stateSignal: Signal[SkillState]): HtmlElement =
+  private def processingPerkBonuses(skill: Skill, stateSignal: Signal[SkillState]): HtmlElement =
+    // Get efficiency from active action
+    val efficiencySignal = VelorIdleState.activeActionSignal.combineWith(VelorIdleState.gameSignal).map:
+      case (ActiveAction.Processing(s, action), game) if s == skill =>
+        val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
+        Some(VelorIdleLogic.calculateEfficiencyBonus(actionState.level))
+      case _ => None
+
     div(
       cls := "velor-perk-bonuses",
-      div(
-        cls := "velor-perk-item",
-        span(cls := "velor-perk-label", "Efficiency"),
-        span(cls := "velor-perk-value",
-          child.text <-- stateSignal.map(s => f"${VelorIdleLogic.calculateEfficiencyBonus(s.level) * 100}%.0f%%")
-        )
-      ),
+      // Job bonuses
       div(
         cls := "velor-perk-item",
         span(cls := "velor-perk-label", "2x Chance"),
@@ -135,6 +148,18 @@ object SkillTrainingView:
         span(cls := "velor-perk-label", "Recycle"),
         span(cls := "velor-perk-value",
           child.text <-- stateSignal.map(s => f"${VelorIdleLogic.calculateRecycleChance(s.level) * 100}%.0f%%")
+        )
+      ),
+      // Separator
+      span(cls := "velor-perk-separator", "·"),
+      // Action bonuses
+      div(
+        cls := "velor-perk-item",
+        span(cls := "velor-perk-label", "Efficiency"),
+        span(cls := "velor-perk-value",
+          child.text <-- efficiencySignal.map:
+            case Some(eff) => f"${eff * 100}%.0f%%"
+            case None => "—"
         )
       )
     )
@@ -258,9 +283,10 @@ object SkillTrainingView:
           cls := "velor-action-footer",
           div(
             cls := "velor-action-time",
-            child.text <-- isActiveSignal.combineWith(actionDetailsSignal, progressSignal, skillStateSignal).map:
-              case (true, Some((_, _, _, baseTime, _, _, _)), p, state) =>
-                val efficiency = VelorIdleLogic.calculateEfficiencyBonus(state.level)
+            child.text <-- isActiveSignal.combineWith(actionDetailsSignal, progressSignal, VelorIdleState.gameSignal).map:
+              case (true, Some((actionId, _, _, baseTime, _, _, _)), p, game) =>
+                val actionState = game.actionLevels.getOrElse(actionId, ActionState.initial)
+                val efficiency = VelorIdleLogic.calculateEfficiencyBonus(actionState.level)
                 val effectiveTime = baseTime * (1.0 - efficiency)
                 val remaining = effectiveTime * (1.0 - p)
                 f"$remaining%.1fs"
