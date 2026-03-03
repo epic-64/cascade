@@ -260,39 +260,52 @@ case ActiveAction.Processing(skill, action) if skill == viewingSkill =>
 
 ---
 
-### Phase 6: Refactor Mutable Logic to Functional Style
+### Phase 6: Refactor Mutable Logic to Functional Style ✅ COMPLETED
 
-1. **Refactor `completeGatheringAction`** to use pattern matching or fold:
+1. **Created `GameUpdate` accumulator** case class for immutable state threading:
    ```scala
-   private def completeGatheringAction(...): (VelorIdleGame, Vector[GameEvent]) =
-     val xpResult = grantXp(game, skill, action.xpGain)
-     val itemResult = grantItems(xpResult.game, action.output, ...)
-     val rareResult = checkRareDrop(itemResult.game, action.rareOutput, random)
-     (rareResult.game, xpResult.events ++ itemResult.events ++ rareResult.events)
+   private case class GameUpdate(game: VelorIdleGame, events: Vector[GameEvent]):
+     def addEvent(event: GameEvent): GameUpdate = ...
+     def mapGame(f: VelorIdleGame => VelorIdleGame): GameUpdate = ...
    ```
 
-2. **Same approach for `completeProcessingAction`.**
+2. **Refactored `completeGatheringAction`** to use `.pipe` chaining:
+   ```scala
+   val result = GameUpdate(game, Vector.empty)
+     .pipe(grantXp(skill, skillState, action.xpGain))
+     .pipe(grantGatheredItems(action, skillState, random))
+     .pipe(checkRareDrop(action.rareOutput, random))
+   ```
+
+3. **Refactored `completeProcessingAction`** similarly with extracted helpers.
+
+4. **Removed all `var` declarations** from action completion logic.
 
 ---
 
-### Phase 7: Data-Driven Perks (Optional Enhancement)
+### Phase 7: Data-Driven Perks ✅ COMPLETED
 
-1. **Create perk configuration:**
+1. **Created `PerkTier` configuration:**
    ```scala
-   case class PerkTier(levelRequired: Int, bonus: Double)
-   
-   val efficiencyPerks = Vector(
+   private case class PerkTier(levelRequired: Int, bonus: Double)
+   ```
+
+2. **Extracted all perk configurations** into data:
+   ```scala
+   private val efficiencyTiers = Vector(
      PerkTier(10, 0.05),
      PerkTier(40, 0.05),
      PerkTier(70, 0.05)
    )
    ```
 
-2. **Generic calculation:**
+3. **Created generic calculation functions:**
    ```scala
-   def calculatePerkBonus(level: Int, tiers: Vector[PerkTier]): Double =
-     tiers.filter(_.levelRequired <= level).map(_.bonus).sum
+   private def calculateTieredBonus(level: Int, tiers: Vector[PerkTier]): Double
+   private def calculateScaledBonus(level: Int, perLevelBonus: Double, tiers: Vector[PerkTier]): Double
    ```
+
+4. **Simplified all perk functions** to single-line delegations.
 
 ---
 
@@ -313,8 +326,8 @@ case ActiveAction.Processing(skill, action) if skill == viewingSkill =>
 | **P1** | Fix Header duplication | Low | ✅ Done |
 | **P2** | Simplify action handling | Low | ✅ Done |
 | **P2** | Unify Item metadata | Medium | ✅ Done |
-| **P3** | Refactor mutable logic | Medium | Pending |
-| **P3** | Data-driven perks | Medium | Pending |
+| **P3** | Refactor mutable logic | Medium | ✅ Done |
+| **P3** | Data-driven perks | Medium | ✅ Done |
 | **P4** | UI component consolidation | High | Pending |
 
 ---

@@ -1,6 +1,7 @@
 package shared.VelorIdle
 
 import scala.util.Random
+import scala.util.chaining.*
 
 /** Pure game logic for Velor Idle - no side effects */
 object VelorIdleLogic:
@@ -54,6 +55,12 @@ object VelorIdleLogic:
     else
       (game.copy(actionProgress = newProgress, lastTickTime = currentTime), Vector.empty)
 
+  /** Accumulator for game state updates - allows chaining operations immutably */
+  private case class GameUpdate(game: VelorIdleGame, events: Vector[GameEvent]):
+    def addEvent(event: GameEvent): GameUpdate = copy(events = events :+ event)
+    def addEvents(newEvents: Vector[GameEvent]): GameUpdate = copy(events = events ++ newEvents)
+    def mapGame(f: VelorIdleGame => VelorIdleGame): GameUpdate = copy(game = f(game))
+
   private def completeGatheringAction(
     game: VelorIdleGame,
     action: GatheringAction,
@@ -61,22 +68,27 @@ object VelorIdleLogic:
     skillState: SkillState,
     random: Random
   ): (VelorIdleGame, Vector[GameEvent]) =
-    var events = Vector.empty[GameEvent]
-    var updatedGame = game
+    val result = GameUpdate(game, Vector.empty)
+      .pipe(grantXp(skill, skillState, action.xpGain))
+      .pipe(grantGatheredItems(action, skillState, random))
+      .pipe(checkRareDrop(action.rareOutput, random))
+    
+    (result.game, result.events)
 
-    // Grant XP
-    val xpGain = action.xpGain
+  private def grantXp(skill: Skill, skillState: SkillState, xpGain: Int)(update: GameUpdate): GameUpdate =
     val newXp = skillState.xp + xpGain
     val oldLevel = skillState.level
     val newLevel = SkillState.levelFromXp(newXp)
     val newSkillState = skillState.copy(xp = newXp, level = newLevel)
-    updatedGame = updatedGame.copy(skills = updatedGame.skills.updated(skill, newSkillState))
-    events = events :+ GameEvent.XpGained(skill, xpGain)
+    
+    val withXp = update
+      .mapGame(g => g.copy(skills = g.skills.updated(skill, newSkillState)))
+      .addEvent(GameEvent.XpGained(skill, xpGain))
+    
+    if newLevel > oldLevel then withXp.addEvent(GameEvent.LevelUp(skill, newLevel))
+    else withXp
 
-    if newLevel > oldLevel then
-      events = events :+ GameEvent.LevelUp(skill, newLevel)
-
-    // Grant primary output
+  private def grantGatheredItems(action: GatheringAction, skillState: SkillState, random: Random)(update: GameUpdate): GameUpdate =
     val yieldBonus = calculateYieldBonus(skillState.level)
     val baseCount = 1
     val bonusCount = if random.nextDouble() < yieldBonus then 1 else 0
@@ -84,23 +96,24 @@ object VelorIdleLogic:
     val doubleCount = if random.nextDouble() < doubleChance then baseCount + bonusCount else 0
     val totalCount = baseCount + bonusCount + doubleCount
 
-    val (inv1, overflow1) = updatedGame.inventory.addItem(action.output, totalCount)
-    updatedGame = updatedGame.copy(inventory = inv1)
-    events = events :+ GameEvent.ItemGained(action.output, totalCount)
+    val (newInv, overflow) = update.game.inventory.addItem(action.output, totalCount)
+    val withItems = update
+      .mapGame(_.copy(inventory = newInv))
+      .addEvent(GameEvent.ItemGained(action.output, totalCount))
+    
+    if overflow > 0 then withItems.addEvent(GameEvent.InventoryFull)
+    else withItems
 
-    if overflow1 > 0 then
-      events = events :+ GameEvent.InventoryFull
+  private def checkRareDrop(rareOutput: Option[(Item, Double)], random: Random)(update: GameUpdate): GameUpdate =
+    rareOutput match
+      case Some((rareItem, chance)) if random.nextDouble() < chance =>
+        val (newInv, _) = update.game.inventory.addItem(rareItem, 1)
+        update
+          .mapGame(_.copy(inventory = newInv))
+          .addEvent(GameEvent.ItemGained(rareItem, 1))
+          .addEvent(GameEvent.RareDrop(rareItem))
+      case _ => update
 
-    // Check for rare output
-    action.rareOutput.foreach { case (rareItem, chance) =>
-      if random.nextDouble() < chance then
-        val (inv2, overflow2) = updatedGame.inventory.addItem(rareItem, 1)
-        updatedGame = updatedGame.copy(inventory = inv2)
-        events = events :+ GameEvent.ItemGained(rareItem, 1)
-        events = events :+ GameEvent.RareDrop(rareItem)
-    }
-
-    (updatedGame, events)
 
   // ============================================================================
   // Processing Tick
@@ -148,37 +161,36 @@ object VelorIdleLogic:
     skillState: SkillState,
     random: Random
   ): (VelorIdleGame, Vector[GameEvent]) =
-    var events = Vector.empty[GameEvent]
-    var updatedGame = game
-
-    // Consume inputs (with recycle chance)
+    // Consume inputs, checking for recycle
     val recycleChance = calculateRecycleChance(skillState.level)
-    var inputsConsumed = true
+    val (gameAfterConsume, allConsumed) = consumeInputs(game, action.inputs, recycleChance, random)
+    
+    if !allConsumed then
+      (gameAfterConsume, Vector(GameEvent.OutOfMaterials))
+    else
+      val result = GameUpdate(gameAfterConsume, Vector.empty)
+        .pipe(grantXp(skill, skillState, action.xpGain))
+        .pipe(processOutput(action, skillState, random))
+      
+      (result.game, result.events)
 
-    for (item, count) <- action.inputs do
-      val recycled = random.nextDouble() < recycleChance
-      if !recycled then
-        val (newInv, removed) = updatedGame.inventory.removeItem(item, count)
-        if removed < count then
-          inputsConsumed = false
-        updatedGame = updatedGame.copy(inventory = newInv)
+  private def consumeInputs(
+    game: VelorIdleGame,
+    inputs: Vector[(Item, Int)],
+    recycleChance: Double,
+    random: Random
+  ): (VelorIdleGame, Boolean) =
+    inputs.foldLeft((game, true)) { case ((currentGame, success), (item, count)) =>
+      if !success then (currentGame, false)
+      else
+        val recycled = random.nextDouble() < recycleChance
+        if recycled then (currentGame, true) // Keep materials
+        else
+          val (newInv, removed) = currentGame.inventory.removeItem(item, count)
+          (currentGame.copy(inventory = newInv), removed >= count)
+    }
 
-    if !inputsConsumed then
-      // This shouldn't happen if canProcess was checked, but be safe
-      return (updatedGame, Vector(GameEvent.OutOfMaterials))
-
-    // Grant XP
-    val xpGain = action.xpGain
-    val newXp = skillState.xp + xpGain
-    val oldLevel = skillState.level
-    val newLevel = SkillState.levelFromXp(newXp)
-    val newSkillState = skillState.copy(xp = newXp, level = newLevel)
-    updatedGame = updatedGame.copy(skills = updatedGame.skills.updated(skill, newSkillState))
-    events = events :+ GameEvent.XpGained(skill, xpGain)
-
-    if newLevel > oldLevel then
-      events = events :+ GameEvent.LevelUp(skill, newLevel)
-
+  private def processOutput(action: ProcessingAction, skillState: SkillState, random: Random)(update: GameUpdate): GameUpdate =
     // Check for burn (cooking)
     val didBurn = action.burnChance.exists { baseBurn =>
       val levelDiff = skillState.level - action.levelRequired
@@ -187,13 +199,14 @@ object VelorIdleLogic:
     }
 
     if didBurn then
-      // Burned - produce burnt output
-      action.burnOutput.foreach { burnt =>
-        val (inv, _) = updatedGame.inventory.addItem(burnt, 1)
-        updatedGame = updatedGame.copy(inventory = inv)
-        events = events :+ GameEvent.ItemGained(burnt, 1)
-        events = events :+ GameEvent.ActionFailed("Burned!")
-      }
+      action.burnOutput match
+        case Some(burnt) =>
+          val (newInv, _) = update.game.inventory.addItem(burnt, 1)
+          update
+            .mapGame(_.copy(inventory = newInv))
+            .addEvent(GameEvent.ItemGained(burnt, 1))
+            .addEvent(GameEvent.ActionFailed("Burned!"))
+        case None => update
     else
       // Success - check for double chance
       val doubleChance = calculateDoubleChance(skillState.level, isGathering = false)
@@ -201,14 +214,14 @@ object VelorIdleLogic:
       val doubleCount = if random.nextDouble() < doubleChance then baseCount else 0
       val totalCount = baseCount + doubleCount
 
-      val (inv, overflow) = updatedGame.inventory.addItem(action.output, totalCount)
-      updatedGame = updatedGame.copy(inventory = inv)
-      events = events :+ GameEvent.ItemGained(action.output, totalCount)
+      val (newInv, overflow) = update.game.inventory.addItem(action.output, totalCount)
+      val withItems = update
+        .mapGame(_.copy(inventory = newInv))
+        .addEvent(GameEvent.ItemGained(action.output, totalCount))
+      
+      if overflow > 0 then withItems.addEvent(GameEvent.InventoryFull)
+      else withItems
 
-      if overflow > 0 then
-        events = events :+ GameEvent.InventoryFull
-
-    (updatedGame, events)
 
   /** Check if player has all required inputs for a processing action */
   def canProcess(game: VelorIdleGame, action: ProcessingAction): Boolean =
@@ -220,43 +233,72 @@ object VelorIdleLogic:
   // Perk Calculations
   // ============================================================================
 
+  // ============================================================================
+  // Perk System - Data-Driven Configuration
+  // ============================================================================
+
+  /** A perk tier that unlocks at a certain level */
+  private case class PerkTier(levelRequired: Int, bonus: Double)
+
+  /** Calculate total bonus from tier-based perks */
+  private def calculateTieredBonus(level: Int, tiers: Vector[PerkTier]): Double =
+    tiers.filter(_.levelRequired <= level).map(_.bonus).sum
+
+  /** Calculate bonus with per-level scaling plus tiers */
+  private def calculateScaledBonus(level: Int, perLevelBonus: Double, tiers: Vector[PerkTier]): Double =
+    level * perLevelBonus + calculateTieredBonus(level, tiers)
+
+  // Perk configurations - easy to adjust or extend
+  private val efficiencyTiers = Vector(
+    PerkTier(10, 0.05),  // 5% at level 10
+    PerkTier(40, 0.05),  // +5% at level 40 = 10% total
+    PerkTier(70, 0.05)   // +5% at level 70 = 15% total
+  )
+
+  private val yieldTiers = Vector(
+    PerkTier(20, 0.10),  // 10% at level 20
+    PerkTier(50, 0.10),  // +10% at level 50 = 20% total
+    PerkTier(80, 0.10)   // +10% at level 80 = 30% total
+  )
+
+  private val gatheringMasteryTiers = Vector(
+    PerkTier(30, 0.05),  // 5% at level 30
+    PerkTier(60, 0.05),  // +5% at level 60 = 10% total
+    PerkTier(90, 0.05)   // +5% at level 90 = 15% total
+  )
+
+  private val processingDoubleTiers = Vector(
+    PerkTier(20, 0.05),  // 5% at level 20
+    PerkTier(50, 0.05),  // +5% at level 50 = 10% total
+    PerkTier(80, 0.05)   // +5% at level 80 = 15% total
+  )
+
+  private val recycleTiers = Vector(
+    PerkTier(30, 0.05),  // 5% at level 30
+    PerkTier(60, 0.05),  // +5% at level 60 = 10% total
+    PerkTier(90, 0.05)   // +5% at level 90 = 15% total
+  )
+
   /** Efficiency bonus (reduces action time) - gathering and processing */
   def calculateEfficiencyBonus(level: Int): Double =
-    val tier1 = if level >= 10 then 0.05 else 0.0
-    val tier2 = if level >= 40 then 0.05 else 0.0  // +5% more = 10% total
-    val tier3 = if level >= 70 then 0.05 else 0.0  // +5% more = 15% total
-    tier1 + tier2 + tier3
+    calculateTieredBonus(level, efficiencyTiers)
 
   /** Yield bonus (chance for extra resource) - gathering only */
   def calculateYieldBonus(level: Int): Double =
-    val tier1 = if level >= 20 then 0.10 else 0.0
-    val tier2 = if level >= 50 then 0.10 else 0.0  // +10% more = 20% total
-    val tier3 = if level >= 80 then 0.10 else 0.0  // +10% more = 30% total
-    tier1 + tier2 + tier3
+    calculateTieredBonus(level, yieldTiers)
 
-  /** Double chance - gathering has mastery, processing has double perk */
+  /** Double chance - gathering has mastery, processing has double perk + scaling */
   def calculateDoubleChance(level: Int, isGathering: Boolean): Double =
     if isGathering then
-      // Mastery perk for gathering
-      val tier1 = if level >= 30 then 0.05 else 0.0
-      val tier2 = if level >= 60 then 0.05 else 0.0  // +5% more = 10% total
-      val tier3 = if level >= 90 then 0.05 else 0.0  // +5% more = 15% total
-      tier1 + tier2 + tier3
+      calculateTieredBonus(level, gatheringMasteryTiers)
     else
-      // Double perk for processing (also gets base scaling)
-      val baseBonus = level * 0.005 // 0.5% per level, up to ~50% at 99
-      val tier1 = if level >= 20 then 0.05 else 0.0
-      val tier2 = if level >= 50 then 0.05 else 0.0  // +5% more = 10% total
-      val tier3 = if level >= 80 then 0.05 else 0.0  // +5% more = 15% total
-      baseBonus + tier1 + tier2 + tier3
+      // Processing: 0.5% per level + tier bonuses
+      calculateScaledBonus(level, 0.005, processingDoubleTiers)
 
   /** Recycle chance (keep inputs) - processing only */
   def calculateRecycleChance(level: Int): Double =
-    val baseBonus = level * 0.003 // 0.3% per level, up to ~30% at 99
-    val tier1 = if level >= 30 then 0.05 else 0.0
-    val tier2 = if level >= 60 then 0.05 else 0.0  // +5% more = 10% total
-    val tier3 = if level >= 90 then 0.05 else 0.0  // +5% more = 15% total
-    baseBonus + tier1 + tier2 + tier3
+    // 0.3% per level + tier bonuses
+    calculateScaledBonus(level, 0.003, recycleTiers)
 
   // ============================================================================
   // Player Actions
