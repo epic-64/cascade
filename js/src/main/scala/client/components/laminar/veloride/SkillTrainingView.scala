@@ -161,6 +161,7 @@ object SkillTrainingView:
     val activeSignal = VelorIdleState.activeActionSignal
     val progressSignal = VelorIdleState.actionProgressSignal
     val skillStateSignal = VelorIdleState.skillStateSignal(viewingSkill)
+    val actionModalOpenVar = Var(false)
 
     // Determine if this skill is currently active
     val isActiveSignal = activeSignal.map:
@@ -201,7 +202,16 @@ object SkillTrainingView:
                 val actionState = game.actionLevels.getOrElse(actionId, ActionState.initial)
                 s"Lv.${actionState.level}"
               case _ => ""
-          )
+          ),
+          // Help button for action bonuses (only show when action is active)
+          child <-- isActiveSignal.map:
+            case true =>
+              button(
+                cls := "velor-help-btn",
+                "?",
+                onClick --> { _ => actionModalOpenVar.set(true) }
+              )
+            case false => emptyNode
         )
       ),
       
@@ -270,7 +280,14 @@ object SkillTrainingView:
             onClick --> { _ => onStopAction() }
           )
         )
-      )
+      ),
+      
+      // Action bonus modal
+      child <-- actionDetailsSignal.combineWith(VelorIdleState.gameSignal).map:
+        case (Some((actionId, icon, name, _, _, _, _)), game) =>
+          val actionStateSignal = VelorIdleState.actionStateSignal(actionId)
+          ActionBonusModal(name, icon, actionStateSignal, actionModalOpenVar.signal, () => actionModalOpenVar.set(false))
+        case _ => emptyNode
     )
 
   private def actionXpProgressBar(actionState: ActionState): HtmlElement =
