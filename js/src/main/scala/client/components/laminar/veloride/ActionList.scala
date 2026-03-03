@@ -17,6 +17,7 @@ object ActionList:
     def levelRequired: Int
     def xpGain: Int
     def timeSeconds: Double
+    def isGathering: Boolean
     def subtitle(inventory: Inventory, isLocked: Boolean): String
     def isActive(activeAction: ActiveAction, skill: Skill): Boolean
     def canStart(game: VelorIdleGame, skill: Skill): Boolean
@@ -30,6 +31,7 @@ object ActionList:
     def levelRequired: Int = action.levelRequired
     def xpGain: Int = action.xpGain
     def timeSeconds: Double = action.timeSeconds
+    def isGathering: Boolean = true
 
     def subtitle(inventory: Inventory, isLocked: Boolean): String =
       if isLocked then s"🔒 Level $levelRequired"
@@ -53,6 +55,7 @@ object ActionList:
     def levelRequired: Int = action.levelRequired
     def xpGain: Int = action.xpGain
     def timeSeconds: Double = action.timeSeconds
+    def isGathering: Boolean = false
 
     def subtitle(inventory: Inventory, isLocked: Boolean): String =
       if isLocked then s"🔒 Level $levelRequired"
@@ -104,6 +107,7 @@ object ActionList:
     onStart: String => Unit
   ): HtmlElement =
     val skillStateSignal = VelorIdleState.skillStateSignal(skill)
+    val actionStateSignal = VelorIdleState.actionStateSignal(action.id)
     val activeActionSignal = VelorIdleState.activeActionSignal
     val inventorySignal = VelorIdleState.inventorySignal
 
@@ -129,11 +133,22 @@ object ActionList:
         cls := "velor-action-item-left",
         div(cls := "velor-action-item-icon", action.icon),
         div(
-          div(cls := "velor-action-item-name", action.name),
+          div(
+            cls := "velor-action-item-name",
+            span(action.name),
+            span(
+              cls := "velor-action-item-action-level",
+              child.text <-- actionStateSignal.map(s => s" Lv.${s.level}")
+            )
+          ),
           div(
             cls := "velor-action-item-level",
-            child.text <-- isLockedSignal.combineWith(inventorySignal).map { case (locked, inv) =>
-              action.subtitle(inv, locked)
+            child.text <-- isLockedSignal.combineWith(inventorySignal, actionStateSignal).map { case (locked, inv, actionState) =>
+              if locked then action.subtitle(inv, locked)
+              else if action.isGathering then
+                val yieldBonus = VelorIdleLogic.calculateYieldBonus(actionState.level)
+                f"Yield: ${yieldBonus * 100}%.0f%%"
+              else action.subtitle(inv, locked)
             }
           )
         )

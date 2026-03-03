@@ -68,9 +68,11 @@ object VelorIdleLogic:
     skillState: SkillState,
     random: Random
   ): (VelorIdleGame, Vector[GameEvent]) =
+    val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
     val result = GameUpdate(game, Vector.empty)
       .pipe(grantXp(skill, skillState, action.xpGain))
-      .pipe(grantGatheredItems(action, skillState, random))
+      .pipe(grantActionXp(action.id, actionState, action.xpGain))
+      .pipe(grantGatheredItems(action, skillState, actionState, random))
       .pipe(checkRareDrop(action.rareOutput, random))
     
     (result.game, result.events)
@@ -88,8 +90,21 @@ object VelorIdleLogic:
     if newLevel > oldLevel then withXp.addEvent(GameEvent.LevelUp(skill, newLevel))
     else withXp
 
-  private def grantGatheredItems(action: GatheringAction, skillState: SkillState, random: Random)(update: GameUpdate): GameUpdate =
-    val yieldBonus = calculateYieldBonus(skillState.level)
+  private def grantActionXp(actionId: String, actionState: ActionState, xpGain: Int)(update: GameUpdate): GameUpdate =
+    val newXp = actionState.xp + xpGain
+    val oldLevel = actionState.level
+    val newLevel = ActionState.levelFromXp(newXp)
+    val newActionState = actionState.copy(xp = newXp, level = newLevel)
+    
+    val withXp = update
+      .mapGame(g => g.copy(actionLevels = g.actionLevels.updated(actionId, newActionState)))
+      .addEvent(GameEvent.ActionXpGained(actionId, xpGain))
+    
+    if newLevel > oldLevel then withXp.addEvent(GameEvent.ActionLevelUp(actionId, newLevel))
+    else withXp
+
+  private def grantGatheredItems(action: GatheringAction, skillState: SkillState, actionState: ActionState, random: Random)(update: GameUpdate): GameUpdate =
+    val yieldBonus = calculateYieldBonus(actionState.level)
     val baseCount = 1
     val bonusCount = if random.nextDouble() < yieldBonus then 1 else 0
     val doubleChance = calculateDoubleChance(skillState.level, isGathering = true)
@@ -404,6 +419,8 @@ object VelorIdleLogic:
 enum GameEvent:
   case XpGained(skill: Skill, amount: Int)
   case LevelUp(skill: Skill, newLevel: Int)
+  case ActionXpGained(actionId: String, amount: Int)
+  case ActionLevelUp(actionId: String, newLevel: Int)
   case ItemGained(item: Item, count: Long)
   case RareDrop(item: Item)
   case InventoryFull

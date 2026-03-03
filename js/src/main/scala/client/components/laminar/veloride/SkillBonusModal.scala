@@ -9,16 +9,13 @@ object SkillBonusModal:
   /** Represents a bonus tier that can be displayed */
   case class BonusTier(level: Int, description: String)
 
-  /** All bonuses for gathering skills */
+  /** All bonuses for gathering skills (Yield moved to Action level) */
   private val gatheringBonuses: Vector[BonusTier] = Vector(
     BonusTier(10, "+5% Efficiency (faster actions)"),
-    BonusTier(20, "+10% Yield chance (+1 resource)"),
     BonusTier(30, "+5% Mastery chance (double)"),
     BonusTier(40, "+5% Efficiency (10% total)"),
-    BonusTier(50, "+10% Yield chance (20% total)"),
     BonusTier(60, "+5% Mastery chance (10% total)"),
     BonusTier(70, "+5% Efficiency (15% total)"),
-    BonusTier(80, "+10% Yield chance (30% total)"),
     BonusTier(90, "+5% Mastery chance (15% total)")
   )
 

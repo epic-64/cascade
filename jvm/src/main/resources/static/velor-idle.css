@@ -653,6 +653,15 @@
 .velor-action-item-name {
   font-weight: 600;
   font-size: 0.9rem;
+  display: flex;
+  align-items: baseline;
+  gap: var(--velor-spacing-xs);
+}
+
+.velor-action-item-action-level {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--velor-accent);
 }
 
 .velor-action-item-level {

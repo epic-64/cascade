@@ -92,6 +92,46 @@ object SkillState:
       else (xpInLevel.toDouble / xpNeeded).min(1.0).max(0.0)
 
 // ============================================================================
+// Action State (individual action mastery)
+// ============================================================================
+
+case class ActionState(
+  level: Int = 1,
+  xp: Long = 0
+) derives ReadWriter
+
+object ActionState:
+  val initial: ActionState = ActionState()
+
+  /** XP required to go from level N to level N+1 (slower progression than skills) */
+  def xpForLevel(level: Int): Long = level * 50L
+
+  /** Total XP required to reach a given level from level 1 */
+  def totalXpForLevel(level: Int): Long =
+    if level <= 1 then 0L
+    else (1 until level).map(l => xpForLevel(l)).sum
+
+  /** Calculate level from total XP */
+  def levelFromXp(totalXp: Long): Int =
+    var level = 1
+    var xpNeeded = 0L
+    while level < 99 && totalXp >= xpNeeded + xpForLevel(level) do
+      xpNeeded += xpForLevel(level)
+      level += 1
+    level
+
+  /** XP progress within current level (0.0 to 1.0) */
+  def xpProgress(state: ActionState): Double =
+    if state.level >= 99 then 1.0
+    else
+      val currentLevelXp = totalXpForLevel(state.level)
+      val nextLevelXp = totalXpForLevel(state.level + 1)
+      val xpInLevel = state.xp - currentLevelXp
+      val xpNeeded = nextLevelXp - currentLevelXp
+      if xpNeeded <= 0 then 1.0
+      else (xpInLevel.toDouble / xpNeeded).min(1.0).max(0.0)
+
+// ============================================================================
 // Items
 // ============================================================================
 
@@ -375,6 +415,7 @@ enum ActiveAction derives ReadWriter:
 
 case class VelorIdleGame(
   skills: Map[Skill, SkillState],
+  actionLevels: Map[String, ActionState],  // action id -> state
   inventory: Inventory,
   gold: Long,
   currentSkill: Option[Skill],
@@ -387,6 +428,7 @@ object VelorIdleGame:
   def newGame(timestamp: Long): VelorIdleGame =
     VelorIdleGame(
       skills = Skill.values.map(s => s -> SkillState.initial).toMap,
+      actionLevels = Map.empty,
       inventory = Inventory.empty(),
       gold = 0L,
       currentSkill = None,
