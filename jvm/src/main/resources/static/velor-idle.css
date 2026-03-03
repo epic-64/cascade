@@ -1303,3 +1303,133 @@
   transform: scale(0.95);
 }
 
+/* ============================================================================
+   Potion Panel
+   ============================================================================ */
+
+.velor-potion-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-md);
+  padding: var(--velor-spacing-md);
+}
+
+.velor-active-potion-section,
+.velor-available-potions-section {
+  background: var(--velor-card);
+  border-radius: var(--velor-radius-lg);
+  padding: var(--velor-spacing-md);
+  border: 1px solid var(--velor-border);
+}
+
+.velor-active-potion-section h4,
+.velor-available-potions-section h4 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: var(--velor-spacing-md);
+  color: var(--text-primary);
+}
+
+.velor-no-active-potion,
+.velor-no-potions {
+  padding: var(--velor-spacing-lg);
+  text-align: center;
+  background: var(--velor-bg-secondary);
+  border-radius: var(--velor-radius-md);
+}
+
+.velor-active-potion-card {
+  background: var(--velor-bg-secondary);
+  border-radius: var(--velor-radius-md);
+  padding: var(--velor-spacing-md);
+  border: 1px solid var(--velor-accent);
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-sm);
+}
+
+.velor-active-potion-header {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-sm);
+}
+
+.velor-active-potion-icon {
+  font-size: 1.5rem;
+}
+
+.velor-active-potion-name {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--velor-accent);
+}
+
+.velor-active-potion-effect {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.velor-active-potion-remaining {
+  font-size: 0.8rem;
+  color: var(--velor-xp);
+  font-weight: 600;
+}
+
+.velor-potion-progress-bar {
+  height: 6px;
+  background: var(--velor-bg);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.velor-potion-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--velor-accent), var(--velor-accent-dark));
+  transition: width 0.3s ease;
+}
+
+.velor-potion-card {
+  background: var(--velor-bg-secondary);
+  border-radius: var(--velor-radius-md);
+  padding: var(--velor-spacing-md);
+  border: 1px solid var(--velor-border);
+  margin-bottom: var(--velor-spacing-sm);
+}
+
+.velor-potion-card:last-child {
+  margin-bottom: 0;
+}
+
+.velor-potion-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-sm);
+  margin-bottom: var(--velor-spacing-sm);
+}
+
+.velor-potion-icon {
+  font-size: 1.25rem;
+}
+
+.velor-potion-name {
+  font-weight: 600;
+  flex: 1;
+}
+
+.velor-potion-count {
+  color: var(--velor-xp);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.velor-potion-effect-desc {
+  color: var(--velor-accent);
+  font-size: 0.85rem;
+  margin-bottom: var(--velor-spacing-xs);
+}
+
+.velor-potion-duration {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  margin-bottom: var(--velor-spacing-sm);
+}

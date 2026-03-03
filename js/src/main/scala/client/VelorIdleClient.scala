@@ -70,6 +70,7 @@ object VelorIdleClient:
           case VelorIdleState.ViewMode.SkillSelect => skillSelectView()
           case VelorIdleState.ViewMode.SkillTraining => skillTrainingView()
           case VelorIdleState.ViewMode.Inventory => inventoryView()
+          case VelorIdleState.ViewMode.Potions => potionsView()
           case VelorIdleState.ViewMode.Shop => shopView()
           case VelorIdleState.ViewMode.Settings => settingsView()
       ),
@@ -91,6 +92,9 @@ object VelorIdleClient:
 
   private def inventoryView(): HtmlElement =
     InventoryPanel(handleSellItem)
+
+  private def potionsView(): HtmlElement =
+    PotionPanel(handleDrinkPotion, handleRemovePotion)
 
   private def shopView(): HtmlElement =
     div(
@@ -153,6 +157,22 @@ object VelorIdleClient:
       case Left(error) =>
         ToastSystem.show(s"❌ $error")
 
+  private def handleDrinkPotion(potion: Item): Unit =
+    VelorIdleLogic.drinkPotion(currentGame, potion) match
+      case Right(newGame) =>
+        currentGame = newGame
+        VelorIdleState.update(currentGame)
+        isDirty = true
+        ToastSystem.show(s"🧪 Drank ${Item.displayName(potion)}!")
+      case Left(error) =>
+        ToastSystem.show(s"❌ $error")
+
+  private def handleRemovePotion(): Unit =
+    currentGame = VelorIdleLogic.removeActivePotion(currentGame)
+    VelorIdleState.update(currentGame)
+    isDirty = true
+    ToastSystem.show("Potion effect removed")
+
   private def handleReset(): Unit =
     if dom.window.confirm("Are you sure you want to reset? All progress will be lost!") then
       currentGame = VelorIdleGame.newGame(System.currentTimeMillis())
@@ -210,6 +230,8 @@ object VelorIdleClient:
         ToastSystem.show("⚠️ Out of materials!")
       case GameEvent.ActionFailed(reason) =>
         ToastSystem.show(s"🔥 $reason")
+      case GameEvent.PotionExpired(potion) =>
+        ToastSystem.show(s"🧪 ${Item.displayName(potion)} wore off")
       case _ => ()
 
   // ============================================================================

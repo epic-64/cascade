@@ -11,8 +11,8 @@ object BottomNav:
     div(
       cls := "velor-bottom-nav",
       navButton("⚔️", "Skills", VelorIdleState.ViewMode.SkillSelect),
-      navButton("📦", "Inventory", VelorIdleState.ViewMode.Inventory),
-      navButton("🏪", "Shop", VelorIdleState.ViewMode.Shop),
+      navButton("📦", "Items", VelorIdleState.ViewMode.Inventory),
+      navButton("🧪", "Potions", VelorIdleState.ViewMode.Potions),
       navButton("⚙️", "Settings", VelorIdleState.ViewMode.Settings)
     )
 
@@ -20,6 +20,7 @@ object BottomNav:
     val isActive = VelorIdleState.viewModeSignal.map:
       case m if m == mode => true
       case VelorIdleState.ViewMode.SkillTraining if mode == VelorIdleState.ViewMode.SkillSelect => true
+      case VelorIdleState.ViewMode.Shop if mode == VelorIdleState.ViewMode.Settings => true  // Shop redirects to settings
       case _ => false
     
     button(
