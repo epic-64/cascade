@@ -480,6 +480,37 @@ object VelorIdleLogic:
   def removeActivePotion(game: VelorIdleGame): VelorIdleGame =
     game.copy(potionSlots = PotionSlots.empty)
 
+  // ============================================================================
+  // Shop
+  // ============================================================================
+
+  /** Items available for purchase in the shop */
+  case class ShopItem(item: Item, buyPrice: Int)
+
+  val shopItems: Vector[ShopItem] = Vector(
+    ShopItem(Item.Vial, 10)  // Vials for alchemy
+  )
+
+  /** Buy an item from the shop */
+  def buyItem(game: VelorIdleGame, item: Item, count: Int): Either[String, VelorIdleGame] =
+    shopItems.find(_.item == item) match
+      case None => Left("Item not for sale")
+      case Some(shopItem) =>
+        val totalCost = shopItem.buyPrice * count
+        if game.gold < totalCost then
+          Left(s"Need $totalCost gold (you have ${game.gold})")
+        else if game.inventory.isFull then
+          Left("Inventory full")
+        else
+          val (newInventory, overflow) = game.inventory.addItem(item, count)
+          if overflow > 0 then
+            Left("Not enough inventory space")
+          else
+            Right(game.copy(
+              gold = game.gold - totalCost,
+              inventory = newInventory
+            ))
+
 // ============================================================================
 // Game Events (for UI feedback)
 // ============================================================================
