@@ -127,11 +127,16 @@ object SkillTrainingView:
         )
       ),
       div(
-        cls := "velor-action-bar",
+        cls := "velor-action-bar-wrapper",
         div(
-          cls := "velor-action-bar-fill",
-          styleAttr <-- progressSignal.map(p => s"width: ${(p * 100).toInt}%")
-        )
+          cls := "velor-action-bar",
+          div(
+            cls := "velor-action-bar-fill",
+            styleAttr <-- progressSignal.map(p => s"width: ${(p * 100).toInt}%")
+          )
+        ),
+        // Floating rewards spawn from here
+        FloatingRewards.container()
       ),
       div(
         cls := "velor-action-rewards",

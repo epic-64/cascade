@@ -339,6 +339,11 @@
   color: var(--text-secondary);
 }
 
+.velor-action-bar-wrapper {
+  position: relative;
+  margin-bottom: var(--velor-spacing-sm);
+}
+
 .velor-action-bar {
   height: 24px;
   background: var(--velor-bg);
@@ -352,6 +357,49 @@
   background: linear-gradient(90deg, var(--velor-accent-dark) 0%, var(--velor-accent) 100%);
   border-radius: 12px;
   transition: width 0.1s linear;
+}
+
+/* Floating Rewards */
+.velor-floating-rewards {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.velor-floating-reward {
+  position: absolute;
+  right: 8px;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  animation: velor-reward-float 1.5s ease-out forwards;
+}
+
+.velor-floating-reward.xp {
+  color: var(--velor-xp);
+}
+
+.velor-floating-reward.item {
+  color: var(--velor-accent);
+}
+
+.velor-floating-reward.gold {
+  color: var(--velor-xp);
+}
+
+@keyframes velor-reward-float {
+  0% {
+    opacity: 1;
+    transform: translateY(0) translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-40px) translateX(20px);
+  }
 }
 
 .velor-action-rewards {

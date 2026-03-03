@@ -206,6 +206,10 @@ object VelorIdleClient:
 
   private def processEvents(events: Vector[GameEvent]): Unit =
     events.foreach:
+      case GameEvent.XpGained(skill, amount) =>
+        FloatingRewards.showXp(amount)
+      case GameEvent.ItemGained(item, count) =>
+        FloatingRewards.showItem(item, count)
       case GameEvent.LevelUp(skill, level) =>
         ToastSystem.showLevelUp(skill, level)
       case GameEvent.RareDrop(item) =>
