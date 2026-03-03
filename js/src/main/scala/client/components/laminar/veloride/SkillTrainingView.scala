@@ -87,74 +87,74 @@ object SkillTrainingView:
     val activeSignal = VelorIdleState.activeActionSignal
     val progressSignal = VelorIdleState.actionProgressSignal
 
+    // Determine if this skill is currently active
+    val isActiveSignal = activeSignal.map:
+      case ActiveAction.Gathering(skill, _) if skill == viewingSkill => true
+      case ActiveAction.Processing(skill, _) if skill == viewingSkill => true
+      case _ => false
+
+    // Get action details when active
+    val actionDetailsSignal = activeSignal.map:
+      case ActiveAction.Gathering(skill, action) if skill == viewingSkill =>
+        Some((action.icon, action.name, action.timeSeconds, action.xpGain, action.output))
+      case ActiveAction.Processing(skill, action) if skill == viewingSkill =>
+        Some((action.icon, action.name, action.timeSeconds, action.xpGain, action.output))
+      case _ => None
+
     div(
       cls := "velor-action-container",
-      display <-- activeSignal.map:
-        case ActiveAction.Gathering(skill, _) if skill == viewingSkill => "block"
-        case ActiveAction.Processing(skill, _) if skill == viewingSkill => "block"
-        case _ => "none"
-      ,
-      child <-- activeSignal.map:
-        case ActiveAction.Gathering(skill, action) if skill == viewingSkill =>
-          renderActionProgress(action.icon, action.name, action.timeSeconds, action.xpGain,
-            action.output, progressSignal, onStopAction)
-        case ActiveAction.Processing(skill, action) if skill == viewingSkill =>
-          renderActionProgress(action.icon, action.name, action.timeSeconds, action.xpGain,
-            action.output, progressSignal, onStopAction)
-        case _ => emptyNode
-    )
-
-  private def renderActionProgress(
-    icon: String,
-    name: String,
-    timeSeconds: Double,
-    xpGain: Int,
-    output: Item,
-    progressSignal: Signal[Double],
-    onStopAction: () => Unit
-  ): HtmlElement =
-    div(
+      // Action info row - show skill icon when idle, action details when active
       div(
         cls := "velor-action-info",
         div(
           cls := "velor-action-name",
-          span(icon),
-          span(name)
+          child.text <-- actionDetailsSignal.map:
+            case Some((icon, name, _, _, _)) => s"$icon $name"
+            case None => s"${Skill.icon(viewingSkill)} Idle"
         ),
         div(
           cls := "velor-action-time",
-          child.text <-- progressSignal.map { p =>
-            val remaining = timeSeconds * (1.0 - p)
-            f"${remaining}%.1fs"
-          }
+          child.text <-- isActiveSignal.combineWith(actionDetailsSignal, progressSignal).map:
+            case (true, Some((_, _, timeSeconds, _, _)), p) =>
+              val remaining = timeSeconds * (1.0 - p)
+              f"${remaining}%.1fs"
+            case _ => "Select action"
         )
       ),
+      // Progress bar - always visible, empty when idle
       div(
         cls := "velor-action-bar-wrapper",
         div(
           cls := "velor-action-bar",
           div(
             cls := "velor-action-bar-fill",
-            styleAttr <-- progressSignal.map(p => s"width: ${(p * 100).toInt}%")
+            styleAttr <-- isActiveSignal.combineWith(progressSignal).map:
+              case (true, p) => s"width: ${(p * 100).toInt}%"
+              case _ => "width: 0%"
           )
         ),
-        FloatingRewards.container()
+        // Only show floating rewards when this skill is active
+        div(
+          cls := "velor-floating-rewards-wrapper",
+          display <-- isActiveSignal.map(if _ then "block" else "none"),
+          FloatingRewards.container()
+        )
       ),
+      // Footer - always show same structure for consistent layout
       div(
         cls := "velor-action-footer",
         div(
           cls := "velor-action-rewards",
-          div(
-            cls := "velor-action-reward velor-action-reward-xp",
-            s"+$xpGain XP"
-          ),
-          div(
-            cls := "velor-action-reward",
-            s"${Item.icon(output)} ${Item.displayName(output)}"
-          )
+          child.text <-- actionDetailsSignal.map:
+            case Some((_, _, _, xpGain, output)) =>
+              s"+$xpGain XP · ${Item.icon(output)} ${Item.displayName(output)}"
+            case None => "—"
         ),
         button(
-          cls := "velor-stop-btn",
+          cls <-- isActiveSignal.map(active => 
+            if active then "velor-stop-btn" else "velor-stop-btn disabled"
+          ),
+          disabled <-- isActiveSignal.map(!_),
           "Stop",
           onClick --> { _ => onStopAction() }
         )
