@@ -18,6 +18,9 @@ enum Skill derives ReadWriter:
   case Thieving
   case Astrology
 
+/** Skill metadata: icon and display name */
+case class SkillData(icon: String, displayName: String)
+
 object Skill:
   val gathering: Set[Skill] = Set(Woodcutting, Mining, Fishing, Herbalism)
   val processing: Set[Skill] = Set(Cooking, Smithing, Alchemy, Summoning)
@@ -26,29 +29,25 @@ object Skill:
   def isGathering(skill: Skill): Boolean = gathering.contains(skill)
   def isProcessing(skill: Skill): Boolean = processing.contains(skill)
 
-  def icon(skill: Skill): String = skill match
-    case Woodcutting => "🪓"
-    case Mining      => "⛏️"
-    case Fishing     => "🎣"
-    case Herbalism   => "🌿"
-    case Cooking     => "🍳"
-    case Smithing    => "🔨"
-    case Alchemy     => "🧪"
-    case Summoning   => "📜"
-    case Thieving    => "🗡️"
-    case Astrology   => "⭐"
+  /** All skill metadata in one place */
+  private val metadata: Map[Skill, SkillData] = Map(
+    Woodcutting -> SkillData("🪓", "Woodcutting"),
+    Mining      -> SkillData("⛏️", "Mining"),
+    Fishing     -> SkillData("🎣", "Fishing"),
+    Herbalism   -> SkillData("🌿", "Herbalism"),
+    Cooking     -> SkillData("🍳", "Cooking"),
+    Smithing    -> SkillData("🔨", "Smithing"),
+    Alchemy     -> SkillData("🧪", "Alchemy"),
+    Summoning   -> SkillData("📜", "Summoning"),
+    Thieving    -> SkillData("🗡️", "Thieving"),
+    Astrology   -> SkillData("⭐", "Astrology")
+  )
 
-  def displayName(skill: Skill): String = skill match
-    case Woodcutting => "Woodcutting"
-    case Mining      => "Mining"
-    case Fishing     => "Fishing"
-    case Herbalism   => "Herbalism"
-    case Cooking     => "Cooking"
-    case Smithing    => "Smithing"
-    case Alchemy     => "Alchemy"
-    case Summoning   => "Summoning"
-    case Thieving    => "Thieving"
-    case Astrology   => "Astrology"
+  private def get(skill: Skill): SkillData =
+    metadata.getOrElse(skill, SkillData("❓", skill.toString))
+
+  def icon(skill: Skill): String = get(skill).icon
+  def displayName(skill: Skill): String = get(skill).displayName
 
 // ============================================================================
 // Skill State
@@ -113,139 +112,67 @@ enum Item derives ReadWriter:
   // Rare drops
   case BirdNest, Gem
 
+/** Item metadata: icon, display name, and sell value */
+case class ItemData(icon: String, displayName: String, sellValue: Int)
+
 object Item:
-  def icon(item: Item): String = item match
+  /** All item metadata in one place - add new items here */
+  private val metadata: Map[Item, ItemData] = Map(
     // Logs
-    case Item.NormalLogs => "🪵"
-    case Item.OakLogs => "🪵"
-    case Item.WillowLogs => "🪵"
-    case Item.MapleLogs => "🍁"
-    case Item.YewLogs => "🌲"
-    case Item.MagicLogs => "✨"
+    Item.NormalLogs -> ItemData("🪵", "Normal Logs", 2),
+    Item.OakLogs -> ItemData("🪵", "Oak Logs", 5),
+    Item.WillowLogs -> ItemData("🪵", "Willow Logs", 10),
+    Item.MapleLogs -> ItemData("🍁", "Maple Logs", 20),
+    Item.YewLogs -> ItemData("🌲", "Yew Logs", 40),
+    Item.MagicLogs -> ItemData("✨", "Magic Logs", 80),
     // Ores
-    case Item.CopperOre => "🟤"
-    case Item.TinOre => "⚪"
-    case Item.IronOre => "🔶"
-    case Item.Coal => "⬛"
-    case Item.GoldOre => "🟡"
-    case Item.MithrilOre => "🔵"
+    Item.CopperOre -> ItemData("🟤", "Copper Ore", 3),
+    Item.TinOre -> ItemData("⚪", "Tin Ore", 3),
+    Item.IronOre -> ItemData("🔶", "Iron Ore", 8),
+    Item.Coal -> ItemData("⬛", "Coal", 12),
+    Item.GoldOre -> ItemData("🟡", "Gold Ore", 30),
+    Item.MithrilOre -> ItemData("🔵", "Mithril Ore", 60),
     // Raw fish
-    case Item.RawShrimp => "🦐"
-    case Item.RawSardine => "🐟"
-    case Item.RawTrout => "🐟"
-    case Item.RawSalmon => "🐟"
-    case Item.RawLobster => "🦞"
-    case Item.RawSwordfish => "🐠"
+    Item.RawShrimp -> ItemData("🦐", "Raw Shrimp", 1),
+    Item.RawSardine -> ItemData("🐟", "Raw Sardine", 3),
+    Item.RawTrout -> ItemData("🐟", "Raw Trout", 8),
+    Item.RawSalmon -> ItemData("🐟", "Raw Salmon", 15),
+    Item.RawLobster -> ItemData("🦞", "Raw Lobster", 30),
+    Item.RawSwordfish -> ItemData("🐠", "Raw Swordfish", 50),
     // Herbs
-    case Item.GuamLeaf => "🌿"
-    case Item.Marrentill => "🌿"
-    case Item.Tarromin => "🌿"
-    case Item.Harralander => "🌿"
-    case Item.RanarrWeed => "🌿"
-    case Item.IritLeaf => "🌿"
-    case Item.Kwuarm => "🌿"
-    case Item.Cadantine => "🌿"
-    // Cooked
-    case Item.CookedShrimp => "🍤"
-    case Item.CookedSardine => "🍣"
-    case Item.CookedTrout => "🍣"
-    case Item.CookedSalmon => "🍣"
-    case Item.CookedLobster => "🦞"
-    case Item.CookedSwordfish => "🍣"
-    case Item.BurntFish => "💨"
+    Item.GuamLeaf -> ItemData("🌿", "Guam Leaf", 2),
+    Item.Marrentill -> ItemData("🌿", "Marrentill", 5),
+    Item.Tarromin -> ItemData("🌿", "Tarromin", 10),
+    Item.Harralander -> ItemData("🌿", "Harralander", 20),
+    Item.RanarrWeed -> ItemData("🌿", "Ranarr Weed", 40),
+    Item.IritLeaf -> ItemData("🌿", "Irit Leaf", 60),
+    Item.Kwuarm -> ItemData("🌿", "Kwuarm", 80),
+    Item.Cadantine -> ItemData("🌿", "Cadantine", 100),
+    // Cooked fish
+    Item.CookedShrimp -> ItemData("🍤", "Cooked Shrimp", 3),
+    Item.CookedSardine -> ItemData("🍣", "Cooked Sardine", 8),
+    Item.CookedTrout -> ItemData("🍣", "Cooked Trout", 20),
+    Item.CookedSalmon -> ItemData("🍣", "Cooked Salmon", 40),
+    Item.CookedLobster -> ItemData("🦞", "Cooked Lobster", 80),
+    Item.CookedSwordfish -> ItemData("🍣", "Cooked Swordfish", 130),
+    Item.BurntFish -> ItemData("💨", "Burnt Fish", 1),
     // Bars
-    case Item.BronzeBar => "🟫"
-    case Item.IronBar => "⬜"
-    case Item.SteelBar => "🔲"
-    case Item.GoldBar => "🟨"
-    case Item.MithrilBar => "🟦"
-    // Rare
-    case Item.BirdNest => "🪺"
-    case Item.Gem => "💎"
+    Item.BronzeBar -> ItemData("🟫", "Bronze Bar", 10),
+    Item.IronBar -> ItemData("⬜", "Iron Bar", 25),
+    Item.SteelBar -> ItemData("🔲", "Steel Bar", 50),
+    Item.GoldBar -> ItemData("🟨", "Gold Bar", 80),
+    Item.MithrilBar -> ItemData("🟦", "Mithril Bar", 150),
+    // Rare drops
+    Item.BirdNest -> ItemData("🪺", "Bird Nest", 100),
+    Item.Gem -> ItemData("💎", "Gem", 200)
+  )
 
-  def displayName(item: Item): String = item match
-    case Item.NormalLogs => "Normal Logs"
-    case Item.OakLogs => "Oak Logs"
-    case Item.WillowLogs => "Willow Logs"
-    case Item.MapleLogs => "Maple Logs"
-    case Item.YewLogs => "Yew Logs"
-    case Item.MagicLogs => "Magic Logs"
-    case Item.CopperOre => "Copper Ore"
-    case Item.TinOre => "Tin Ore"
-    case Item.IronOre => "Iron Ore"
-    case Item.Coal => "Coal"
-    case Item.GoldOre => "Gold Ore"
-    case Item.MithrilOre => "Mithril Ore"
-    case Item.RawShrimp => "Raw Shrimp"
-    case Item.RawSardine => "Raw Sardine"
-    case Item.RawTrout => "Raw Trout"
-    case Item.RawSalmon => "Raw Salmon"
-    case Item.RawLobster => "Raw Lobster"
-    case Item.RawSwordfish => "Raw Swordfish"
-    case Item.GuamLeaf => "Guam Leaf"
-    case Item.Marrentill => "Marrentill"
-    case Item.Tarromin => "Tarromin"
-    case Item.Harralander => "Harralander"
-    case Item.RanarrWeed => "Ranarr Weed"
-    case Item.IritLeaf => "Irit Leaf"
-    case Item.Kwuarm => "Kwuarm"
-    case Item.Cadantine => "Cadantine"
-    case Item.CookedShrimp => "Cooked Shrimp"
-    case Item.CookedSardine => "Cooked Sardine"
-    case Item.CookedTrout => "Cooked Trout"
-    case Item.CookedSalmon => "Cooked Salmon"
-    case Item.CookedLobster => "Cooked Lobster"
-    case Item.CookedSwordfish => "Cooked Swordfish"
-    case Item.BurntFish => "Burnt Fish"
-    case Item.BronzeBar => "Bronze Bar"
-    case Item.IronBar => "Iron Bar"
-    case Item.SteelBar => "Steel Bar"
-    case Item.GoldBar => "Gold Bar"
-    case Item.MithrilBar => "Mithril Bar"
-    case Item.BirdNest => "Bird Nest"
-    case Item.Gem => "Gem"
+  private def get(item: Item): ItemData =
+    metadata.getOrElse(item, ItemData("❓", item.toString, 0))
 
-  def sellValue(item: Item): Int = item match
-    case Item.NormalLogs => 2
-    case Item.OakLogs => 5
-    case Item.WillowLogs => 10
-    case Item.MapleLogs => 20
-    case Item.YewLogs => 40
-    case Item.MagicLogs => 80
-    case Item.CopperOre => 3
-    case Item.TinOre => 3
-    case Item.IronOre => 8
-    case Item.Coal => 12
-    case Item.GoldOre => 30
-    case Item.MithrilOre => 60
-    case Item.RawShrimp => 1
-    case Item.RawSardine => 3
-    case Item.RawTrout => 8
-    case Item.RawSalmon => 15
-    case Item.RawLobster => 30
-    case Item.RawSwordfish => 50
-    case Item.GuamLeaf => 2
-    case Item.Marrentill => 5
-    case Item.Tarromin => 10
-    case Item.Harralander => 20
-    case Item.RanarrWeed => 40
-    case Item.IritLeaf => 60
-    case Item.Kwuarm => 80
-    case Item.Cadantine => 100
-    case Item.CookedShrimp => 3
-    case Item.CookedSardine => 8
-    case Item.CookedTrout => 20
-    case Item.CookedSalmon => 40
-    case Item.CookedLobster => 80
-    case Item.CookedSwordfish => 130
-    case Item.BurntFish => 1
-    case Item.BronzeBar => 10
-    case Item.IronBar => 25
-    case Item.SteelBar => 50
-    case Item.GoldBar => 80
-    case Item.MithrilBar => 150
-    case Item.BirdNest => 100
-    case Item.Gem => 200
+  def icon(item: Item): String = get(item).icon
+  def displayName(item: Item): String = get(item).displayName
+  def sellValue(item: Item): Int = get(item).sellValue
 
 // ============================================================================
 // Actions (what player can do within a skill)
