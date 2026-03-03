@@ -282,12 +282,13 @@ object SkillTrainingView:
         )
       ),
       
-      // Action bonus modal
-      child <-- actionDetailsSignal.combineWith(VelorIdleState.gameSignal).map:
-        case (Some((actionId, icon, name, _, _, _, _)), game) =>
-          val actionStateSignal = VelorIdleState.actionStateSignal(actionId)
-          ActionBonusModal(name, icon, actionStateSignal, actionModalOpenVar.signal, () => actionModalOpenVar.set(false))
-        case _ => emptyNode
+      // Action bonus modal - rendered once, visibility controlled by signal
+      ActionBonusModal(
+        actionDetailsSignal.map(_.map(t => (t._3, t._2))),  // (name, icon)
+        actionDetailsSignal.map(_.map(_._1)),               // actionId
+        actionModalOpenVar.signal,
+        () => actionModalOpenVar.set(false)
+      )
     )
 
   private def actionXpProgressBar(actionState: ActionState): HtmlElement =

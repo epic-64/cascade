@@ -16,14 +16,20 @@ object ActionBonusModal:
     BonusTier(80, "+10% Yield chance (30% total)")
   )
 
-  /** Create the modal element - visibility controlled by isOpen signal */
+  /** Create the modal element - visibility controlled by isOpen signal
+    * Takes reactive signals so the modal doesn't get recreated on state changes
+    */
   def apply(
-    actionName: String,
-    actionIcon: String,
-    actionStateSignal: Signal[ActionState],
+    actionInfoSignal: Signal[Option[(String, String)]],  // (name, icon)
+    actionIdSignal: Signal[Option[String]],
     isOpenSignal: Signal[Boolean],
     onClose: () => Unit
   ): HtmlElement =
+    // Derive action state from action ID
+    val actionStateSignal = actionIdSignal.flatMapSwitch:
+      case Some(id) => VelorIdleState.actionStateSignal(id)
+      case None => Signal.fromValue(ActionState.initial)
+    
     val levelSignal = actionStateSignal.map(_.level)
 
     div(
@@ -36,7 +42,10 @@ object ActionBonusModal:
         cls := "velor-modal",
         div(
           cls := "velor-modal-header",
-          span(s"$actionIcon $actionName Bonuses"),
+          child.text <-- actionInfoSignal.map:
+            case Some((name, icon)) => s"$icon $name Bonuses"
+            case None => "Action Bonuses"
+          ,
           button(
             cls := "velor-modal-close",
             "✕",
