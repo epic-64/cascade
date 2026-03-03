@@ -368,6 +368,12 @@
   color: var(--text-secondary);
 }
 
+/* Action Progress Addon (below the mirrored card structure) */
+.velor-action-progress-addon {
+  margin-top: var(--velor-spacing-sm);
+  padding-top: var(--velor-spacing-sm);
+  border-top: 1px solid var(--velor-border);
+}
 
 .velor-action-bar-wrapper {
   position: relative;
@@ -453,9 +459,17 @@
   justify-content: space-between;
   align-items: center;
   margin-top: var(--velor-spacing-xs);
+  gap: var(--velor-spacing-sm);
+}
+
+.velor-action-footer .velor-action-time {
+  font-size: 0.8rem;
+  font-weight: 600;
+  min-width: 3rem;
 }
 
 .velor-action-rewards {
+  flex: 1;
   display: flex;
   gap: var(--velor-spacing-md);
   font-size: 0.8rem;
