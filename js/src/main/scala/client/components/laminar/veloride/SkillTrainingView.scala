@@ -116,6 +116,7 @@ object SkillTrainingView:
   private def actionProgress(viewingSkill: Skill, onStopAction: () => Unit): HtmlElement =
     val activeSignal = VelorIdleState.activeActionSignal
     val progressSignal = VelorIdleState.actionProgressSignal
+    val skillStateSignal = VelorIdleState.skillStateSignal(viewingSkill)
 
     // Determine if this skill is currently active
     val isActiveSignal = activeSignal.map:
@@ -144,10 +145,12 @@ object SkillTrainingView:
         ),
         div(
           cls := "velor-action-time",
-          child.text <-- isActiveSignal.combineWith(actionDetailsSignal, progressSignal).map:
-            case (true, Some((_, _, timeSeconds, _, _)), p) =>
-              val remaining = timeSeconds * (1.0 - p)
-              f"${remaining}%.1fs"
+          child.text <-- isActiveSignal.combineWith(actionDetailsSignal, progressSignal, skillStateSignal).map:
+            case (true, Some((_, _, baseTime, _, _)), p, state) =>
+              val efficiency = VelorIdleLogic.calculateEfficiencyBonus(state.level)
+              val effectiveTime = baseTime * (1.0 - efficiency)
+              val remaining = effectiveTime * (1.0 - p)
+              f"$remaining%.1fs"
             case _ => "Select action"
         )
       ),
