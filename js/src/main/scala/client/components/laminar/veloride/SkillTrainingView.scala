@@ -7,11 +7,13 @@ import shared.VelorIdle.*
 object SkillTrainingView:
 
   def apply(onStartAction: String => Unit, onStopAction: () => Unit): HtmlElement =
+    // Get current skill once at creation time - this view is recreated when navigating away and back
+    val initialSkill = VelorIdleState.current.currentSkill
+    
     div(
       cls := "velor-training-view",
-      child <-- VelorIdleState.currentSkillSignal.map:
+      initialSkill match
         case None =>
-          // Shouldn't happen, but fallback
           div("No skill selected")
         case Some(skill) =>
           trainingContent(skill, onStartAction, onStopAction)
