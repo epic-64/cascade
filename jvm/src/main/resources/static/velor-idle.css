@@ -371,12 +371,15 @@
 
 .velor-floating-reward {
   position: absolute;
-  right: 8px;
+  right: 0;
+  top: calc(var(--y-offset, 0px) * -1);
   white-space: nowrap;
   font-weight: 700;
   font-size: 0.9rem;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
   animation: velor-reward-float 1.5s ease-out forwards;
+  --curve-x: 0px;
+  --y-offset: 0px;
 }
 
 .velor-floating-reward.xp {
@@ -396,9 +399,13 @@
     opacity: 1;
     transform: translateY(0) translateX(0);
   }
+  50% {
+    opacity: 1;
+    transform: translateY(-30px) translateX(var(--curve-x));
+  }
   100% {
     opacity: 0;
-    transform: translateY(-40px) translateX(20px);
+    transform: translateY(-60px) translateX(var(--curve-x));
   }
 }
 
