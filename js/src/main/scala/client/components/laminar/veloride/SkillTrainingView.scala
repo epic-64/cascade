@@ -42,7 +42,9 @@ object SkillTrainingView:
           )
         ),
         // XP Progress bar inside the header card
-        xpProgressBar(skillStateSignal)
+        xpProgressBar(skillStateSignal),
+        // Perk bonuses for processing skills
+        if Skill.isProcessing(skill) then perkBonuses(skillStateSignal) else emptyNode
       ),
 
       // Action progress (if active) - in its own card
@@ -58,6 +60,25 @@ object SkillTrainingView:
           ActionList.forProcessing(skill, onStartAction)
         else
           div(cls := "velor-text-muted", styleAttr := "padding: 1rem;", "Coming soon...")
+      )
+    )
+
+  private def perkBonuses(stateSignal: Signal[SkillState]): HtmlElement =
+    div(
+      cls := "velor-perk-bonuses",
+      div(
+        cls := "velor-perk-item",
+        span(cls := "velor-perk-label", "2x Chance"),
+        span(cls := "velor-perk-value", 
+          child.text <-- stateSignal.map(s => f"${VelorIdleLogic.calculateDoubleChance(s.level, isGathering = false) * 100}%.0f%%")
+        )
+      ),
+      div(
+        cls := "velor-perk-item",
+        span(cls := "velor-perk-label", "Recycle"),
+        span(cls := "velor-perk-value",
+          child.text <-- stateSignal.map(s => f"${VelorIdleLogic.calculateRecycleChance(s.level) * 100}%.0f%%")
+        )
       )
     )
 
