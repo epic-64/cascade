@@ -49,8 +49,10 @@ object SkillTrainingView:
         ),
         // XP Progress bar inside the header card
         xpProgressBar(skillStateSignal),
-        // Perk bonuses for processing skills
-        if Skill.isProcessing(skill) then perkBonuses(skillStateSignal) else emptyNode
+        // Perk bonuses based on skill type
+        if Skill.isGathering(skill) then gatheringPerkBonuses(skillStateSignal)
+        else if Skill.isProcessing(skill) then processingPerkBonuses(skillStateSignal)
+        else emptyNode
       ),
 
       // Action progress (if active) - in its own card
@@ -72,9 +74,42 @@ object SkillTrainingView:
       SkillBonusModal(skill, modalOpenVar.signal, () => modalOpenVar.set(false))
     )
 
-  private def perkBonuses(stateSignal: Signal[SkillState]): HtmlElement =
+  private def gatheringPerkBonuses(stateSignal: Signal[SkillState]): HtmlElement =
     div(
       cls := "velor-perk-bonuses",
+      div(
+        cls := "velor-perk-item",
+        span(cls := "velor-perk-label", "Efficiency"),
+        span(cls := "velor-perk-value",
+          child.text <-- stateSignal.map(s => f"${VelorIdleLogic.calculateEfficiencyBonus(s.level) * 100}%.0f%%")
+        )
+      ),
+      div(
+        cls := "velor-perk-item",
+        span(cls := "velor-perk-label", "Yield"),
+        span(cls := "velor-perk-value",
+          child.text <-- stateSignal.map(s => f"${VelorIdleLogic.calculateYieldBonus(s.level) * 100}%.0f%%")
+        )
+      ),
+      div(
+        cls := "velor-perk-item",
+        span(cls := "velor-perk-label", "Mastery"),
+        span(cls := "velor-perk-value",
+          child.text <-- stateSignal.map(s => f"${VelorIdleLogic.calculateDoubleChance(s.level, isGathering = true) * 100}%.0f%%")
+        )
+      )
+    )
+
+  private def processingPerkBonuses(stateSignal: Signal[SkillState]): HtmlElement =
+    div(
+      cls := "velor-perk-bonuses",
+      div(
+        cls := "velor-perk-item",
+        span(cls := "velor-perk-label", "Efficiency"),
+        span(cls := "velor-perk-value",
+          child.text <-- stateSignal.map(s => f"${VelorIdleLogic.calculateEfficiencyBonus(s.level) * 100}%.0f%%")
+        )
+      ),
       div(
         cls := "velor-perk-item",
         span(cls := "velor-perk-label", "2x Chance"),
