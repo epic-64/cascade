@@ -25,28 +25,36 @@ object Header:
 
   private def activeSkillIndicator(): HtmlElement =
     val activeActionSignal = VelorIdleState.activeActionSignal
-    val currentSkillSignal = VelorIdleState.currentSkillSignal
     
     div(
       cls := "velor-active-skill",
-      child <-- currentSkillSignal.combineWith(activeActionSignal).map:
-        case (Some(skill), ActiveAction.Idle) =>
-          // Skill selected but idle - don't show icon
-          div(
-            cls := "velor-active-skill-content idle clickable",
-            onClick --> { _ => VelorIdleState.goToSkillTraining() },
-            span(cls := "velor-active-skill-status", "Idle")
-          )
-        case (Some(skill), _) =>
+      child <-- activeActionSignal.map:
+        case ActiveAction.Gathering(skill, _) =>
           // Skill actively running - show spinning icon
           div(
             cls := "velor-active-skill-content active clickable",
-            onClick --> { _ => VelorIdleState.goToSkillTraining() },
+            onClick --> { _ => 
+              // Update viewed skill to match active action's skill, then navigate
+              VelorIdleState.update(VelorIdleState.current.copy(currentSkill = Some(skill)))
+              VelorIdleState.goToSkillTraining()
+            },
             span(cls := "velor-active-skill-icon spinning", Skill.icon(skill)),
             span(cls := "velor-active-skill-status", "Active")
           )
-        case (None, _) =>
-          // No skill selected - not clickable
+        case ActiveAction.Processing(skill, _) =>
+          // Skill actively running - show spinning icon
+          div(
+            cls := "velor-active-skill-content active clickable",
+            onClick --> { _ => 
+              // Update viewed skill to match active action's skill, then navigate
+              VelorIdleState.update(VelorIdleState.current.copy(currentSkill = Some(skill)))
+              VelorIdleState.goToSkillTraining()
+            },
+            span(cls := "velor-active-skill-icon spinning", Skill.icon(skill)),
+            span(cls := "velor-active-skill-status", "Active")
+          )
+        case ActiveAction.Idle =>
+          // No action running
           div(
             cls := "velor-active-skill-content none",
             span(cls := "velor-active-skill-status", "Idle")
