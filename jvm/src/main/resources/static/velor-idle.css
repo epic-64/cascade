@@ -1433,3 +1433,139 @@
   font-size: 0.75rem;
   margin-bottom: var(--velor-spacing-sm);
 }
+
+/* ============================================================================
+   Shop Panel
+   ============================================================================ */
+
+.velor-shop-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-md);
+  padding: var(--velor-spacing-md);
+}
+
+.velor-shop-items-section {
+  background: var(--velor-card);
+  border-radius: var(--velor-radius-lg);
+  padding: var(--velor-spacing-md);
+  border: 1px solid var(--velor-border);
+}
+
+.velor-shop-items-section h4 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: var(--velor-spacing-md);
+  color: var(--text-primary);
+}
+
+.velor-shop-item-card {
+  background: var(--velor-bg-secondary);
+  border-radius: var(--velor-radius-md);
+  padding: var(--velor-spacing-md);
+  border: 1px solid var(--velor-border);
+  margin-bottom: var(--velor-spacing-sm);
+}
+
+.velor-shop-item-card:last-child {
+  margin-bottom: 0;
+}
+
+.velor-shop-item-header {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-sm);
+  margin-bottom: var(--velor-spacing-md);
+}
+
+.velor-shop-item-icon {
+  font-size: 1.5rem;
+}
+
+.velor-shop-item-name {
+  font-weight: 600;
+  flex: 1;
+}
+
+.velor-shop-item-price {
+  color: var(--velor-xp);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.velor-shop-item-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-sm);
+}
+
+.velor-shop-amount-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--velor-spacing-sm);
+}
+
+.velor-shop-amount-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--velor-card);
+  border: 1px solid var(--velor-border);
+  border-radius: var(--velor-radius-sm);
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.velor-shop-amount-btn:hover {
+  background: var(--velor-card-hover);
+  border-color: var(--velor-border-bright);
+}
+
+.velor-shop-amount-display {
+  min-width: 40px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.velor-shop-quick-amounts {
+  display: flex;
+  justify-content: center;
+  gap: var(--velor-spacing-xs);
+}
+
+.velor-shop-quick-btn {
+  padding: var(--velor-spacing-xs) var(--velor-spacing-sm);
+  background: var(--velor-card);
+  border: 1px solid var(--velor-border);
+  border-radius: var(--velor-radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.velor-shop-quick-btn:hover {
+  background: var(--velor-card-hover);
+  color: var(--text-primary);
+}
+
+.velor-shop-buy-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--velor-spacing-sm);
+  padding-top: var(--velor-spacing-sm);
+  border-top: 1px solid var(--velor-border);
+}
+
+.velor-shop-total {
+  color: var(--velor-xp);
+  font-weight: 600;
+}
+

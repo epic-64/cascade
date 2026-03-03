@@ -97,11 +97,7 @@ object VelorIdleClient:
     PotionPanel(handleDrinkPotion, handleRemovePotion)
 
   private def shopView(): HtmlElement =
-    div(
-      cls := "velor-skill-card",
-      h3("🏪 Shop"),
-      p(cls := "velor-text-muted", "Coming soon! Sell items from inventory by tapping them.")
-    )
+    ShopPanel(handleBuyItem)
 
   private def settingsView(): HtmlElement =
     div(
@@ -172,6 +168,16 @@ object VelorIdleClient:
     VelorIdleState.update(currentGame)
     isDirty = true
     ToastSystem.show("Potion effect removed")
+
+  private def handleBuyItem(item: Item, count: Int): Unit =
+    VelorIdleLogic.buyItem(currentGame, item, count) match
+      case Right(newGame) =>
+        currentGame = newGame
+        VelorIdleState.update(currentGame)
+        isDirty = true
+        ToastSystem.show(s"📦 Bought ${count}x ${Item.displayName(item)}")
+      case Left(error) =>
+        ToastSystem.show(s"❌ $error")
 
   private def handleReset(): Unit =
     if dom.window.confirm("Are you sure you want to reset? All progress will be lost!") then
