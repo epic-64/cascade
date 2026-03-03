@@ -475,29 +475,33 @@ class VelorIdleLogicSpec extends AnyFunSpec with Matchers:
     describe("Feature: Inventory upgrades"):
 
       it("should upgrade inventory when enough gold"):
+        // First upgrade from 12 slots costs 100 gold (base cost)
         val game = VelorIdleGame.newGame(1000L)
           .copy(gold = 1000L)
         
-        val result = VelorIdleLogic.upgradeInventory(game, 16)
+        val result = VelorIdleLogic.buyInventorySlots(game)
         result.isRight shouldBe true
-        result.toOption.get.inventory.maxSlots shouldBe 16
-        result.toOption.get.gold shouldBe 500L // 1000 - 500 cost
+        result.toOption.get.inventory.maxSlots shouldBe 16  // 12 + 4
+        result.toOption.get.gold shouldBe 900L // 1000 - 100 cost for first upgrade
 
       it("should reject upgrade when not enough gold"):
         val game = VelorIdleGame.newGame(1000L)
-          .copy(gold = 100L)
-        
-        val result = VelorIdleLogic.upgradeInventory(game, 16)
-        result.isLeft shouldBe true
-        result.left.toOption.get should include("500")
+          .copy(gold = 10L)  // Not enough for 100 gold cost
 
-      it("should reject invalid upgrade target"):
-        val game = VelorIdleGame.newGame(1000L)
-          .copy(gold = 10000L)
-        
-        // 13 is not a valid upgrade target
-        val result = VelorIdleLogic.upgradeInventory(game, 13)
+        val result = VelorIdleLogic.buyInventorySlots(game)
         result.isLeft shouldBe true
+        result.left.toOption.get should include("100")
+
+      it("should reject upgrade when at max capacity"):
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(
+            gold = 10_000_000L,
+            inventory = Inventory.empty(Inventory.MaxSlots)
+          )
+
+        val result = VelorIdleLogic.buyInventorySlots(game)
+        result.isLeft shouldBe true
+        result.left.toOption.get should include("maximum")
 
     // =========================================================================
     // UI State Behaviors
