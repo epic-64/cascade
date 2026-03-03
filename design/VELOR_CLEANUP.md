@@ -330,6 +330,45 @@ case ActiveAction.Processing(skill, action) if skill == viewingSkill =>
 
 ---
 
+### Phase 9: Remove Callback Pattern ✅ COMPLETED
+
+**Problem:** `VelorIdleState` used a callback pattern for skill selection:
+```scala
+private var selectSkillCallback: Option[Skill => Unit] = None
+def registerSelectSkillCallback(callback: Skill => Unit): Unit = ...
+def requestSelectSkill(skill: Skill): Unit = selectSkillCallback.foreach(_(skill))
+```
+
+This was confusing indirection between `VelorIdleClient` (owns game state) and `VelorIdleState` (reactive signals).
+
+**Solution:**
+
+1. **Added direct `selectSkill` method** to `VelorIdleState`:
+   ```scala
+   def selectSkill(skill: Skill): Unit =
+     modify(game => VelorIdleLogic.selectSkill(game, skill))
+     goToSkillTraining()
+   ```
+
+2. **Made client sync from state** at the start of each tick:
+   ```scala
+   private def gameTick(): Unit =
+     currentGame = VelorIdleState.current  // Sync any direct state changes
+     // ... rest of tick
+   ```
+
+3. **Removed:**
+   - `selectSkillCallback` var
+   - `registerSelectSkillCallback` method
+   - `requestSelectSkill` method
+   - `handleSelectSkill` in client
+
+4. **Updated callers:**
+   - `Header.activeSkillDiv` now calls `VelorIdleState.selectSkill(skill)`
+   - `SkillSelector` receives `VelorIdleState.selectSkill` directly
+
+---
+
 ## Priority Order
 
 | Priority | Task | Effort | Status |
@@ -342,6 +381,7 @@ case ActiveAction.Processing(skill, action) if skill == viewingSkill =>
 | **P3** | Refactor mutable logic | Medium | ✅ Done |
 | **P3** | Data-driven perks | Medium | ✅ Done |
 | **P4** | UI component consolidation | High | ✅ Done |
+| **P4** | Remove callback pattern | Low | ✅ Done |
 
 ---
 
@@ -355,6 +395,7 @@ All cleanup phases have been completed! The Velor Idle codebase now has:
 - **Data-driven perk system** that's easy to extend
 - **Consolidated UI components** eliminating duplication
 - **Clean utility functions** shared across components
+- **Direct state modification** without callback indirection
 
 The codebase is now well-positioned for adding new features like:
 - Alchemy and Summoning skills
@@ -365,6 +406,5 @@ The codebase is now well-positioned for adding new features like:
 ## Notes
 
 - All refactoring maintained exact same behavior (verified by tests)
-- The callback pattern in VelorIdleState remains—functional but could be revisited if issues arise
 - Consider adding property-based tests for perk calculations in the future
 

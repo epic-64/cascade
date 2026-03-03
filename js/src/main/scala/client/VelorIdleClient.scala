@@ -32,7 +32,6 @@ object VelorIdleClient:
     loadGame()
     buildUI()
     VelorIdleState.update(currentGame)
-    VelorIdleState.registerSelectSkillCallback(handleSelectSkill)
     startGameTicker()
     startSaveTimer()
     registerLifecycleHooks()
@@ -84,7 +83,7 @@ object VelorIdleClient:
   private def skillSelectView(): HtmlElement =
     div(
       h2(styleAttr := "margin-bottom: 1rem; text-align: center;", "Choose a Skill"),
-      SkillSelector(handleSelectSkill)
+      SkillSelector(VelorIdleState.selectSkill)
     )
 
   private def skillTrainingView(): HtmlElement =
@@ -126,11 +125,6 @@ object VelorIdleClient:
   // Event Handlers
   // ============================================================================
 
-  private def handleSelectSkill(skill: Skill): Unit =
-    currentGame = VelorIdleLogic.selectSkill(currentGame, skill)
-    VelorIdleState.update(currentGame)
-    VelorIdleState.goToSkillTraining()
-    isDirty = true
 
   private def handleStartAction(actionId: String): Unit =
     VelorIdleLogic.startAction(currentGame, actionId) match
@@ -182,6 +176,9 @@ object VelorIdleClient:
     tickIntervalHandle = None
 
   private def gameTick(): Unit =
+    // Sync from state in case UI modified it directly (e.g., skill selection from Header)
+    currentGame = VelorIdleState.current
+    
     val currentTime = System.currentTimeMillis()
     val (newGame, events) = VelorIdleLogic.tick(currentGame, currentTime)
 
