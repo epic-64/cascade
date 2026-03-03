@@ -158,8 +158,5 @@ object SkillTrainingView:
       )
     )
 
-  private def formatNumber(n: Long): String =
-    if n >= 1_000_000 then f"${n / 1_000_000.0}%.1fM"
-    else if n >= 1_000 then f"${n / 1_000.0}%.1fk"
-    else n.toString
+  private def formatNumber(n: Long): String = VelorUtils.formatNumber(n)
 

@@ -44,8 +44,5 @@ object InventoryPanel:
           div(cls := "velor-item-slot-count", formatCount(stack.count))
         )
 
-  private def formatCount(count: Long): String =
-    if count >= 1_000_000 then f"${count / 1_000_000.0}%.1fM"
-    else if count >= 1_000 then f"${count / 1_000.0}%.1fk"
-    else count.toString
+  private def formatCount(count: Long): String = VelorUtils.formatNumber(count)
 
