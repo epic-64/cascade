@@ -190,8 +190,10 @@ object VelorIdleLogic:
     if !allConsumed then
       (gameAfterConsume, Vector(GameEvent.OutOfMaterials))
     else
+      val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
       val result = GameUpdate(gameAfterConsume, Vector.empty)
         .pipe(grantXp(skill, skillState, action.xpGain))
+        .pipe(grantActionXp(action.id, actionState, action.xpGain))
         .pipe(processOutput(action, skillState, random))
       
       (result.game, result.events)
