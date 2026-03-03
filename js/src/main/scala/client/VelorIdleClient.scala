@@ -32,6 +32,7 @@ object VelorIdleClient:
     loadGame()
     buildUI()
     VelorIdleState.update(currentGame)
+    VelorIdleState.registerSelectSkillCallback(handleSelectSkill)
     startGameTicker()
     startSaveTimer()
     registerLifecycleHooks()

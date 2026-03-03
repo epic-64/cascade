@@ -95,3 +95,17 @@ object VelorIdleState:
   def goToSkillTraining(): Unit =
     viewModeVar.set(ViewMode.SkillTraining)
 
+  // ============================================================================
+  // Callbacks (set by VelorIdleClient to handle state changes properly)
+  // ============================================================================
+  
+  private var selectSkillCallback: Option[Skill => Unit] = None
+  
+  /** Register callback for skill selection (called by VelorIdleClient on init) */
+  def registerSelectSkillCallback(callback: Skill => Unit): Unit =
+    selectSkillCallback = Some(callback)
+  
+  /** Request skill selection - goes through client to keep state in sync */
+  def requestSelectSkill(skill: Skill): Unit =
+    selectSkillCallback.foreach(_(skill))
+
