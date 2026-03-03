@@ -22,6 +22,10 @@ class IndexEndpointSpec extends AnyFunSuite with TestServerHelper:
     val response = requests.get(s"$baseUrl/")
     assert(response.text().contains("""href="/counter""""))
 
+  test("index page contains link to Velor Idle"):
+    val response = requests.get(s"$baseUrl/")
+    assert(response.text().contains("""href="/velor-idle""""))
+
   test("counter page returns 200 OK"):
     val response = requests.get(s"$baseUrl/counter")
     assert(response.statusCode == 200)
