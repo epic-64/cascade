@@ -1783,3 +1783,283 @@
   padding: var(--velor-spacing-xs) var(--velor-spacing-sm);
 }
 
+/* ============================================================================
+   Tablet Panel
+   ============================================================================ */
+
+.velor-tablet-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-md);
+  padding: var(--velor-spacing-md);
+}
+
+.velor-tablet-slots-section,
+.velor-synergy-section,
+.velor-available-tablets-section {
+  background: var(--velor-card);
+  border-radius: var(--velor-radius-lg);
+  padding: var(--velor-spacing-md);
+  border: 1px solid var(--velor-border);
+}
+
+.velor-tablet-slots-section h4,
+.velor-synergy-section h4,
+.velor-available-tablets-section h4 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: var(--velor-spacing-md);
+  color: var(--text-primary);
+}
+
+.velor-tablet-slots-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-md);
+}
+
+@media (min-width: 768px) {
+  .velor-tablet-slots-container {
+    flex-direction: row;
+  }
+  
+  .velor-tablet-slot {
+    flex: 1;
+  }
+}
+
+.velor-tablet-slot {
+  background: var(--velor-bg-secondary);
+  border-radius: var(--velor-radius-md);
+  padding: var(--velor-spacing-md);
+  border: 1px solid var(--velor-border);
+}
+
+.velor-tablet-slot-header {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: var(--velor-spacing-sm);
+  color: var(--text-primary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.velor-tablet-slot-empty {
+  padding: var(--velor-spacing-md);
+  text-align: center;
+  background: var(--velor-bg);
+  border-radius: var(--velor-radius-sm);
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.velor-tablet-slot-empty.locked {
+  opacity: 0.6;
+}
+
+.velor-tablet-slot-content {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-md);
+  background: var(--velor-bg);
+  border-radius: var(--velor-radius-sm);
+  padding: var(--velor-spacing-sm);
+  border: 1px solid var(--velor-skill-summon);
+}
+
+.velor-tablet-slot-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.velor-tablet-slot-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.velor-tablet-slot-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--velor-skill-summon);
+}
+
+.velor-tablet-slot-effect {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.velor-tablet-slot-charges {
+  font-size: 0.75rem;
+  color: var(--velor-xp);
+  font-weight: 600;
+}
+
+/* Synergy display */
+.velor-no-synergy {
+  padding: var(--velor-spacing-lg);
+  text-align: center;
+  background: var(--velor-bg-secondary);
+  border-radius: var(--velor-radius-md);
+}
+
+.velor-synergy-card {
+  background: linear-gradient(135deg, var(--velor-bg-secondary) 0%, rgba(6, 182, 212, 0.1) 100%);
+  border-radius: var(--velor-radius-md);
+  padding: var(--velor-spacing-md);
+  border: 1px solid var(--velor-skill-summon);
+}
+
+.velor-synergy-header {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-sm);
+  margin-bottom: var(--velor-spacing-xs);
+}
+
+.velor-synergy-icon {
+  font-size: 1.25rem;
+}
+
+.velor-synergy-name {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--velor-skill-summon);
+}
+
+.velor-synergy-effect {
+  color: var(--velor-accent);
+  font-size: 0.9rem;
+}
+
+/* Tablet cards in inventory */
+.velor-no-tablets {
+  padding: var(--velor-spacing-lg);
+  text-align: center;
+  background: var(--velor-bg-secondary);
+  border-radius: var(--velor-radius-md);
+}
+
+.velor-tablet-card {
+  background: var(--velor-bg-secondary);
+  border-radius: var(--velor-radius-md);
+  padding: var(--velor-spacing-md);
+  border: 1px solid var(--velor-border);
+  margin-bottom: var(--velor-spacing-sm);
+}
+
+.velor-tablet-card:last-child {
+  margin-bottom: 0;
+}
+
+.velor-tablet-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-sm);
+  margin-bottom: var(--velor-spacing-sm);
+}
+
+.velor-tablet-icon {
+  font-size: 1.25rem;
+}
+
+.velor-tablet-name {
+  font-weight: 600;
+  flex: 1;
+}
+
+.velor-tablet-count {
+  color: var(--velor-xp);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.velor-tablet-effect-desc {
+  color: var(--velor-skill-summon);
+  font-size: 0.85rem;
+  margin-bottom: var(--velor-spacing-xs);
+}
+
+.velor-tablet-duration {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  margin-top: var(--velor-spacing-xs);
+}
+
+.velor-tablet-equip-buttons {
+  display: flex;
+  gap: var(--velor-spacing-sm);
+  margin-top: var(--velor-spacing-sm);
+}
+
+.velor-tablet-equip-buttons .btn {
+  flex: 1;
+}
+
+/* Synergy reference guide */
+.velor-synergy-reference-section {
+  background: var(--velor-card);
+  border-radius: var(--velor-radius-lg);
+  padding: var(--velor-spacing-md);
+  border: 1px solid var(--velor-border);
+}
+
+.velor-synergy-reference-section h4 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: var(--velor-spacing-md);
+  color: var(--text-primary);
+}
+
+.velor-synergy-reference-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-sm);
+}
+
+.velor-synergy-reference-item {
+  background: var(--velor-bg-secondary);
+  border-radius: var(--velor-radius-sm);
+  padding: var(--velor-spacing-sm);
+  border: 1px solid var(--velor-border);
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--velor-spacing-xs);
+}
+
+@media (min-width: 768px) {
+  .velor-synergy-reference-item {
+    grid-template-columns: 150px 150px 1fr;
+    align-items: center;
+  }
+}
+
+.velor-synergy-reference-tablets {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.velor-synergy-reference-tablets span:nth-child(1),
+.velor-synergy-reference-tablets span:nth-child(3) {
+  color: var(--velor-skill-summon);
+  font-weight: 600;
+}
+
+.velor-synergy-reference-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--velor-accent);
+}
+
+.velor-synergy-reference-effect {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.velor-synergy-master {
+  border-color: var(--velor-xp);
+  background: linear-gradient(135deg, var(--velor-bg-secondary) 0%, rgba(251, 191, 36, 0.1) 100%);
+}
+

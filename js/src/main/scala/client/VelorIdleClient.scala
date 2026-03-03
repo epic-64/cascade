@@ -71,6 +71,7 @@ object VelorIdleClient:
           case VelorIdleState.ViewMode.SkillTraining => skillTrainingView()
           case VelorIdleState.ViewMode.Inventory => inventoryView()
           case VelorIdleState.ViewMode.Potions => potionsView()
+          case VelorIdleState.ViewMode.Tablets => tabletsView()
           case VelorIdleState.ViewMode.Shop => shopView()
           case VelorIdleState.ViewMode.Settings => settingsView()
       ),
@@ -99,6 +100,9 @@ object VelorIdleClient:
 
   private def potionsView(): HtmlElement =
     PotionPanel(handleDrinkPotion, handleRemovePotion)
+
+  private def tabletsView(): HtmlElement =
+    TabletPanel(handleEquipTablet, handleUnequipTablet)
 
   private def shopView(): HtmlElement =
     ShopPanel(handleBuyItem, handleBuyInventorySlots)
@@ -187,6 +191,26 @@ object VelorIdleClient:
     isDirty = true
     ToastSystem.show("Potion effect removed")
 
+  private def handleEquipTablet(tablet: Item, slot: Int): Unit =
+    VelorIdleLogic.equipTablet(currentGame, tablet, slot) match
+      case Right(newGame) =>
+        currentGame = newGame
+        VelorIdleState.update(currentGame)
+        isDirty = true
+        ToastSystem.show(s"📜 Equipped ${Item.displayName(tablet)} in slot $slot")
+      case Left(error) =>
+        ToastSystem.show(s"❌ $error")
+
+  private def handleUnequipTablet(slot: Int): Unit =
+    VelorIdleLogic.unequipTablet(currentGame, slot) match
+      case Right(newGame) =>
+        currentGame = newGame
+        VelorIdleState.update(currentGame)
+        isDirty = true
+        ToastSystem.show(s"📜 Tablet unequipped from slot $slot")
+      case Left(error) =>
+        ToastSystem.show(s"❌ $error")
+
   private def handleBuyItem(item: Item, count: Int): Unit =
     VelorIdleLogic.buyItem(currentGame, item, count) match
       case Right(newGame) =>
@@ -266,6 +290,8 @@ object VelorIdleClient:
         ToastSystem.show(s"🔥 $reason")
       case GameEvent.PotionExpired(potion) =>
         ToastSystem.show(s"🧪 ${Item.displayName(potion)} wore off")
+      case GameEvent.TabletConsumed(tablet, slot) =>
+        ToastSystem.show(s"📜 ${Item.displayName(tablet)} depleted from slot $slot")
       case _ => ()
 
   // ============================================================================
