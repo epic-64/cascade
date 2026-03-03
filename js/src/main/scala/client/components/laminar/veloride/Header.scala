@@ -29,40 +29,25 @@ object Header:
     div(
       cls := "velor-active-skill",
       child <-- activeActionSignal.map:
-        case ActiveAction.Gathering(skill, _) =>
-          // Skill actively running - show spinning icon
-          div(
-            cls := "velor-active-skill-content active clickable",
-            onClick --> { _ => 
-              // Use callback to properly sync with client's game state
-              VelorIdleState.requestSelectSkill(skill)
-              VelorIdleState.goToSkillTraining()
-            },
-            span(cls := "velor-active-skill-icon spinning", Skill.icon(skill)),
-            span(cls := "velor-active-skill-status", "Active")
-          )
-        case ActiveAction.Processing(skill, _) =>
-          // Skill actively running - show spinning icon
-          div(
-            cls := "velor-active-skill-content active clickable",
-            onClick --> { _ => 
-              // Use callback to properly sync with client's game state
-              VelorIdleState.requestSelectSkill(skill)
-              VelorIdleState.goToSkillTraining()
-            },
-            span(cls := "velor-active-skill-icon spinning", Skill.icon(skill)),
-            span(cls := "velor-active-skill-status", "Active")
-          )
+        case ActiveAction.Gathering(skill, _) => activeSkillDiv(skill)
+        case ActiveAction.Processing(skill, _) => activeSkillDiv(skill)
         case ActiveAction.Idle =>
-          // No action running
           div(
             cls := "velor-active-skill-content none",
             span(cls := "velor-active-skill-status", "Idle")
           )
     )
 
-  private def formatGold(gold: Long): String =
-    if gold >= 1_000_000 then f"${gold / 1_000_000.0}%.1fM"
-    else if gold >= 1_000 then f"${gold / 1_000.0}%.1fk"
-    else gold.toString
+  private def activeSkillDiv(skill: Skill): HtmlElement =
+    div(
+      cls := "velor-active-skill-content active clickable",
+      onClick --> { _ => 
+        VelorIdleState.requestSelectSkill(skill)
+        VelorIdleState.goToSkillTraining()
+      },
+      span(cls := "velor-active-skill-icon spinning", Skill.icon(skill)),
+      span(cls := "velor-active-skill-status", "Active")
+    )
+
+  private def formatGold(gold: Long): String = VelorUtils.formatNumber(gold)
 

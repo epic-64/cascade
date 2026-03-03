@@ -154,7 +154,7 @@ object VelorIdleLogic:
     // Consume inputs (with recycle chance)
     val recycleChance = calculateRecycleChance(skillState.level)
     var inputsConsumed = true
-    
+
     for (item, count) <- action.inputs do
       val recycled = random.nextDouble() < recycleChance
       if !recycled then
@@ -265,6 +265,14 @@ object VelorIdleLogic:
   /** Select a skill to view/train - does not affect the currently running action */
   def selectSkill(game: VelorIdleGame, skill: Skill): VelorIdleGame =
     game.copy(currentSkill = Some(skill))
+
+  /** Start an action - automatically dispatches to gathering or processing based on current skill */
+  def startAction(game: VelorIdleGame, actionId: String): Either[String, VelorIdleGame] =
+    game.currentSkill match
+      case None => Left("No skill selected")
+      case Some(skill) if Skill.isGathering(skill) => startGathering(game, actionId)
+      case Some(skill) if Skill.isProcessing(skill) => startProcessing(game, actionId)
+      case Some(skill) => Left(s"${Skill.displayName(skill)} actions not yet implemented")
 
   /** Start a gathering action */
   def startGathering(game: VelorIdleGame, actionId: String): Either[String, VelorIdleGame] =

@@ -133,16 +133,7 @@ object VelorIdleClient:
     isDirty = true
 
   private def handleStartAction(actionId: String): Unit =
-    // Try gathering first, then processing
-    val result = currentGame.currentSkill match
-      case Some(skill) if Skill.isGathering(skill) =>
-        VelorIdleLogic.startGathering(currentGame, actionId)
-      case Some(skill) if Skill.isProcessing(skill) =>
-        VelorIdleLogic.startProcessing(currentGame, actionId)
-      case _ =>
-        Left("No skill selected")
-
-    result match
+    VelorIdleLogic.startAction(currentGame, actionId) match
       case Right(newGame) =>
         currentGame = newGame
         VelorIdleState.update(currentGame)
