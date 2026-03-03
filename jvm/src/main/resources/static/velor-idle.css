@@ -187,32 +187,36 @@
 .velor-training-view {
   display: flex;
   flex-direction: column;
-  gap: var(--velor-spacing-md);
+  gap: var(--velor-spacing-sm);
+  flex: 1;
+  min-height: 0;
 }
 
 .velor-training-content {
   display: flex;
   flex-direction: column;
-  gap: var(--velor-spacing-md);
+  gap: var(--velor-spacing-sm);
+  flex: 1;
+  min-height: 0;
 }
 
 .velor-skill-header-card {
   background: var(--velor-card);
   border-radius: var(--velor-radius-lg);
-  padding: var(--velor-spacing-md);
+  padding: var(--velor-spacing-sm) var(--velor-spacing-md);
   border: 1px solid var(--velor-border);
 }
 
 .velor-training-header {
   display: flex;
   align-items: center;
-  gap: var(--velor-spacing-md);
-  margin-bottom: var(--velor-spacing-md);
+  gap: var(--velor-spacing-sm);
+  margin-bottom: var(--velor-spacing-xs);
 }
 
 .velor-back-btn {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -236,18 +240,18 @@
 .velor-training-title {
   display: flex;
   align-items: center;
-  gap: var(--velor-spacing-sm);
-  font-size: 1.25rem;
+  gap: var(--velor-spacing-xs);
+  font-size: 1.1rem;
   font-weight: 700;
   flex: 1;
 }
 
 .velor-training-icon {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
 }
 
 .velor-training-level {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   color: var(--text-secondary);
   font-weight: 600;
   margin-left: auto;
@@ -299,16 +303,16 @@
 }
 
 .velor-xp-bar {
-  height: 8px;
+  height: 6px;
   background: var(--velor-bg);
-  border-radius: 4px;
+  border-radius: 3px;
   overflow: hidden;
 }
 
 .velor-xp-bar-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--velor-xp-dark) 0%, var(--velor-xp) 100%);
-  border-radius: 4px;
+  border-radius: 3px;
   transition: width 0.3s ease;
 }
 
@@ -316,7 +320,7 @@
 .velor-action-container {
   background: var(--velor-card);
   border-radius: var(--velor-radius-lg);
-  padding: var(--velor-spacing-md);
+  padding: var(--velor-spacing-sm) var(--velor-spacing-md);
   border: 1px solid var(--velor-border);
 }
 
@@ -324,7 +328,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--velor-spacing-sm);
+  margin-bottom: var(--velor-spacing-xs);
 }
 
 .velor-action-name {
@@ -341,13 +345,13 @@
 
 .velor-action-bar-wrapper {
   position: relative;
-  margin-bottom: var(--velor-spacing-sm);
+  margin-bottom: var(--velor-spacing-xs);
 }
 
 .velor-action-bar {
-  height: 24px;
+  height: 20px;
   background: var(--velor-bg);
-  border-radius: 12px;
+  border-radius: 10px;
   overflow: hidden;
   position: relative;
 }
@@ -355,7 +359,7 @@
 .velor-action-bar-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--velor-accent-dark) 0%, var(--velor-accent) 100%);
-  border-radius: 12px;
+  border-radius: 10px;
   transition: width 0.1s linear;
 }
 
@@ -409,13 +413,36 @@
   }
 }
 
+.velor-action-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--velor-spacing-xs);
+}
+
 .velor-action-rewards {
   display: flex;
-  justify-content: center;
-  gap: var(--velor-spacing-lg);
-  margin-top: var(--velor-spacing-md);
-  font-size: 0.875rem;
+  gap: var(--velor-spacing-md);
+  font-size: 0.8rem;
   color: var(--text-secondary);
+}
+
+.velor-stop-btn {
+  padding: var(--velor-spacing-xs) var(--velor-spacing-md);
+  background: var(--velor-bg-secondary);
+  border: 1px solid var(--velor-border);
+  border-radius: var(--velor-radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.velor-stop-btn:hover {
+  background: var(--velor-bg);
+  color: var(--text-primary);
+  border-color: var(--velor-border-bright);
 }
 
 .velor-action-reward {
@@ -525,15 +552,19 @@
 .velor-action-selector {
   background: var(--velor-card);
   border-radius: var(--velor-radius-lg);
-  padding: var(--velor-spacing-md);
+  padding: var(--velor-spacing-sm) var(--velor-spacing-md);
   border: 1px solid var(--velor-border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
 }
 
 .velor-action-selector-title {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-secondary);
-  margin-bottom: var(--velor-spacing-sm);
+  margin-bottom: var(--velor-spacing-xs);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -542,20 +573,22 @@
   display: flex;
   flex-direction: column;
   gap: var(--velor-spacing-xs);
-  max-height: 200px;
   overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .velor-action-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--velor-spacing-sm) var(--velor-spacing-md);
+  padding: var(--velor-spacing-xs) var(--velor-spacing-sm);
   background: var(--velor-bg-secondary);
   border-radius: var(--velor-radius-sm);
   cursor: pointer;
   transition: all 0.15s ease;
   border: 1px solid transparent;
+  flex-shrink: 0;
 }
 
 .velor-action-item:hover {
@@ -576,25 +609,26 @@
 .velor-action-item-left {
   display: flex;
   align-items: center;
-  gap: var(--velor-spacing-sm);
+  gap: var(--velor-spacing-xs);
 }
 
 .velor-action-item-icon {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
 }
 
 .velor-action-item-name {
   font-weight: 600;
+  font-size: 0.9rem;
 }
 
 .velor-action-item-level {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
 }
 
 .velor-action-item-right {
   text-align: right;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--text-secondary);
 }
 

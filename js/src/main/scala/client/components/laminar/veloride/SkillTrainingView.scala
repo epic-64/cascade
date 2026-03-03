@@ -138,25 +138,26 @@ object SkillTrainingView:
             styleAttr <-- progressSignal.map(p => s"width: ${(p * 100).toInt}%")
           )
         ),
-        // Floating rewards spawn from here
         FloatingRewards.container()
       ),
       div(
-        cls := "velor-action-rewards",
+        cls := "velor-action-footer",
         div(
-          cls := "velor-action-reward velor-action-reward-xp",
-          s"+$xpGain XP"
+          cls := "velor-action-rewards",
+          div(
+            cls := "velor-action-reward velor-action-reward-xp",
+            s"+$xpGain XP"
+          ),
+          div(
+            cls := "velor-action-reward",
+            s"${Item.icon(output)} ${Item.displayName(output)}"
+          )
         ),
-        div(
-          cls := "velor-action-reward",
-          s"${Item.icon(output)} ${Item.displayName(output)}"
+        button(
+          cls := "velor-stop-btn",
+          "Stop",
+          onClick --> { _ => onStopAction() }
         )
-      ),
-      button(
-        cls := "btn btn-secondary",
-        styleAttr := "margin-top: 1rem; width: 100%",
-        "Stop",
-        onClick --> { _ => onStopAction() }
       )
     )
 
