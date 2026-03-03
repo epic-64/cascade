@@ -511,6 +511,22 @@ object VelorIdleLogic:
               inventory = newInventory
             ))
 
+  /** Buy additional inventory slots (+4 slots per purchase) */
+  def buyInventorySlots(game: VelorIdleGame): Either[String, VelorIdleGame] =
+    Inventory.nextUpgradeCost(game.inventory.maxSlots) match
+      case None => Left("Inventory is at maximum capacity")
+      case Some(cost) =>
+        if game.gold < cost then
+          Left(s"Need $cost gold (you have ${game.gold})")
+        else
+          val newMaxSlots = (game.inventory.maxSlots + 4).min(Inventory.MaxSlots)
+          val additionalSlots = newMaxSlots - game.inventory.maxSlots
+          val newSlots = game.inventory.slots ++ Vector.fill(additionalSlots)(None)
+          Right(game.copy(
+            gold = game.gold - cost,
+            inventory = game.inventory.copy(slots = newSlots, maxSlots = newMaxSlots)
+          ))
+
 // ============================================================================
 // Game Events (for UI feedback)
 // ============================================================================

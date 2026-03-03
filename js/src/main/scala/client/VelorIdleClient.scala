@@ -97,7 +97,7 @@ object VelorIdleClient:
     PotionPanel(handleDrinkPotion, handleRemovePotion)
 
   private def shopView(): HtmlElement =
-    ShopPanel(handleBuyItem)
+    ShopPanel(handleBuyItem, handleBuyInventorySlots)
 
   private def settingsView(): HtmlElement =
     div(
@@ -176,6 +176,16 @@ object VelorIdleClient:
         VelorIdleState.update(currentGame)
         isDirty = true
         ToastSystem.show(s"📦 Bought ${count}x ${Item.displayName(item)}")
+      case Left(error) =>
+        ToastSystem.show(s"❌ $error")
+
+  private def handleBuyInventorySlots(): Unit =
+    VelorIdleLogic.buyInventorySlots(currentGame) match
+      case Right(newGame) =>
+        currentGame = newGame
+        VelorIdleState.update(currentGame)
+        isDirty = true
+        ToastSystem.show(s"📦 Inventory expanded to ${newGame.inventory.maxSlots} slots!")
       case Left(error) =>
         ToastSystem.show(s"❌ $error")
 

@@ -422,24 +422,28 @@ case class Inventory(
 
 object Inventory:
   val StartingSlots = 12
+  val MaxSlots = 100
 
   def empty(slots: Int = StartingSlots): Inventory =
     Inventory(Vector.fill(slots)(None), slots)
 
-  /** Cost to upgrade to a certain number of slots */
+  /** Cost to upgrade by 4 slots from current amount.
+    * Uses quadratic scaling: base * (upgradeNumber^1.8)
+    * Caps at 5 million gold.
+    */
+  def nextUpgradeCost(currentSlots: Int): Option[Long] =
+    if currentSlots >= MaxSlots then None
+    else
+      // Each upgrade adds 4 slots
+      // upgradeNumber = how many upgrades have been done (0 = still at 12 slots)
+      val upgradeNumber = (currentSlots - StartingSlots) / 4
+      // Base cost 100, scaling with upgradeNumber^1.8
+      val cost = (100 * Math.pow(upgradeNumber + 1, 1.8)).toLong.min(5_000_000L)
+      Some(cost)
+
+  /** Legacy method for compatibility */
   def upgradeCost(currentSlots: Int, targetSlots: Int): Option[Int] =
-    val costs = Map(
-      16 -> 500,
-      20 -> 1500,
-      24 -> 4000,
-      28 -> 8000,
-      32 -> 15000,
-      40 -> 30000,
-      50 -> 60000,
-      60 -> 100000
-    )
-    if targetSlots > currentSlots then costs.get(targetSlots)
-    else None
+    nextUpgradeCost(currentSlots).map(_.toInt)
 
 // ============================================================================
 // Potion System
