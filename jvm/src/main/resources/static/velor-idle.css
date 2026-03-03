@@ -316,6 +316,31 @@
   transition: width 0.3s ease;
 }
 
+/* Perk Bonuses (for processing skills) */
+.velor-perk-bonuses {
+  display: flex;
+  gap: var(--velor-spacing-md);
+  margin-top: var(--velor-spacing-xs);
+  padding-top: var(--velor-spacing-xs);
+  border-top: 1px solid var(--velor-border);
+}
+
+.velor-perk-item {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-xs);
+  font-size: 0.75rem;
+}
+
+.velor-perk-label {
+  color: var(--text-muted);
+}
+
+.velor-perk-value {
+  color: var(--velor-accent);
+  font-weight: 600;
+}
+
 /* Action Progress Bar */
 .velor-action-container {
   background: var(--velor-card);
