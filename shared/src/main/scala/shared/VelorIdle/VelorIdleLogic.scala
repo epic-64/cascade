@@ -38,7 +38,8 @@ object VelorIdleLogic:
 
     // Calculate effective action time (reduced by efficiency perks - now action level based)
     val efficiencyBonus = calculateEfficiencyBonus(actionState.level)
-    val effectiveTime = action.timeSeconds * (1.0 - efficiencyBonus)
+    val potionSpeedBonus = game.potionSlots.speedBonusFor(skill)
+    val effectiveTime = action.timeSeconds * (1.0 - efficiencyBonus) * (1.0 - potionSpeedBonus)
 
     // Calculate new progress
     val progressPerSecond = 1.0 / effectiveTime
@@ -48,13 +49,25 @@ object VelorIdleLogic:
       // Action complete - grant rewards
       val (updatedGame, events) = completeGatheringAction(game, action, skill, skillState, random)
 
+      // Consume potion charge
+      val gameWithPotionConsumed = updatedGame.copy(
+        potionSlots = updatedGame.potionSlots.consumeAction
+      )
+      val potionEvents = checkPotionExpired(game.potionSlots, gameWithPotionConsumed.potionSlots)
+
       // Check if we have overflow progress for another action
       val overflowProgress = newProgress - 1.0
       val finalProgress = if overflowProgress > 0 && overflowProgress < 1.0 then overflowProgress else 0.0
 
-      (updatedGame.copy(actionProgress = finalProgress, lastTickTime = currentTime), events)
+      (gameWithPotionConsumed.copy(actionProgress = finalProgress, lastTickTime = currentTime), events ++ potionEvents)
     else
       (game.copy(actionProgress = newProgress, lastTickTime = currentTime), Vector.empty)
+
+  /** Check if potion expired and generate event if so */
+  private def checkPotionExpired(before: PotionSlots, after: PotionSlots): Vector[GameEvent] =
+    (before.activePotion, after.activePotion) match
+      case (Some(active), None) => Vector(GameEvent.PotionExpired(active.potion))
+      case _ => Vector.empty
 
   /** Accumulator for game state updates - allows chaining operations immutably */
   private case class GameUpdate(game: VelorIdleGame, events: Vector[GameEvent]):
@@ -75,10 +88,13 @@ object VelorIdleLogic:
       .pipe(grantActionXp(action.id, actionState, action.xpGain))
       .pipe(grantGatheredItems(action, skillState, actionState, random))
       .pipe(checkRareDrop(action.rareOutput, skillState.level, random))
-    
+
     (result.game, result.events)
 
-  private def grantXp(skill: Skill, skillState: SkillState, xpGain: Int)(update: GameUpdate): GameUpdate =
+  private def grantXp(skill: Skill, skillState: SkillState, baseXpGain: Int)(update: GameUpdate): GameUpdate =
+    // Apply potion bonus
+    val potionBonus = update.game.potionSlots.xpBonusFor(skill)
+    val xpGain = (baseXpGain * (1.0 + potionBonus)).toInt
     val newXp = skillState.xp + xpGain
     val oldLevel = skillState.level
     val newLevel = SkillState.levelFromXp(newXp)
@@ -96,11 +112,11 @@ object VelorIdleLogic:
     val oldLevel = actionState.level
     val newLevel = ActionState.levelFromXp(newXp)
     val newActionState = actionState.copy(xp = newXp, level = newLevel)
-    
+
     val withXp = update
       .mapGame(g => g.copy(actionLevels = g.actionLevels.updated(actionId, newActionState)))
       .addEvent(GameEvent.ActionXpGained(actionId, xpGain))
-    
+
     if newLevel > oldLevel then withXp.addEvent(GameEvent.ActionLevelUp(actionId, newLevel))
     else withXp
 
@@ -161,18 +177,26 @@ object VelorIdleLogic:
       ), Vector(GameEvent.OutOfMaterials))
 
     else
-      // Calculate effective action time (now action level based)
+      // Calculate effective action time (now action level based + potion bonus)
       val efficiencyBonus = calculateEfficiencyBonus(actionState.level)
-      val effectiveTime = action.timeSeconds * (1.0 - efficiencyBonus)
+      val potionSpeedBonus = game.potionSlots.speedBonusFor(skill)
+      val effectiveTime = action.timeSeconds * (1.0 - efficiencyBonus) * (1.0 - potionSpeedBonus)
 
       val progressPerSecond = 1.0 / effectiveTime
       val newProgress = game.actionProgress + (elapsedSeconds * progressPerSecond)
 
       if newProgress >= 1.0 then
         val (updatedGame, events) = completeProcessingAction(game, action, skill, skillState, random)
+        
+        // Consume potion charge
+        val gameWithPotionConsumed = updatedGame.copy(
+          potionSlots = updatedGame.potionSlots.consumeAction
+        )
+        val potionEvents = checkPotionExpired(game.potionSlots, gameWithPotionConsumed.potionSlots)
+        
         val overflowProgress = newProgress - 1.0
         val finalProgress = if overflowProgress > 0 && overflowProgress < 1.0 then overflowProgress else 0.0
-        (updatedGame.copy(actionProgress = finalProgress, lastTickTime = currentTime), events)
+        (gameWithPotionConsumed.copy(actionProgress = finalProgress, lastTickTime = currentTime), events ++ potionEvents)
       else
         (game.copy(actionProgress = newProgress, lastTickTime = currentTime), Vector.empty)
 
@@ -273,7 +297,7 @@ object VelorIdleLogic:
     level * perLevelBonus + calculateTieredBonus(level, tiers)
 
   // Perk configurations - easy to adjust or extend
-  
+
   // Action-level perks (calculated from action level)
   private val efficiencyTiers = Vector(
     PerkTier(10, 0.05),  // 5% at level 10
@@ -436,6 +460,26 @@ object VelorIdleLogic:
             inventory = game.inventory.copy(slots = newSlots, maxSlots = targetSlots)
           ))
 
+  /** Drink a potion from inventory to activate its effect */
+  def drinkPotion(game: VelorIdleGame, potion: Item): Either[String, VelorIdleGame] =
+    if !PotionEffect.isPotion(potion) then
+      Left("Not a potion")
+    else if game.inventory.getCount(potion) <= 0 then
+      Left("No potion in inventory")
+    else
+      ActivePotion.fromItem(potion) match
+        case None => Left("Invalid potion")
+        case Some(activePotion) =>
+          val (newInventory, _) = game.inventory.removeItem(potion, 1)
+          Right(game.copy(
+            inventory = newInventory,
+            potionSlots = PotionSlots(Some(activePotion))
+          ))
+
+  /** Remove the currently active potion (waste remaining charges) */
+  def removeActivePotion(game: VelorIdleGame): VelorIdleGame =
+    game.copy(potionSlots = PotionSlots.empty)
+
 // ============================================================================
 // Game Events (for UI feedback)
 // ============================================================================
@@ -451,4 +495,6 @@ enum GameEvent:
   case GoldGained(amount: Long)
   case OutOfMaterials
   case ActionFailed(reason: String)
+  case PotionDrunk(potion: Item)
+  case PotionExpired(potion: Item)
 

@@ -57,6 +57,8 @@ object VelorIdleState:
 
   val inventorySignal: Signal[Inventory] = gameSignal.map(_.inventory)
 
+  val potionSlotsSignal: Signal[PotionSlots] = gameSignal.map(_.potionSlots)
+
   def skillStateSignal(skill: Skill): Signal[SkillState] =
     gameSignal.map(_.skills.getOrElse(skill, SkillState.initial))
 
@@ -86,6 +88,7 @@ object VelorIdleState:
     case SkillSelect    // Grid of all skills to choose from
     case SkillTraining  // Active skill training screen
     case Inventory
+    case Potions        // Potion management screen
     case Shop
     case Settings
 

@@ -149,6 +149,11 @@ enum Item derives ReadWriter:
   case BurntFish
   // Smithing outputs
   case BronzeBar, IronBar, SteelBar, GoldBar, MithrilBar
+  // Alchemy outputs (potions)
+  case WoodcuttingPotion, MiningPotion, FishingPotion, HerbalismPotion
+  case CookingPotion, SmithingPotion, ThievingPotion, AstrologyPotion
+  // Secondary ingredient for potions
+  case Vial
   // Rare drops
   case BirdNest, Gem
 
@@ -202,6 +207,17 @@ object Item:
     Item.SteelBar -> ItemData("🔲", "Steel Bar", 50),
     Item.GoldBar -> ItemData("🟨", "Gold Bar", 80),
     Item.MithrilBar -> ItemData("🟦", "Mithril Bar", 150),
+    // Potions
+    Item.WoodcuttingPotion -> ItemData("🧪", "Woodcutting Potion", 50),
+    Item.MiningPotion -> ItemData("🧪", "Mining Potion", 50),
+    Item.FishingPotion -> ItemData("🧪", "Fishing Potion", 50),
+    Item.HerbalismPotion -> ItemData("🧪", "Herbalism Potion", 50),
+    Item.CookingPotion -> ItemData("🧪", "Cooking Potion", 75),
+    Item.SmithingPotion -> ItemData("🧪", "Smithing Potion", 75),
+    Item.ThievingPotion -> ItemData("🧪", "Thieving Potion", 100),
+    Item.AstrologyPotion -> ItemData("🧪", "Astrology Potion", 100),
+    // Secondary ingredients
+    Item.Vial -> ItemData("🫙", "Vial", 5),
     // Rare drops
     Item.BirdNest -> ItemData("🪺", "Bird Nest", 100),
     Item.Gem -> ItemData("💎", "Gem", 200)
@@ -328,9 +344,30 @@ object ProcessingActions:
       Vector((Item.MithrilOre, 1), (Item.Coal, 4)), Item.MithrilBar)
   )
 
+  // Alchemy recipes (potions)
+  val alchemy: Vector[ProcessingAction] = Vector(
+    ProcessingAction("brew_woodcutting", "Brew Woodcutting Potion", "🪓", 1, 20, 4.0,
+      Vector((Item.GuamLeaf, 2), (Item.Vial, 1)), Item.WoodcuttingPotion),
+    ProcessingAction("brew_mining", "Brew Mining Potion", "⛏️", 10, 30, 4.5,
+      Vector((Item.Marrentill, 2), (Item.Vial, 1)), Item.MiningPotion),
+    ProcessingAction("brew_fishing", "Brew Fishing Potion", "🎣", 20, 45, 5.0,
+      Vector((Item.Tarromin, 2), (Item.Vial, 1)), Item.FishingPotion),
+    ProcessingAction("brew_herbalism", "Brew Herbalism Potion", "🌿", 30, 65, 5.5,
+      Vector((Item.Harralander, 2), (Item.Vial, 1)), Item.HerbalismPotion),
+    ProcessingAction("brew_cooking", "Brew Cooking Potion", "🍳", 40, 90, 6.0,
+      Vector((Item.RanarrWeed, 2), (Item.Vial, 1)), Item.CookingPotion),
+    ProcessingAction("brew_smithing", "Brew Smithing Potion", "🔨", 50, 120, 6.5,
+      Vector((Item.IritLeaf, 2), (Item.Vial, 1)), Item.SmithingPotion),
+    ProcessingAction("brew_thieving", "Brew Thieving Potion", "🗡️", 65, 160, 7.0,
+      Vector((Item.Kwuarm, 2), (Item.Vial, 1)), Item.ThievingPotion),
+    ProcessingAction("brew_astrology", "Brew Astrology Potion", "⭐", 80, 220, 8.0,
+      Vector((Item.Cadantine, 2), (Item.Vial, 1)), Item.AstrologyPotion)
+  )
+
   def forSkill(skill: Skill): Vector[ProcessingAction] = skill match
     case Skill.Cooking => cooking
     case Skill.Smithing => smithing
+    case Skill.Alchemy => alchemy
     case _ => Vector.empty
 
 // ============================================================================
@@ -405,6 +442,78 @@ object Inventory:
     else None
 
 // ============================================================================
+// Potion System
+// ============================================================================
+
+/** Effect granted by drinking a potion */
+enum PotionEffect derives ReadWriter:
+  case SkillBoost(skill: Skill, bonusPercent: Double)  // +X% XP and speed for a skill
+
+object PotionEffect:
+  /** Get the effect for a potion item */
+  def forPotion(potion: Item): Option[PotionEffect] = potion match
+    case Item.WoodcuttingPotion => Some(SkillBoost(Skill.Woodcutting, 0.10))
+    case Item.MiningPotion      => Some(SkillBoost(Skill.Mining, 0.10))
+    case Item.FishingPotion     => Some(SkillBoost(Skill.Fishing, 0.10))
+    case Item.HerbalismPotion   => Some(SkillBoost(Skill.Herbalism, 0.10))
+    case Item.CookingPotion     => Some(SkillBoost(Skill.Cooking, 0.10))
+    case Item.SmithingPotion    => Some(SkillBoost(Skill.Smithing, 0.10))
+    case Item.ThievingPotion    => Some(SkillBoost(Skill.Thieving, 0.10))
+    case Item.AstrologyPotion   => Some(SkillBoost(Skill.Astrology, 0.10))
+    case _ => None
+
+  def isPotion(item: Item): Boolean = forPotion(item).isDefined
+
+  def description(effect: PotionEffect): String = effect match
+    case SkillBoost(skill, bonus) =>
+      s"+${(bonus * 100).toInt}% ${Skill.displayName(skill)} XP and speed"
+
+/** An active potion effect with remaining actions */
+case class ActivePotion(
+  potion: Item,
+  effect: PotionEffect,
+  actionsRemaining: Int
+) derives ReadWriter
+
+object ActivePotion:
+  val DefaultDuration: Int = 30  // 30 actions per potion
+
+  def fromItem(potion: Item): Option[ActivePotion] =
+    PotionEffect.forPotion(potion).map: effect =>
+      ActivePotion(potion, effect, DefaultDuration)
+
+/** Tracks equipped/active potions - player can have one active potion */
+case class PotionSlots(
+  activePotion: Option[ActivePotion]
+) derives ReadWriter:
+
+  /** Consume one action's worth of potion. Returns updated slots. */
+  def consumeAction: PotionSlots =
+    activePotion match
+      case None => this
+      case Some(active) =>
+        val remaining = active.actionsRemaining - 1
+        if remaining <= 0 then PotionSlots(None)
+        else copy(activePotion = Some(active.copy(actionsRemaining = remaining)))
+
+  /** Check if we have an active boost for a skill */
+  def hasBoostFor(skill: Skill): Boolean =
+    activePotion.exists:
+      case ActivePotion(_, PotionEffect.SkillBoost(s, _), _) => s == skill
+
+  /** Get the XP bonus from active potions for a skill (0.0 to 1.0) */
+  def xpBonusFor(skill: Skill): Double =
+    activePotion.collect:
+      case ActivePotion(_, PotionEffect.SkillBoost(s, bonus), _) if s == skill => bonus
+    .getOrElse(0.0)
+
+  /** Get the speed bonus from active potions for a skill (0.0 to 1.0) */
+  def speedBonusFor(skill: Skill): Double = xpBonusFor(skill)  // Same bonus for now
+
+object PotionSlots:
+  val empty: PotionSlots = PotionSlots(None)
+
+// ============================================================================
 // Game State
 // ============================================================================
 
@@ -421,7 +530,8 @@ case class VelorIdleGame(
   currentSkill: Option[Skill],
   activeAction: ActiveAction,
   actionProgress: Double,       // 0.0 to 1.0
-  lastTickTime: Long
+  lastTickTime: Long,
+  potionSlots: PotionSlots = PotionSlots.empty  // Active potions
 ) derives ReadWriter
 
 object VelorIdleGame:
@@ -434,6 +544,7 @@ object VelorIdleGame:
       currentSkill = None,
       activeAction = ActiveAction.Idle,
       actionProgress = 0.0,
-      lastTickTime = timestamp
+      lastTickTime = timestamp,
+      potionSlots = PotionSlots.empty
     )
 
