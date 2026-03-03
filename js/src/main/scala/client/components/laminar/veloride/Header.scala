@@ -34,8 +34,8 @@ object Header:
           div(
             cls := "velor-active-skill-content active clickable",
             onClick --> { _ => 
-              // Update viewed skill to match active action's skill, then navigate
-              VelorIdleState.update(VelorIdleState.current.copy(currentSkill = Some(skill)))
+              // Use callback to properly sync with client's game state
+              VelorIdleState.requestSelectSkill(skill)
               VelorIdleState.goToSkillTraining()
             },
             span(cls := "velor-active-skill-icon spinning", Skill.icon(skill)),
@@ -46,8 +46,8 @@ object Header:
           div(
             cls := "velor-active-skill-content active clickable",
             onClick --> { _ => 
-              // Update viewed skill to match active action's skill, then navigate
-              VelorIdleState.update(VelorIdleState.current.copy(currentSkill = Some(skill)))
+              // Use callback to properly sync with client's game state
+              VelorIdleState.requestSelectSkill(skill)
               VelorIdleState.goToSkillTraining()
             },
             span(cls := "velor-active-skill-icon spinning", Skill.icon(skill)),
