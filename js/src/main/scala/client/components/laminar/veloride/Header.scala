@@ -26,25 +26,27 @@ object Header:
   private def activeSkillIndicator(): HtmlElement =
     val activeActionSignal = VelorIdleState.activeActionSignal
     val currentSkillSignal = VelorIdleState.currentSkillSignal
-
+    
     div(
       cls := "velor-active-skill",
       child <-- currentSkillSignal.combineWith(activeActionSignal).map:
         case (Some(skill), ActiveAction.Idle) =>
           // Skill selected but idle - don't show icon
           div(
-            cls := "velor-active-skill-content idle",
+            cls := "velor-active-skill-content idle clickable",
+            onClick --> { _ => VelorIdleState.goToSkillTraining() },
             span(cls := "velor-active-skill-status", "Idle")
           )
         case (Some(skill), _) =>
           // Skill actively running - show spinning icon
           div(
-            cls := "velor-active-skill-content active",
+            cls := "velor-active-skill-content active clickable",
+            onClick --> { _ => VelorIdleState.goToSkillTraining() },
             span(cls := "velor-active-skill-icon spinning", Skill.icon(skill)),
             span(cls := "velor-active-skill-status", "Active")
           )
         case (None, _) =>
-          // No skill selected
+          // No skill selected - not clickable
           div(
             cls := "velor-active-skill-content none",
             span(cls := "velor-active-skill-status", "Idle")

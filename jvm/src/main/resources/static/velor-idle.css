@@ -120,6 +120,15 @@
   border-radius: var(--velor-radius-sm);
 }
 
+.velor-active-skill-content.clickable {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.velor-active-skill-content.clickable:hover {
+  background: var(--velor-card-hover);
+}
+
 .velor-active-skill-content.none {
   opacity: 0.6;
 }
