@@ -319,7 +319,7 @@
 /* Perk Bonuses (for processing skills) */
 .velor-perk-bonuses {
   display: flex;
-  gap: var(--velor-spacing-md);
+  gap: var(--velor-spacing-sm);
   margin-top: var(--velor-spacing-xs);
   padding-top: var(--velor-spacing-xs);
   border-top: 1px solid var(--velor-border);
@@ -328,7 +328,7 @@
 .velor-perk-item {
   display: flex;
   align-items: center;
-  gap: var(--velor-spacing-xs);
+  gap: 0.2rem;
   font-size: 0.75rem;
 }
 
@@ -345,6 +345,7 @@
   color: var(--text-muted);
   font-size: 0.75rem;
   opacity: 0.6;
+  margin: 0;
 }
 
 /* Action Progress Bar */
