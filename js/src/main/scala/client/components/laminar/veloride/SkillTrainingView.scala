@@ -50,7 +50,7 @@ object SkillTrainingView:
         // XP Progress bar inside the header card
         xpProgressBar(skillStateSignal),
         // Perk bonuses based on skill type
-        if Skill.isGathering(skill) then gatheringPerkBonuses(skillStateSignal)
+        if Skill.isGathering(skill) then gatheringPerkBonuses(skill, skillStateSignal)
         else if Skill.isProcessing(skill) then processingPerkBonuses(skillStateSignal)
         else emptyNode
       ),
@@ -74,7 +74,14 @@ object SkillTrainingView:
       SkillBonusModal(skill, modalOpenVar.signal, () => modalOpenVar.set(false))
     )
 
-  private def gatheringPerkBonuses(stateSignal: Signal[SkillState]): HtmlElement =
+  private def gatheringPerkBonuses(skill: Skill, stateSignal: Signal[SkillState]): HtmlElement =
+    // Get yield from active action (if any gathering action is active for this skill)
+    val yieldSignal = VelorIdleState.activeActionSignal.combineWith(VelorIdleState.gameSignal).map:
+      case (ActiveAction.Gathering(s, action), game) if s == skill =>
+        val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
+        Some(VelorIdleLogic.calculateYieldBonus(actionState.level))
+      case _ => None
+
     div(
       cls := "velor-perk-bonuses",
       div(
@@ -82,6 +89,15 @@ object SkillTrainingView:
         span(cls := "velor-perk-label", "Efficiency"),
         span(cls := "velor-perk-value",
           child.text <-- stateSignal.map(s => f"${VelorIdleLogic.calculateEfficiencyBonus(s.level) * 100}%.0f%%")
+        )
+      ),
+      div(
+        cls := "velor-perk-item",
+        span(cls := "velor-perk-label", "Yield"),
+        span(cls := "velor-perk-value",
+          child.text <-- yieldSignal.map:
+            case Some(y) => f"${y * 100}%.0f%%"
+            case None => "—"
         )
       ),
       div(
@@ -162,84 +178,117 @@ object SkillTrainingView:
 
     div(
       cls := "velor-action-container",
-      // Action info row - show skill icon when idle, action details when active
+      
+      // === Action Header (mirrors skill header) ===
       div(
-        cls := "velor-action-info",
+        cls := "velor-training-header",
         div(
-          cls := "velor-action-name",
+          cls := "velor-training-title",
+          child <-- actionDetailsSignal.map:
+            case Some((_, icon, name, _, _, _, _)) =>
+              span(cls := "velor-training-icon", icon)
+            case None =>
+              span(cls := "velor-training-icon", Skill.icon(viewingSkill))
+          ,
           child.text <-- actionDetailsSignal.map:
-            case Some((_, icon, name, _, _, _, _)) => s"$icon $name"
-            case None => s"${Skill.icon(viewingSkill)} Idle"
-        ),
-        div(
-          cls := "velor-action-time",
-          child.text <-- isActiveSignal.combineWith(actionDetailsSignal, progressSignal, skillStateSignal).map:
-            case (true, Some((_, _, _, baseTime, _, _, _)), p, state) =>
-              val efficiency = VelorIdleLogic.calculateEfficiencyBonus(state.level)
-              val effectiveTime = baseTime * (1.0 - efficiency)
-              val remaining = effectiveTime * (1.0 - p)
-              f"$remaining%.1fs"
-            case _ => "Select action"
+            case Some((_, _, name, _, _, _, _)) => name
+            case None => "Idle"
+          ,
+          span(
+            cls := "velor-training-level",
+            child.text <-- actionDetailsSignal.combineWith(VelorIdleState.gameSignal).map:
+              case (Some((actionId, _, _, _, _, _, _)), game) =>
+                val actionState = game.actionLevels.getOrElse(actionId, ActionState.initial)
+                s"Lv.${actionState.level}"
+              case _ => ""
+          )
         )
       ),
-      // Action perk bonuses (yield for gathering) - same styling as skill perk bonuses
+      
+      // === Action XP Bar (mirrors skill XP bar) ===
       child <-- actionDetailsSignal.combineWith(VelorIdleState.gameSignal).map:
-        case (Some((actionId, _, _, _, _, _, isGathering)), game) if isGathering =>
+        case (Some((actionId, _, _, _, _, _, _)), game) =>
           val actionState = game.actionLevels.getOrElse(actionId, ActionState.initial)
-          val yieldBonus = VelorIdleLogic.calculateYieldBonus(actionState.level)
-          div(
-            cls := "velor-perk-bonuses",
-            div(
-              cls := "velor-perk-item",
-              span(cls := "velor-perk-label", s"Action Lv.${actionState.level}"),
-              span(cls := "velor-perk-value", f"${yieldBonus * 100}%.0f%%"),
-            ),
-            div(
-              cls := "velor-perk-item",
-              span(cls := "velor-perk-label", "Yield"),
-              span(cls := "velor-perk-value", f"${yieldBonus * 100}%.0f%%")
-            )
+          actionXpProgressBar(actionState)
+        case _ =>
+          div(cls := "velor-xp-bar-container",
+            div(cls := "velor-xp-bar-label", span("—"), span("")),
+            div(cls := "velor-xp-bar", div(cls := "velor-xp-bar-fill", styleAttr := "width: 0%"))
           )
-        case _ => emptyNode
       ,
-      // Progress bar - always visible, empty when idle
+      
+      // === Action Progress Addon (unique to action card) ===
       div(
-        cls := "velor-action-bar-wrapper",
+        cls := "velor-action-progress-addon",
+        // Progress bar with time remaining
         div(
-          cls := "velor-action-bar",
+          cls := "velor-action-bar-wrapper",
           div(
-            cls := "velor-action-bar-fill",
-            styleAttr <-- isActiveSignal.combineWith(progressSignal).map:
-              case (true, p) => s"width: ${(p * 100).toInt}%"
-              case _ => "width: 0%"
+            cls := "velor-action-bar",
+            div(
+              cls := "velor-action-bar-fill",
+              styleAttr <-- isActiveSignal.combineWith(progressSignal).map:
+                case (true, p) => s"width: ${(p * 100).toInt}%"
+                case _ => "width: 0%"
+            )
+          ),
+          // Floating rewards
+          div(
+            cls := "velor-floating-rewards-wrapper",
+            display <-- isActiveSignal.map(if _ then "block" else "none"),
+            FloatingRewards.container()
           )
         ),
-        // Only show floating rewards when this skill is active
+        // Footer with time, rewards, and stop button
         div(
-          cls := "velor-floating-rewards-wrapper",
-          display <-- isActiveSignal.map(if _ then "block" else "none"),
-          FloatingRewards.container()
+          cls := "velor-action-footer",
+          div(
+            cls := "velor-action-time",
+            child.text <-- isActiveSignal.combineWith(actionDetailsSignal, progressSignal, skillStateSignal).map:
+              case (true, Some((_, _, _, baseTime, _, _, _)), p, state) =>
+                val efficiency = VelorIdleLogic.calculateEfficiencyBonus(state.level)
+                val effectiveTime = baseTime * (1.0 - efficiency)
+                val remaining = effectiveTime * (1.0 - p)
+                f"$remaining%.1fs"
+              case _ => "—"
+          ),
+          div(
+            cls := "velor-action-rewards",
+            child.text <-- actionDetailsSignal.combineWith(VelorIdleState.inventorySignal).map:
+              case (Some((_, _, _, _, xpGain, output, _)), inv) =>
+                val count = inv.getCount(output)
+                val countStr = if count > 0 then s" [$count]" else ""
+                s"+$xpGain XP · ${Item.icon(output)} ${Item.displayName(output)}$countStr"
+              case _ => "—"
+          ),
+          button(
+            cls <-- isActiveSignal.map(active => 
+              if active then "velor-stop-btn" else "velor-stop-btn disabled"
+            ),
+            disabled <-- isActiveSignal.map(!_),
+            "Stop",
+            onClick --> { _ => onStopAction() }
+          )
+        )
+      )
+    )
+
+  private def actionXpProgressBar(actionState: ActionState): HtmlElement =
+    div(
+      cls := "velor-xp-bar-container",
+      div(
+        cls := "velor-xp-bar-label",
+        span(s"XP: ${formatNumber(actionState.xp)}"),
+        span(
+          if actionState.level >= 99 then "MAX"
+          else s"Next: ${formatNumber(ActionState.totalXpForLevel(actionState.level + 1))}"
         )
       ),
-      // Footer - always show same structure for consistent layout
       div(
-        cls := "velor-action-footer",
+        cls := "velor-xp-bar",
         div(
-          cls := "velor-action-rewards",
-          child.text <-- actionDetailsSignal.combineWith(VelorIdleState.inventorySignal).map:
-            case (Some((_, _, _, _, xpGain, output, _)), inv) =>
-              val count = inv.getCount(output)
-              val countStr = if count > 0 then s" [$count]" else ""
-              s"+$xpGain XP · ${Item.icon(output)} ${Item.displayName(output)}$countStr"
-            case _ => "—"
-        ),
-        button(
-          cls <-- isActiveSignal.map(active => 
-            if active then "velor-stop-btn" else "velor-stop-btn disabled"
-          ),
-          disabled <-- isActiveSignal.map(!_),
-          "Stop",
-          onClick --> { _ => onStopAction() }
+          cls := "velor-xp-bar-fill",
+          styleAttr := s"width: ${(ActionState.xpProgress(actionState) * 100).toInt}%"
         )
       )
     )
