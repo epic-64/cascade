@@ -84,6 +84,7 @@ object SkillTrainingView:
 
     div(
       cls := "velor-perk-bonuses",
+      // Job bonuses
       div(
         cls := "velor-perk-item",
         span(cls := "velor-perk-label", "Efficiency"),
@@ -93,18 +94,21 @@ object SkillTrainingView:
       ),
       div(
         cls := "velor-perk-item",
+        span(cls := "velor-perk-label", "Mastery"),
+        span(cls := "velor-perk-value",
+          child.text <-- stateSignal.map(s => f"${VelorIdleLogic.calculateDoubleChance(s.level, isGathering = true) * 100}%.0f%%")
+        )
+      ),
+      // Separator
+      span(cls := "velor-perk-separator", "·"),
+      // Action bonuses
+      div(
+        cls := "velor-perk-item",
         span(cls := "velor-perk-label", "Yield"),
         span(cls := "velor-perk-value",
           child.text <-- yieldSignal.map:
             case Some(y) => f"${y * 100}%.0f%%"
             case None => "—"
-        )
-      ),
-      div(
-        cls := "velor-perk-item",
-        span(cls := "velor-perk-label", "Mastery"),
-        span(cls := "velor-perk-value",
-          child.text <-- stateSignal.map(s => f"${VelorIdleLogic.calculateDoubleChance(s.level, isGathering = true) * 100}%.0f%%")
         )
       )
     )
