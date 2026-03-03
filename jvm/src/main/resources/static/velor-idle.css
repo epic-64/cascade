@@ -1177,3 +1177,74 @@
   border-color: var(--velor-border-bright);
   color: var(--text-primary);
 }
+
+/* ============================================================================
+   Dev Panel
+   ============================================================================ */
+
+.velor-dev-panel {
+  background: var(--velor-card);
+  border-radius: var(--velor-radius-md);
+  padding: var(--velor-spacing-md);
+  margin-top: var(--velor-spacing-md);
+  border: 1px dashed var(--velor-border);
+}
+
+.velor-dev-panel-title {
+  font-weight: 600;
+  margin-bottom: var(--velor-spacing-md);
+  color: var(--velor-xp);
+}
+
+.velor-dev-skill-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-xs);
+}
+
+.velor-dev-skill-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--velor-spacing-sm);
+  background: var(--velor-bg);
+  border-radius: var(--velor-radius-sm);
+}
+
+.velor-dev-skill-info {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-sm);
+  font-size: 0.9rem;
+}
+
+.velor-dev-skill-level {
+  color: var(--velor-xp);
+  font-weight: 600;
+}
+
+.velor-dev-skill-buttons {
+  display: flex;
+  gap: var(--velor-spacing-xs);
+}
+
+.velor-dev-btn {
+  background: var(--velor-card);
+  border: 1px solid var(--velor-border);
+  color: var(--text-primary);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--velor-radius-sm);
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.15s ease;
+}
+
+.velor-dev-btn:hover {
+  background: var(--velor-card-hover);
+  border-color: var(--velor-border-bright);
+}
+
+.velor-dev-btn:active {
+  transform: scale(0.95);
+}
+
