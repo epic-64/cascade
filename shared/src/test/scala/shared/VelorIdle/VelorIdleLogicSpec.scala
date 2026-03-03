@@ -499,3 +499,164 @@ class VelorIdleLogicSpec extends AnyFunSpec with Matchers:
         val result = VelorIdleLogic.upgradeInventory(game, 13)
         result.isLeft shouldBe true
 
+    // =========================================================================
+    // UI State Behaviors
+    // =========================================================================
+
+    describe("Feature: UI state detection"):
+
+      it("should detect when a skill is actively being trained"):
+        val action = GatheringActions.woodcutting.head
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(
+            currentSkill = Some(Skill.Woodcutting),
+            activeAction = ActiveAction.Gathering(Skill.Woodcutting, action)
+          )
+        
+        game.activeAction match
+          case ActiveAction.Gathering(skill, _) => skill shouldBe Skill.Woodcutting
+          case _ => fail("Expected Gathering action")
+
+      it("should detect idle state when no action is running"):
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(currentSkill = Some(Skill.Woodcutting))
+        
+        game.activeAction shouldBe ActiveAction.Idle
+
+      it("should distinguish between viewing skill and active skill"):
+        val action = GatheringActions.woodcutting.head
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(
+            currentSkill = Some(Skill.Mining), // Viewing Mining
+            activeAction = ActiveAction.Gathering(Skill.Woodcutting, action) // But Woodcutting is active
+          )
+        
+        // The viewing skill (currentSkill) is different from the active skill
+        game.currentSkill shouldBe Some(Skill.Mining)
+        game.activeAction match
+          case ActiveAction.Gathering(skill, _) => skill shouldBe Skill.Woodcutting
+          case _ => fail("Expected Gathering action")
+        
+        // This is the key check - viewing skill != active skill
+        val viewingSkill = game.currentSkill
+        val activeSkill = game.activeAction match
+          case ActiveAction.Gathering(s, _) => Some(s)
+          case ActiveAction.Processing(s, _) => Some(s)
+          case ActiveAction.Idle => None
+        
+        viewingSkill should not be activeSkill
+
+      it("should match viewing skill with active skill when same"):
+        val action = GatheringActions.woodcutting.head
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(
+            currentSkill = Some(Skill.Woodcutting),
+            activeAction = ActiveAction.Gathering(Skill.Woodcutting, action)
+          )
+        
+        val viewingSkill = game.currentSkill
+        val activeSkill = game.activeAction match
+          case ActiveAction.Gathering(s, _) => Some(s)
+          case ActiveAction.Processing(s, _) => Some(s)
+          case ActiveAction.Idle => None
+        
+        viewingSkill shouldBe activeSkill
+
+      it("should allow selecting a different skill while action is running"):
+        val action = GatheringActions.woodcutting.head
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(
+            currentSkill = Some(Skill.Woodcutting),
+            activeAction = ActiveAction.Gathering(Skill.Woodcutting, action),
+            actionProgress = 0.5
+          )
+        
+        // Select a different skill
+        val updatedGame = VelorIdleLogic.selectSkill(game, Skill.Mining)
+        
+        // Viewing skill changed
+        updatedGame.currentSkill shouldBe Some(Skill.Mining)
+        
+        // But action is still running for Woodcutting
+        updatedGame.activeAction match
+          case ActiveAction.Gathering(skill, _) => skill shouldBe Skill.Woodcutting
+          case _ => fail("Action should still be running")
+        
+        // Progress preserved
+        updatedGame.actionProgress shouldBe 0.5
+
+      it("should provide action details when action is active"):
+        val action = GatheringActions.woodcutting.head
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(
+            currentSkill = Some(Skill.Woodcutting),
+            activeAction = ActiveAction.Gathering(Skill.Woodcutting, action)
+          )
+        
+        game.activeAction match
+          case ActiveAction.Gathering(_, a) =>
+            a.id shouldBe "normal_tree"
+            a.name shouldBe "Normal Tree"
+            a.xpGain shouldBe 10
+            a.timeSeconds shouldBe 3.0
+            a.output shouldBe Item.NormalLogs
+          case _ => fail("Expected Gathering action")
+
+      it("should provide no action details when idle"):
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(currentSkill = Some(Skill.Woodcutting))
+        
+        game.activeAction match
+          case ActiveAction.Idle => succeed
+          case _ => fail("Expected Idle state")
+
+    // =========================================================================
+    // Action Continuity (scroll position preservation)
+    // =========================================================================
+
+    describe("Feature: Action continuity across ticks"):
+
+      it("should preserve active action through multiple ticks"):
+        val action = GatheringActions.woodcutting.head
+        var game = VelorIdleGame.newGame(1000L)
+          .copy(
+            currentSkill = Some(Skill.Woodcutting),
+            activeAction = ActiveAction.Gathering(Skill.Woodcutting, action),
+            actionProgress = 0.0
+          )
+        
+        // Simulate multiple ticks
+        for i <- 1 to 5 do
+          val (newGame, _) = VelorIdleLogic.tick(game, game.lastTickTime + 500, fixedRandom())
+          game = newGame
+        
+        // Action should still be the same (not recreated)
+        game.activeAction match
+          case ActiveAction.Gathering(skill, a) =>
+            skill shouldBe Skill.Woodcutting
+            a.id shouldBe action.id
+          case _ => fail("Action should still be running")
+
+      it("should maintain skill selection across action completion"):
+        val action = GatheringActions.woodcutting.head // 3 seconds
+        var game = VelorIdleGame.newGame(1000L)
+          .copy(
+            currentSkill = Some(Skill.Woodcutting),
+            activeAction = ActiveAction.Gathering(Skill.Woodcutting, action),
+            actionProgress = 0.99
+          )
+        
+        // Complete the action
+        val (newGame, events) = VelorIdleLogic.tick(game, game.lastTickTime + 100, fixedRandom())
+        
+        // Action completed (XP gained)
+        events.exists(_.isInstanceOf[GameEvent.XpGained]) shouldBe true
+        
+        // But skill selection is preserved
+        newGame.currentSkill shouldBe Some(Skill.Woodcutting)
+        
+        // And action continues (auto-repeat)
+        newGame.activeAction match
+          case ActiveAction.Gathering(skill, _) => skill shouldBe Skill.Woodcutting
+          case _ => fail("Action should auto-continue")
+
