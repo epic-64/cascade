@@ -1569,3 +1569,9 @@
   font-weight: 600;
 }
 
+.velor-shop-inventory-info {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--velor-spacing-sm);
+}
+
