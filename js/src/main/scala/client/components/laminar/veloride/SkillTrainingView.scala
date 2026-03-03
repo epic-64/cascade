@@ -86,13 +86,6 @@ object SkillTrainingView:
       ),
       div(
         cls := "velor-perk-item",
-        span(cls := "velor-perk-label", "Yield"),
-        span(cls := "velor-perk-value",
-          child.text <-- stateSignal.map(s => f"${VelorIdleLogic.calculateYieldBonus(s.level) * 100}%.0f%%")
-        )
-      ),
-      div(
-        cls := "velor-perk-item",
         span(cls := "velor-perk-label", "Mastery"),
         span(cls := "velor-perk-value",
           child.text <-- stateSignal.map(s => f"${VelorIdleLogic.calculateDoubleChance(s.level, isGathering = true) * 100}%.0f%%")

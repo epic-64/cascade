@@ -60,6 +60,9 @@ object VelorIdleState:
   def skillStateSignal(skill: Skill): Signal[SkillState] =
     gameSignal.map(_.skills.getOrElse(skill, SkillState.initial))
 
+  def actionStateSignal(actionId: String): Signal[ActionState] =
+    gameSignal.map(_.actionLevels.getOrElse(actionId, ActionState.initial))
+
   val currentSkillStateSignal: Signal[Option[SkillState]] =
     gameSignal.map(g => g.currentSkill.map(s => g.skills.getOrElse(s, SkillState.initial)))
 
