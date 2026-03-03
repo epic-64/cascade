@@ -278,7 +278,7 @@ object SkillTrainingView:
             FloatingRewards.container()
           )
         ),
-        // Footer with time, rewards, and stop button
+        // Footer with time and stop button
         div(
           cls := "velor-action-footer",
           div(
@@ -290,15 +290,6 @@ object SkillTrainingView:
                 val effectiveTime = baseTime * (1.0 - efficiency)
                 val remaining = effectiveTime * (1.0 - p)
                 f"$remaining%.1fs"
-              case _ => "—"
-          ),
-          div(
-            cls := "velor-action-rewards",
-            child.text <-- actionDetailsSignal.combineWith(VelorIdleState.inventorySignal).map:
-              case (Some((_, _, _, _, xpGain, output, _)), inv) =>
-                val count = inv.getCount(output)
-                val countStr = if count > 0 then s" [$count]" else ""
-                s"+$xpGain XP · ${Item.icon(output)} ${Item.displayName(output)}$countStr"
               case _ => "—"
           ),
           button(
