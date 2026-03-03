@@ -118,7 +118,8 @@ object VelorIdleClient:
           "🗑️ Reset Game",
           onClick --> { _ => handleReset() }
         )
-      )
+      ),
+      DevPanel()
     )
 
   // ============================================================================
