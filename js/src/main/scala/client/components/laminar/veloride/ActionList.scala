@@ -18,6 +18,7 @@ object ActionList:
     def xpGain: Int
     def timeSeconds: Double
     def isGathering: Boolean
+    def outputItem: Item
     def subtitle(inventory: Inventory, isLocked: Boolean): String
     def isActive(activeAction: ActiveAction, skill: Skill): Boolean
     def canStart(game: VelorIdleGame, skill: Skill): Boolean
@@ -32,6 +33,7 @@ object ActionList:
     def xpGain: Int = action.xpGain
     def timeSeconds: Double = action.timeSeconds
     def isGathering: Boolean = true
+    def outputItem: Item = action.output
 
     def subtitle(inventory: Inventory, isLocked: Boolean): String =
       if isLocked then s"🔒 Level $levelRequired"
@@ -56,6 +58,7 @@ object ActionList:
     def xpGain: Int = action.xpGain
     def timeSeconds: Double = action.timeSeconds
     def isGathering: Boolean = false
+    def outputItem: Item = action.output
 
     def subtitle(inventory: Inventory, isLocked: Boolean): String =
       if isLocked then s"🔒 Level $levelRequired"
@@ -143,11 +146,11 @@ object ActionList:
           ),
           div(
             cls := "velor-action-item-level",
-            child.text <-- isLockedSignal.combineWith(inventorySignal, actionStateSignal).map { case (locked, inv, actionState) =>
+            child.text <-- isLockedSignal.combineWith(inventorySignal).map { case (locked, inv) =>
               if locked then action.subtitle(inv, locked)
               else if action.isGathering then
-                val yieldBonus = VelorIdleLogic.calculateYieldBonus(actionState.level)
-                f"Yield: ${yieldBonus * 100}%.0f%%"
+                val count = inv.getCount(action.outputItem)
+                s"${Item.icon(action.outputItem)} ${Item.displayName(action.outputItem)} [$count]"
               else action.subtitle(inv, locked)
             }
           )
