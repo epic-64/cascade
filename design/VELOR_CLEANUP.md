@@ -226,28 +226,15 @@ case ActiveAction.Processing(skill, action) if skill == viewingSkill =>
 
 ---
 
-### Phase 3: Unify Item/Skill Metadata
+### Phase 3: Unify Item/Skill Metadata ✅ COMPLETED
 
-1. **Create `ItemData` case class:**
-   ```scala
-   case class ItemData(
-     icon: String,
-     displayName: String,
-     sellValue: Int
-   )
-   ```
+1. **Created `ItemData` case class** with icon, displayName, and sellValue
 
-2. **Create a single Map:**
-   ```scala
-   val itemMetadata: Map[Item, ItemData] = Map(
-     Item.NormalLogs -> ItemData("🪵", "Normal Logs", 2),
-     // ...
-   )
-   ```
+2. **Created single metadata Map** for all items - adding a new item now requires just one line
 
-3. **Replace the three match expressions** with Map lookups.
+3. **Replaced three 35-case match expressions** with simple Map lookups
 
-4. **Apply same pattern to Skill** with `SkillData`.
+4. **Applied same pattern to Skill** with `SkillData` case class
 
 ---
 
@@ -325,7 +312,7 @@ case ActiveAction.Processing(skill, action) if skill == viewingSkill =>
 | **P1** | Consolidate formatters | Low | ✅ Done |
 | **P1** | Fix Header duplication | Low | ✅ Done |
 | **P2** | Simplify action handling | Low | ✅ Done |
-| **P2** | Unify Item metadata | Medium | Pending |
+| **P2** | Unify Item metadata | Medium | ✅ Done |
 | **P3** | Refactor mutable logic | Medium | Pending |
 | **P3** | Data-driven perks | Medium | Pending |
 | **P4** | UI component consolidation | High | Pending |
