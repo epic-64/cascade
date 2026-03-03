@@ -39,7 +39,8 @@ object VelorIdleLogic:
     // Calculate effective action time (reduced by efficiency perks - now action level based)
     val efficiencyBonus = calculateEfficiencyBonus(actionState.level)
     val potionSpeedBonus = game.potionSlots.speedBonusFor(skill)
-    val effectiveTime = action.timeSeconds * (1.0 - efficiencyBonus) * (1.0 - potionSpeedBonus)
+    val tabletSpeedBonus = game.tabletSlots.speedBonusFor(skill)
+    val effectiveTime = action.timeSeconds * (1.0 - efficiencyBonus) * (1.0 - potionSpeedBonus) * (1.0 - tabletSpeedBonus)
 
     // Calculate new progress
     val progressPerSecond = 1.0 / effectiveTime
@@ -55,11 +56,14 @@ object VelorIdleLogic:
       )
       val potionEvents = checkPotionExpired(game.potionSlots, gameWithPotionConsumed.potionSlots)
 
+      // Consume tablet charges
+      val (gameWithTabletsConsumed, tabletEvents) = consumeTablets(gameWithPotionConsumed)
+
       // Check if we have overflow progress for another action
       val overflowProgress = newProgress - 1.0
       val finalProgress = if overflowProgress > 0 && overflowProgress < 1.0 then overflowProgress else 0.0
 
-      (gameWithPotionConsumed.copy(actionProgress = finalProgress, lastTickTime = currentTime), events ++ potionEvents)
+      (gameWithTabletsConsumed.copy(actionProgress = finalProgress, lastTickTime = currentTime), events ++ potionEvents ++ tabletEvents)
     else
       (game.copy(actionProgress = newProgress, lastTickTime = currentTime), Vector.empty)
 
@@ -68,6 +72,19 @@ object VelorIdleLogic:
     (before.activePotion, after.activePotion) match
       case (Some(active), None) => Vector(GameEvent.PotionExpired(active.potion))
       case _ => Vector.empty
+
+  /** Consume tablet charges and generate events for tablets that ran out */
+  private def consumeTablets(game: VelorIdleGame): (VelorIdleGame, Vector[GameEvent]) =
+    val before = game.tabletSlots
+    val after = before.consumeAction
+
+    val events = Vector(
+      (before.slot1, after.slot1, 1),
+      (before.slot2, after.slot2, 2)
+    ).collect:
+      case (Some(tablet), None, slot) => GameEvent.TabletConsumed(tablet.item, slot)
+
+    (game.copy(tabletSlots = after), events)
 
   /** Accumulator for game state updates - allows chaining operations immutably */
   private case class GameUpdate(game: VelorIdleGame, events: Vector[GameEvent]):
@@ -86,7 +103,7 @@ object VelorIdleLogic:
     val result = GameUpdate(game, Vector.empty)
       .pipe(grantXp(skill, skillState, action.xpGain))
       .pipe(grantActionXp(action.id, actionState, action.xpGain))
-      .pipe(grantGatheredItems(action, skillState, actionState, random))
+      .pipe(grantGatheredItems(action, skill, skillState, actionState, random))
       .pipe(checkRareDrop(action.rareOutput, skillState.level, random))
 
     (result.game, result.events)
@@ -120,19 +137,38 @@ object VelorIdleLogic:
     if newLevel > oldLevel then withXp.addEvent(GameEvent.ActionLevelUp(actionId, newLevel))
     else withXp
 
-  private def grantGatheredItems(action: GatheringAction, skillState: SkillState, actionState: ActionState, random: Random)(update: GameUpdate): GameUpdate =
-    val yieldBonus = calculateYieldBonus(actionState.level)
+  private def grantGatheredItems(action: GatheringAction, skill: Skill, skillState: SkillState, actionState: ActionState, random: Random)(update: GameUpdate): GameUpdate =
+    // Base yield bonus from action level + tablet bonuses
+    val baseYieldBonus = calculateYieldBonus(actionState.level)
+    val tabletYieldBonus = update.game.tabletSlots.gatheringYieldBonus
+    val herbalismBonus = if skill == Skill.Herbalism then update.game.tabletSlots.herbalismYieldBonus else 0.0
+    val totalYieldBonus = baseYieldBonus + tabletYieldBonus + herbalismBonus
+
     val baseCount = 1
-    val bonusCount = if random.nextDouble() < yieldBonus then 1 else 0
-    val doubleChance = calculateDoubleChance(skillState.level, isGathering = true)
-    val doubleCount = if random.nextDouble() < doubleChance then baseCount + bonusCount else 0
+    val bonusCount = if random.nextDouble() < totalYieldBonus then 1 else 0
+
+    // Double chance from skill level + tablet bonuses
+    val baseDoubleChance = calculateDoubleChance(skillState.level, isGathering = true)
+    val tabletDoubleBonus = update.game.tabletSlots.doubleBonusFor(skill)
+    val totalDoubleChance = baseDoubleChance + tabletDoubleBonus
+    val doubleCount = if random.nextDouble() < totalDoubleChance then baseCount + bonusCount else 0
     val totalCount = baseCount + bonusCount + doubleCount
 
     val (newInv, overflow) = update.game.inventory.addItem(action.output, totalCount)
-    val withItems = update
+    var withItems = update
       .mapGame(_.copy(inventory = newInv))
       .addEvent(GameEvent.ItemGained(action.output, totalCount))
     
+    // Grove Keeper synergy: chance to find herbs while woodcutting
+    if skill == Skill.Woodcutting && update.game.tabletSlots.hasGroveKeeper then
+      if random.nextDouble() < 0.15 then // 15% chance to find a herb
+        val herbs = Vector(Item.GuamLeaf, Item.Marrentill, Item.Tarromin)
+        val herb = herbs(random.nextInt(herbs.length))
+        val (invWithHerb, _) = withItems.game.inventory.addItem(herb, 1)
+        withItems = withItems
+          .mapGame(_.copy(inventory = invWithHerb))
+          .addEvent(GameEvent.ItemGained(herb, 1))
+
     if overflow > 0 then withItems.addEvent(GameEvent.InventoryFull)
     else withItems
 
@@ -177,10 +213,11 @@ object VelorIdleLogic:
       ), Vector(GameEvent.OutOfMaterials))
 
     else
-      // Calculate effective action time (now action level based + potion bonus)
+      // Calculate effective action time (now action level based + potion bonus + tablet bonus)
       val efficiencyBonus = calculateEfficiencyBonus(actionState.level)
       val potionSpeedBonus = game.potionSlots.speedBonusFor(skill)
-      val effectiveTime = action.timeSeconds * (1.0 - efficiencyBonus) * (1.0 - potionSpeedBonus)
+      val tabletSpeedBonus = game.tabletSlots.speedBonusFor(skill)
+      val effectiveTime = action.timeSeconds * (1.0 - efficiencyBonus) * (1.0 - potionSpeedBonus) * (1.0 - tabletSpeedBonus)
 
       val progressPerSecond = 1.0 / effectiveTime
       val newProgress = game.actionProgress + (elapsedSeconds * progressPerSecond)
@@ -194,9 +231,12 @@ object VelorIdleLogic:
         )
         val potionEvents = checkPotionExpired(game.potionSlots, gameWithPotionConsumed.potionSlots)
         
+        // Consume tablet charges
+        val (gameWithTabletsConsumed, tabletEvents) = consumeTablets(gameWithPotionConsumed)
+
         val overflowProgress = newProgress - 1.0
         val finalProgress = if overflowProgress > 0 && overflowProgress < 1.0 then overflowProgress else 0.0
-        (gameWithPotionConsumed.copy(actionProgress = finalProgress, lastTickTime = currentTime), events ++ potionEvents)
+        (gameWithTabletsConsumed.copy(actionProgress = finalProgress, lastTickTime = currentTime), events ++ potionEvents ++ tabletEvents)
       else
         (game.copy(actionProgress = newProgress, lastTickTime = currentTime), Vector.empty)
 
@@ -207,10 +247,12 @@ object VelorIdleLogic:
     skillState: SkillState,
     random: Random
   ): (VelorIdleGame, Vector[GameEvent]) =
-    // Consume inputs, checking for recycle
-    val recycleChance = calculateRecycleChance(skillState.level)
-    val (gameAfterConsume, allConsumed) = consumeInputs(game, action.inputs, recycleChance, random)
-    
+    // Consume inputs, checking for recycle (skill level bonus + tablet bonus)
+    val baseRecycleChance = calculateRecycleChance(skillState.level)
+    val tabletRecycleBonus = game.tabletSlots.recycleBonusFor(skill)
+    val totalRecycleChance = baseRecycleChance + tabletRecycleBonus
+    val (gameAfterConsume, allConsumed) = consumeInputs(game, action.inputs, totalRecycleChance, random)
+
     if !allConsumed then
       (gameAfterConsume, Vector(GameEvent.OutOfMaterials))
     else
@@ -218,8 +260,8 @@ object VelorIdleLogic:
       val result = GameUpdate(gameAfterConsume, Vector.empty)
         .pipe(grantXp(skill, skillState, action.xpGain))
         .pipe(grantActionXp(action.id, actionState, action.xpGain))
-        .pipe(processOutput(action, skillState, random))
-      
+        .pipe(processOutput(action, skill, skillState, random))
+
       (result.game, result.events)
 
   private def consumeInputs(
@@ -238,9 +280,10 @@ object VelorIdleLogic:
           (currentGame.copy(inventory = newInv), removed >= count)
     }
 
-  private def processOutput(action: ProcessingAction, skillState: SkillState, random: Random)(update: GameUpdate): GameUpdate =
-    // Check for burn (cooking)
-    val didBurn = action.burnChance.exists { baseBurn =>
+  private def processOutput(action: ProcessingAction, skill: Skill, skillState: SkillState, random: Random)(update: GameUpdate): GameUpdate =
+    // Check for burn (cooking) - Sea Chef synergy prevents all burning
+    val preventsBurn = update.game.tabletSlots.preventsBurning
+    val didBurn = !preventsBurn && action.burnChance.exists { baseBurn =>
       val levelDiff = skillState.level - action.levelRequired
       val effectiveBurn = (baseBurn - levelDiff * 0.02).max(0.05)
       random.nextDouble() < effectiveBurn
@@ -256,10 +299,12 @@ object VelorIdleLogic:
             .addEvent(GameEvent.ActionFailed("Burned!"))
         case None => update
     else
-      // Success - check for double chance
-      val doubleChance = calculateDoubleChance(skillState.level, isGathering = false)
+      // Success - check for double chance (skill level bonus + tablet bonus)
+      val baseDoubleChance = calculateDoubleChance(skillState.level, isGathering = false)
+      val tabletDoubleBonus = update.game.tabletSlots.doubleBonusFor(skill)
+      val totalDoubleChance = baseDoubleChance + tabletDoubleBonus
       val baseCount = action.outputCount
-      val doubleCount = if random.nextDouble() < doubleChance then baseCount else 0
+      val doubleCount = if random.nextDouble() < totalDoubleChance then baseCount else 0
       val totalCount = baseCount + doubleCount
 
       val (newInv, overflow) = update.game.inventory.addItem(action.output, totalCount)
@@ -513,6 +558,59 @@ object VelorIdleLogic:
     game.copy(potionSlots = PotionSlots.empty)
 
   // ============================================================================
+  // Tablet Management
+  // ============================================================================
+
+  /** Equip a tablet to a slot (1 or 2). Returns error if slot is locked or not a tablet. */
+  def equipTablet(game: VelorIdleGame, tablet: Item, slot: Int): Either[String, VelorIdleGame] =
+    if !TabletType.isTablet(tablet) then
+      Left("Not a tablet")
+    else if game.inventory.getCount(tablet) <= 0 then
+      Left("No tablet in inventory")
+    else if slot < 1 || slot > 2 then
+      Left("Invalid slot")
+    else
+      val summoningLevel = game.skills.getOrElse(Skill.Summoning, SkillState.initial).level
+      if slot == 2 && !game.tabletSlots.isSlot2Unlocked(summoningLevel) then
+        Left("Slot 2 requires Summoning level 25")
+      else
+        EquippedTablet.fromItem(tablet) match
+          case None => Left("Invalid tablet")
+          case Some(equipped) =>
+            val (newInventory, _) = game.inventory.removeItem(tablet, 1)
+            val newSlots = slot match
+              case 1 => game.tabletSlots.copy(slot1 = Some(equipped))
+              case 2 => game.tabletSlots.copy(slot2 = Some(equipped))
+            Right(game.copy(
+              inventory = newInventory,
+              tabletSlots = newSlots
+            ))
+
+  /** Unequip a tablet from a slot, returning it to inventory */
+  def unequipTablet(game: VelorIdleGame, slot: Int): Either[String, VelorIdleGame] =
+    if slot < 1 || slot > 2 then
+      Left("Invalid slot")
+    else
+      val maybeTablet = slot match
+        case 1 => game.tabletSlots.slot1
+        case 2 => game.tabletSlots.slot2
+
+      maybeTablet match
+        case None => Left("No tablet in slot")
+        case Some(equipped) =>
+          val (newInventory, overflow) = game.inventory.addItem(equipped.item, 1)
+          if overflow > 0 then
+            Left("Inventory full")
+          else
+            val newSlots = slot match
+              case 1 => game.tabletSlots.copy(slot1 = None)
+              case 2 => game.tabletSlots.copy(slot2 = None)
+            Right(game.copy(
+              inventory = newInventory,
+              tabletSlots = newSlots
+            ))
+
+  // ============================================================================
   // Shop
   // ============================================================================
 
@@ -576,4 +674,7 @@ enum GameEvent:
   case ActionFailed(reason: String)
   case PotionDrunk(potion: Item)
   case PotionExpired(potion: Item)
+  case TabletEquipped(tablet: Item, slot: Int)
+  case TabletUnequipped(tablet: Item, slot: Int)
+  case TabletConsumed(tablet: Item, slot: Int)
 

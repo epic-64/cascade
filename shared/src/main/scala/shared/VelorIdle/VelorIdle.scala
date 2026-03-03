@@ -154,6 +154,10 @@ enum Item derives ReadWriter:
   case CookingPotion, SmithingPotion, ThievingPotion, AstrologyPotion
   // Secondary ingredient for potions
   case Vial
+  // Summoning tablets
+  case GathererTablet, MinerTablet, FisherTablet, LumberjackTablet
+  case ArtisanTablet, HerbalistTablet, AlchemistTablet
+  case ThiefTablet, StargazerTablet, MasterTablet
   // Rare drops
   case BirdNest, Gem
 
@@ -218,6 +222,17 @@ object Item:
     Item.AstrologyPotion -> ItemData("🧪", "Astrology Potion", 100),
     // Secondary ingredients
     Item.Vial -> ItemData("🫙", "Vial", 5),
+    // Summoning tablets
+    Item.GathererTablet -> ItemData("📜", "Gatherer Tablet", 50),
+    Item.MinerTablet -> ItemData("📜", "Miner Tablet", 80),
+    Item.FisherTablet -> ItemData("📜", "Fisher Tablet", 80),
+    Item.LumberjackTablet -> ItemData("📜", "Lumberjack Tablet", 80),
+    Item.ArtisanTablet -> ItemData("📜", "Artisan Tablet", 100),
+    Item.HerbalistTablet -> ItemData("📜", "Herbalist Tablet", 100),
+    Item.AlchemistTablet -> ItemData("📜", "Alchemist Tablet", 150),
+    Item.ThiefTablet -> ItemData("📜", "Thief Tablet", 200),
+    Item.StargazerTablet -> ItemData("📜", "Stargazer Tablet", 250),
+    Item.MasterTablet -> ItemData("📜", "Master Tablet", 1000),
     // Rare drops
     Item.BirdNest -> ItemData("🪺", "Bird Nest", 100),
     Item.Gem -> ItemData("💎", "Gem", 200)
@@ -364,10 +379,39 @@ object ProcessingActions:
       Vector((Item.Cadantine, 2), (Item.Vial, 1)), Item.AstrologyPotion)
   )
 
+  // Summoning recipes (tablets) - require large quantities of resources
+  val summoning: Vector[ProcessingAction] = Vector(
+    ProcessingAction("create_gatherer", "Create Gatherer Tablet", "📜", 1, 50, 6.0,
+      Vector((Item.NormalLogs, 100), (Item.CopperOre, 50)), Item.GathererTablet),
+    ProcessingAction("create_miner", "Create Miner Tablet", "📜", 10, 80, 7.0,
+      Vector((Item.IronOre, 200), (Item.Coal, 100)), Item.MinerTablet),
+    ProcessingAction("create_fisher", "Create Fisher Tablet", "📜", 15, 90, 7.0,
+      Vector((Item.RawTrout, 150), (Item.RawSalmon, 50)), Item.FisherTablet),
+    ProcessingAction("create_lumberjack", "Create Lumberjack Tablet", "📜", 20, 100, 7.5,
+      Vector((Item.OakLogs, 200), (Item.WillowLogs, 100)), Item.LumberjackTablet),
+    ProcessingAction("create_artisan", "Create Artisan Tablet", "📜", 25, 120, 8.0,
+      Vector((Item.BronzeBar, 50), (Item.IronBar, 30)), Item.ArtisanTablet),
+    ProcessingAction("create_herbalist", "Create Herbalist Tablet", "📜", 30, 140, 8.0,
+      Vector((Item.GuamLeaf, 100), (Item.Tarromin, 50)), Item.HerbalistTablet),
+    ProcessingAction("create_alchemist", "Create Alchemist Tablet", "📜", 40, 180, 9.0,
+      Vector((Item.WoodcuttingPotion, 5), (Item.MiningPotion, 5)), Item.AlchemistTablet),
+    ProcessingAction("create_thief", "Create Thief Tablet", "📜", 50, 220, 9.5,
+      Vector((Item.SteelBar, 50)), Item.ThiefTablet),
+    ProcessingAction("create_stargazer", "Create Stargazer Tablet", "📜", 60, 280, 10.0,
+      Vector((Item.MagicLogs, 100)), Item.StargazerTablet),
+    ProcessingAction("create_master", "Create Master Tablet", "📜", 75, 500, 15.0,
+      Vector(
+        (Item.GathererTablet, 10), (Item.MinerTablet, 10), (Item.FisherTablet, 10),
+        (Item.LumberjackTablet, 10), (Item.ArtisanTablet, 10), (Item.HerbalistTablet, 10),
+        (Item.AlchemistTablet, 10), (Item.ThiefTablet, 10), (Item.StargazerTablet, 10)
+      ), Item.MasterTablet)
+  )
+
   def forSkill(skill: Skill): Vector[ProcessingAction] = skill match
     case Skill.Cooking => cooking
     case Skill.Smithing => smithing
     case Skill.Alchemy => alchemy
+    case Skill.Summoning => summoning
     case _ => Vector.empty
 
 // ============================================================================
@@ -515,6 +559,254 @@ object PotionSlots:
   val empty: PotionSlots = PotionSlots(None)
 
 // ============================================================================
+// Summoning Tablet System
+// ============================================================================
+
+/** Type of tablet - determines its passive effect */
+enum TabletType derives ReadWriter:
+  case Gatherer     // +5% gathering yield
+  case Miner        // +8% mining speed
+  case Fisher       // +8% fishing speed
+  case Lumberjack   // +8% woodcutting speed
+  case Artisan      // +10% crafting success (double chance)
+  case Herbalist    // +10% herb yield
+  case Alchemist    // +15% potion potency (double chance)
+  case Thief        // +10% thieving success (future)
+  case Stargazer    // +20% stardust gain (future)
+  case Master       // +5% all skills
+
+object TabletType:
+  /** Get tablet type from item */
+  def fromItem(item: Item): Option[TabletType] = item match
+    case Item.GathererTablet => Some(Gatherer)
+    case Item.MinerTablet => Some(Miner)
+    case Item.FisherTablet => Some(Fisher)
+    case Item.LumberjackTablet => Some(Lumberjack)
+    case Item.ArtisanTablet => Some(Artisan)
+    case Item.HerbalistTablet => Some(Herbalist)
+    case Item.AlchemistTablet => Some(Alchemist)
+    case Item.ThiefTablet => Some(Thief)
+    case Item.StargazerTablet => Some(Stargazer)
+    case Item.MasterTablet => Some(Master)
+    case _ => None
+
+  def isTablet(item: Item): Boolean = fromItem(item).isDefined
+
+  /** Get the item for a tablet type */
+  def toItem(tabletType: TabletType): Item = tabletType match
+    case Gatherer => Item.GathererTablet
+    case Miner => Item.MinerTablet
+    case Fisher => Item.FisherTablet
+    case Lumberjack => Item.LumberjackTablet
+    case Artisan => Item.ArtisanTablet
+    case Herbalist => Item.HerbalistTablet
+    case Alchemist => Item.AlchemistTablet
+    case Thief => Item.ThiefTablet
+    case Stargazer => Item.StargazerTablet
+    case Master => Item.MasterTablet
+
+  /** Consumption rate - actions per tablet consumed */
+  def consumptionRate(tabletType: TabletType): Int = tabletType match
+    case Gatherer | Miner | Fisher | Lumberjack | Herbalist | Stargazer => 10
+    case Artisan | Alchemist => 8
+    case Thief | Master => 5
+
+  /** Description of the tablet's effect */
+  def description(tabletType: TabletType): String = tabletType match
+    case Gatherer => "+5% gathering yield"
+    case Miner => "+8% mining speed"
+    case Fisher => "+8% fishing speed"
+    case Lumberjack => "+8% woodcutting speed"
+    case Artisan => "+10% crafting success"
+    case Herbalist => "+10% herb yield"
+    case Alchemist => "+15% potion potency"
+    case Thief => "+10% thieving success"
+    case Stargazer => "+20% stardust gain"
+    case Master => "+5% all skills"
+
+/** Synergy effects when two compatible tablets are equipped together */
+enum SynergyEffect derives ReadWriter:
+  case EarthAffinity    // Gatherer + Miner: 10% chance for double ore
+  case NaturesBounty    // Gatherer + Fisher: 10% chance for double fish
+  case ForestSpirit     // Gatherer + Lumberjack: 10% chance for double logs
+  case Metalworker      // Miner + Artisan: +15% recycle chance when smithing
+  case SeaChef          // Fisher + Artisan: Never burn fish when cooking
+  case PotionMaster     // Herbalist + Alchemist: +20% double chance for potions
+  case EfficientBrewer  // Artisan + Alchemist: +15% recycle chance for alchemy
+  case ShadowWalker     // Thief + Stargazer: No stun on thieving failure (future)
+  case GroveKeeper      // Lumberjack + Herbalist: Find herbs while woodcutting
+  case MasteryBoost     // Any + Master: Double the effect of the other tablet
+
+object SynergyEffect:
+  /** Find synergy between two tablet types (order doesn't matter) */
+  def find(t1: TabletType, t2: TabletType): Option[SynergyEffect] =
+    val pair = Set(t1, t2)
+    synergies.find((types, _) => types == pair).map(_._2)
+
+  /** All defined synergies */
+  private val synergies: Vector[(Set[TabletType], SynergyEffect)] = Vector(
+    Set(TabletType.Gatherer, TabletType.Miner) -> EarthAffinity,
+    Set(TabletType.Gatherer, TabletType.Fisher) -> NaturesBounty,
+    Set(TabletType.Gatherer, TabletType.Lumberjack) -> ForestSpirit,
+    Set(TabletType.Miner, TabletType.Artisan) -> Metalworker,
+    Set(TabletType.Fisher, TabletType.Artisan) -> SeaChef,
+    Set(TabletType.Herbalist, TabletType.Alchemist) -> PotionMaster,
+    Set(TabletType.Artisan, TabletType.Alchemist) -> EfficientBrewer,
+    Set(TabletType.Thief, TabletType.Stargazer) -> ShadowWalker,
+    Set(TabletType.Lumberjack, TabletType.Herbalist) -> GroveKeeper
+  )
+
+  /** Check if Master tablet is involved - Master synergy applies with any tablet */
+  def hasMasterSynergy(t1: TabletType, t2: TabletType): Boolean =
+    (t1 == TabletType.Master || t2 == TabletType.Master) && t1 != t2
+
+  def displayName(effect: SynergyEffect): String = effect match
+    case EarthAffinity => "Earth Affinity"
+    case NaturesBounty => "Nature's Bounty"
+    case ForestSpirit => "Forest Spirit"
+    case Metalworker => "Metalworker"
+    case SeaChef => "Sea Chef"
+    case PotionMaster => "Potion Master"
+    case EfficientBrewer => "Efficient Brewer"
+    case ShadowWalker => "Shadow Walker"
+    case GroveKeeper => "Grove Keeper"
+    case MasteryBoost => "Mastery Boost"
+
+  def description(effect: SynergyEffect): String = effect match
+    case EarthAffinity => "10% chance for double ore"
+    case NaturesBounty => "10% chance for double fish"
+    case ForestSpirit => "10% chance for double logs"
+    case Metalworker => "+15% recycle chance when smithing"
+    case SeaChef => "Never burn fish when cooking"
+    case PotionMaster => "+20% double chance for potions"
+    case EfficientBrewer => "+15% recycle chance for alchemy"
+    case ShadowWalker => "No stun on thieving failure"
+    case GroveKeeper => "Find herbs while woodcutting"
+    case MasteryBoost => "Double the effect of the other tablet"
+
+/** An equipped tablet with remaining charges */
+case class EquippedTablet(
+  item: Item,
+  tabletType: TabletType,
+  actionsRemaining: Int
+) derives ReadWriter
+
+object EquippedTablet:
+  def fromItem(item: Item): Option[EquippedTablet] =
+    TabletType.fromItem(item).map: tabletType =>
+      val charges = TabletType.consumptionRate(tabletType)
+      EquippedTablet(item, tabletType, charges)
+
+/** Tracks equipped tablets - player can have up to two */
+case class TabletSlots(
+  slot1: Option[EquippedTablet],
+  slot2: Option[EquippedTablet]
+) derives ReadWriter:
+
+  /** Check if a slot is unlocked (slot 2 requires Summoning level 25) */
+  def isSlot2Unlocked(summoningLevel: Int): Boolean = summoningLevel >= 25
+
+  /** Get all equipped tablet types */
+  def equippedTypes: Vector[TabletType] =
+    Vector(slot1, slot2).flatten.map(_.tabletType)
+
+  /** Get active synergy effect (if any) */
+  def activeSynergy: Option[SynergyEffect] =
+    (slot1, slot2) match
+      case (Some(t1), Some(t2)) =>
+        if SynergyEffect.hasMasterSynergy(t1.tabletType, t2.tabletType) then
+          Some(SynergyEffect.MasteryBoost)
+        else
+          SynergyEffect.find(t1.tabletType, t2.tabletType)
+      case _ => None
+
+  /** Consume one action's worth of tablets. Returns updated slots. */
+  def consumeAction: TabletSlots =
+    val newSlot1 = slot1.flatMap(consumeTablet)
+    val newSlot2 = slot2.flatMap(consumeTablet)
+    TabletSlots(newSlot1, newSlot2)
+
+  private def consumeTablet(tablet: EquippedTablet): Option[EquippedTablet] =
+    val newRemaining = tablet.actionsRemaining - 1
+    if newRemaining <= 0 then None
+    else Some(tablet.copy(actionsRemaining = newRemaining))
+
+  // ============================================================================
+  // Bonus Calculations
+  // ============================================================================
+
+  /** Get gathering yield bonus (base + synergy) */
+  def gatheringYieldBonus: Double =
+    val baseBonus = equippedTypes.collect:
+      case TabletType.Gatherer => 0.05
+      case TabletType.Master => 0.05
+    .sum
+    val synergyBonus = activeSynergy match
+      case Some(SynergyEffect.MasteryBoost) if equippedTypes.contains(TabletType.Gatherer) => 0.05
+      case _ => 0.0
+    baseBonus + synergyBonus
+
+  /** Get speed bonus for a specific skill */
+  def speedBonusFor(skill: Skill): Double =
+    val baseBonus = (skill, equippedTypes) match
+      case (Skill.Mining, types) if types.contains(TabletType.Miner) => 0.08
+      case (Skill.Fishing, types) if types.contains(TabletType.Fisher) => 0.08
+      case (Skill.Woodcutting, types) if types.contains(TabletType.Lumberjack) => 0.08
+      case _ => 0.0
+    val masterBonus = if equippedTypes.contains(TabletType.Master) then 0.05 else 0.0
+    val masteryMultiplier = activeSynergy match
+      case Some(SynergyEffect.MasteryBoost) => 2.0
+      case _ => 1.0
+    (baseBonus * masteryMultiplier) + masterBonus
+
+  /** Get double chance bonus for specific skill/context */
+  def doubleBonusFor(skill: Skill): Double =
+    val baseBonus = skill match
+      case Skill.Mining =>
+        if activeSynergy.contains(SynergyEffect.EarthAffinity) then 0.10 else 0.0
+      case Skill.Fishing =>
+        if activeSynergy.contains(SynergyEffect.NaturesBounty) then 0.10 else 0.0
+      case Skill.Woodcutting =>
+        if activeSynergy.contains(SynergyEffect.ForestSpirit) then 0.10 else 0.0
+      case Skill.Alchemy =>
+        val potionMaster = if activeSynergy.contains(SynergyEffect.PotionMaster) then 0.20 else 0.0
+        val alchemist = if equippedTypes.contains(TabletType.Alchemist) then 0.15 else 0.0
+        potionMaster + alchemist
+      case _ =>
+        if equippedTypes.contains(TabletType.Artisan) then 0.10 else 0.0
+    val masterBonus = if equippedTypes.contains(TabletType.Master) then 0.05 else 0.0
+    baseBonus + masterBonus
+
+  /** Get recycle bonus for specific skill */
+  def recycleBonusFor(skill: Skill): Double =
+    val baseBonus = skill match
+      case Skill.Smithing =>
+        if activeSynergy.contains(SynergyEffect.Metalworker) then 0.15 else 0.0
+      case Skill.Alchemy =>
+        if activeSynergy.contains(SynergyEffect.EfficientBrewer) then 0.15 else 0.0
+      case _ => 0.0
+    baseBonus
+
+  /** Check if Sea Chef synergy prevents burning (for cooking) */
+  def preventsBurning: Boolean =
+    activeSynergy.contains(SynergyEffect.SeaChef)
+
+  /** Get herbalism yield bonus */
+  def herbalismYieldBonus: Double =
+    val base = if equippedTypes.contains(TabletType.Herbalist) then 0.10 else 0.0
+    val masteryMultiplier = activeSynergy match
+      case Some(SynergyEffect.MasteryBoost) if equippedTypes.contains(TabletType.Herbalist) => 2.0
+      case _ => 1.0
+    base * masteryMultiplier
+
+  /** Check if Grove Keeper synergy is active (find herbs while woodcutting) */
+  def hasGroveKeeper: Boolean =
+    activeSynergy.contains(SynergyEffect.GroveKeeper)
+
+object TabletSlots:
+  val empty: TabletSlots = TabletSlots(None, None)
+
+// ============================================================================
 // Game State
 // ============================================================================
 
@@ -533,6 +825,7 @@ case class VelorIdleGame(
   actionProgress: Double,       // 0.0 to 1.0
   lastTickTime: Long,
   potionSlots: PotionSlots = PotionSlots.empty,  // Active potions
+  tabletSlots: TabletSlots = TabletSlots.empty,  // Equipped summoning tablets
   junkItems: Set[Item] = Set.empty  // Items marked as junk for quick selling
 ) derives ReadWriter
 
@@ -548,6 +841,7 @@ object VelorIdleGame:
       actionProgress = 0.0,
       lastTickTime = timestamp,
       potionSlots = PotionSlots.empty,
+      tabletSlots = TabletSlots.empty,
       junkItems = Set.empty
     )
 

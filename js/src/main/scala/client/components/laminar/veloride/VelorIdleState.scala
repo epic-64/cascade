@@ -59,6 +59,8 @@ object VelorIdleState:
 
   val potionSlotsSignal: Signal[PotionSlots] = gameSignal.map(_.potionSlots)
 
+  val tabletSlotsSignal: Signal[TabletSlots] = gameSignal.map(_.tabletSlots)
+
   def skillStateSignal(skill: Skill): Signal[SkillState] =
     gameSignal.map(_.skills.getOrElse(skill, SkillState.initial))
 
@@ -89,6 +91,7 @@ object VelorIdleState:
     case SkillTraining  // Active skill training screen
     case Inventory
     case Potions        // Potion management screen
+    case Tablets        // Tablet equipment screen
     case Shop
     case Settings
 

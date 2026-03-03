@@ -482,13 +482,13 @@ case class ItemStack(
 - [ ] Add inventory full handling
 
 ### Phase 7: Processing Skills
-- [ ] Implement Cooking (raw → cooked, burn chance)
-- [ ] Implement Smithing (ore → bar → equipment)
-- [ ] Implement Alchemy (herbs → potions)
-- [ ] Implement Summoning (resources → tablets)
-- [ ] Implement tablet equipment slots
-- [ ] Implement tablet consumption during actions
-- [ ] Implement synergy detection and effects
+- [x] Implement Cooking (raw → cooked, burn chance)
+- [x] Implement Smithing (ore → bar → equipment)
+- [x] Implement Alchemy (herbs → potions)
+- [x] Implement Summoning (resources → tablets)
+- [x] Implement tablet equipment slots
+- [x] Implement tablet consumption during actions
+- [x] Implement synergy detection and effects
 - [ ] Implement recipe selection UI
 - [ ] Add ingredient checking/consuming
 
