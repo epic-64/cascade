@@ -664,3 +664,437 @@ class VelorIdleLogicSpec extends AnyFunSpec with Matchers:
           case ActiveAction.Gathering(skill, _) => skill shouldBe Skill.Woodcutting
           case _ => fail("Action should auto-continue")
 
+    // =========================================================================
+    // Summoning Skill - Tablet Creation
+    // =========================================================================
+
+    describe("Feature: Summoning skill - tablet creation"):
+
+      it("should allow starting summoning actions when requirements are met"):
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(
+            currentSkill = Some(Skill.Summoning),
+            inventory = Inventory.empty()
+              .addItem(Item.NormalLogs, 100)._1
+              .addItem(Item.CopperOre, 50)._1
+          )
+        
+        val result = VelorIdleLogic.startAction(game, "create_gatherer")
+        result.isRight shouldBe true
+        result.toOption.get.activeAction match
+          case ActiveAction.Processing(skill, action) =>
+            skill shouldBe Skill.Summoning
+            action.id shouldBe "create_gatherer"
+            action.output shouldBe Item.GathererTablet
+          case _ => fail("Expected Processing action for Summoning")
+
+      it("should reject summoning when missing materials"):
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(
+            currentSkill = Some(Skill.Summoning),
+            inventory = Inventory.empty()
+              .addItem(Item.NormalLogs, 50)._1  // Need 100
+          )
+        
+        val result = VelorIdleLogic.startAction(game, "create_gatherer")
+        result.isLeft shouldBe true
+        result.left.toOption.get should include("Missing required materials")
+
+      it("should reject summoning when level is too low"):
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(
+            currentSkill = Some(Skill.Summoning),
+            inventory = Inventory.empty()
+              .addItem(Item.IronOre, 200)._1
+              .addItem(Item.Coal, 100)._1
+          )
+        
+        // Miner tablet requires level 10
+        val result = VelorIdleLogic.startAction(game, "create_miner")
+        result.isLeft shouldBe true
+        result.left.toOption.get should include("level 10")
+
+      it("should create a tablet on action completion"):
+        val action = ProcessingActions.summoning.head // create_gatherer
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(
+            currentSkill = Some(Skill.Summoning),
+            inventory = Inventory.empty()
+              .addItem(Item.NormalLogs, 100)._1
+              .addItem(Item.CopperOre, 50)._1,
+            activeAction = ActiveAction.Processing(Skill.Summoning, action),
+            actionProgress = 0.99
+          )
+        
+        val (updated, events) = VelorIdleLogic.tick(game, 1100L, fixedRandom())
+        
+        // Should have created the tablet
+        updated.inventory.getCount(Item.GathererTablet) should be >= 1L
+        events.exists {
+          case GameEvent.ItemGained(Item.GathererTablet, _) => true
+          case _ => false
+        } shouldBe true
+
+    // =========================================================================
+    // Tablet Equipment
+    // =========================================================================
+
+    describe("Feature: Tablet equipment"):
+
+      it("should equip a tablet to slot 1"):
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(inventory = Inventory.empty().addItem(Item.GathererTablet, 1)._1)
+        
+        val result = VelorIdleLogic.equipTablet(game, Item.GathererTablet, 1)
+        result.isRight shouldBe true
+        
+        val updated = result.toOption.get
+        updated.tabletSlots.slot1.isDefined shouldBe true
+        updated.tabletSlots.slot1.get.tabletType shouldBe TabletType.Gatherer
+        updated.inventory.getCount(Item.GathererTablet) shouldBe 0L
+
+      it("should reject equipping non-tablet items"):
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(inventory = Inventory.empty().addItem(Item.NormalLogs, 10)._1)
+        
+        val result = VelorIdleLogic.equipTablet(game, Item.NormalLogs, 1)
+        result.isLeft shouldBe true
+        result.left.toOption.get should include("Not a tablet")
+
+      it("should reject equipping tablet not in inventory"):
+        val game = VelorIdleGame.newGame(1000L)
+        
+        val result = VelorIdleLogic.equipTablet(game, Item.GathererTablet, 1)
+        result.isLeft shouldBe true
+        result.left.toOption.get should include("No tablet in inventory")
+
+      it("should reject equipping to slot 2 when Summoning level is too low"):
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(inventory = Inventory.empty().addItem(Item.GathererTablet, 1)._1)
+        
+        // Slot 2 requires Summoning level 25
+        val result = VelorIdleLogic.equipTablet(game, Item.GathererTablet, 2)
+        result.isLeft shouldBe true
+        result.left.toOption.get should include("Slot 2 requires Summoning level 25")
+
+      it("should allow equipping to slot 2 at Summoning level 25+"):
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(
+            skills = Map(Skill.Summoning -> SkillState(level = 25, xp = 30000L)) ++
+              Skill.values.filterNot(_ == Skill.Summoning).map(_ -> SkillState.initial).toMap,
+            inventory = Inventory.empty().addItem(Item.MinerTablet, 1)._1
+          )
+        
+        val result = VelorIdleLogic.equipTablet(game, Item.MinerTablet, 2)
+        result.isRight shouldBe true
+        result.toOption.get.tabletSlots.slot2.isDefined shouldBe true
+
+      it("should unequip a tablet and return it to inventory"):
+        val equippedTablet = EquippedTablet(Item.GathererTablet, TabletType.Gatherer, 10)
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(tabletSlots = TabletSlots(Some(equippedTablet), None))
+        
+        val result = VelorIdleLogic.unequipTablet(game, 1)
+        result.isRight shouldBe true
+        
+        val updated = result.toOption.get
+        updated.tabletSlots.slot1 shouldBe None
+        updated.inventory.getCount(Item.GathererTablet) shouldBe 1L
+
+      it("should reject unequipping from empty slot"):
+        val game = VelorIdleGame.newGame(1000L)
+        
+        val result = VelorIdleLogic.unequipTablet(game, 1)
+        result.isLeft shouldBe true
+        result.left.toOption.get should include("No tablet in slot")
+
+    // =========================================================================
+    // Tablet Type Detection
+    // =========================================================================
+
+    describe("Feature: Tablet type detection"):
+
+      it("should identify all tablet items"):
+        TabletType.isTablet(Item.GathererTablet) shouldBe true
+        TabletType.isTablet(Item.MinerTablet) shouldBe true
+        TabletType.isTablet(Item.FisherTablet) shouldBe true
+        TabletType.isTablet(Item.LumberjackTablet) shouldBe true
+        TabletType.isTablet(Item.ArtisanTablet) shouldBe true
+        TabletType.isTablet(Item.HerbalistTablet) shouldBe true
+        TabletType.isTablet(Item.AlchemistTablet) shouldBe true
+        TabletType.isTablet(Item.ThiefTablet) shouldBe true
+        TabletType.isTablet(Item.StargazerTablet) shouldBe true
+        TabletType.isTablet(Item.MasterTablet) shouldBe true
+
+      it("should not identify non-tablets"):
+        TabletType.isTablet(Item.NormalLogs) shouldBe false
+        TabletType.isTablet(Item.WoodcuttingPotion) shouldBe false
+        TabletType.isTablet(Item.CopperOre) shouldBe false
+
+      it("should map tablet items to correct types"):
+        TabletType.fromItem(Item.GathererTablet) shouldBe Some(TabletType.Gatherer)
+        TabletType.fromItem(Item.MinerTablet) shouldBe Some(TabletType.Miner)
+        TabletType.fromItem(Item.MasterTablet) shouldBe Some(TabletType.Master)
+        TabletType.fromItem(Item.NormalLogs) shouldBe None
+
+    // =========================================================================
+    // Synergy Detection
+    // =========================================================================
+
+    describe("Feature: Synergy detection"):
+
+      it("should detect Earth Affinity synergy (Gatherer + Miner)"):
+        val synergy = SynergyEffect.find(TabletType.Gatherer, TabletType.Miner)
+        synergy shouldBe Some(SynergyEffect.EarthAffinity)
+        
+        // Order shouldn't matter
+        SynergyEffect.find(TabletType.Miner, TabletType.Gatherer) shouldBe Some(SynergyEffect.EarthAffinity)
+
+      it("should detect Nature's Bounty synergy (Gatherer + Fisher)"):
+        val synergy = SynergyEffect.find(TabletType.Gatherer, TabletType.Fisher)
+        synergy shouldBe Some(SynergyEffect.NaturesBounty)
+
+      it("should detect Forest Spirit synergy (Gatherer + Lumberjack)"):
+        val synergy = SynergyEffect.find(TabletType.Gatherer, TabletType.Lumberjack)
+        synergy shouldBe Some(SynergyEffect.ForestSpirit)
+
+      it("should detect Sea Chef synergy (Fisher + Artisan)"):
+        val synergy = SynergyEffect.find(TabletType.Fisher, TabletType.Artisan)
+        synergy shouldBe Some(SynergyEffect.SeaChef)
+
+      it("should detect Potion Master synergy (Herbalist + Alchemist)"):
+        val synergy = SynergyEffect.find(TabletType.Herbalist, TabletType.Alchemist)
+        synergy shouldBe Some(SynergyEffect.PotionMaster)
+
+      it("should detect Grove Keeper synergy (Lumberjack + Herbalist)"):
+        val synergy = SynergyEffect.find(TabletType.Lumberjack, TabletType.Herbalist)
+        synergy shouldBe Some(SynergyEffect.GroveKeeper)
+
+      it("should return None for non-synergy combinations"):
+        val synergy = SynergyEffect.find(TabletType.Miner, TabletType.Fisher)
+        synergy shouldBe None
+
+      it("should detect Master synergy with any tablet"):
+        SynergyEffect.hasMasterSynergy(TabletType.Master, TabletType.Gatherer) shouldBe true
+        SynergyEffect.hasMasterSynergy(TabletType.Gatherer, TabletType.Master) shouldBe true
+        SynergyEffect.hasMasterSynergy(TabletType.Master, TabletType.Master) shouldBe false
+
+    // =========================================================================
+    // Tablet Slots - Active Synergy
+    // =========================================================================
+
+    describe("Feature: TabletSlots active synergy"):
+
+      it("should have no synergy with single tablet"):
+        val slots = TabletSlots(
+          Some(EquippedTablet(Item.GathererTablet, TabletType.Gatherer, 10)),
+          None
+        )
+        slots.activeSynergy shouldBe None
+
+      it("should detect synergy when two compatible tablets are equipped"):
+        val slots = TabletSlots(
+          Some(EquippedTablet(Item.GathererTablet, TabletType.Gatherer, 10)),
+          Some(EquippedTablet(Item.MinerTablet, TabletType.Miner, 10))
+        )
+        slots.activeSynergy shouldBe Some(SynergyEffect.EarthAffinity)
+
+      it("should detect MasteryBoost synergy when Master tablet is present"):
+        val slots = TabletSlots(
+          Some(EquippedTablet(Item.GathererTablet, TabletType.Gatherer, 10)),
+          Some(EquippedTablet(Item.MasterTablet, TabletType.Master, 5))
+        )
+        slots.activeSynergy shouldBe Some(SynergyEffect.MasteryBoost)
+
+      it("should have no synergy for incompatible tablets"):
+        val slots = TabletSlots(
+          Some(EquippedTablet(Item.MinerTablet, TabletType.Miner, 10)),
+          Some(EquippedTablet(Item.FisherTablet, TabletType.Fisher, 10))
+        )
+        slots.activeSynergy shouldBe None
+
+    // =========================================================================
+    // Tablet Bonuses
+    // =========================================================================
+
+    describe("Feature: Tablet bonuses"):
+
+      it("should provide speed bonus for Mining from Miner tablet"):
+        val slots = TabletSlots(
+          Some(EquippedTablet(Item.MinerTablet, TabletType.Miner, 10)),
+          None
+        )
+        slots.speedBonusFor(Skill.Mining) shouldBe 0.08 +- 0.001
+        slots.speedBonusFor(Skill.Fishing) shouldBe 0.0 +- 0.001
+
+      it("should provide speed bonus for Fishing from Fisher tablet"):
+        val slots = TabletSlots(
+          Some(EquippedTablet(Item.FisherTablet, TabletType.Fisher, 10)),
+          None
+        )
+        slots.speedBonusFor(Skill.Fishing) shouldBe 0.08 +- 0.001
+
+      it("should provide speed bonus for Woodcutting from Lumberjack tablet"):
+        val slots = TabletSlots(
+          Some(EquippedTablet(Item.LumberjackTablet, TabletType.Lumberjack, 10)),
+          None
+        )
+        slots.speedBonusFor(Skill.Woodcutting) shouldBe 0.08 +- 0.001
+
+      it("should provide gathering yield bonus from Gatherer tablet"):
+        val slots = TabletSlots(
+          Some(EquippedTablet(Item.GathererTablet, TabletType.Gatherer, 10)),
+          None
+        )
+        slots.gatheringYieldBonus shouldBe 0.05 +- 0.001
+
+      it("should double the effect with Master tablet via MasteryBoost"):
+        val slots = TabletSlots(
+          Some(EquippedTablet(Item.MinerTablet, TabletType.Miner, 10)),
+          Some(EquippedTablet(Item.MasterTablet, TabletType.Master, 5))
+        )
+        // Miner gives 8%, Master doubles it to 16%, plus Master's own 5%
+        slots.speedBonusFor(Skill.Mining) shouldBe 0.21 +- 0.001
+
+      it("should prevent burning with Sea Chef synergy"):
+        val slots = TabletSlots(
+          Some(EquippedTablet(Item.FisherTablet, TabletType.Fisher, 10)),
+          Some(EquippedTablet(Item.ArtisanTablet, TabletType.Artisan, 10))
+        )
+        slots.preventsBurning shouldBe true
+
+      it("should provide recycle bonus with Metalworker synergy"):
+        val slots = TabletSlots(
+          Some(EquippedTablet(Item.MinerTablet, TabletType.Miner, 10)),
+          Some(EquippedTablet(Item.ArtisanTablet, TabletType.Artisan, 10))
+        )
+        slots.recycleBonusFor(Skill.Smithing) shouldBe 0.15 +- 0.001
+        slots.recycleBonusFor(Skill.Cooking) shouldBe 0.0 +- 0.001
+
+      it("should provide double bonus for Alchemy with Potion Master synergy"):
+        val slots = TabletSlots(
+          Some(EquippedTablet(Item.HerbalistTablet, TabletType.Herbalist, 10)),
+          Some(EquippedTablet(Item.AlchemistTablet, TabletType.Alchemist, 10))
+        )
+        // Alchemist gives 15%, Potion Master adds 20%
+        slots.doubleBonusFor(Skill.Alchemy) shouldBe 0.35 +- 0.001
+
+    // =========================================================================
+    // Tablet Consumption
+    // =========================================================================
+
+    describe("Feature: Tablet consumption"):
+
+      it("should consume tablet charges on action completion"):
+        val equippedTablet = EquippedTablet(Item.GathererTablet, TabletType.Gatherer, 10)
+        val action = GatheringActions.woodcutting.head
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(
+            currentSkill = Some(Skill.Woodcutting),
+            activeAction = ActiveAction.Gathering(Skill.Woodcutting, action),
+            actionProgress = 0.99,
+            tabletSlots = TabletSlots(Some(equippedTablet), None)
+          )
+        
+        val (updated, _) = VelorIdleLogic.tick(game, 1100L, fixedRandom())
+        
+        // Tablet should have one less charge
+        updated.tabletSlots.slot1.get.actionsRemaining shouldBe 9
+
+      it("should remove tablet when charges reach zero"):
+        val equippedTablet = EquippedTablet(Item.GathererTablet, TabletType.Gatherer, 1)
+        val action = GatheringActions.woodcutting.head
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(
+            currentSkill = Some(Skill.Woodcutting),
+            activeAction = ActiveAction.Gathering(Skill.Woodcutting, action),
+            actionProgress = 0.99,
+            tabletSlots = TabletSlots(Some(equippedTablet), None)
+          )
+        
+        val (updated, events) = VelorIdleLogic.tick(game, 1100L, fixedRandom())
+        
+        // Tablet should be removed
+        updated.tabletSlots.slot1 shouldBe None
+        
+        // Should have TabletConsumed event
+        events.exists {
+          case GameEvent.TabletConsumed(Item.GathererTablet, 1) => true
+          case _ => false
+        } shouldBe true
+
+      it("should consume both tablets when both are equipped"):
+        val tablet1 = EquippedTablet(Item.GathererTablet, TabletType.Gatherer, 10)
+        val tablet2 = EquippedTablet(Item.MinerTablet, TabletType.Miner, 10)
+        val action = GatheringActions.mining.head
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(
+            currentSkill = Some(Skill.Mining),
+            activeAction = ActiveAction.Gathering(Skill.Mining, action),
+            actionProgress = 0.99,
+            tabletSlots = TabletSlots(Some(tablet1), Some(tablet2))
+          )
+        
+        val (updated, _) = VelorIdleLogic.tick(game, 1100L, fixedRandom())
+        
+        // Both tablets should have one less charge
+        updated.tabletSlots.slot1.get.actionsRemaining shouldBe 9
+        updated.tabletSlots.slot2.get.actionsRemaining shouldBe 9
+
+    // =========================================================================
+    // Tablet Effects in Game Tick
+    // =========================================================================
+
+    describe("Feature: Tablet effects in game tick"):
+
+      it("should apply tablet speed bonus to gathering"):
+        val tablet = EquippedTablet(Item.MinerTablet, TabletType.Miner, 10)
+        val action = GatheringActions.mining.head // copper_rock, 3.5 seconds base
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(
+            currentSkill = Some(Skill.Mining),
+            activeAction = ActiveAction.Gathering(Skill.Mining, action),
+            actionProgress = 0.0,
+            tabletSlots = TabletSlots(Some(tablet), None)
+          )
+        
+        // Without tablet: 3.5 seconds, progress per second = 1/3.5 ≈ 0.286
+        // With 8% tablet bonus: 3.5 * 0.92 = 3.22 seconds, progress per second ≈ 0.311
+        val (updated, _) = VelorIdleLogic.tick(game, 2000L, fixedRandom())
+        
+        // Progress should be higher than without tablet
+        // 1 second at 0.311 per second ≈ 0.311 progress
+        updated.actionProgress should be > 0.28
+
+      it("should prevent burning with Sea Chef synergy"):
+        val tablet1 = EquippedTablet(Item.FisherTablet, TabletType.Fisher, 10)
+        val tablet2 = EquippedTablet(Item.ArtisanTablet, TabletType.Artisan, 10)
+        val action = ProcessingActions.cooking.head // cook_shrimp with 30% base burn
+        
+        // High summoning level to unlock slot 2
+        val game = VelorIdleGame.newGame(1000L)
+          .copy(
+            currentSkill = Some(Skill.Cooking),
+            skills = Map(Skill.Summoning -> SkillState(level = 25, xp = 30000L)) ++
+              Skill.values.filterNot(_ == Skill.Summoning).map(_ -> SkillState.initial).toMap,
+            inventory = Inventory.empty().addItem(Item.RawShrimp, 100)._1,
+            activeAction = ActiveAction.Processing(Skill.Cooking, action),
+            actionProgress = 0.99,
+            tabletSlots = TabletSlots(Some(tablet1), Some(tablet2))
+          )
+        
+        // Run many times - should never burn
+        var burnCount = 0
+        for seed <- 1 to 50 do
+          val (updated, events) = VelorIdleLogic.tick(
+            game.copy(inventory = Inventory.empty().addItem(Item.RawShrimp, 100)._1),
+            1100L,
+            new Random(seed)
+          )
+          if events.exists {
+            case GameEvent.ActionFailed(_) => true
+            case _ => false
+          } then burnCount += 1
+        
+        burnCount shouldBe 0
+
