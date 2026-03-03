@@ -12,27 +12,27 @@ object SkillBonusModal:
   /** All bonuses for gathering skills */
   private val gatheringBonuses: Vector[BonusTier] = Vector(
     BonusTier(10, "+5% Efficiency (faster actions)"),
-    BonusTier(20, "+10% Yield (extra resources)"),
-    BonusTier(30, "+5% Mastery (double resources)"),
+    BonusTier(20, "+10% Yield chance (+1 resource)"),
+    BonusTier(30, "+5% Mastery chance (double)"),
     BonusTier(40, "+5% Efficiency (10% total)"),
-    BonusTier(50, "+10% Yield (20% total)"),
-    BonusTier(60, "+5% Mastery (10% total)"),
+    BonusTier(50, "+10% Yield chance (20% total)"),
+    BonusTier(60, "+5% Mastery chance (10% total)"),
     BonusTier(70, "+5% Efficiency (15% total)"),
-    BonusTier(80, "+10% Yield (30% total)"),
-    BonusTier(90, "+5% Mastery (15% total)")
+    BonusTier(80, "+10% Yield chance (30% total)"),
+    BonusTier(90, "+5% Mastery chance (15% total)")
   )
 
   /** All bonuses for processing skills */
   private val processingBonuses: Vector[BonusTier] = Vector(
     BonusTier(10, "+5% Efficiency (faster actions)"),
-    BonusTier(20, "+5% Double (extra output)"),
-    BonusTier(30, "+5% Recycle (keep inputs)"),
+    BonusTier(20, "+5% Double chance (extra output)"),
+    BonusTier(30, "+5% Recycle chance (keep inputs)"),
     BonusTier(40, "+5% Efficiency (10% total)"),
-    BonusTier(50, "+5% Double (10% total)"),
-    BonusTier(60, "+5% Recycle (10% total)"),
+    BonusTier(50, "+5% Double chance (10% total)"),
+    BonusTier(60, "+5% Recycle chance (10% total)"),
     BonusTier(70, "+5% Efficiency (15% total)"),
-    BonusTier(80, "+5% Double (15% total)"),
-    BonusTier(90, "+5% Recycle (15% total)")
+    BonusTier(80, "+5% Double chance (15% total)"),
+    BonusTier(90, "+5% Recycle chance (15% total)")
   )
 
   /** Create the modal element - visibility controlled by isOpen signal */
