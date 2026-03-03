@@ -152,12 +152,12 @@ object SkillTrainingView:
       case ActiveAction.Processing(skill, _) if skill == viewingSkill => true
       case _ => false
 
-    // Get action details when active
+    // Get action details when active (including action id for yield calculation)
     val actionDetailsSignal = activeSignal.map:
       case ActiveAction.Gathering(skill, action) if skill == viewingSkill =>
-        Some((action.icon, action.name, action.timeSeconds, action.xpGain, action.output))
+        Some((action.id, action.icon, action.name, action.timeSeconds, action.xpGain, action.output, true))
       case ActiveAction.Processing(skill, action) if skill == viewingSkill =>
-        Some((action.icon, action.name, action.timeSeconds, action.xpGain, action.output))
+        Some((action.id, action.icon, action.name, action.timeSeconds, action.xpGain, action.output, false))
       case _ => None
 
     div(
@@ -168,13 +168,13 @@ object SkillTrainingView:
         div(
           cls := "velor-action-name",
           child.text <-- actionDetailsSignal.map:
-            case Some((icon, name, _, _, _)) => s"$icon $name"
+            case Some((_, icon, name, _, _, _, _)) => s"$icon $name"
             case None => s"${Skill.icon(viewingSkill)} Idle"
         ),
         div(
           cls := "velor-action-time",
           child.text <-- isActiveSignal.combineWith(actionDetailsSignal, progressSignal, skillStateSignal).map:
-            case (true, Some((_, _, baseTime, _, _)), p, state) =>
+            case (true, Some((_, _, _, baseTime, _, _, _)), p, state) =>
               val efficiency = VelorIdleLogic.calculateEfficiencyBonus(state.level)
               val effectiveTime = baseTime * (1.0 - efficiency)
               val remaining = effectiveTime * (1.0 - p)
@@ -182,6 +182,26 @@ object SkillTrainingView:
             case _ => "Select action"
         )
       ),
+      // Action perk bonuses (yield for gathering) - same styling as skill perk bonuses
+      child <-- actionDetailsSignal.combineWith(VelorIdleState.gameSignal).map:
+        case (Some((actionId, _, _, _, _, _, isGathering)), game) if isGathering =>
+          val actionState = game.actionLevels.getOrElse(actionId, ActionState.initial)
+          val yieldBonus = VelorIdleLogic.calculateYieldBonus(actionState.level)
+          div(
+            cls := "velor-perk-bonuses",
+            div(
+              cls := "velor-perk-item",
+              span(cls := "velor-perk-label", s"Action Lv.${actionState.level}"),
+              span(cls := "velor-perk-value", f"${yieldBonus * 100}%.0f%%"),
+            ),
+            div(
+              cls := "velor-perk-item",
+              span(cls := "velor-perk-label", "Yield"),
+              span(cls := "velor-perk-value", f"${yieldBonus * 100}%.0f%%")
+            )
+          )
+        case _ => emptyNode
+      ,
       // Progress bar - always visible, empty when idle
       div(
         cls := "velor-action-bar-wrapper",
@@ -207,7 +227,7 @@ object SkillTrainingView:
         div(
           cls := "velor-action-rewards",
           child.text <-- actionDetailsSignal.combineWith(VelorIdleState.inventorySignal).map:
-            case (Some((_, _, _, xpGain, output)), inv) =>
+            case (Some((_, _, _, _, xpGain, output, _)), inv) =>
               val count = inv.getCount(output)
               val countStr = if count > 0 then s" [$count]" else ""
               s"+$xpGain XP · ${Item.icon(output)} ${Item.displayName(output)}$countStr"
