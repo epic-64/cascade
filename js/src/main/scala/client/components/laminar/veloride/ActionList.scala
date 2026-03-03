@@ -141,7 +141,13 @@ object ActionList:
       div(
         cls := "velor-action-item-right",
         div(cls := "velor-action-item-xp", s"+${action.xpGain} XP"),
-        div(s"${action.timeSeconds}s")
+        div(
+          child.text <-- skillStateSignal.map { state =>
+            val efficiency = VelorIdleLogic.calculateEfficiencyBonus(state.level)
+            val effectiveTime = action.timeSeconds * (1.0 - efficiency)
+            f"$effectiveTime%.1fs"
+          }
+        )
       )
     )
 
