@@ -202,37 +202,27 @@ case ActiveAction.Processing(skill, action) if skill == viewingSkill =>
 
 ## Cleanup Plan
 
-### Phase 1: Add Tests (Critical Before Refactoring)
+### Phase 1: Add Tests (Critical Before Refactoring) ✅ COMPLETED
 
-1. **Create `VelorIdleLogicSpec.scala`** with tests for:
+1. **Created `VelorIdleLogicSpec.scala`** with 47 tests covering:
    - XP calculations and level-up detection
    - Gathering action completion
    - Processing action completion (including burn chance)
    - Perk calculations at key thresholds
    - Inventory operations (add, remove, overflow)
    - Action start/stop logic
-
-2. **Test edge cases:**
-   - Level 99 cap behavior
-   - Empty inventory handling
-   - Missing ingredients for processing
+   - Unified `startAction` dispatch
 
 ---
 
-### Phase 2: Consolidate Utilities
+### Phase 2: Consolidate Utilities ✅ COMPLETED
 
-1. **Create `VelorUtils.scala`** in the veloride package:
-   ```scala
-   object VelorUtils:
-     def formatNumber(n: Long): String = ...
-   ```
+1. **Created `VelorUtils.scala`** in the veloride package with `formatNumber(Long/Double/Int)`
 
-2. **Remove duplicate formatters** from:
-   - `SkillTrainingView`
-   - `Header`
-   - `InventoryPanel`
-
-3. **Import and use `VelorUtils.formatNumber`** everywhere.
+2. **Removed duplicate formatters** from:
+   - `SkillTrainingView` (now delegates to VelorUtils)
+   - `Header` (now delegates to VelorUtils)  
+   - `InventoryPanel` (now delegates to VelorUtils)
 
 ---
 
@@ -261,50 +251,25 @@ case ActiveAction.Processing(skill, action) if skill == viewingSkill =>
 
 ---
 
-### Phase 4: Simplify Action Handling
+### Phase 4: Simplify Action Handling ✅ COMPLETED
 
-1. **Create unified `startAction` method:**
+1. **Created unified `startAction` method** in `VelorIdleLogic`:
    ```scala
    def startAction(game: VelorIdleGame, actionId: String): Either[String, VelorIdleGame] =
      game.currentSkill match
        case None => Left("No skill selected")
-       case Some(skill) =>
-         if Skill.isGathering(skill) then startGathering(game, actionId)
-         else if Skill.isProcessing(skill) then startProcessing(game, actionId)
-         else Left("Skill type not implemented")
+       case Some(skill) if Skill.isGathering(skill) => startGathering(game, actionId)
+       case Some(skill) if Skill.isProcessing(skill) => startProcessing(game, actionId)
+       case Some(skill) => Left(s"${Skill.displayName(skill)} actions not yet implemented")
    ```
 
-2. **Simplify VelorIdleClient.handleStartAction:**
-   ```scala
-   private def handleStartAction(actionId: String): Unit =
-     VelorIdleLogic.startAction(currentGame, actionId) match
-       case Right(newGame) => ...
-       case Left(error) => ...
-   ```
+2. **Simplified VelorIdleClient.handleStartAction** to use the unified method.
 
 ---
 
-### Phase 5: Clean Up Header Duplication
+### Phase 5: Clean Up Header Duplication ✅ COMPLETED
 
-1. **Extract helper in Header:**
-   ```scala
-   private def activeSkillDiv(skill: Skill): HtmlElement = 
-     div(
-       cls := "velor-active-skill-content active clickable",
-       onClick --> { _ => 
-         VelorIdleState.requestSelectSkill(skill)
-         VelorIdleState.goToSkillTraining()
-       },
-       span(cls := "velor-active-skill-icon spinning", Skill.icon(skill)),
-       span(cls := "velor-active-skill-status", "Active")
-     )
-   ```
-
-2. **Use in pattern match:**
-   ```scala
-   case ActiveAction.Gathering(skill, _) => activeSkillDiv(skill)
-   case ActiveAction.Processing(skill, _) => activeSkillDiv(skill)
-   ```
+1. **Extracted `activeSkillDiv` helper** in Header to eliminate duplicated Gathering/Processing blocks.
 
 ---
 
@@ -354,16 +319,16 @@ case ActiveAction.Processing(skill, action) if skill == viewingSkill =>
 
 ## Priority Order
 
-| Priority | Task | Effort | Risk if Skipped |
-|----------|------|--------|-----------------|
-| **P0** | Add tests | Medium | Cannot safely refactor |
-| **P1** | Consolidate formatters | Low | Minor inconsistency |
-| **P1** | Fix Header duplication | Low | Minor maintenance burden |
-| **P2** | Unify Item metadata | Medium | Adding items is error-prone |
-| **P2** | Simplify action handling | Low | Minor complexity |
-| **P3** | Refactor mutable logic | Medium | Style inconsistency |
-| **P3** | Data-driven perks | Medium | Adding perks is repetitive |
-| **P4** | UI component consolidation | High | Code duplication |
+| Priority | Task | Effort | Status |
+|----------|------|--------|--------|
+| **P0** | Add tests | Medium | ✅ Done |
+| **P1** | Consolidate formatters | Low | ✅ Done |
+| **P1** | Fix Header duplication | Low | ✅ Done |
+| **P2** | Simplify action handling | Low | ✅ Done |
+| **P2** | Unify Item metadata | Medium | Pending |
+| **P3** | Refactor mutable logic | Medium | Pending |
+| **P3** | Data-driven perks | Medium | Pending |
+| **P4** | UI component consolidation | High | Pending |
 
 ---
 
