@@ -447,6 +447,50 @@ object VelorIdleLogic:
     if count <= 0 then Left("Item not in inventory")
     else sellItem(game, item, count)
 
+  /** Sell all except one of a specific item */
+  def sellAllExceptOne(game: VelorIdleGame, item: Item): Either[String, VelorIdleGame] =
+    val count = game.inventory.getCount(item)
+    if count <= 1 then Left("Not enough to sell")
+    else sellItem(game, item, count - 1)
+
+  /** Toggle an item's junk status */
+  def toggleJunk(game: VelorIdleGame, item: Item): VelorIdleGame =
+    if game.junkItems.contains(item) then
+      game.copy(junkItems = game.junkItems - item)
+    else
+      game.copy(junkItems = game.junkItems + item)
+
+  /** Set an item's junk status explicitly */
+  def setJunk(game: VelorIdleGame, item: Item, isJunk: Boolean): VelorIdleGame =
+    if isJunk then
+      game.copy(junkItems = game.junkItems + item)
+    else
+      game.copy(junkItems = game.junkItems - item)
+
+  /** Sell all items marked as junk */
+  def sellAllJunk(game: VelorIdleGame): Either[String, (VelorIdleGame, Long, Int)] =
+    val junkInInventory = game.inventory.slots.flatten
+      .filter(stack => game.junkItems.contains(stack.item))
+    
+    if junkInInventory.isEmpty then
+      Left("No junk items to sell")
+    else
+      var currentGame = game
+      var totalGold = 0L
+      var itemsSold = 0
+      
+      for stack <- junkInInventory do
+        val goldGain = Item.sellValue(stack.item) * stack.count
+        val (newInventory, _) = currentGame.inventory.removeItem(stack.item, stack.count)
+        currentGame = currentGame.copy(
+          inventory = newInventory,
+          gold = currentGame.gold + goldGain
+        )
+        totalGold += goldGain
+        itemsSold += 1
+      
+      Right((currentGame, totalGold, itemsSold))
+
   /** Upgrade inventory slots */
   def upgradeInventory(game: VelorIdleGame, targetSlots: Int): Either[String, VelorIdleGame] =
     Inventory.upgradeCost(game.inventory.maxSlots, targetSlots) match

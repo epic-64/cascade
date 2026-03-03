@@ -6,8 +6,15 @@ import shared.VelorIdle.*
 /** Inventory panel - displays items in a grid */
 object InventoryPanel:
 
-  def apply(onSellItem: (Item, Long) => Unit): HtmlElement =
+  case class Actions(
+    onSellItem: (Item, Long) => Unit,
+    onSetJunk: (Item, Boolean) => Unit,
+    onSellAllJunk: () => Unit
+  )
+
+  def apply(actions: Actions): HtmlElement =
     val inventorySignal = VelorIdleState.inventorySignal
+    val selectedItemVar: Var[Option[Item]] = Var(None)
     
     div(
       cls := "velor-inventory",
@@ -19,29 +26,60 @@ object InventoryPanel:
           child.text <-- inventorySignal.map(inv => s"${inv.usedSlots}/${inv.maxSlots} slots")
         )
       ),
+      
+      // Sell all junk button
+      div(
+        cls := "velor-inventory-actions",
+        child <-- VelorIdleState.gameSignal.map: game =>
+          val junkCount = game.inventory.slots.flatten.count(s => game.junkItems.contains(s.item))
+          if junkCount > 0 then
+            button(
+              cls := "btn btn-secondary velor-sell-junk-btn",
+              s"🗑️ Sell All Junk ($junkCount)",
+              onClick --> { _ => actions.onSellAllJunk() }
+            )
+          else
+            emptyNode
+      ),
+      
       div(
         cls := "velor-inventory-grid",
-        children <-- inventorySignal.map { inv =>
-          inv.slots.zipWithIndex.map { case (slot, idx) =>
-            itemSlot(slot, idx, onSellItem)
-          }
-        }
+        children <-- inventorySignal.combineWith(VelorIdleState.gameSignal).map: (inv, game) =>
+          inv.slots.zipWithIndex.map: (slot, idx) =>
+            itemSlot(slot, idx, game.junkItems, selectedItemVar)
+      ),
+      
+      // Item detail modal
+      ItemDetailModal(
+        selectedItemVar.signal,
+        ItemDetailModal.Actions(
+          onSell = actions.onSellItem,
+          onSetJunk = actions.onSetJunk,
+          onClose = () => selectedItemVar.set(None)
+        )
       )
     )
 
-  private def itemSlot(slot: Option[ItemStack], index: Int, onSell: (Item, Long) => Unit): HtmlElement =
+  private def itemSlot(
+    slot: Option[ItemStack],
+    index: Int,
+    junkItems: Set[Item],
+    selectedItemVar: Var[Option[Item]]
+  ): HtmlElement =
     slot match
       case None =>
         div(
           cls := "velor-item-slot empty"
         )
       case Some(stack) =>
+        val isJunk = junkItems.contains(stack.item)
         div(
-          cls := "velor-item-slot",
-          title := s"${Item.displayName(stack.item)} (${stack.count})\nClick to sell",
-          onClick --> { _ => onSell(stack.item, 1) },
+          cls := s"velor-item-slot${if isJunk then " junk" else ""}",
+          title := s"${Item.displayName(stack.item)} (${stack.count})\nClick for options",
+          onClick --> { _ => selectedItemVar.set(Some(stack.item)) },
           div(cls := "velor-item-slot-icon", Item.icon(stack.item)),
-          div(cls := "velor-item-slot-count", formatCount(stack.count))
+          div(cls := "velor-item-slot-count", formatCount(stack.count)),
+          if isJunk then div(cls := "velor-item-junk-badge", "🗑") else emptyNode
         )
 
   private def formatCount(count: Long): String = VelorUtils.formatNumber(count)
