@@ -70,8 +70,7 @@ object VelorIdleClient:
           case VelorIdleState.ViewMode.SkillSelect => skillSelectView()
           case VelorIdleState.ViewMode.SkillTraining => skillTrainingView()
           case VelorIdleState.ViewMode.Inventory => inventoryView()
-          case VelorIdleState.ViewMode.Potions => potionsView()
-          case VelorIdleState.ViewMode.Tablets => tabletsView()
+          case VelorIdleState.ViewMode.Character => characterView()
           case VelorIdleState.ViewMode.Shop => shopView()
           case VelorIdleState.ViewMode.Settings => settingsView()
       ),
@@ -98,11 +97,13 @@ object VelorIdleClient:
       onSellAllJunk = handleSellAllJunk
     ))
 
-  private def potionsView(): HtmlElement =
-    PotionPanel(handleDrinkPotion, handleRemovePotion)
-
-  private def tabletsView(): HtmlElement =
-    TabletPanel(handleEquipTablet, handleUnequipTablet)
+  private def characterView(): HtmlElement =
+    CharacterPanel(
+      onDrinkPotion = handleDrinkPotion,
+      onRemovePotion = handleRemovePotion,
+      onEquipTablet = handleEquipTablet,
+      onUnequipTablet = handleUnequipTablet
+    )
 
   private def shopView(): HtmlElement =
     ShopPanel(handleBuyItem, handleBuyInventorySlots)
