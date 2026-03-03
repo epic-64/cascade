@@ -491,18 +491,6 @@ object VelorIdleLogic:
       
       Right((currentGame, totalGold, itemsSold))
 
-  /** Upgrade inventory slots */
-  def upgradeInventory(game: VelorIdleGame, targetSlots: Int): Either[String, VelorIdleGame] =
-    Inventory.upgradeCost(game.inventory.maxSlots, targetSlots) match
-      case None => Left("Invalid upgrade")
-      case Some(cost) =>
-        if game.gold < cost then Left(s"Need $cost gold")
-        else
-          val newSlots = game.inventory.slots ++ Vector.fill(targetSlots - game.inventory.maxSlots)(None)
-          Right(game.copy(
-            gold = game.gold - cost,
-            inventory = game.inventory.copy(slots = newSlots, maxSlots = targetSlots)
-          ))
 
   /** Drink a potion from inventory to activate its effect */
   def drinkPotion(game: VelorIdleGame, potion: Item): Either[String, VelorIdleGame] =

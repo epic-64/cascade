@@ -441,9 +441,6 @@ object Inventory:
       val cost = (100 * Math.pow(upgradeNumber + 1, 1.8)).toLong.min(5_000_000L)
       Some(cost)
 
-  /** Legacy method for compatibility */
-  def upgradeCost(currentSlots: Int, targetSlots: Int): Option[Int] =
-    nextUpgradeCost(currentSlots).map(_.toInt)
 
 // ============================================================================
 // Potion System
