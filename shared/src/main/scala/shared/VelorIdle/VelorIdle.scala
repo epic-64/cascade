@@ -535,7 +535,8 @@ case class VelorIdleGame(
   activeAction: ActiveAction,
   actionProgress: Double,       // 0.0 to 1.0
   lastTickTime: Long,
-  potionSlots: PotionSlots = PotionSlots.empty  // Active potions
+  potionSlots: PotionSlots = PotionSlots.empty,  // Active potions
+  junkItems: Set[Item] = Set.empty  // Items marked as junk for quick selling
 ) derives ReadWriter
 
 object VelorIdleGame:
@@ -549,6 +550,7 @@ object VelorIdleGame:
       activeAction = ActiveAction.Idle,
       actionProgress = 0.0,
       lastTickTime = timestamp,
-      potionSlots = PotionSlots.empty
+      potionSlots = PotionSlots.empty,
+      junkItems = Set.empty
     )
 

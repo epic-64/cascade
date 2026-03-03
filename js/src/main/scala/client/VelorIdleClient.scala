@@ -91,7 +91,11 @@ object VelorIdleClient:
     SkillTrainingView(handleStartAction, handleStopAction)
 
   private def inventoryView(): HtmlElement =
-    InventoryPanel(handleSellItem)
+    InventoryPanel(InventoryPanel.Actions(
+      onSellItem = handleSellItem,
+      onSetJunk = handleSetJunk,
+      onSellAllJunk = handleSellAllJunk
+    ))
 
   private def potionsView(): HtmlElement =
     PotionPanel(handleDrinkPotion, handleRemovePotion)
@@ -142,14 +146,28 @@ object VelorIdleClient:
     isDirty = true
 
   private def handleSellItem(item: Item, count: Long): Unit =
-    VelorIdleLogic.sellAll(currentGame, item) match
+    VelorIdleLogic.sellItem(currentGame, item, count) match
       case Right(newGame) =>
-        val sold = currentGame.inventory.getCount(item)
-        val gold = Item.sellValue(item) * sold
+        val gold = Item.sellValue(item) * count
         currentGame = newGame
         VelorIdleState.update(currentGame)
         isDirty = true
-        ToastSystem.show(s"💰 Sold ${sold}x ${Item.displayName(item)} for $gold gold")
+        ToastSystem.show(s"💰 Sold ${count}x ${Item.displayName(item)} for $gold gold")
+      case Left(error) =>
+        ToastSystem.show(s"❌ $error")
+
+  private def handleSetJunk(item: Item, isJunk: Boolean): Unit =
+    currentGame = VelorIdleLogic.setJunk(currentGame, item, isJunk)
+    VelorIdleState.update(currentGame)
+    isDirty = true
+
+  private def handleSellAllJunk(): Unit =
+    VelorIdleLogic.sellAllJunk(currentGame) match
+      case Right((newGame, totalGold, itemCount)) =>
+        currentGame = newGame
+        VelorIdleState.update(currentGame)
+        isDirty = true
+        ToastSystem.show(s"🗑️ Sold $itemCount junk items for $totalGold gold!")
       case Left(error) =>
         ToastSystem.show(s"❌ $error")
 
