@@ -442,8 +442,8 @@ object Inventory:
 // ============================================================================
 
 enum ActiveAction derives ReadWriter:
-  case Gathering(action: GatheringAction)
-  case Processing(action: ProcessingAction)
+  case Gathering(skill: Skill, action: GatheringAction)
+  case Processing(skill: Skill, action: ProcessingAction)
   case Idle
 
 case class VelorIdleGame(

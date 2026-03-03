@@ -36,7 +36,7 @@ object ProcessingSelector:
       }
     }
     val isActiveSignal = activeActionSignal.map:
-      case ActiveAction.Processing(a) => a.id == action.id
+      case ActiveAction.Processing(s, a) => s == skill && a.id == action.id
       case _ => false
 
     val itemClsSignal = isLockedSignal.combineWith(hasIngredientsSignal, isActiveSignal).map:

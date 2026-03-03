@@ -30,7 +30,7 @@ object ActionSelector:
     // Derive reactive signals for this specific action
     val isLockedSignal = skillStateSignal.map(_.level < action.levelRequired)
     val isActiveSignal = activeActionSignal.map:
-      case ActiveAction.Gathering(a) => a.id == action.id
+      case ActiveAction.Gathering(s, a) => s == skill && a.id == action.id
       case _ => false
     
     val itemClsSignal = isLockedSignal.combineWith(isActiveSignal).map:

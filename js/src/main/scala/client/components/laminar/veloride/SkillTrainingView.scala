@@ -44,7 +44,7 @@ object SkillTrainingView:
       ),
 
       // Action progress (if active) - in its own card
-      actionProgress(onStopAction),
+      actionProgress(skill, onStopAction),
 
       // Action selector based on skill type
       div(
@@ -81,24 +81,25 @@ object SkillTrainingView:
       )
     )
 
-  private def actionProgress(onStopAction: () => Unit): HtmlElement =
+  private def actionProgress(viewingSkill: Skill, onStopAction: () => Unit): HtmlElement =
     val activeSignal = VelorIdleState.activeActionSignal
     val progressSignal = VelorIdleState.actionProgressSignal
 
     div(
       cls := "velor-action-container",
       display <-- activeSignal.map:
-        case ActiveAction.Idle => "none"
-        case _ => "block"
+        case ActiveAction.Gathering(skill, _) if skill == viewingSkill => "block"
+        case ActiveAction.Processing(skill, _) if skill == viewingSkill => "block"
+        case _ => "none"
       ,
       child <-- activeSignal.map:
-        case ActiveAction.Idle => emptyNode
-        case ActiveAction.Gathering(action) =>
+        case ActiveAction.Gathering(skill, action) if skill == viewingSkill =>
           renderActionProgress(action.icon, action.name, action.timeSeconds, action.xpGain,
             action.output, progressSignal, onStopAction)
-        case ActiveAction.Processing(action) =>
+        case ActiveAction.Processing(skill, action) if skill == viewingSkill =>
           renderActionProgress(action.icon, action.name, action.timeSeconds, action.xpGain,
             action.output, progressSignal, onStopAction)
+        case _ => emptyNode
     )
 
   private def renderActionProgress(
