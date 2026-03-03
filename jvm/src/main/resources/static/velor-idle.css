@@ -364,6 +364,15 @@
 }
 
 /* Floating Rewards */
+.velor-floating-rewards-wrapper {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  pointer-events: none;
+}
+
 .velor-floating-rewards {
   position: absolute;
   right: 0;
@@ -439,10 +448,15 @@
   transition: all 0.15s ease;
 }
 
-.velor-stop-btn:hover {
+.velor-stop-btn:hover:not(.disabled) {
   background: var(--velor-bg);
   color: var(--text-primary);
   border-color: var(--velor-border-bright);
+}
+
+.velor-stop-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .velor-action-reward {
