@@ -21,6 +21,7 @@ object SkillTrainingView:
 
   private def trainingContent(skill: Skill, onStartAction: String => Unit, onStopAction: () => Unit): HtmlElement =
     val skillStateSignal = VelorIdleState.skillStateSignal(skill)
+    val modalOpenVar = Var(false)
 
     div(
       cls := "velor-training-content",
@@ -38,7 +39,12 @@ object SkillTrainingView:
             cls := "velor-training-title",
             span(cls := "velor-training-icon", Skill.icon(skill)),
             span(Skill.displayName(skill)),
-            span(cls := "velor-training-level", child.text <-- skillStateSignal.map(s => s"Lv.${s.level}"))
+            span(cls := "velor-training-level", child.text <-- skillStateSignal.map(s => s"Lv.${s.level}")),
+            button(
+              cls := "velor-help-btn",
+              "?",
+              onClick --> { _ => modalOpenVar.set(true) }
+            )
           )
         ),
         // XP Progress bar inside the header card
@@ -60,7 +66,10 @@ object SkillTrainingView:
           ActionList.forProcessing(skill, onStartAction)
         else
           div(cls := "velor-text-muted", styleAttr := "padding: 1rem;", "Coming soon...")
-      )
+      ),
+
+      // Skill bonus modal
+      SkillBonusModal(skill, modalOpenVar.signal, () => modalOpenVar.set(false))
     )
 
   private def perkBonuses(stateSignal: Signal[SkillState]): HtmlElement =
