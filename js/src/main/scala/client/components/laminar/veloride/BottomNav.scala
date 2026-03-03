@@ -12,8 +12,8 @@ object BottomNav:
       cls := "velor-bottom-nav",
       navButton("⚔️", "Skills", VelorIdleState.ViewMode.SkillSelect),
       navButton("📦", "Items", VelorIdleState.ViewMode.Inventory),
-      navButton("🧪", "Potions", VelorIdleState.ViewMode.Potions),
-      navButton("📜", "Tablets", VelorIdleState.ViewMode.Tablets),
+      navButton("👤", "Char", VelorIdleState.ViewMode.Character),
+      navButton("🏪", "Shop", VelorIdleState.ViewMode.Shop),
       navButton("⚙️", "More", VelorIdleState.ViewMode.Settings)
     )
 

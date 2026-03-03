@@ -90,15 +90,23 @@ object VelorIdleState:
     case SkillSelect    // Grid of all skills to choose from
     case SkillTraining  // Active skill training screen
     case Inventory
-    case Potions        // Potion management screen
-    case Tablets        // Tablet equipment screen
+    case Character      // Character screen with sub-tabs (Potions, Tablets, Equipment)
     case Shop
     case Settings
+
+  enum CharacterTab:
+    case Potions
+    case Tablets
+    // case Equipment  // Future
 
   val viewModeVar: Var[ViewMode] = Var(ViewMode.SkillSelect)
   val viewModeSignal: Signal[ViewMode] = viewModeVar.signal
 
+  val characterTabVar: Var[CharacterTab] = Var(CharacterTab.Potions)
+  val characterTabSignal: Signal[CharacterTab] = characterTabVar.signal
+
   def setViewMode(mode: ViewMode): Unit = viewModeVar.set(mode)
+  def setCharacterTab(tab: CharacterTab): Unit = characterTabVar.set(tab)
 
   /** Navigate to skill training screen (call after selecting skill via client) */
   def goToSkillTraining(): Unit =
