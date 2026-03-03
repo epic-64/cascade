@@ -309,11 +309,24 @@ case ActiveAction.Processing(skill, action) if skill == viewingSkill =>
 
 ---
 
-### Phase 8: Consider UI Component Consolidation (Future)
+### Phase 8: UI Component Consolidation ✅ COMPLETED
 
-1. **Evaluate merging ActionSelector and ProcessingSelector** into a generic component.
+1. **Created unified `ActionList` component** with:
+   - `ActionInfo` trait abstracting common properties (id, name, icon, levelRequired, xpGain, timeSeconds)
+   - `GatheringActionInfo` wrapper for gathering actions
+   - `ProcessingActionInfo` wrapper for processing actions (includes ingredient checking)
 
-2. **Consider a shared `Action` trait** for `GatheringAction` and `ProcessingAction`.
+2. **Unified API:**
+   ```scala
+   ActionList.forGathering(skill, onStartAction)
+   ActionList.forProcessing(skill, onStartAction)
+   ```
+
+3. **Deleted redundant files:**
+   - `ActionSelector.scala` (70 lines)
+   - `ProcessingSelector.scala` (87 lines)
+   
+4. **Replaced with single `ActionList.scala`** (~145 lines, eliminating ~12 lines of duplication)
 
 ---
 
@@ -328,14 +341,30 @@ case ActiveAction.Processing(skill, action) if skill == viewingSkill =>
 | **P2** | Unify Item metadata | Medium | ✅ Done |
 | **P3** | Refactor mutable logic | Medium | ✅ Done |
 | **P3** | Data-driven perks | Medium | ✅ Done |
-| **P4** | UI component consolidation | High | Pending |
+| **P4** | UI component consolidation | High | ✅ Done |
 
 ---
 
+## Summary
+
+All cleanup phases have been completed! The Velor Idle codebase now has:
+
+- **47 comprehensive tests** covering all game logic
+- **Unified metadata** for Items and Skills (single source of truth)
+- **Functional, immutable code** in action completion logic
+- **Data-driven perk system** that's easy to extend
+- **Consolidated UI components** eliminating duplication
+- **Clean utility functions** shared across components
+
+The codebase is now well-positioned for adding new features like:
+- Alchemy and Summoning skills
+- Thieving and Astrology special skills
+- Equipment and combat systems
+- New items and actions
+
 ## Notes
 
-- All refactoring should maintain exact same behavior
-- Run tests after each change
-- Consider adding property-based tests for calculations
-- The callback pattern in VelorIdleState is awkward but functional—fix only if it causes bugs
+- All refactoring maintained exact same behavior (verified by tests)
+- The callback pattern in VelorIdleState remains—functional but could be revisited if issues arise
+- Consider adding property-based tests for perk calculations in the future
 

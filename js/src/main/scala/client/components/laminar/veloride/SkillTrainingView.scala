@@ -51,9 +51,9 @@ object SkillTrainingView:
         cls := "velor-action-selector",
         div(cls := "velor-action-selector-title", "Actions"),
         if Skill.isGathering(skill) then
-          ActionSelector(skill, onStartAction)
+          ActionList.forGathering(skill, onStartAction)
         else if Skill.isProcessing(skill) then
-          ProcessingSelector(skill, onStartAction)
+          ActionList.forProcessing(skill, onStartAction)
         else
           div(cls := "velor-text-muted", styleAttr := "padding: 1rem;", "Coming soon...")
       )
