@@ -34,9 +34,10 @@ object VelorIdleLogic:
     random: Random
   ): (VelorIdleGame, Vector[GameEvent]) =
     val skillState = game.skills.getOrElse(skill, SkillState.initial)
+    val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
 
-    // Calculate effective action time (reduced by efficiency perks)
-    val efficiencyBonus = calculateEfficiencyBonus(skillState.level)
+    // Calculate effective action time (reduced by efficiency perks - now action level based)
+    val efficiencyBonus = calculateEfficiencyBonus(actionState.level)
     val effectiveTime = action.timeSeconds * (1.0 - efficiencyBonus)
 
     // Calculate new progress
@@ -73,7 +74,7 @@ object VelorIdleLogic:
       .pipe(grantXp(skill, skillState, action.xpGain))
       .pipe(grantActionXp(action.id, actionState, action.xpGain))
       .pipe(grantGatheredItems(action, skillState, actionState, random))
-      .pipe(checkRareDrop(action.rareOutput, random))
+      .pipe(checkRareDrop(action.rareOutput, skillState.level, random))
     
     (result.game, result.events)
 
@@ -119,14 +120,19 @@ object VelorIdleLogic:
     if overflow > 0 then withItems.addEvent(GameEvent.InventoryFull)
     else withItems
 
-  private def checkRareDrop(rareOutput: Option[(Item, Double)], random: Random)(update: GameUpdate): GameUpdate =
+  private def checkRareDrop(rareOutput: Option[(Item, Double)], skillLevel: Int, random: Random)(update: GameUpdate): GameUpdate =
     rareOutput match
-      case Some((rareItem, chance)) if random.nextDouble() < chance =>
-        val (newInv, _) = update.game.inventory.addItem(rareItem, 1)
-        update
-          .mapGame(_.copy(inventory = newInv))
-          .addEvent(GameEvent.ItemGained(rareItem, 1))
-          .addEvent(GameEvent.RareDrop(rareItem))
+      case Some((rareItem, baseChance)) =>
+        // Apply secondary chance bonus from job level
+        val secondaryBonus = calculateSecondaryChance(skillLevel)
+        val totalChance = baseChance + secondaryBonus
+        if random.nextDouble() < totalChance then
+          val (newInv, _) = update.game.inventory.addItem(rareItem, 1)
+          update
+            .mapGame(_.copy(inventory = newInv))
+            .addEvent(GameEvent.ItemGained(rareItem, 1))
+            .addEvent(GameEvent.RareDrop(rareItem))
+        else update
       case _ => update
 
 
@@ -143,6 +149,7 @@ object VelorIdleLogic:
     random: Random
   ): (VelorIdleGame, Vector[GameEvent]) =
     val skillState = game.skills.getOrElse(skill, SkillState.initial)
+    val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
 
     // Check if we still have ingredients
     if !canProcess(game, action) then
@@ -154,8 +161,8 @@ object VelorIdleLogic:
       ), Vector(GameEvent.OutOfMaterials))
 
     else
-      // Calculate effective action time
-      val efficiencyBonus = calculateEfficiencyBonus(skillState.level)
+      // Calculate effective action time (now action level based)
+      val efficiencyBonus = calculateEfficiencyBonus(actionState.level)
       val effectiveTime = action.timeSeconds * (1.0 - efficiencyBonus)
 
       val progressPerSecond = 1.0 / effectiveTime
@@ -264,6 +271,8 @@ object VelorIdleLogic:
     level * perLevelBonus + calculateTieredBonus(level, tiers)
 
   // Perk configurations - easy to adjust or extend
+  
+  // Action-level perks (calculated from action level)
   private val efficiencyTiers = Vector(
     PerkTier(10, 0.05),  // 5% at level 10
     PerkTier(40, 0.05),  // +5% at level 40 = 10% total
@@ -274,6 +283,15 @@ object VelorIdleLogic:
     PerkTier(20, 0.10),  // 10% at level 20
     PerkTier(50, 0.10),  // +10% at level 50 = 20% total
     PerkTier(80, 0.10)   // +10% at level 80 = 30% total
+  )
+
+  // Job-level perks (calculated from skill level)
+  private val secondaryChanceTiers = Vector(
+    PerkTier(10, 0.02),  // 2% at level 10
+    PerkTier(30, 0.03),  // +3% at level 30 = 5% total
+    PerkTier(50, 0.05),  // +5% at level 50 = 10% total
+    PerkTier(70, 0.05),  // +5% at level 70 = 15% total
+    PerkTier(90, 0.05)   // +5% at level 90 = 20% total
   )
 
   private val gatheringMasteryTiers = Vector(
@@ -294,13 +312,17 @@ object VelorIdleLogic:
     PerkTier(90, 0.05)   // +5% at level 90 = 15% total
   )
 
-  /** Efficiency bonus (reduces action time) - gathering and processing */
+  /** Efficiency bonus (reduces action time) - now based on ACTION level */
   def calculateEfficiencyBonus(level: Int): Double =
     calculateTieredBonus(level, efficiencyTiers)
 
-  /** Yield bonus (chance for extra resource) - gathering only */
+  /** Yield bonus (chance for extra resource) - based on ACTION level */
   def calculateYieldBonus(level: Int): Double =
     calculateTieredBonus(level, yieldTiers)
+
+  /** Secondary chance (rare item drop bonus) - based on JOB level */
+  def calculateSecondaryChance(level: Int): Double =
+    calculateTieredBonus(level, secondaryChanceTiers)
 
   /** Double chance - gathering has mastery, processing has double perk + scaling */
   def calculateDoubleChance(level: Int, isGathering: Boolean): Double =

@@ -9,25 +9,24 @@ object SkillBonusModal:
   /** Represents a bonus tier that can be displayed */
   case class BonusTier(level: Int, description: String)
 
-  /** All bonuses for gathering skills (Yield moved to Action level) */
+  /** All bonuses for gathering skills (Efficiency/Yield moved to Action level) */
   private val gatheringBonuses: Vector[BonusTier] = Vector(
-    BonusTier(10, "+5% Efficiency (faster actions)"),
+    BonusTier(10, "+2% Secondary chance (rare drops)"),
+    BonusTier(30, "+3% Secondary chance (5% total)"),
     BonusTier(30, "+5% Mastery chance (double)"),
-    BonusTier(40, "+5% Efficiency (10% total)"),
+    BonusTier(50, "+5% Secondary chance (10% total)"),
     BonusTier(60, "+5% Mastery chance (10% total)"),
-    BonusTier(70, "+5% Efficiency (15% total)"),
+    BonusTier(70, "+5% Secondary chance (15% total)"),
+    BonusTier(90, "+5% Secondary chance (20% total)"),
     BonusTier(90, "+5% Mastery chance (15% total)")
   )
 
-  /** All bonuses for processing skills */
+  /** All bonuses for processing skills (Efficiency moved to Action level) */
   private val processingBonuses: Vector[BonusTier] = Vector(
-    BonusTier(10, "+5% Efficiency (faster actions)"),
     BonusTier(20, "+5% Double chance (extra output)"),
     BonusTier(30, "+5% Recycle chance (keep inputs)"),
-    BonusTier(40, "+5% Efficiency (10% total)"),
     BonusTier(50, "+5% Double chance (10% total)"),
     BonusTier(60, "+5% Recycle chance (10% total)"),
-    BonusTier(70, "+5% Efficiency (15% total)"),
     BonusTier(80, "+5% Double chance (15% total)"),
     BonusTier(90, "+5% Recycle chance (15% total)")
   )
