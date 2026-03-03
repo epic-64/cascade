@@ -30,7 +30,7 @@ object ActionList:
     def levelRequired: Int = action.levelRequired
     def xpGain: Int = action.xpGain
     def timeSeconds: Double = action.timeSeconds
-    
+
     def subtitle(inventory: Inventory, isLocked: Boolean): String =
       if isLocked then s"🔒 Level $levelRequired"
       else s"Level $levelRequired"
@@ -53,7 +53,7 @@ object ActionList:
     def levelRequired: Int = action.levelRequired
     def xpGain: Int = action.xpGain
     def timeSeconds: Double = action.timeSeconds
-    
+
     def subtitle(inventory: Inventory, isLocked: Boolean): String =
       if isLocked then s"🔒 Level $levelRequired"
       else ingredientsList(inventory)

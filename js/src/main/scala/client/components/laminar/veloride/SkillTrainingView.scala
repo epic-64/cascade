@@ -166,10 +166,12 @@ object SkillTrainingView:
         cls := "velor-action-footer",
         div(
           cls := "velor-action-rewards",
-          child.text <-- actionDetailsSignal.map:
-            case Some((_, _, _, xpGain, output)) =>
-              s"+$xpGain XP · ${Item.icon(output)} ${Item.displayName(output)}"
-            case None => "—"
+          child.text <-- actionDetailsSignal.combineWith(VelorIdleState.inventorySignal).map:
+            case (Some((_, _, _, xpGain, output)), inv) =>
+              val count = inv.getCount(output)
+              val countStr = if count > 0 then s" [$count]" else ""
+              s"+$xpGain XP · ${Item.icon(output)} ${Item.displayName(output)}$countStr"
+            case _ => "—"
         ),
         button(
           cls <-- isActiveSignal.map(active => 
