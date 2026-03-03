@@ -266,13 +266,9 @@ object VelorIdleLogic:
   // Player Actions
   // ============================================================================
 
-  /** Select a skill to view/train */
+  /** Select a skill to view/train - does not affect the currently running action */
   def selectSkill(game: VelorIdleGame, skill: Skill): VelorIdleGame =
-    game.copy(
-      currentSkill = Some(skill),
-      activeAction = ActiveAction.Idle,
-      actionProgress = 0.0
-    )
+    game.copy(currentSkill = Some(skill))
 
   /** Start a gathering action */
   def startGathering(game: VelorIdleGame, actionId: String): Either[String, VelorIdleGame] =
