@@ -41,10 +41,7 @@ object Header:
   private def activeSkillDiv(skill: Skill): HtmlElement =
     div(
       cls := "velor-active-skill-content active clickable",
-      onClick --> { _ => 
-        VelorIdleState.requestSelectSkill(skill)
-        VelorIdleState.goToSkillTraining()
-      },
+      onClick --> { _ => VelorIdleState.selectSkill(skill) },
       span(cls := "velor-active-skill-icon spinning", Skill.icon(skill)),
       span(cls := "velor-active-skill-status", "Active")
     )
