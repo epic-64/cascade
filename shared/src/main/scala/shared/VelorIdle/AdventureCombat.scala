@@ -84,7 +84,7 @@ object AdventureCombat:
     random: Random = Random
   ): (VelorIdleGame, Vector[GameEvent]) =
     game.adventureState.combatState match
-      case None => 
+      case None =>
         // Not in combat - apply out-of-combat regen
         val elapsedMs = currentTime - game.lastTickTime
         val elapsedSeconds = elapsedMs / 1000.0
@@ -105,13 +105,13 @@ object AdventureCombat:
         val combat6 = processShields(combat5, currentTime)
 
         // Check for combat end
-        val (finalCombat, endEvents) =
+        val (finalCombat, endEvents, updatedGame) =
           if combat6.isEnemyDead then
             handleEnemyDeath(combat6, game, random)
           else if combat6.isPlayerDead then
-            (combat6.copy(recentEvents = combat6.recentEvents :+ CombatEvent.PlayerDied), Vector(GameEvent.AdventurePlayerDied))
+            (combat6.copy(recentEvents = combat6.recentEvents :+ CombatEvent.PlayerDied), Vector(GameEvent.AdventurePlayerDied), game)
           else
-            (combat6, Vector.empty)
+            (combat6, Vector.empty, game)
 
         val allCombatEvents = events1 ++ events2
         val finalCombatWithEvents = finalCombat.copy(
@@ -119,12 +119,12 @@ object AdventureCombat:
         )
 
         // Sync player HP/Mana back to AdventureState
-        val newAdventureState = game.adventureState.copy(
+        val newAdventureState = updatedGame.adventureState.copy(
           combatState = Some(finalCombatWithEvents),
           currentHp = finalCombatWithEvents.playerCurrentHp,
           currentMana = finalCombatWithEvents.playerMana
         )
-        val newGame = game.copy(adventureState = newAdventureState, lastTickTime = currentTime)
+        val newGame = updatedGame.copy(adventureState = newAdventureState, lastTickTime = currentTime)
 
         (newGame, endEvents)
 
@@ -133,13 +133,13 @@ object AdventureCombat:
     val advState = game.adventureState
     val maxHp = advState.maxHp
     val maxMana = advState.maxMana
-    
+
     val hpRegen = (AdventureState.OutOfCombatHpRegenPerSecond * elapsedSeconds).toInt
     val manaRegen = (AdventureState.ManaRegenPerSecond * elapsedSeconds).toInt
-    
+
     val newHp = (advState.currentHp + hpRegen).min(maxHp)
     val newMana = (advState.currentMana + manaRegen).min(maxMana)
-    
+
     if newHp != advState.currentHp || newMana != advState.currentMana then
       game.copy(adventureState = advState.copy(currentHp = newHp, currentMana = newMana))
     else
@@ -272,20 +272,32 @@ object AdventureCombat:
     combat: CombatState,
     game: VelorIdleGame,
     random: Random
-  ): (CombatState, Vector[GameEvent]) =
+  ): (CombatState, Vector[GameEvent], VelorIdleGame) =
     val enemy = combat.enemy
     var events = Vector.empty[GameEvent]
+    var updatedGame = game
 
-    // XP reward
+    // XP reward - actually grant it
+    val skillState = updatedGame.skills.getOrElse(Skill.Adventure, SkillState.initial)
+    val newXp = skillState.xp + enemy.xpReward
+    val oldLevel = skillState.level
+    val newLevel = SkillState.levelFromXp(newXp)
+    val newSkillState = skillState.copy(xp = newXp, level = newLevel)
+    updatedGame = updatedGame.copy(skills = updatedGame.skills.updated(Skill.Adventure, newSkillState))
     events :+= GameEvent.XpGained(Skill.Adventure, enemy.xpReward)
+    if newLevel > oldLevel then
+      events :+= GameEvent.LevelUp(Skill.Adventure, newLevel)
 
-    // Gold reward
+    // Gold reward - actually grant it
     val goldAmount = enemy.goldReward._1 + random.nextInt(enemy.goldReward._2 - enemy.goldReward._1 + 1)
+    updatedGame = updatedGame.copy(gold = updatedGame.gold + goldAmount)
     events :+= GameEvent.GoldGained(goldAmount)
 
-    // Loot
+    // Loot - actually grant it
     enemy.lootTable.foreach { case (item, chance) =>
       if random.nextDouble() < chance then
+        val (newInv, _) = updatedGame.inventory.addItem(item, 1)
+        updatedGame = updatedGame.copy(inventory = newInv)
         events :+= GameEvent.ItemGained(item, 1)
     }
 
@@ -295,7 +307,7 @@ object AdventureCombat:
       recentEvents = combat.recentEvents :+ CombatEvent.EnemyDied
     )
 
-    (combatWithEvents, events)
+    (combatWithEvents, events, updatedGame)
 
   // ============================================================================
   // Skill Usage

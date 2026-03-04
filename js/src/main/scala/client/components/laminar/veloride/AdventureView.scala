@@ -116,8 +116,8 @@ object AdventureView:
       div(
         cls := "velor-xp-bar-label",
         span(child.text <-- skillStateSignal.map { s =>
-          val currentLevelXp = SkillState.xpForLevel(s.level)
-          val nextLevelXp = SkillState.xpForLevel(s.level + 1)
+          val currentLevelXp = SkillState.totalXpForLevel(s.level)
+          val nextLevelXp = SkillState.totalXpForLevel(s.level + 1)
           val xpIntoLevel = s.xp - currentLevelXp
           val xpNeeded = nextLevelXp - currentLevelXp
           s"XP: $xpIntoLevel / $xpNeeded"
@@ -129,8 +129,8 @@ object AdventureView:
         div(
           cls := "velor-xp-bar-fill",
           width <-- skillStateSignal.map { s =>
-            val currentLevelXp = SkillState.xpForLevel(s.level)
-            val nextLevelXp = SkillState.xpForLevel(s.level + 1)
+            val currentLevelXp = SkillState.totalXpForLevel(s.level)
+            val nextLevelXp = SkillState.totalXpForLevel(s.level + 1)
             val progress = if nextLevelXp > currentLevelXp then
               ((s.xp - currentLevelXp).toDouble / (nextLevelXp - currentLevelXp) * 100).min(100)
             else 0.0
