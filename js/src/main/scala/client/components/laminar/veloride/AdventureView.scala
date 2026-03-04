@@ -496,15 +496,21 @@ object AdventureView:
           case None => classes += "empty"
           case Some(s) =>
             val now = System.currentTimeMillis()
+            val isChainSkill = s.isInChainWindow(now) && s.currentSkill.id != s.baseSkill.id
             if s.currentSkill.id == "empty" then classes += "empty"
-            if s.isOnCooldown(now) then classes += "on-cooldown"
-            if s.isInChainWindow(now) && s.currentSkill.id != s.baseSkill.id then classes += "chain-skill"
+            // Only show on-cooldown if not a usable chain skill
+            if s.isOnCooldown(now) && !isChainSkill then classes += "on-cooldown"
+            if isChainSkill then classes += "chain-skill"
         classes.mkString(" ")
       },
       disabled <-- combatSignal.map { c =>
         c.flatMap(_.skillSlots.lift(slotIndex)).forall { slot =>
           val now = System.currentTimeMillis()
-          slot.currentSkill.id == "empty" || slot.isOnCooldown(now) || c.exists(_.playerMana < slot.currentSkill.manaCost)
+          val isChainSkill = slot.isInChainWindow(now) && slot.currentSkill.id != slot.baseSkill.id
+          val isEmpty = slot.currentSkill.id == "empty"
+          val isOnCooldownAndNotChain = slot.isOnCooldown(now) && !isChainSkill
+          val notEnoughMana = c.exists(_.playerMana < slot.currentSkill.manaCost)
+          isEmpty || isOnCooldownAndNotChain || notEnoughMana
         }
       },
 
@@ -524,15 +530,26 @@ object AdventureView:
         display <-- skillSignal.map(s => if s.exists(_.id != "empty") then "block" else "none")
       ),
 
-      // Cooldown overlay
+      // Cooldown overlay - don't show if chain skill is active
       div(
         cls := "velor-skill-cooldown-overlay",
         child.text <-- slotSignal.map { slot =>
-          slot.filter(s => s.isOnCooldown(System.currentTimeMillis())).map { s =>
+          val now = System.currentTimeMillis()
+          slot.filter { s => 
+            val isChainSkill = s.isInChainWindow(now) && s.currentSkill.id != s.baseSkill.id
+            s.isOnCooldown(now) && !isChainSkill
+          }.map { s =>
             f"${s.cooldownRemainingMs(System.currentTimeMillis()) / 1000.0}%.1fs"
           }.getOrElse("")
         },
-        display <-- slotSignal.map(s => if s.exists(_.isOnCooldown(System.currentTimeMillis())) then "flex" else "none")
+        display <-- slotSignal.map { s =>
+          val now = System.currentTimeMillis()
+          val showCooldown = s.exists { slot =>
+            val isChainSkill = slot.isInChainWindow(now) && slot.currentSkill.id != slot.baseSkill.id
+            slot.isOnCooldown(now) && !isChainSkill
+          }
+          if showCooldown then "flex" else "none"
+        }
       ),
 
       // Chain indicator
