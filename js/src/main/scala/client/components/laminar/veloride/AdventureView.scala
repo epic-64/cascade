@@ -225,42 +225,44 @@ object AdventureView:
     // Track if we were previously in combat to detect combat start
     var wasInCombat = false
 
-    // Update combat ended state only when transitioning to ended
-    // Also trigger damage numbers on new combat events
-    combatSignal.foreach {
-      case Some(combat) if combat.isCombatOver && !combatEndedVar.now() =>
-        combatEndedVar.set(true)
-        isVictoryVar.set(combat.isEnemyDead)
-      case Some(combat) if !combat.isCombatOver =>
-        combatEndedVar.set(false)
-        
-        // Reset event count when combat starts fresh
-        if !wasInCombat then
-          lastEventCountVar.set(combat.recentEvents.length)
-          wasInCombat = true
-        else
-          // Check for new combat events to show damage numbers
-          val lastCount = lastEventCountVar.now()
-          val newEvents = combat.recentEvents.drop(lastCount)
-          lastEventCountVar.set(combat.recentEvents.length)
-          newEvents.foreach {
-            case CombatEvent.PlayerAutoAttack(dmg) => showDamageNumber(dmg, false, false)
-            case CombatEvent.EnemyAutoAttack(dmg) => showDamageNumber(dmg, true, false)
-            case CombatEvent.PlayerSkillUsed(_, dmg) if dmg > 0 => showDamageNumber(dmg, false, false)
-            case CombatEvent.PlayerHealed(amt) => showDamageNumber(amt, true, true)
-            case CombatEvent.EnemyDotTick(dmg, _) => showDamageNumber(dmg, false, false)
-            case CombatEvent.PlayerDotTick(dmg, _) => showDamageNumber(dmg, true, false)
-            case _ => ()
-          }
-      case None =>
-        lastEventCountVar.set(0)
-        wasInCombat = false
-      case _ => ()
-    }(using unsafeWindowOwner)
-
     div(
       cls := "velor-combat-view",
       display <-- inCombatSignal.map(if _ then "flex" else "none"),
+      
+      // Use onMountBind to properly scope the subscription to element lifecycle
+      onMountBind { ctx =>
+        combatSignal --> { state =>
+          state match
+            case Some(combat) if combat.isCombatOver && !combatEndedVar.now() =>
+              combatEndedVar.set(true)
+              isVictoryVar.set(combat.isEnemyDead)
+            case Some(combat) if !combat.isCombatOver =>
+              combatEndedVar.set(false)
+              
+              // Reset event count when combat starts fresh
+              if !wasInCombat then
+                lastEventCountVar.set(combat.recentEvents.length)
+                wasInCombat = true
+              else
+                // Check for new combat events to show damage numbers
+                val lastCount = lastEventCountVar.now()
+                val newEvents = combat.recentEvents.drop(lastCount)
+                lastEventCountVar.set(combat.recentEvents.length)
+                newEvents.foreach {
+                  case CombatEvent.PlayerAutoAttack(dmg) => showDamageNumber(dmg, false, false)
+                  case CombatEvent.EnemyAutoAttack(dmg) => showDamageNumber(dmg, true, false)
+                  case CombatEvent.PlayerSkillUsed(_, dmg) if dmg > 0 => showDamageNumber(dmg, false, false)
+                  case CombatEvent.PlayerHealed(amt) => showDamageNumber(amt, true, true)
+                  case CombatEvent.EnemyDotTick(dmg, _) => showDamageNumber(dmg, false, false)
+                  case CombatEvent.PlayerDotTick(dmg, _) => showDamageNumber(dmg, true, false)
+                  case _ => ()
+                }
+            case None =>
+              lastEventCountVar.set(0)
+              wasInCombat = false
+            case _ => ()
+        }
+      },
 
       // Enemy section - reactive
       enemyDisplayReactive(combatSignal, floatingNumbersVar),
