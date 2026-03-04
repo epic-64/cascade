@@ -523,12 +523,27 @@
   margin-top: var(--velor-spacing-sm);
 }
 
-/* Combat controls (stop button) */
-.velor-combat-controls {
+/* Combat stop button (in enemy card header) */
+.velor-combat-stop-btn {
+  padding: 4px 10px;
   display: flex;
+  align-items: center;
   justify-content: center;
-  padding: var(--velor-spacing-sm);
-  margin-top: var(--velor-spacing-sm);
+  background: var(--velor-bg);
+  border: 1px solid var(--velor-border);
+  border-radius: var(--velor-radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-left: auto;
+}
+
+.velor-combat-stop-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #ef4444;
 }
 
 
