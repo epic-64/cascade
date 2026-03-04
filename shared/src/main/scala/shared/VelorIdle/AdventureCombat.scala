@@ -93,9 +93,16 @@ object AdventureCombat:
         val elapsedMs = currentTime - game.lastTickTime
         val elapsedSeconds = elapsedMs / 1000.0
         val regenedGame = applyOutOfCombatRegen(game, elapsedSeconds)
-        (regenedGame, Vector.empty)
+        (regenedGame.copy(lastTickTime = currentTime), Vector.empty)
+      case Some(combat) if combat.isPlayerDead =>
+        // Player died - apply regen so they can recover and try again
+        val elapsedMs = currentTime - game.lastTickTime
+        val elapsedSeconds = elapsedMs / 1000.0
+        val regenedGame = applyOutOfCombatRegen(game, elapsedSeconds)
+        (regenedGame.copy(lastTickTime = currentTime), Vector.empty)
       case Some(combat) if combat.isCombatOver =>
-        (game, Vector.empty)
+        // Enemy dead case shouldn't happen (auto-restart), but handle gracefully
+        (game.copy(lastTickTime = currentTime), Vector.empty)
       case Some(combat) =>
         val elapsedMs = currentTime - game.lastTickTime
         val elapsedSeconds = elapsedMs / 1000.0
@@ -124,20 +131,25 @@ object AdventureCombat:
           else
             (combat6, Vector.empty, game)
 
-        val allCombatEvents = castEvents ++ events1 ++ events2
-        val newEventCount = finalCombat.totalEventCount + allCombatEvents.length
-        val finalCombatWithEvents = finalCombat.copy(
-          recentEvents = (finalCombat.recentEvents ++ allCombatEvents).takeRight(10),
-          totalEventCount = newEventCount
-        )
+        // If enemy died and combat was restarted, use the already-updated game from handleEnemyDeath
+        // (which includes the new combat state). Otherwise, update combat events normally.
+        val newGame = if combat6.isEnemyDead then
+          updatedGame.copy(lastTickTime = currentTime)
+        else
+          val allCombatEvents = castEvents ++ events1 ++ events2
+          val newEventCount = finalCombat.totalEventCount + allCombatEvents.length
+          val finalCombatWithEvents = finalCombat.copy(
+            recentEvents = (finalCombat.recentEvents ++ allCombatEvents).takeRight(10),
+            totalEventCount = newEventCount
+          )
 
-        // Sync player HP/Mana back to AdventureState
-        val newAdventureState = updatedGame.adventureState.copy(
-          combatState = Some(finalCombatWithEvents),
-          currentHp = finalCombatWithEvents.playerCurrentHp,
-          currentMana = finalCombatWithEvents.playerMana
-        )
-        val newGame = updatedGame.copy(adventureState = newAdventureState, lastTickTime = currentTime)
+          // Sync player HP/Mana back to AdventureState
+          val newAdventureState = updatedGame.adventureState.copy(
+            combatState = Some(finalCombatWithEvents),
+            currentHp = finalCombatWithEvents.playerCurrentHp,
+            currentMana = finalCombatWithEvents.playerMana
+          )
+          updatedGame.copy(adventureState = newAdventureState, lastTickTime = currentTime)
 
         (newGame, endEvents)
 

@@ -144,7 +144,7 @@ object AdventureView:
             cls := "velor-back-btn",
             "←",
             onClick --> { _ =>
-              onStopCombat()
+              // Just navigate back, don't stop combat - it continues in background
               VelorIdleState.setViewMode(VelorIdleState.ViewMode.SkillSelect)
             }
           ),
@@ -341,9 +341,10 @@ object AdventureView:
       // Event processing
       onMountBind { _ =>
         combatSignal --> { 
-          case Some(combat) if combat.isCombatOver && !combatEndedVar.now() =>
+          case Some(combat) if combat.isPlayerDead && !combatEndedVar.now() =>
+            // Only show modal on player death - victory auto-restarts
             combatEndedVar.set(true)
-            isVictoryVar.set(combat.isEnemyDead)
+            isVictoryVar.set(false)
             
           case Some(combat) if !combat.isCombatOver =>
             combatEndedVar.set(false)
@@ -713,28 +714,22 @@ object AdventureView:
     onRestartCombat: () => Unit
   ): HtmlElement =
     div(
-      cls := "velor-combat-end-overlay",
-      cls <-- isVictorySignal.map(if _ then "victory" else "defeat"),
+      cls := "velor-combat-end-overlay defeat",
       display <-- combatEndedSignal.map(if _ then "flex" else "none"),
 
       div(
         cls := "velor-combat-end-content",
         div(
           cls := "velor-combat-end-icon",
-          child.text <-- isVictorySignal.map(if _ then "🏆" else "💀")
+          "💀"
         ),
         div(
           cls := "velor-combat-end-title",
-          child.text <-- isVictorySignal.map(if _ then "Victory!" else "Defeated")
+          "Defeated"
         ),
         div(
           cls := "velor-combat-end-message",
-          child.text <-- combatSignal.combineWith(isVictorySignal).map { case (c, isVictory) =>
-            c.map { combat =>
-              if isVictory then s"You defeated the ${combat.enemy.name}!"
-              else "You were defeated. Try again?"
-            }.getOrElse("")
-          }
+          "You were defeated. Recover your HP and try again!"
         ),
         div(
           cls := "velor-combat-end-buttons",
