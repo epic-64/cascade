@@ -140,15 +140,13 @@ object VelorIdleClient:
   private def skillTreesView(): HtmlElement =
     SkillTreeView(
       onAllocatePoint = handleAllocateSkillPoint,
+      onBindSkill = handleBindSkill,
       onBack = () => VelorIdleState.setViewMode(VelorIdleState.ViewMode.Adventure)
     )
 
   private def skillBindingView(): HtmlElement =
-    SkillBindingView(
-      onBindSkill = handleBindSkill,
-      onUnbindSkill = handleUnbindSkill,
-      onBack = () => VelorIdleState.setViewMode(VelorIdleState.ViewMode.SkillTrees)
-    )
+    // Redirect to skill trees - binding is now integrated there
+    skillTreesView()
 
   // ============================================================================
   // Event Handlers

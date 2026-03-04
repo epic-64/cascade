@@ -12,6 +12,7 @@ object SkillTreeView:
 
   def apply(
     onAllocatePoint: String => Unit,
+    onBindSkill: (String, Int) => Unit,
     onBack: () => Unit
   ): HtmlElement =
     val combatSkillStateSignal = VelorIdleState.gameSignal.map(_.adventureState.combatSkillState)
@@ -19,7 +20,7 @@ object SkillTreeView:
     div(
       cls := "velor-skill-tree-view",
 
-      // Header with available points
+      // Header with available points and current bindings
       div(
         cls := "velor-skill-tree-header",
         button(
@@ -33,10 +34,20 @@ object SkillTreeView:
             s"🔷 Skill Points: ${state.availablePoints}"
           }.distinct
         ),
-        button(
-          cls := "btn btn-secondary",
-          "⚔️ Bind Skills",
-          onClick --> { _ => VelorIdleState.setViewMode(VelorIdleState.ViewMode.SkillBinding) }
+        // Show current skill bindings summary
+        div(
+          cls := "velor-current-bindings",
+          children <-- combatSkillStateSignal.map { state =>
+            (0 until 4).map { slot =>
+              val boundSkill = state.getBoundSkill(slot).flatMap(SkillTrees.getSkillById)
+              div(
+                cls := "velor-binding-preview",
+                cls := (if boundSkill.isDefined then "has-skill" else "empty"),
+                span(cls := "velor-binding-preview-key", s"${slot + 1}"),
+                span(cls := "velor-binding-preview-icon", boundSkill.map(_.icon).getOrElse("➖"))
+              )
+            }.toVector
+          }.distinct
         )
       ),
 
@@ -45,7 +56,7 @@ object SkillTreeView:
         case None => treeSelector()
         case Some(treeId) =>
           SkillTrees.getById(treeId) match
-            case Some(tree) => treeDetail(tree, onAllocatePoint)
+            case Some(tree) => treeDetail(tree, onAllocatePoint, onBindSkill)
             case None => div("Unknown skill tree")
     )
 
@@ -80,7 +91,7 @@ object SkillTreeView:
       )
     )
 
-  private def treeDetail(tree: SkillTree, onAllocatePoint: String => Unit): HtmlElement =
+  private def treeDetail(tree: SkillTree, onAllocatePoint: String => Unit, onBindSkill: (String, Int) => Unit): HtmlElement =
     val combatSkillStateSignal = VelorIdleState.gameSignal.map(_.adventureState.combatSkillState)
 
     div(
@@ -101,18 +112,25 @@ object SkillTreeView:
       // Skills grid
       div(
         cls := "velor-skill-tree-skills",
-        tree.skills.map(skill => skillNode(skill, combatSkillStateSignal, onAllocatePoint))
+        tree.skills.map(skill => skillNode(skill, combatSkillStateSignal, onAllocatePoint, onBindSkill))
       )
     )
 
   private def skillNode(
     skill: TreeSkill,
     combatSkillStateSignal: Signal[CombatSkillState],
-    onAllocatePoint: String => Unit
+    onAllocatePoint: String => Unit,
+    onBindSkill: (String, Int) => Unit
   ): HtmlElement =
     val levelSignal = combatSkillStateSignal.map(_.getSkillLevel(skill.id)).distinct
     val canAllocateSignal = combatSkillStateSignal.map { state =>
       state.availablePoints > 0 && state.getSkillLevel(skill.id) < skill.maxLevel
+    }.distinct
+    val isUnlockedSignal = levelSignal.map(_ > 0)
+    
+    // Which slot (if any) this skill is bound to
+    val boundSlotSignal = combatSkillStateSignal.map { state =>
+      state.boundSkills.zipWithIndex.find(_._1.contains(skill.id)).map(_._2)
     }.distinct
 
     div(
@@ -161,12 +179,40 @@ object SkillTreeView:
         )
       else emptyNode,
 
-      // Allocate button
-      button(
-        cls := "btn btn-primary velor-skill-allocate-btn",
-        "➕ Allocate Point",
-        disabled <-- canAllocateSignal.map(!_),
-        onClick --> { _ => onAllocatePoint(skill.id) }
-      )
+      // Action buttons row
+      div(
+        cls := "velor-skill-node-actions",
+        
+        // Allocate button
+        button(
+          cls := "btn btn-primary velor-skill-allocate-btn",
+          "➕",
+          title := "Allocate Point",
+          disabled <-- canAllocateSignal.map(!_),
+          onClick --> { _ => onAllocatePoint(skill.id) }
+        ),
+        
+        // Bind buttons (1, 2, 3, 4) - only shown when skill is unlocked
+        div(
+          cls := "velor-skill-bind-buttons",
+          display <-- isUnlockedSignal.map(if _ then "flex" else "none"),
+          
+          (0 until 4).map { slot =>
+            button(
+              cls := "btn velor-bind-slot-btn",
+              cls <-- boundSlotSignal.map(bs => if bs.contains(slot) then "btn-accent active" else "btn-secondary"),
+              s"${slot + 1}",
+              title := s"Bind to slot ${slot + 1}",
+              onClick.stopPropagation --> { _ => onBindSkill(skill.id, slot) }
+            )
+          }
+        )
+      ),
+      
+      // Show current binding status
+      child <-- boundSlotSignal.map:
+        case Some(slot) => 
+          div(cls := "velor-skill-bound-indicator", s"✓ Bound to slot ${slot + 1}")
+        case None => 
+          emptyNode
     )
-
