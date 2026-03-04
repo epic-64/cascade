@@ -1,0 +1,79 @@
+/* Velor Idle - Inventory Styles */
+
+/* ============================================================================
+   Inventory Panel
+   ============================================================================ */
+
+.velor-inventory {
+  background: var(--velor-card);
+  border-radius: var(--velor-radius-lg);
+  padding: var(--velor-spacing-md);
+  border: 1px solid var(--velor-border);
+}
+
+.velor-inventory-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--velor-spacing-md);
+}
+
+.velor-inventory-title {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.velor-inventory-slots {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.velor-inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--velor-spacing-xs);
+}
+
+@media (min-width: 500px) {
+  .velor-inventory-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+.velor-item-slot {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--velor-bg-secondary);
+  border-radius: var(--velor-radius-sm);
+  border: 1px solid var(--velor-border);
+  position: relative;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.velor-item-slot:hover {
+  border-color: var(--velor-border-bright);
+}
+
+.velor-item-slot.empty {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.velor-item-slot-icon {
+  font-size: 1.5rem;
+}
+
+.velor-item-slot-count {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
