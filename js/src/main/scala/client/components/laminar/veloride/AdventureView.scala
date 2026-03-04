@@ -227,8 +227,8 @@ object AdventureView:
           val xpIntoLevel = s.xp - currentLevelXp
           val xpNeeded = nextLevelXp - currentLevelXp
           s"XP: $xpIntoLevel / $xpNeeded"
-        }),
-        span(child.text <-- skillStateSignal.map(s => s"Total: ${s.xp}"))
+        }.distinct),
+        span(child.text <-- skillStateSignal.map(s => s"Total: ${s.xp}").distinct)
       ),
       div(
         cls := "velor-xp-bar",
@@ -241,7 +241,7 @@ object AdventureView:
               ((s.xp - currentLevelXp).toDouble / (nextLevelXp - currentLevelXp) * 100).min(100)
             else 0.0
             s"$progress%"
-          }
+          }.distinct
         )
       )
     )
@@ -267,7 +267,7 @@ object AdventureView:
             cls := "velor-enemy-card",
             cls <-- adventureLevel.map(s =>
               if s.level >= enemy.levelRequired then "unlocked" else "locked"
-            ),
+            ).distinct,
             div(cls := "velor-enemy-icon", enemy.icon),
             div(
               cls := "velor-enemy-info",
@@ -290,7 +290,7 @@ object AdventureView:
                 child.text <-- adventureLevel.map { s =>
                   if s.level >= enemy.levelRequired then s"XP: ${enemy.xpReward} | 💰 ${enemy.goldReward._1}-${enemy.goldReward._2}"
                   else s"Requires Lv.${enemy.levelRequired}"
-                }
+                }.distinct
               )
             ),
             onClick --> { _ =>
@@ -372,29 +372,38 @@ object AdventureView:
         span(child.text <-- combatSkillStateSignal.map(s => s"⚔️ ${s.boundSkills.flatten.size}/4 skills").distinct)
       ),
       // Resistances row (only show if player has any)
-      child <-- adventureStateSignal.map { state =>
-        val resistSeq = state.resistances.asSeq
-        if resistSeq.nonEmpty then
-          div(
-            cls := "velor-player-resistances",
-            resistSeq.map { case (icon, name, value) =>
-              span(title := name, s"$icon$value%")
-            }
-          )
-        else emptyNode
-      },
+      div(
+        cls := "velor-player-resistances",
+        display <-- adventureStateSignal.map(s => if s.resistances.asSeq.nonEmpty then "flex" else "none").distinct,
+        children <-- adventureStateSignal.map { state =>
+          state.resistances.asSeq.map { case (icon, name, value) =>
+            span(title := name, s"$icon$value%")
+          }
+        }.distinct
+      ),
       // Rest button or resting status
       div(
         cls := "velor-player-stats-regen",
-        child <-- isRestingSignal.combineWith(needsRestSignal).map {
-          case (true, _) => span("🛏️ Resting... regenerating HP and Mana")
-          case (false, true) => button(
-            cls := "btn btn-secondary",
-            "🛏️ Rest",
-            onClick --> { _ => onRest() }
-          )
-          case (false, false) => span("✨ Fully recovered!")
-        }
+        span(
+          "🛏️ Resting... regenerating HP and Mana",
+          display <-- isRestingSignal.map(if _ then "inline" else "none")
+        ),
+        button(
+          cls := "btn btn-secondary",
+          "🛏️ Rest",
+          display <-- isRestingSignal.combineWith(needsRestSignal).map {
+            case (false, true) => "inline-block"
+            case _ => "none"
+          }.distinct,
+          onClick --> { _ => onRest() }
+        ),
+        span(
+          "✨ Fully recovered!",
+          display <-- isRestingSignal.combineWith(needsRestSignal).map {
+            case (false, false) => "inline"
+            case _ => "none"
+          }.distinct
+        )
       )
     )
 
@@ -420,14 +429,14 @@ object AdventureView:
     // Event tracking state - using event IDs for reliable deduplication
     var lastSeenInstanceId = -1L
     var lastProcessedEventId = -1L
-    
+
     // Current combat state for reconciliation (updated by signal observer)
     var currentCombatState: Option[CombatState] = None
-    
+
     // Reconciliation: periodically sync visual HP toward authoritative HP
     val ReconciliationIntervalMs = 500
     var reconciliationTimerId: Option[Int] = None
-    
+
     def startReconciliation(): Unit =
       reconciliationTimerId.foreach(dom.window.clearInterval(_))
       reconciliationTimerId = Some(dom.window.setInterval(() => {
@@ -435,18 +444,18 @@ object AdventureView:
           // Smoothly move visual HP toward authoritative HP
           val currentVisualEnemy = visualEnemyHpVar.now()
           val currentVisualPlayer = visualPlayerHpVar.now()
-          
+
           // If visual HP differs significantly from authoritative, snap toward it
           if math.abs(currentVisualEnemy - c.enemyCurrentHp) > 1 then
             val newVisual = currentVisualEnemy + ((c.enemyCurrentHp - currentVisualEnemy) * 0.3).toInt
             visualEnemyHpVar.set(newVisual.max(0).min(c.enemy.maxHp))
-          
+
           if math.abs(currentVisualPlayer - c.playerCurrentHp) > 1 then
             val newVisual = currentVisualPlayer + ((c.playerCurrentHp - currentVisualPlayer) * 0.3).toInt
             visualPlayerHpVar.set(newVisual.max(0).min(c.playerMaxHp))
         }
       }, ReconciliationIntervalMs))
-    
+
     def stopReconciliation(): Unit =
       reconciliationTimerId.foreach(dom.window.clearInterval(_))
       reconciliationTimerId = None
@@ -491,7 +500,7 @@ object AdventureView:
           case Some(combat) if !combat.isCombatOver =>
             combatEndedVar.set(false)
             currentCombatState = Some(combat)
-            
+
             // New combat instance? Reset our tracking and sync visual HP
             if combat.instanceId != lastSeenInstanceId then
               lastSeenInstanceId = combat.instanceId
@@ -499,15 +508,15 @@ object AdventureView:
               visualEnemyHpVar.set(combat.enemyCurrentHp)
               visualPlayerHpVar.set(combat.playerCurrentHp)
               startReconciliation()
-            
+
             // Process new events using ID-based deduplication
             val newEvents = combat.recentEvents.filter(_.id > lastProcessedEventId)
             if newEvents.nonEmpty then
               lastProcessedEventId = newEvents.map(_.id).max
-              
+
               newEvents.foreach { event =>
                 event.detail match
-                  case CombatEventDetail.PlayerAutoAttack(dmg) => 
+                  case CombatEventDetail.PlayerAutoAttack(dmg) =>
                     // Fire projectile with damage effect - damage number shows when it lands
                     fireAutoAttackProjectile(true, ProjectileEffect.Damage(dmg, targetIsPlayer = false))
                   case CombatEventDetail.EnemyAutoAttack(dmg) =>
@@ -521,7 +530,7 @@ object AdventureView:
                   case CombatEventDetail.PlayerSkillUsed(skillName, dmg) =>
                     // Find the skill slot - check current, base, chain skills, and nested chains
                     val slotIndex = combat.skillSlots.indexWhere { slot =>
-                      slot.currentSkill.name == skillName || 
+                      slot.currentSkill.name == skillName ||
                       slot.baseSkill.name == skillName ||
                       slot.baseSkill.chainInto.exists(_.skill.name == skillName) ||
                       slot.baseSkill.chainInto.flatMap(_.skill.chainInto).exists(_.skill.name == skillName)
@@ -529,23 +538,23 @@ object AdventureView:
                     if slotIndex >= 0 then
                       // Find the actual skill icon (could be base, chain, or nested chain)
                       val slot = combat.skillSlots(slotIndex)
-                      val icon = if slot.baseSkill.name == skillName then 
+                      val icon = if slot.baseSkill.name == skillName then
                         slot.baseSkill.icon
                       else if slot.baseSkill.chainInto.exists(_.skill.name == skillName) then
                         slot.baseSkill.chainInto.get.skill.icon
                       else if slot.baseSkill.chainInto.flatMap(_.skill.chainInto).exists(_.skill.name == skillName) then
                         slot.baseSkill.chainInto.get.skill.chainInto.get.skill.icon
-                      else 
+                      else
                         slot.currentSkill.icon
                       fireSkillProjectile(icon, slotIndex, ProjectileEffect.SkillDamage(dmg))
                   // These effects are instant (no projectile) - also update visual HP
-                  case CombatEventDetail.PlayerHealed(amt) => 
+                  case CombatEventDetail.PlayerHealed(amt) =>
                     showDamageNumber(amt, true, true)
                     visualPlayerHpVar.update(hp => (hp + amt).min(combat.playerMaxHp))
-                  case CombatEventDetail.EnemyDotTick(dmg, _) => 
+                  case CombatEventDetail.EnemyDotTick(dmg, _) =>
                     showDamageNumber(dmg, false, false)
                     visualEnemyHpVar.update(hp => (hp - dmg).max(0))
-                  case CombatEventDetail.PlayerDotTick(dmg, _) => 
+                  case CombatEventDetail.PlayerDotTick(dmg, _) =>
                     showDamageNumber(dmg, true, false)
                     visualPlayerHpVar.update(hp => (hp - dmg).max(0))
                   case _ => ()
@@ -560,7 +569,7 @@ object AdventureView:
           case _ => ()
         }
       },
-      
+
       // Cleanup reconciliation timer on unmount
       onUnmountCallback(_ => stopReconciliation()),
 
