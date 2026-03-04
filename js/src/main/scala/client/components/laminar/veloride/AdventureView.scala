@@ -99,10 +99,15 @@ object AdventureView:
 
   private def enemySelectView(onStartCombat: String => Unit, inCombatSignal: Signal[Boolean]): HtmlElement =
     val adventureLevel = VelorIdleState.skillStateSignal(Skill.Adventure)
+    val adventureStateSignal = VelorIdleState.gameSignal.map(_.adventureState)
 
     div(
       cls := "velor-enemy-select",
       display <-- inCombatSignal.map(if _ then "none" else "flex"),
+      
+      // Player stats card (shows current HP/Mana before entering combat)
+      playerStatsCard(adventureStateSignal),
+      
       h3(cls := "velor-enemy-select-title", "Select an Enemy"),
       div(
         cls := "velor-enemy-list",
@@ -135,6 +140,60 @@ object AdventureView:
             }
           )
         }
+      )
+    )
+
+  private def playerStatsCard(adventureStateSignal: Signal[AdventureState]): HtmlElement =
+    div(
+      cls := "velor-player-stats-card",
+      div(
+        cls := "velor-player-stats-header",
+        span(cls := "velor-player-stats-icon", "🧙"),
+        span(cls := "velor-player-stats-title", "Your Status")
+      ),
+      div(
+        cls := "velor-player-stats-bars",
+        // HP bar
+        div(
+          cls := "velor-player-stat-row",
+          span(cls := "velor-player-stat-label", "HP"),
+          div(
+            cls := "velor-hp-bar-container",
+            div(
+              cls := "velor-hp-bar player",
+              width <-- adventureStateSignal.map { state =>
+                s"${(state.currentHp.toDouble / state.maxHp * 100).max(0)}%"
+              }
+            ),
+            div(
+              cls := "velor-hp-text",
+              child.text <-- adventureStateSignal.map(s => s"${s.currentHp} / ${s.maxHp}")
+            )
+          )
+        ),
+        // Mana bar
+        div(
+          cls := "velor-player-stat-row",
+          span(cls := "velor-player-stat-label", "MP"),
+          div(
+            cls := "velor-mana-bar-container",
+            div(
+              cls := "velor-mana-bar",
+              width <-- adventureStateSignal.map { state =>
+                s"${(state.currentMana.toDouble / state.maxMana * 100).max(0)}%"
+              }
+            ),
+            div(
+              cls := "velor-mana-text",
+              child.text <-- adventureStateSignal.map(s => s"${s.currentMana} / ${s.maxMana}")
+            )
+          )
+        )
+      ),
+      // Regen info
+      div(
+        cls := "velor-player-stats-regen",
+        span("Regenerating out of combat...")
       )
     )
 
@@ -222,10 +281,14 @@ object AdventureView:
         cls := "velor-entity-header",
         div(cls := "velor-entity-icon", child.text <-- combatSignal.map(_.map(_.enemy.icon).getOrElse(""))),
         div(cls := "velor-entity-name", child.text <-- combatSignal.map(_.map(_.enemy.name).getOrElse(""))),
-        span(
-          cls := "velor-status-badge stunned",
-          "💫 STUNNED",
-          display <-- combatSignal.map(c => if c.exists(_.enemyStun.isDefined) then "inline" else "none")
+        // Fixed-size status area
+        div(
+          cls := "velor-entity-status-area",
+          span(
+            cls := "velor-status-badge stunned",
+            "💫 STUNNED",
+            visibility <-- combatSignal.map(c => if c.exists(_.enemyStun.isDefined) then "visible" else "hidden")
+          )
         )
       ),
 
@@ -278,17 +341,21 @@ object AdventureView:
         cls := "velor-entity-header",
         div(cls := "velor-entity-icon", "🧙"),
         div(cls := "velor-entity-name", "You"),
-        // Shield indicator
-        span(
-          cls := "velor-status-badge shield",
-          child.text <-- combatSignal.map(_.flatMap(_.playerShield).map(s => s"🛡️ ${s.remainingAbsorb}").getOrElse("")),
-          display <-- combatSignal.map(c => if c.exists(_.playerShield.isDefined) then "inline" else "none")
-        ),
-        // Damage buff indicator
-        span(
-          cls := "velor-status-badge buff",
-          child.text <-- combatSignal.map(_.flatMap(_.playerDamageBuff).map(b => s"⬆️ +${(b.percent * 100).toInt}%").getOrElse("")),
-          display <-- combatSignal.map(c => if c.exists(_.playerDamageBuff.isDefined) then "inline" else "none")
+        // Fixed-size status area for buffs/debuffs
+        div(
+          cls := "velor-entity-status-area",
+          // Shield indicator
+          span(
+            cls := "velor-status-badge shield",
+            child.text <-- combatSignal.map(_.flatMap(_.playerShield).map(s => s"🛡️ ${s.remainingAbsorb}").getOrElse("🛡️ 0")),
+            visibility <-- combatSignal.map(c => if c.exists(_.playerShield.isDefined) then "visible" else "hidden")
+          ),
+          // Damage buff indicator
+          span(
+            cls := "velor-status-badge buff",
+            child.text <-- combatSignal.map(_.flatMap(_.playerDamageBuff).map(b => s"⬆️ +${(b.percent * 100).toInt}%").getOrElse("⬆️ +0%")),
+            visibility <-- combatSignal.map(c => if c.exists(_.playerDamageBuff.isDefined) then "visible" else "hidden")
+          )
         )
       ),
 

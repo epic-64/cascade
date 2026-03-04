@@ -2374,6 +2374,14 @@
   flex: 1;
 }
 
+/* Fixed-size status area for buffs/debuffs */
+.velor-entity-status-area {
+  display: flex;
+  gap: var(--velor-spacing-xs);
+  min-width: 120px;
+  justify-content: flex-end;
+}
+
 .velor-status-badge {
   font-size: 0.75rem;
   padding: 2px 6px;
@@ -2738,3 +2746,66 @@
   animation: velor-victory-bounce 0.6s ease-out forwards;
 }
 
+/* ============================================================================
+   Player Stats Card (Enemy Select Screen)
+   ============================================================================ */
+
+.velor-player-stats-card {
+  background: var(--velor-card);
+  border-radius: var(--velor-radius-md);
+  padding: var(--velor-spacing-md);
+  border: 1px solid var(--velor-accent);
+  margin-bottom: var(--velor-spacing-sm);
+}
+
+.velor-player-stats-header {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-sm);
+  margin-bottom: var(--velor-spacing-sm);
+}
+
+.velor-player-stats-icon {
+  font-size: 1.5rem;
+}
+
+.velor-player-stats-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.velor-player-stats-bars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-sm);
+}
+
+.velor-player-stat-row {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-sm);
+}
+
+.velor-player-stat-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  width: 30px;
+  flex-shrink: 0;
+}
+
+.velor-player-stat-row .velor-hp-bar-container,
+.velor-player-stat-row .velor-mana-bar-container {
+  flex: 1;
+}
+
+.velor-player-stats-regen {
+  margin-top: var(--velor-spacing-sm);
+  padding-top: var(--velor-spacing-sm);
+  border-top: 1px solid var(--velor-border);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: center;
+  font-style: italic;
+}
