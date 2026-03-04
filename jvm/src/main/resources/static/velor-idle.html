@@ -53,6 +53,11 @@
         inventoryCss.href = '/static/velor-inventory.css?v=' + v;
         document.head.appendChild(inventoryCss);
 
+        const skilltreesCss = document.createElement('link');
+        skilltreesCss.rel = 'stylesheet';
+        skilltreesCss.href = '/static/velor-skilltrees.css?v=' + v;
+        document.head.appendChild(skilltreesCss);
+
         const js = document.createElement('script');
         js.src = '/static/js/main.js?v=' + v;
         document.head.appendChild(js);

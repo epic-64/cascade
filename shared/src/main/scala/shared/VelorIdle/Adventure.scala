@@ -477,8 +477,9 @@ case class AdventureState(
   inCombat: Boolean = false,
   combatState: Option[CombatState] = None,
   selectedEnemyId: Option[String] = None,
-  equippedWeapon: Weapon = Weapons.starterSword,
   equippedArmor: Option[Armor] = None,  // Future
+  // Combat skill tree state
+  combatSkillState: CombatSkillState = CombatSkillState.initial,
   // Persistent player stats (persists between combats)
   currentHp: Int = AdventureState.BaseMaxHp,
   currentMana: Int = AdventureState.BaseMaxMana,
@@ -487,7 +488,7 @@ case class AdventureState(
 ) derives ReadWriter:
   def maxHp: Int = AdventureState.BaseMaxHp + equippedArmor.map(_.maxHpBonus).getOrElse(0)
   def maxMana: Int = AdventureState.BaseMaxMana
-  def attackRating: Int = AdventureState.BaseAttackRating + equippedWeapon.attackDamage
+  def attackRating: Int = AdventureState.BaseAttackRating
   def defenseRating: Int = AdventureState.BaseDefenseRating + equippedArmor.map(_.defense).getOrElse(0)
   def resistances: Resistances = Resistances.none // TODO: Add from equipment
 

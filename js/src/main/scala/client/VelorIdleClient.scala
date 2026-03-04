@@ -74,6 +74,8 @@ object VelorIdleClient:
           case VelorIdleState.ViewMode.Character => characterView()
           case VelorIdleState.ViewMode.Shop => shopView()
           case VelorIdleState.ViewMode.Settings => settingsView()
+          case VelorIdleState.ViewMode.SkillTrees => skillTreesView()
+          case VelorIdleState.ViewMode.SkillBinding => skillBindingView()
       ),
 
       // Bottom navigation
@@ -133,6 +135,19 @@ object VelorIdleClient:
         )
       ),
       DevPanel()
+    )
+
+  private def skillTreesView(): HtmlElement =
+    SkillTreeView(
+      onAllocatePoint = handleAllocateSkillPoint,
+      onBack = () => VelorIdleState.setViewMode(VelorIdleState.ViewMode.Adventure)
+    )
+
+  private def skillBindingView(): HtmlElement =
+    SkillBindingView(
+      onBindSkill = handleBindSkill,
+      onUnbindSkill = handleUnbindSkill,
+      onBack = () => VelorIdleState.setViewMode(VelorIdleState.ViewMode.SkillTrees)
     )
 
   // ============================================================================
@@ -276,6 +291,45 @@ object VelorIdleClient:
     currentGame = VelorIdleLogic.startRest(currentGame)
     VelorIdleState.update(currentGame)
     isDirty = true
+
+  // ============================================================================
+  // Skill Tree Event Handlers
+  // ============================================================================
+
+  private def handleAllocateSkillPoint(skillId: String): Unit =
+    VelorIdleLogic.allocateCombatSkillPoint(currentGame, skillId) match
+      case Right(newGame) =>
+        currentGame = newGame
+        VelorIdleState.update(currentGame)
+        isDirty = true
+        shared.VelorIdle.SkillTrees.getSkillById(skillId).foreach { skill =>
+          val level = newGame.adventureState.combatSkillState.getSkillLevel(skillId)
+          ToastSystem.show(s"✨ ${skill.name} → Level $level")
+        }
+      case Left(error) =>
+        ToastSystem.show(s"❌ $error")
+
+  private def handleBindSkill(skillId: String, slot: Int): Unit =
+    VelorIdleLogic.bindCombatSkill(currentGame, skillId, slot) match
+      case Right(newGame) =>
+        currentGame = newGame
+        VelorIdleState.update(currentGame)
+        isDirty = true
+        shared.VelorIdle.SkillTrees.getSkillById(skillId).foreach { skill =>
+          ToastSystem.show(s"⚔️ ${skill.name} bound to Slot ${slot + 1}")
+        }
+      case Left(error) =>
+        ToastSystem.show(s"❌ $error")
+
+  private def handleUnbindSkill(slot: Int): Unit =
+    VelorIdleLogic.unbindCombatSkill(currentGame, slot) match
+      case Right(newGame) =>
+        currentGame = newGame
+        VelorIdleState.update(currentGame)
+        isDirty = true
+        ToastSystem.show(s"✖ Slot ${slot + 1} cleared")
+      case Left(error) =>
+        ToastSystem.show(s"❌ $error")
 
   private def handleReset(): Unit =
     if dom.window.confirm("Are you sure you want to reset? All progress will be lost!") then

@@ -94,6 +94,8 @@ object VelorIdleState:
     case Character      // Character screen with sub-tabs (Potions, Tablets, Equipment)
     case Shop
     case Settings
+    case SkillTrees     // Skill tree selection and point allocation
+    case SkillBinding   // Bind skills to combat slots
 
   enum CharacterTab:
     case Potions
