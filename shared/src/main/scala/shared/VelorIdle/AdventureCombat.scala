@@ -396,8 +396,6 @@ object AdventureCombat:
     val slot = combat.skillSlots(slotIndex)
     val skill = slot.currentSkill
     val isChainSkill = slot.isInChainWindow(currentTime) && skill.id != slot.baseSkill.id
-    val isTrainingDummy = combat.enemy.id == "training_dummy"
-    val effectiveManaCost = if isTrainingDummy then 0 else skill.manaCost
 
     // Validation
     if skill.id == "empty" then Left("No skill in this slot")
@@ -406,17 +404,17 @@ object AdventureCombat:
       Left(f"Global cooldown (${combat.globalCooldownRemainingMs(currentTime) / 1000.0}%.1fs)")
     else if slot.isOnCooldown(currentTime) && !isChainSkill then
       Left(f"${skill.name} on cooldown (${slot.cooldownRemainingMs(currentTime) / 1000.0}%.1fs)")
-    else if combat.playerMana < effectiveManaCost then
+    else if combat.playerMana < skill.manaCost then
       Left(s"Not enough mana (${skill.manaCost} required)")
     else
       // Execute skill
       val newCombat = if skill.castTimeMs > 0 then
         combat.copy(
-          playerMana = combat.playerMana - effectiveManaCost,
+          playerMana = combat.playerMana - skill.manaCost,
           castingSkill = Some(CastingState(slotIndex, skill, currentTime, currentTime + skill.castTimeMs))
         )
       else
-        val (executed, _) = executeSkill(combat, slotIndex, skill, currentTime, isTrainingDummy)
+        val (executed, _) = executeSkill(combat, slotIndex, skill, currentTime)
         executed
 
       Right(game.copy(adventureState = game.adventureState.copy(combatState = Some(newCombat))))
@@ -425,12 +423,11 @@ object AdventureCombat:
     combat: CombatState,
     slotIndex: Int,
     skill: CombatSkill,
-    currentTime: Long,
-    isTrainingDummy: Boolean
+    currentTime: Long
   ): (CombatState, Vector[CombatEvent]) =
     var c = combat.copy(
       globalCooldownEndsAt = currentTime + GlobalCooldownMs,
-      playerMana = combat.playerMana - (if isTrainingDummy then 0 else skill.manaCost)
+      playerMana = combat.playerMana - skill.manaCost
     )
     var events = Vector.empty[CombatEvent]
     var totalDamage = 0
