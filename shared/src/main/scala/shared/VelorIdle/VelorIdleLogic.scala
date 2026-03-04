@@ -832,6 +832,48 @@ object VelorIdleLogic:
             inventory = game.inventory.copy(slots = newSlots, maxSlots = newMaxSlots)
           ))
 
+  // ============================================================================
+  // Combat Skill Tree Actions
+  // ============================================================================
+
+  /** Allocate a skill point to a combat skill */
+  def allocateCombatSkillPoint(game: VelorIdleGame, skillId: String): Either[String, VelorIdleGame] =
+    SkillTreeLogic.allocatePoint(game.adventureState.combatSkillState, skillId).map { newCombatSkillState =>
+      game.copy(
+        adventureState = game.adventureState.copy(combatSkillState = newCombatSkillState)
+      )
+    }
+
+  /** Bind a combat skill to a slot (1-4) */
+  def bindCombatSkill(game: VelorIdleGame, skillId: String, slot: Int): Either[String, VelorIdleGame] =
+    SkillTreeLogic.bindSkill(game.adventureState.combatSkillState, skillId, slot).map { newCombatSkillState =>
+      game.copy(
+        adventureState = game.adventureState.copy(combatSkillState = newCombatSkillState)
+      )
+    }
+
+  /** Unbind a combat skill from a slot */
+  def unbindCombatSkill(game: VelorIdleGame, slot: Int): Either[String, VelorIdleGame] =
+    SkillTreeLogic.unbindSkill(game.adventureState.combatSkillState, slot).map { newCombatSkillState =>
+      game.copy(
+        adventureState = game.adventureState.copy(combatSkillState = newCombatSkillState)
+      )
+    }
+
+  /** Reset all combat skill points (full refund) */
+  def resetCombatSkillPoints(game: VelorIdleGame): VelorIdleGame =
+    val newCombatSkillState = SkillTreeLogic.resetPoints(game.adventureState.combatSkillState)
+    game.copy(
+      adventureState = game.adventureState.copy(combatSkillState = newCombatSkillState)
+    )
+
+  /** Award combat skill points to the player */
+  def awardCombatSkillPoints(game: VelorIdleGame, points: Int): VelorIdleGame =
+    val newCombatSkillState = SkillTreeLogic.awardPoints(game.adventureState.combatSkillState, points)
+    game.copy(
+      adventureState = game.adventureState.copy(combatSkillState = newCombatSkillState)
+    )
+
 // ============================================================================
 // Game Events (for UI feedback)
 // ============================================================================

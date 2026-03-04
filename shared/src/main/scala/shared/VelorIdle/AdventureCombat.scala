@@ -8,6 +8,10 @@ object AdventureCombat:
   // Global cooldown duration in milliseconds
   private val GlobalCooldownMs: Long = 1000L
 
+  // Base auto-attack stats (without equipment)
+  private val BaseAutoAttackDamage: Int = 5
+  private val BaseAutoAttackSpeedMs: Long = 2000L
+
   // ============================================================================
   // Evade Calculation
   // ============================================================================
@@ -43,7 +47,6 @@ object AdventureCombat:
         Left(s"Requires Adventure level ${enemy.levelRequired}")
       case Some(enemy) =>
         val advState = game.adventureState
-        val weapon = advState.equippedWeapon
 
         // Use persisted player stats
         val maxHp = advState.maxHp
@@ -51,8 +54,8 @@ object AdventureCombat:
         val currentHp = advState.currentHp.min(maxHp)
         val currentMana = advState.currentMana.min(maxMana)
 
-        // Build 4 skill slots from weapon
-        val skillSlots = weapon.skills.take(4).map(SkillSlotState.fromSkill)
+        // Build 4 skill slots from combat skill state (skill tree system)
+        val skillSlots = CombatSkillHelpers.buildSkillSlots(advState.combatSkillState)
 
         // Each combat instance gets a unique ID - UI uses this to detect new combats
         val instanceId = advState.nextCombatInstanceId
@@ -173,7 +176,7 @@ object AdventureCombat:
 
     // 3. Process auto-attacks (only if enemy not already dead from DoTs)
     if !c.isEnemyDead then
-      val (afterAutos, autoEvents) = processAutoAttacks(c, currentTime, advState.equippedWeapon, advState, random)
+      val (afterAutos, autoEvents) = processAutoAttacks(c, currentTime, advState, random)
       c = afterAutos
       events ++= autoEvents
 
@@ -319,15 +322,14 @@ object AdventureCombat:
   private def processAutoAttacks(
     combat: CombatState,
     currentTime: Long,
-    weapon: Weapon,
     advState: AdventureState,
     random: Random
   ): (CombatState, Vector[CombatEvent]) =
     var c = combat
     var events = Vector.empty[CombatEvent]
 
-    // Player auto-attack
-    if currentTime >= c.lastPlayerAutoAttack + weapon.attackSpeedMs then
+    // Player auto-attack - using base auto-attack stats
+    if currentTime >= c.lastPlayerAutoAttack + BaseAutoAttackSpeedMs then
       // Check if enemy evades (player attack rating vs enemy defense rating)
       val enemyEvades = rollEvade(advState.attackRating, c.enemy.defenseRating, random)
       if enemyEvades then
@@ -337,7 +339,7 @@ object AdventureCombat:
         )
         events :+= CombatEvent.EnemyEvaded
       else
-        val damage = applyDamageBuff(weapon.attackDamage, c.playerDamageBuff)
+        val damage = applyDamageBuff(BaseAutoAttackDamage, c.playerDamageBuff)
         c = c.copy(
           enemyCurrentHp = (c.enemyCurrentHp - damage).max(0),
           lastPlayerAutoAttack = currentTime,
