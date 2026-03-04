@@ -2605,6 +2605,42 @@
   font-size: 0.8rem;
   font-weight: 700;
   color: white;
+  z-index: 2;
+}
+
+/* CSS custom property for animating the sweep angle */
+@property --gcd-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* GCD sweep overlay - clockwise vanishing effect */
+.velor-skill-gcd-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--velor-radius-md);
+  pointer-events: none;
+  z-index: 1;
+  --gcd-angle: 0deg;
+  background: conic-gradient(
+    from -90deg,
+    transparent var(--gcd-angle),
+    rgba(59, 130, 246, 0.6) var(--gcd-angle)
+  );
+}
+
+.velor-skill-gcd-overlay.active {
+  animation: velor-gcd-sweep 1s linear forwards;
+}
+
+@keyframes velor-gcd-sweep {
+  from {
+    --gcd-angle: 0deg;
+  }
+  to {
+    --gcd-angle: 360deg;
+  }
 }
 
 .velor-chain-indicator {
