@@ -98,21 +98,21 @@
 
 .velor-skill-tree-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: var(--velor-spacing-md);
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--velor-spacing-sm);
 }
 
 .velor-skill-tree-card {
   background: var(--velor-card);
   border: 2px solid var(--velor-border);
-  border-radius: var(--velor-radius-lg);
-  padding: var(--velor-spacing-lg);
+  border-radius: var(--velor-radius-md);
+  padding: var(--velor-spacing-sm);
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--velor-spacing-sm);
+  gap: var(--velor-spacing-xs);
 }
 
 .velor-skill-tree-card:hover {
@@ -122,22 +122,17 @@
 }
 
 .velor-skill-tree-icon {
-  font-size: 3rem;
+  font-size: 1.8rem;
 }
 
 .velor-skill-tree-name {
-  font-size: 1.3rem;
+  font-size: 1rem;
   font-weight: 700;
 }
 
-.velor-skill-tree-desc {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  text-align: center;
-}
 
 .velor-skill-tree-points {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--velor-accent);
   font-weight: 600;
 }
