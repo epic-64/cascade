@@ -136,17 +136,22 @@ object SkillTreeView:
       cls := "velor-skill-node",
       cls <-- levelSignal.map(level => if level > 0 then "unlocked" else "locked"),
 
-      // Skill icon and name
+      // Skill icon, name, level, and allocate button
       div(
         cls := "velor-skill-node-header",
         span(cls := "velor-skill-node-icon", skill.icon),
-        span(cls := "velor-skill-node-name", skill.name)
-      ),
-
-      // Level display
-      div(
-        cls := "velor-skill-node-level",
-        child.text <-- levelSignal.map(level => s"Level: $level / ${skill.maxLevel}")
+        span(cls := "velor-skill-node-name", skill.name),
+        span(
+          cls := "velor-skill-node-level",
+          child.text <-- levelSignal.map(level => s"$level / ${skill.maxLevel}")
+        ),
+        button(
+          cls := "btn btn-primary velor-skill-allocate-btn",
+          "➕",
+          title := "Allocate Point",
+          disabled <-- canAllocateSignal.map(!_),
+          onClick --> { _ => onAllocatePoint(skill.id) }
+        )
       ),
 
       // Description
@@ -199,40 +204,26 @@ object SkillTreeView:
         )
       else emptyNode,
 
-      // Action buttons row
+      // Bind buttons row (1, 2, 3, 4) - only shown when skill is unlocked
       div(
         cls := "velor-skill-node-actions",
+        display <-- isUnlockedSignal.map(if _ then "flex" else "none"),
         
-        // Allocate button
-        button(
-          cls := "btn btn-primary velor-skill-allocate-btn",
-          "➕",
-          title := "Allocate Point",
-          disabled <-- canAllocateSignal.map(!_),
-          onClick --> { _ => onAllocatePoint(skill.id) }
-        ),
+        (0 until 4).map { slot =>
+          button(
+            cls := "btn velor-bind-slot-btn",
+            cls <-- boundSlotSignal.map(bs => if bs.contains(slot) then "btn-accent active" else "btn-secondary"),
+            s"${slot + 1}",
+            title := s"Bind to slot ${slot + 1}",
+            onClick.stopPropagation --> { _ => onBindSkill(skill.id, slot) }
+          )
+        },
         
-        // Bind buttons (1, 2, 3, 4) - only shown when skill is unlocked
-        div(
-          cls := "velor-skill-bind-buttons",
-          display <-- isUnlockedSignal.map(if _ then "flex" else "none"),
-          
-          (0 until 4).map { slot =>
-            button(
-              cls := "btn velor-bind-slot-btn",
-              cls <-- boundSlotSignal.map(bs => if bs.contains(slot) then "btn-accent active" else "btn-secondary"),
-              s"${slot + 1}",
-              title := s"Bind to slot ${slot + 1}",
-              onClick.stopPropagation --> { _ => onBindSkill(skill.id, slot) }
-            )
-          }
-        )
-      ),
-      
-      // Show current binding status
-      child <-- boundSlotSignal.map:
-        case Some(slot) => 
-          div(cls := "velor-skill-bound-indicator", s"✓ Bound to slot ${slot + 1}")
-        case None => 
-          emptyNode
+        // Show current binding status
+        child <-- boundSlotSignal.map:
+          case Some(slot) => 
+            span(cls := "velor-skill-bound-indicator", s"✓ Slot ${slot + 1}")
+          case None => 
+            span(cls := "velor-skill-unbound-indicator", "Not bound")
+      )
     )

@@ -216,6 +216,7 @@
   font-size: 0.75rem;
   color: var(--velor-accent);
   font-weight: 600;
+  margin-left: auto;
 }
 
 .velor-skill-node-desc {
@@ -244,9 +245,9 @@
 
 .velor-skill-chain-indicator {
   font-size: 0.75rem;
-  color: var(--velor-xp);
+  color: var(--velor-warning);
   padding: var(--velor-spacing-xs);
-  background: rgba(251, 191, 36, 0.15);
+  background: var(--velor-warning-bg);
   border-radius: var(--velor-radius-sm);
 }
 
@@ -256,9 +257,9 @@
   flex-direction: column;
   gap: var(--velor-spacing-xs);
   padding: var(--velor-spacing-xs);
-  background: rgba(251, 191, 36, 0.1);
+  background: var(--velor-warning-bg);
   border-radius: var(--velor-radius-sm);
-  border-left: 2px solid var(--velor-xp);
+  border-left: 2px solid var(--velor-warning);
 }
 
 .velor-chain-skill-item {
@@ -340,7 +341,14 @@
   font-size: 0.75rem;
   color: var(--velor-accent);
   font-weight: 600;
-  margin-top: var(--velor-spacing-xs);
+  margin-left: auto;
+}
+
+.velor-skill-unbound-indicator {
+  font-size: 0.75rem;
+  color: var(--velor-warning);
+  font-weight: 600;
+  margin-left: auto;
 }
 
 /* ============================================================================
@@ -460,7 +468,7 @@
 
 .velor-binding-chain-info {
   font-size: 0.7rem;
-  color: var(--velor-xp);
+  color: var(--velor-warning);
 }
 
 .velor-unbind-btn {
@@ -599,7 +607,7 @@
 
 .velor-bindable-chain-info {
   font-size: 0.75rem;
-  color: var(--velor-xp);
+  color: var(--velor-warning);
 }
 
 .velor-bind-buttons {
