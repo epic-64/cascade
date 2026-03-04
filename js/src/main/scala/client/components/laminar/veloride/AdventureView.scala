@@ -365,11 +365,22 @@ object AdventureView:
                   fireAutoAttackProjectile(isPlayer = false)
                   showDamageNumber(dmg, true, false)
                 case CombatEvent.PlayerSkillUsed(skillName, dmg) => 
+                  // Find the skill slot - check current, base, and chain skills
                   val slotIndex = combat.skillSlots.indexWhere { slot =>
-                    slot.currentSkill.name == skillName || slot.baseSkill.name == skillName
+                    slot.currentSkill.name == skillName || 
+                    slot.baseSkill.name == skillName ||
+                    slot.baseSkill.chainInto.exists(_.skill.name == skillName)
                   }
                   if slotIndex >= 0 then
-                    fireProjectile(combat.skillSlots(slotIndex).baseSkill.icon, slotIndex)
+                    // Find the actual skill icon (could be base or chain)
+                    val slot = combat.skillSlots(slotIndex)
+                    val icon = if slot.baseSkill.name == skillName then 
+                      slot.baseSkill.icon
+                    else if slot.baseSkill.chainInto.exists(_.skill.name == skillName) then
+                      slot.baseSkill.chainInto.get.skill.icon
+                    else 
+                      slot.currentSkill.icon
+                    fireProjectile(icon, slotIndex)
                   if dmg > 0 then showDamageNumber(dmg, false, false)
                 case CombatEvent.PlayerHealed(amt) => showDamageNumber(amt, true, true)
                 case CombatEvent.EnemyDotTick(dmg, _) => showDamageNumber(dmg, false, false)
