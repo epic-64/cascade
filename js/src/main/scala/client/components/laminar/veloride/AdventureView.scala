@@ -586,16 +586,17 @@ object AdventureView:
 
     button(
       cls := "velor-skill-slot",
-      cls <-- slotSignal.map { slot =>
+      cls <-- combatSignal.combineWith(slotSignal).map { case (combat, slot) =>
         val classes = scala.collection.mutable.ListBuffer[String]()
         slot match
           case None => classes += "empty"
           case Some(s) =>
             val now = System.currentTimeMillis()
             val isChainSkill = s.isInChainWindow(now) && s.currentSkill.id != s.baseSkill.id
+            val isOnGcd = combat.exists(_.isOnGlobalCooldown(now))
             if s.currentSkill.id == "empty" then classes += "empty"
-            // Only show on-cooldown if not a usable chain skill
-            if s.isOnCooldown(now) && !isChainSkill then classes += "on-cooldown"
+            // Show on-cooldown if GCD active OR skill cooldown (but not for chain skills)
+            if (s.isOnCooldown(now) && !isChainSkill) || isOnGcd then classes += "on-cooldown"
             if isChainSkill then classes += "chain-skill"
         classes.mkString(" ")
       },
@@ -605,8 +606,9 @@ object AdventureView:
           val isChainSkill = slot.isInChainWindow(now) && slot.currentSkill.id != slot.baseSkill.id
           val isEmpty = slot.currentSkill.id == "empty"
           val isOnCooldownAndNotChain = slot.isOnCooldown(now) && !isChainSkill
+          val isOnGcd = c.exists(_.isOnGlobalCooldown(now))
           val notEnoughMana = c.exists(_.playerMana < slot.currentSkill.manaCost)
-          isEmpty || isOnCooldownAndNotChain || notEnoughMana
+          isEmpty || isOnCooldownAndNotChain || isOnGcd || notEnoughMana
         }
       },
 
@@ -626,25 +628,27 @@ object AdventureView:
         display <-- skillSignal.map(s => if s.exists(_.id != "empty") then "block" else "none")
       ),
 
-      // Cooldown overlay - don't show if chain skill is active
+      // Cooldown overlay - shows GCD or skill cooldown, whichever is longer
       div(
         cls := "velor-skill-cooldown-overlay",
-        child.text <-- slotSignal.map { slot =>
+        child.text <-- combatSignal.combineWith(slotSignal).map { case (combat, slot) =>
           val now = System.currentTimeMillis()
-          slot.filter { s =>
+          val gcdRemaining = combat.map(_.globalCooldownRemainingMs(now)).getOrElse(0L)
+          val skillCdRemaining = slot.map { s =>
             val isChainSkill = s.isInChainWindow(now) && s.currentSkill.id != s.baseSkill.id
-            s.isOnCooldown(now) && !isChainSkill
-          }.map { s =>
-            f"${s.cooldownRemainingMs(System.currentTimeMillis()) / 1000.0}%.1fs"
-          }.getOrElse("")
+            if isChainSkill then 0L else s.cooldownRemainingMs(now)
+          }.getOrElse(0L)
+          val maxRemaining = gcdRemaining.max(skillCdRemaining)
+          if maxRemaining > 0 then f"${maxRemaining / 1000.0}%.1fs" else ""
         },
-        display <-- slotSignal.map { s =>
+        display <-- combatSignal.combineWith(slotSignal).map { case (combat, slot) =>
           val now = System.currentTimeMillis()
-          val showCooldown = s.exists { slot =>
-            val isChainSkill = slot.isInChainWindow(now) && slot.currentSkill.id != slot.baseSkill.id
-            slot.isOnCooldown(now) && !isChainSkill
-          }
-          if showCooldown then "flex" else "none"
+          val gcdRemaining = combat.map(_.globalCooldownRemainingMs(now)).getOrElse(0L)
+          val skillCdRemaining = slot.map { s =>
+            val isChainSkill = s.isInChainWindow(now) && s.currentSkill.id != s.baseSkill.id
+            if isChainSkill then 0L else s.cooldownRemainingMs(now)
+          }.getOrElse(0L)
+          if gcdRemaining > 0 || skillCdRemaining > 0 then "flex" else "none"
         }
       ),
 

@@ -129,6 +129,9 @@ case class CombatState(
   lastPlayerAutoAttack: Long = 0L,
   lastEnemyAutoAttack: Long = 0L,
   
+  // Global cooldown - prevents spamming all skills at once
+  globalCooldownEndsAt: Long = 0L,
+  
   // Skill slots (weapon skills in slots 0-3, armor skills in slots 4-7)
   skillSlots: Vector[SkillSlotState] = Vector.empty,
   
@@ -140,6 +143,8 @@ case class CombatState(
   def isEnemyDead: Boolean = enemyCurrentHp <= 0
   def isPlayerDead: Boolean = playerCurrentHp <= 0
   def isCombatOver: Boolean = isEnemyDead || isPlayerDead
+  def isOnGlobalCooldown(now: Long): Boolean = now < globalCooldownEndsAt
+  def globalCooldownRemainingMs(now: Long): Long = (globalCooldownEndsAt - now).max(0)
 
 /** Events that occur during combat (for UI feedback) */
 enum CombatEvent derives ReadWriter:
