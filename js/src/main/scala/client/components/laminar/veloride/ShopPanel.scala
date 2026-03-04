@@ -86,7 +86,13 @@ object ShopPanel:
 
   private def shopItemCard(shopItem: VelorIdleLogic.ShopItem, onBuyItem: (Item, Int) => Unit): HtmlElement =
     val item = shopItem.item
-    val buyAmountVar = Var(10)
+    val buyAmountVar = Var(1)
+    val maxBuyAmount = 100
+
+    // Calculate max affordable based on current gold
+    val maxAffordableSignal = VelorIdleState.goldSignal.map(gold =>
+      (gold / shopItem.buyPrice).toInt.min(maxBuyAmount).max(1)
+    ).distinct
 
     div(
       cls := "velor-shop-item-card",
@@ -98,47 +104,55 @@ object ShopPanel:
       ),
       div(
         cls := "velor-shop-item-controls",
-        // Amount selector
+        // Amount slider
         div(
-          cls := "velor-shop-amount-selector",
-          button(
-            cls := "velor-shop-amount-btn",
-            "-",
-            onClick --> { _ =>
-              val current = buyAmountVar.now()
-              if current > 1 then buyAmountVar.set(current - 1)
+          cls := "velor-sell-slider-container",
+          input(
+            typ := "range",
+            cls := "velor-sell-slider",
+            minAttr := "1",
+            maxAttr := maxBuyAmount.toString,
+            value <-- buyAmountVar.signal.map(_.toString),
+            onInput.mapToValue --> { v =>
+              scala.util.Try(v.toInt).foreach(buyAmountVar.set)
             }
           ),
-          span(
-            cls := "velor-shop-amount-display",
-            child.text <-- buyAmountVar.signal.map(_.toString)
-          ),
-          button(
-            cls := "velor-shop-amount-btn",
-            "+",
-            onClick --> { _ =>
-              val current = buyAmountVar.now()
-              if current < 100 then buyAmountVar.set(current + 1)
-            }
+          div(
+            cls := "velor-sell-amount-display",
+            child.text <-- buyAmountVar.signal.map(amt => s"$amt / $maxBuyAmount")
           )
         ),
         // Quick amount buttons
         div(
-          cls := "velor-shop-quick-amounts",
-          quickAmountButton(1, buyAmountVar),
-          quickAmountButton(10, buyAmountVar),
-          quickAmountButton(50, buyAmountVar)
+          cls := "velor-sell-quick-buttons",
+          button(
+            cls := "velor-sell-quick-btn",
+            "1",
+            onClick --> { _ => buyAmountVar.set(1) }
+          ),
+          button(
+            cls := "velor-sell-quick-btn",
+            "10",
+            onClick --> { _ => buyAmountVar.set(10) }
+          ),
+          button(
+            cls := "velor-sell-quick-btn",
+            "Max",
+            onClick.compose(_.sample(maxAffordableSignal)) --> { maxAffordable =>
+              buyAmountVar.set(maxAffordable)
+            }
+          )
         ),
         // Buy button with total cost
         div(
-          cls := "velor-shop-buy-section",
+          cls := "velor-sell-action",
           span(
-            cls := "velor-shop-total",
-            child.text <-- buyAmountVar.signal.map(amt => s"Total: ${amt * shopItem.buyPrice}g")
+            cls := "velor-sell-gold-preview",
+            child.text <-- buyAmountVar.signal.map(amt => s"${amt * shopItem.buyPrice}g")
           ),
           button(
             cls := "btn btn-primary",
-            "Buy",
+            child.text <-- buyAmountVar.signal.map(amt => s"Buy $amt"),
             disabled <-- VelorIdleState.goldSignal.combineWith(buyAmountVar.signal).map:
               case (gold, amount) => gold < shopItem.buyPrice * amount
             ,
@@ -148,9 +162,3 @@ object ShopPanel:
       )
     )
 
-  private def quickAmountButton(amount: Int, amountVar: Var[Int]): HtmlElement =
-    button(
-      cls := "velor-shop-quick-btn",
-      s"$amount",
-      onClick --> { _ => amountVar.set(amount) }
-    )
