@@ -4,12 +4,9 @@
    Adventure / Combat View
    ============================================================================ */
 
+/* Uses .velor-view base class from velor-idle.css */
 .velor-adventure-view {
-  display: flex;
-  flex-direction: column;
-  gap: var(--velor-spacing-md);
-  flex: 1;
-  min-height: 0;
+  /* Inherits from .velor-view */
 }
 
 .velor-adventure-header {

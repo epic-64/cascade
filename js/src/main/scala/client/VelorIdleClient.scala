@@ -86,6 +86,7 @@ object VelorIdleClient:
 
   private def skillSelectView(): HtmlElement =
     div(
+      cls := "velor-view",
       h2(styleAttr := "margin-bottom: 1rem; text-align: center;", "Choose a Skill"),
       SkillSelector(VelorIdleState.selectSkill)
     )
@@ -97,11 +98,14 @@ object VelorIdleClient:
     AdventureView(handleStartCombat, handleUseSkill, handleStopCombat, handleRestartCombat, handleRest)
 
   private def inventoryView(): HtmlElement =
-    InventoryPanel(InventoryPanel.Actions(
-      onSellItem = handleSellItem,
-      onSetJunk = handleSetJunk,
-      onSellAllJunk = handleSellAllJunk
-    ))
+    div(
+      cls := "velor-view",
+      InventoryPanel(InventoryPanel.Actions(
+        onSellItem = handleSellItem,
+        onSetJunk = handleSetJunk,
+        onSellAllJunk = handleSellAllJunk
+      ))
+    )
 
   private def characterView(): HtmlElement =
     CharacterPanel(
@@ -116,25 +120,28 @@ object VelorIdleClient:
 
   private def settingsView(): HtmlElement =
     div(
-      cls := "velor-skill-card",
-      h3("⚙️ Settings"),
+      cls := "velor-view",
       div(
-        styleAttr := "display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;",
-        button(
-          cls := "btn btn-secondary",
-          "💾 Save Game",
-          onClick --> { _ =>
-            saveGame()
-            ToastSystem.show("Game saved!")
-          }
+        cls := "velor-skill-card",
+        h3("⚙️ Settings"),
+        div(
+          styleAttr := "display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;",
+          button(
+            cls := "btn btn-secondary",
+            "💾 Save Game",
+            onClick --> { _ =>
+              saveGame()
+              ToastSystem.show("Game saved!")
+            }
+          ),
+          button(
+            cls := "btn btn-secondary",
+            "🗑️ Reset Game",
+            onClick --> { _ => handleReset() }
+          )
         ),
-        button(
-          cls := "btn btn-secondary",
-          "🗑️ Reset Game",
-          onClick --> { _ => handleReset() }
-        )
-      ),
-      DevPanel()
+        DevPanel()
+      )
     )
 
   private def skillTreesView(): HtmlElement =

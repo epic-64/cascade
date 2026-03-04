@@ -8,7 +8,7 @@ object ShopPanel:
 
   def apply(onBuyItem: (Item, Int) => Unit, onBuyInventorySlots: () => Unit): HtmlElement =
     div(
-      cls := "velor-shop-panel",
+      cls := "velor-view velor-shop-panel",
 
       // Header
       div(
