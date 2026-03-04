@@ -204,8 +204,8 @@ object AdventureView:
   private def enemySelectView(onStartCombat: String => Unit, inCombatSignal: Signal[Boolean], onRest: () => Unit): HtmlElement =
     val adventureLevel = VelorIdleState.skillStateSignal(Skill.Adventure)
     val adventureStateSignal = VelorIdleState.gameSignal.map(_.adventureState)
-    val isRestingSignal = VelorIdleState.activeActionSignal.map(_ == ActiveAction.Rest)
-    val needsRestSignal = adventureStateSignal.map(s => s.currentHp < s.maxHp || s.currentMana < s.maxMana)
+    val isRestingSignal = VelorIdleState.activeActionSignal.map(_ == ActiveAction.Rest).distinct
+    val needsRestSignal = adventureStateSignal.map(s => s.currentHp < s.maxHp || s.currentMana < s.maxMana).distinct
 
     div(
       cls := "velor-enemy-select",
@@ -283,11 +283,11 @@ object AdventureView:
               cls := "velor-hp-bar player",
               width <-- adventureStateSignal.map { state =>
                 s"${(state.currentHp.toDouble / state.maxHp * 100).max(0)}%"
-              }
+              }.distinct
             ),
             div(
               cls := "velor-hp-text",
-              child.text <-- adventureStateSignal.map(s => s"${s.currentHp} / ${s.maxHp}")
+              child.text <-- adventureStateSignal.map(s => s"${s.currentHp} / ${s.maxHp}").distinct
             )
           )
         ),
@@ -301,11 +301,11 @@ object AdventureView:
               cls := "velor-mana-bar",
               width <-- adventureStateSignal.map { state =>
                 s"${(state.currentMana.toDouble / state.maxMana * 100).max(0)}%"
-              }
+              }.distinct
             ),
             div(
               cls := "velor-mana-text",
-              child.text <-- adventureStateSignal.map(s => s"${s.currentMana} / ${s.maxMana}")
+              child.text <-- adventureStateSignal.map(s => s"${s.currentMana} / ${s.maxMana}").distinct
             )
           )
         )
@@ -313,9 +313,9 @@ object AdventureView:
       // Combat stats row
       div(
         cls := "velor-player-combat-stats",
-        span(child.text <-- adventureStateSignal.map(s => s"⚔️ ${s.equippedWeapon.attackDamage}")),
-        span(child.text <-- adventureStateSignal.map(s => s"🎯 ${s.attackRating}")),
-        span(child.text <-- adventureStateSignal.map(s => s"🛡️ ${s.defenseRating}"))
+        span(child.text <-- adventureStateSignal.map(s => s"⚔️ ${s.equippedWeapon.attackDamage}").distinct),
+        span(child.text <-- adventureStateSignal.map(s => s"🎯 ${s.attackRating}").distinct),
+        span(child.text <-- adventureStateSignal.map(s => s"🛡️ ${s.defenseRating}").distinct)
       ),
       // Resistances row (only show if player has any)
       child <-- adventureStateSignal.map { state =>
@@ -623,9 +623,9 @@ object AdventureView:
       // Combat stats row
       div(
         cls := "velor-entity-combat-stats",
-        span(child.text <-- VelorIdleState.gameSignal.map(g => s"⚔️ ${g.adventureState.equippedWeapon.attackDamage}")),
-        span(child.text <-- VelorIdleState.gameSignal.map(g => s"🎯 ${g.adventureState.attackRating}")),
-        span(child.text <-- VelorIdleState.gameSignal.map(g => s"🛡️ ${g.adventureState.defenseRating}"))
+        span(child.text <-- VelorIdleState.gameSignal.map(g => s"⚔️ ${g.adventureState.equippedWeapon.attackDamage}").distinct),
+        span(child.text <-- VelorIdleState.gameSignal.map(g => s"🎯 ${g.adventureState.attackRating}").distinct),
+        span(child.text <-- VelorIdleState.gameSignal.map(g => s"🛡️ ${g.adventureState.defenseRating}").distinct)
       )
     )
 
