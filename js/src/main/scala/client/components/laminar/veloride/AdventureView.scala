@@ -528,6 +528,8 @@ object AdventureView:
     visualHpSignal: Signal[Int],
     onStopCombat: () => Unit
   ): HtmlElement =
+    val isLoadingSignal = combatSignal.map(_.exists(_.isLoadingNextEnemy)).distinct
+    
     div(
       cls := "velor-combat-entity velor-combat-enemy",
       cls <-- combatSignal.map {
@@ -536,6 +538,19 @@ object AdventureView:
       },
       display <-- combatSignal.map(_.map(_ => "block").getOrElse("none")),
       position := "relative",
+
+      // Loading overlay when waiting for next enemy (on top of existing content)
+      div(
+        cls := "velor-enemy-loading-overlay",
+        display <-- isLoadingSignal.map(if _ then "flex" else "none"),
+        div(cls := "velor-loading-spinner"),
+        div(cls := "velor-loading-text", "Next enemy incoming..."),
+        button(
+          cls := "velor-combat-stop-btn",
+          "Stop",
+          onClick --> { _ => onStopCombat() }
+        )
+      ),
 
       // Floating damage numbers (enemy takes damage)
       div(
@@ -564,9 +579,10 @@ object AdventureView:
             visibility <-- combatSignal.map(c => if c.exists(_.enemyStun.isDefined) then "visible" else "hidden")
           )
         ),
-        // Stop button
+        // Stop button (hidden during loading since overlay has one)
         button(
           cls := "velor-combat-stop-btn",
+          visibility <-- isLoadingSignal.map(if _ then "hidden" else "visible"),
           "Stop",
           onClick --> { _ => onStopCombat() }
         )
