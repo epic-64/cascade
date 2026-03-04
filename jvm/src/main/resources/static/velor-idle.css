@@ -30,6 +30,7 @@
   --velor-skill-summon: #06b6d4;
   --velor-skill-thieve: #8b5cf6;
   --velor-skill-astro: #a855f7;
+  --velor-skill-adventure: #dc2626;
 
   /* Spacing */
   --velor-spacing-xs: 0.25rem;
@@ -604,6 +605,7 @@
 .velor-skill-tile[data-skill="summoning"] { --tile-color: var(--velor-skill-summon); }
 .velor-skill-tile[data-skill="thieving"] { --tile-color: var(--velor-skill-thieve); }
 .velor-skill-tile[data-skill="astrology"] { --tile-color: var(--velor-skill-astro); }
+.velor-skill-tile[data-skill="adventure"] { --tile-color: var(--velor-skill-adventure); }
 
 .velor-skill-tile.active {
   border-color: var(--tile-color, var(--velor-accent));
@@ -2674,11 +2676,11 @@
     width: 60px;
     height: 70px;
   }
-  
+
   .velor-skill-icon {
     font-size: 1.2rem;
   }
-  
+
   .velor-skill-row-label {
     width: 50px;
     font-size: 0.6rem;
