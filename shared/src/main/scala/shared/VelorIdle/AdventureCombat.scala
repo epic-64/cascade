@@ -23,12 +23,15 @@ object AdventureCombat:
       case Some(enemy) if enemy.levelRequired > adventureLevel =>
         Left(s"Requires Adventure level ${enemy.levelRequired}")
       case Some(enemy) =>
-        val weapon = game.adventureState.equippedWeapon
-        val armor = game.adventureState.equippedArmor
+        val advState = game.adventureState
+        val weapon = advState.equippedWeapon
+        val armor = advState.equippedArmor
 
-        // Calculate player stats with equipment bonuses
-        val maxHp = AdventureState.BaseMaxHp + armor.map(_.maxHpBonus).getOrElse(0)
-        val maxMana = AdventureState.BaseMaxMana
+        // Use persisted player stats
+        val maxHp = advState.maxHp
+        val maxMana = advState.maxMana
+        val currentHp = advState.currentHp.min(maxHp)  // Cap at max in case equipment changed
+        val currentMana = advState.currentMana.min(maxMana)
 
         // Build skill slots from weapon (slots 0-3) and armor (slots 4-7)
         val weaponSlots = weapon.skills.map(SkillSlotState.fromSkill)
@@ -39,16 +42,16 @@ object AdventureCombat:
         val combatState = CombatState(
           enemy = enemy,
           enemyCurrentHp = enemy.maxHp,
-          playerCurrentHp = maxHp,
+          playerCurrentHp = currentHp,
           playerMaxHp = maxHp,
-          playerMana = maxMana,
+          playerMana = currentMana,
           playerMaxMana = maxMana,
           lastPlayerAutoAttack = currentTime,
           lastEnemyAutoAttack = currentTime,
           skillSlots = weaponSlots ++ armorSlots
         )
 
-        val newAdventureState = game.adventureState.copy(
+        val newAdventureState = advState.copy(
           inCombat = true,
           combatState = Some(combatState),
           selectedEnemyId = Some(enemyId)
@@ -81,7 +84,12 @@ object AdventureCombat:
     random: Random = Random
   ): (VelorIdleGame, Vector[GameEvent]) =
     game.adventureState.combatState match
-      case None => (game, Vector.empty)
+      case None => 
+        // Not in combat - apply out-of-combat regen
+        val elapsedMs = currentTime - game.lastTickTime
+        val elapsedSeconds = elapsedMs / 1000.0
+        val regenedGame = applyOutOfCombatRegen(game, elapsedSeconds)
+        (regenedGame, Vector.empty)
       case Some(combat) if combat.isCombatOver =>
         (game, Vector.empty)
       case Some(combat) =>
@@ -110,10 +118,32 @@ object AdventureCombat:
           recentEvents = (finalCombat.recentEvents ++ allCombatEvents).takeRight(10)
         )
 
-        val newAdventureState = game.adventureState.copy(combatState = Some(finalCombatWithEvents))
+        // Sync player HP/Mana back to AdventureState
+        val newAdventureState = game.adventureState.copy(
+          combatState = Some(finalCombatWithEvents),
+          currentHp = finalCombatWithEvents.playerCurrentHp,
+          currentMana = finalCombatWithEvents.playerMana
+        )
         val newGame = game.copy(adventureState = newAdventureState, lastTickTime = currentTime)
 
         (newGame, endEvents)
+
+  /** Apply out-of-combat HP and mana regeneration */
+  private def applyOutOfCombatRegen(game: VelorIdleGame, elapsedSeconds: Double): VelorIdleGame =
+    val advState = game.adventureState
+    val maxHp = advState.maxHp
+    val maxMana = advState.maxMana
+    
+    val hpRegen = (AdventureState.OutOfCombatHpRegenPerSecond * elapsedSeconds).toInt
+    val manaRegen = (AdventureState.ManaRegenPerSecond * elapsedSeconds).toInt
+    
+    val newHp = (advState.currentHp + hpRegen).min(maxHp)
+    val newMana = (advState.currentMana + manaRegen).min(maxMana)
+    
+    if newHp != advState.currentHp || newMana != advState.currentMana then
+      game.copy(adventureState = advState.copy(currentHp = newHp, currentMana = newMana))
+    else
+      game
 
   private def processDoTs(combat: CombatState, currentTime: Long): (CombatState, Vector[CombatEvent]) =
     var enemyHp = combat.enemyCurrentHp

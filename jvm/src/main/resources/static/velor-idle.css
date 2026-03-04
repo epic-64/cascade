@@ -2638,7 +2638,7 @@
 }
 
 .velor-combat-end-overlay.victory .velor-combat-end-icon {
-  animation: velor-victory-bounce 0.6s ease-out;
+  animation: velor-victory-bounce 0.6s ease-out forwards;
 }
 
 @keyframes velor-victory-bounce {
@@ -2686,3 +2686,55 @@
     font-size: 0.6rem;
   }
 }
+
+/* ============================================================================
+   Floating Damage Numbers
+   ============================================================================ */
+
+.velor-floating-damage-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 100;
+  width: 100%;
+  height: 100%;
+}
+
+.velor-floating-damage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  animation: velor-damage-float 1s ease-out forwards;
+  --float-x: 0px;
+  --float-y: 0px;
+}
+
+.velor-floating-damage.damage {
+  color: #ef4444;
+}
+
+.velor-floating-damage.heal {
+  color: #22c55e;
+}
+
+@keyframes velor-damage-float {
+  0% {
+    opacity: 1;
+    transform: translate(calc(-50% + var(--float-x)), calc(-50% + var(--float-y)));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--float-x)), calc(-100% + var(--float-y)));
+  }
+}
+
+/* Fix victory icon animation - only animate once */
+.velor-combat-end-overlay.victory .velor-combat-end-icon {
+  animation: velor-victory-bounce 0.6s ease-out forwards;
+}
+
