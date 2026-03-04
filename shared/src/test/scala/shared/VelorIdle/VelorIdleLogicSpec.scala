@@ -546,6 +546,10 @@ class VelorIdleLogicSpec extends AnyFunSpec with Matchers:
         val activeSkill = game.activeAction match
           case ActiveAction.Gathering(s, _) => Some(s)
           case ActiveAction.Processing(s, _) => Some(s)
+          case ActiveAction.EquipmentCrafting(_) => Some(Skill.Smithing)
+          case ActiveAction.Thieving(_) => Some(Skill.Thieving)
+          case ActiveAction.Adventure => Some(Skill.Adventure)
+          case ActiveAction.Rest => Some(Skill.Adventure)
           case ActiveAction.Idle => None
         
         viewingSkill should not be activeSkill
@@ -562,6 +566,10 @@ class VelorIdleLogicSpec extends AnyFunSpec with Matchers:
         val activeSkill = game.activeAction match
           case ActiveAction.Gathering(s, _) => Some(s)
           case ActiveAction.Processing(s, _) => Some(s)
+          case ActiveAction.EquipmentCrafting(_) => Some(Skill.Smithing)
+          case ActiveAction.Thieving(_) => Some(Skill.Thieving)
+          case ActiveAction.Adventure => Some(Skill.Adventure)
+          case ActiveAction.Rest => Some(Skill.Adventure)
           case ActiveAction.Idle => None
         
         viewingSkill shouldBe activeSkill
