@@ -18,7 +18,8 @@ object AdventureView:
   private var currentKeyHandler: Option[scalajs.js.Function1[dom.KeyboardEvent, Unit]] = None
 
   // Floating damage number state
-  case class FloatingNumber(id: Int, text: String, isPlayer: Boolean, isHeal: Boolean, x: Int, y: Int)
+  case class FloatingNumber(id: Int, text: String, isPlayer: Boolean, isHeal: Boolean, x: Int, y: Int):
+    def isEvade: Boolean = text == "Evaded"
   private val random = new Random()
   
   // Projectile state for skill activation
@@ -106,6 +107,17 @@ object AdventureView:
         floatingNumbersVar.update(_.filterNot(_.id == num.id))
       }, 1000)
 
+    def showEvadedText(isPlayer: Boolean): Unit =
+      val x = random.nextInt(60) - 30
+      val y = random.nextInt(20) - 10
+      // Use isHeal=true for blue/neutral color, but with "Evaded" text
+      val num = FloatingNumber(nextFloatingId, "Evaded", isPlayer, isHeal = false, x, y)
+      nextFloatingId += 1
+      floatingNumbersVar.update(_ :+ num)
+      dom.window.setTimeout(() => {
+        floatingNumbersVar.update(_.filterNot(_.id == num.id))
+      }, 1000)
+
     div(
       cls := "velor-adventure-view",
 
@@ -167,7 +179,7 @@ object AdventureView:
       enemySelectView(onStartCombat, inCombatSignal, onRest),
 
       // Combat view (hidden when not in combat)
-      combatView(adventureStateSignal, inCombatSignal, floatingNumbersVar, showDamageNumber, onUseSkill, onStopCombat, onRestartCombat, onRest)
+      combatView(adventureStateSignal, inCombatSignal, floatingNumbersVar, showDamageNumber, showEvadedText, onUseSkill, onStopCombat, onRestartCombat, onRest)
     )
 
   private def adventureXpBar(skillStateSignal: Signal[SkillState]): HtmlElement =
@@ -348,6 +360,7 @@ object AdventureView:
     inCombatSignal: Signal[Boolean],
     floatingNumbersVar: Var[Vector[FloatingNumber]],
     showDamageNumber: (Int, Boolean, Boolean) => Unit,
+    showEvadedText: Boolean => Unit,
     onUseSkill: Int => Unit,
     onStopCombat: () => Unit,
     onRestartCombat: () => Unit,
@@ -412,6 +425,10 @@ object AdventureView:
                 case CombatEvent.EnemyAutoAttack(dmg) => 
                   fireAutoAttackProjectile(isPlayer = false)
                   showDamageNumber(dmg, true, false)
+                case CombatEvent.PlayerEvaded =>
+                  showEvadedText(true)
+                case CombatEvent.EnemyEvaded =>
+                  showEvadedText(false)
                 case CombatEvent.PlayerSkillUsed(skillName, dmg) => 
                   // Find the skill slot - check current, base, chain skills, and nested chains
                   val slotIndex = combat.skillSlots.indexWhere { slot =>
@@ -474,8 +491,9 @@ object AdventureView:
       div(
         cls := "velor-floating-damage-container",
         children <-- floatingNumbersVar.signal.map(_.filterNot(_.isPlayer).map { num =>
+          val typeClass = if num.isEvade then "evade" else if num.isHeal then "heal" else "damage"
           div(
-            cls := s"velor-floating-damage ${if num.isHeal then "heal" else "damage"}",
+            cls := s"velor-floating-damage $typeClass",
             styleAttr := s"--float-x: ${num.x}px; --float-y: ${num.y}px;",
             num.text
           )
@@ -524,7 +542,13 @@ object AdventureView:
         cls := "velor-entity-combat-stats",
         span(child.text <-- combatSignal.map(_.map(c => s"⚔️ ${c.enemy.attackDamage}").getOrElse("")).distinct),
         span(child.text <-- combatSignal.map(_.map(c => s"🎯 ${c.enemy.attackRating}").getOrElse("")).distinct),
-        span(child.text <-- combatSignal.map(_.map(c => s"🛡️ ${c.enemy.defenseRating}").getOrElse("")).distinct)
+        span(child.text <-- combatSignal.map(_.map(c => s"🛡️ ${c.enemy.defenseRating}").getOrElse("")).distinct),
+        span(child.text <-- combatSignal.combineWith(VelorIdleState.gameSignal).map { case (c, g) =>
+          c.map { combat =>
+            val evadeChance = AdventureCombat.calculateEvadeChance(g.adventureState.attackRating, combat.enemy.defenseRating) * 100
+            f"🌀 ${evadeChance}%.0f%%"
+          }.getOrElse("")
+        }.distinct)
       ),
 
       // Resistances row
@@ -558,8 +582,9 @@ object AdventureView:
       div(
         cls := "velor-floating-damage-container",
         children <-- floatingNumbersVar.signal.map(_.filter(_.isPlayer).map { num =>
+          val typeClass = if num.isEvade then "evade" else if num.isHeal then "heal" else "damage"
           div(
-            cls := s"velor-floating-damage ${if num.isHeal then "heal" else "damage"}",
+            cls := s"velor-floating-damage $typeClass",
             styleAttr := s"--float-x: ${num.x}px; --float-y: ${num.y}px;",
             num.text
           )
@@ -624,7 +649,13 @@ object AdventureView:
         cls := "velor-entity-combat-stats",
         span(child.text <-- VelorIdleState.gameSignal.map(g => s"⚔️ ${g.adventureState.equippedWeapon.attackDamage}").distinct),
         span(child.text <-- VelorIdleState.gameSignal.map(g => s"🎯 ${g.adventureState.attackRating}").distinct),
-        span(child.text <-- VelorIdleState.gameSignal.map(g => s"🛡️ ${g.adventureState.defenseRating}").distinct)
+        span(child.text <-- VelorIdleState.gameSignal.map(g => s"🛡️ ${g.adventureState.defenseRating}").distinct),
+        span(child.text <-- combatSignal.combineWith(VelorIdleState.gameSignal).map { case (c, g) =>
+          c.map { combat =>
+            val evadeChance = AdventureCombat.calculateEvadeChance(combat.enemy.attackRating, g.adventureState.defenseRating) * 100
+            f"🌀 ${evadeChance}%.0f%%"
+          }.getOrElse("")
+        }.distinct)
       )
     )
 
