@@ -31,6 +31,8 @@ object Header:
       child <-- activeActionSignal.map:
         case ActiveAction.Gathering(skill, _) => activeSkillDiv(skill)
         case ActiveAction.Processing(skill, _) => activeSkillDiv(skill)
+        case ActiveAction.Thieving(_) => activeSkillDiv(Skill.Thieving)
+        case ActiveAction.Stunned(_, _) => stunnedDiv()
         case ActiveAction.Idle =>
           div(
             cls := "velor-active-skill-content none",
@@ -44,6 +46,13 @@ object Header:
       onClick --> { _ => VelorIdleState.selectSkill(skill) },
       span(cls := "velor-active-skill-icon spinning", Skill.icon(skill)),
       span(cls := "velor-active-skill-status", "Active")
+    )
+
+  private def stunnedDiv(): HtmlElement =
+    div(
+      cls := "velor-active-skill-content stunned",
+      span(cls := "velor-active-skill-icon", "😵"),
+      span(cls := "velor-active-skill-status", "Stunned")
     )
 
   private def formatGold(gold: Long): String = VelorUtils.formatNumber(gold)

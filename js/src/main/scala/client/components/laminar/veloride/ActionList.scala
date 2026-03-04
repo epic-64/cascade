@@ -84,6 +84,36 @@ object ActionList:
         inventory.getCount(item) >= count
       }
 
+  /** Wrapper for thieving actions */
+  private class ThievingActionInfo(action: ThievingAction) extends ActionInfo:
+    def id: String = action.id
+    def name: String = action.name
+    def icon: String = action.icon
+    def levelRequired: Int = action.levelRequired
+    def xpGain: Int = action.xpGain
+    def timeSeconds: Double = action.timeSeconds
+    def isGathering: Boolean = false
+    def outputItem: Item = Item.Gem // Placeholder, not used for thieving display
+
+    def subtitle(inventory: Inventory, isLocked: Boolean): String =
+      if isLocked then s"🔒 Level $levelRequired"
+      else s"${(action.baseSuccessRate * 100).toInt}% • ${action.goldMin}-${action.goldMax}g"
+    
+    def isActive(activeAction: ActiveAction, skill: Skill): Boolean =
+      activeAction match
+        case ActiveAction.Thieving(a) => a.id == id
+        case ActiveAction.Stunned(_, a) => a.id == id
+        case _ => false
+    
+    def canStart(game: VelorIdleGame, skill: Skill): Boolean =
+      val level = game.skills.getOrElse(Skill.Thieving, SkillState.initial).level
+      val notStunned = game.activeAction match
+        case ActiveAction.Stunned(_, _) => false
+        case _ => true
+      level >= levelRequired && notStunned
+
+    def hasRequiredItems(inventory: Inventory): Boolean = true // Thieving doesn't need items
+
   /** Create action list for a gathering skill */
   def forGathering(skill: Skill, onStartAction: String => Unit): HtmlElement =
     val actions = GatheringActions.forSkill(skill).map(GatheringActionInfo(_))
@@ -93,6 +123,84 @@ object ActionList:
   def forProcessing(skill: Skill, onStartAction: String => Unit): HtmlElement =
     val actions = ProcessingActions.forSkill(skill).map(ProcessingActionInfo(_))
     renderList(skill, actions, onStartAction)
+
+  /** Create action list for thieving skill */
+  def forThieving(onStartAction: String => Unit): HtmlElement =
+    val actions = ThievingActions.targets.map(ThievingActionInfo(_))
+    renderThievingList(actions, onStartAction)
+
+  private def renderThievingList(
+    actions: Vector[ThievingActionInfo],
+    onStart: String => Unit
+  ): HtmlElement =
+    div(
+      cls := "velor-action-list",
+      actions.map(action => thievingActionItem(action, onStart))
+    )
+
+  private def thievingActionItem(
+    action: ThievingActionInfo,
+    onStart: String => Unit
+  ): HtmlElement =
+    val skillStateSignal = VelorIdleState.skillStateSignal(Skill.Thieving)
+    val actionStateSignal = VelorIdleState.actionStateSignal(action.id)
+    val activeActionSignal = VelorIdleState.activeActionSignal
+
+    val isLockedSignal = skillStateSignal.map(_.level < action.levelRequired)
+    val isActiveSignal = activeActionSignal.map(action.isActive(_, Skill.Thieving))
+    val isStunnedSignal = activeActionSignal.map:
+      case ActiveAction.Stunned(_, _) => true
+      case _ => false
+
+    val itemClsSignal = isLockedSignal.combineWith(isActiveSignal, isStunnedSignal).map:
+      case (true, _, _) => "velor-action-item locked"
+      case (_, true, _) => "velor-action-item active"
+      case (_, _, true) => "velor-action-item stunned"
+      case _ => "velor-action-item"
+
+    div(
+      cls <-- itemClsSignal,
+      onClick --> { _ =>
+        if action.canStart(VelorIdleState.current, Skill.Thieving) then onStart(action.id)
+      },
+      div(
+        cls := "velor-action-item-left",
+        div(cls := "velor-action-item-icon", action.icon),
+        div(
+          div(
+            cls := "velor-action-item-name",
+            span(action.name),
+            span(
+              cls := "velor-action-item-action-level",
+              child.text <-- actionStateSignal.map(s => s" Lv.${s.level}")
+            )
+          ),
+          div(
+            cls := "velor-action-item-level",
+            child.text <-- isLockedSignal.combineWith(skillStateSignal).map { case (locked, skillState) =>
+              if locked then s"🔒 Level ${action.levelRequired}"
+              else
+                // Show effective success rate with level bonus
+                val thievingAction = ThievingActions.targets.find(_.id == action.id).get
+                val levelBonus = (skillState.level - action.levelRequired) * 0.5
+                val effectiveRate = ((thievingAction.baseSuccessRate * 100) + levelBonus).min(95)
+                f"$effectiveRate%.0f%% • ${thievingAction.goldMin}-${thievingAction.goldMax}g"
+            }
+          )
+        )
+      ),
+      div(
+        cls := "velor-action-item-right",
+        div(cls := "velor-action-item-xp", s"+${action.xpGain} XP"),
+        div(
+          child.text <-- actionStateSignal.map { actionState =>
+            val efficiency = VelorIdleLogic.calculateEfficiencyBonus(actionState.level)
+            val effectiveTime = action.timeSeconds * (1.0 - efficiency)
+            f"$effectiveTime%.1fs"
+          }
+        )
+      )
+    )
 
   private def renderList(
     skill: Skill,
