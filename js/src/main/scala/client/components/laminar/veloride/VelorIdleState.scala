@@ -48,7 +48,7 @@ object VelorIdleState:
   // Derived Signals
   // ============================================================================
 
-  val goldSignal: Signal[Long] = gameSignal.map(_.gold)
+  val goldSignal: Signal[Long] = gameSignal.map(_.gold).distinct
 
   val currentSkillSignal: Signal[Option[Skill]] = gameSignal.map(_.currentSkill).distinct
 
