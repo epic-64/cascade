@@ -132,8 +132,10 @@ case class CombatState(
   // Skill slots (weapon skills in slots 0-3, armor skills in slots 4-7)
   skillSlots: Vector[SkillSlotState] = Vector.empty,
   
-  // Combat log for display
-  recentEvents: Vector[CombatEvent] = Vector.empty
+  // Combat log for display - capped at 10 events
+  recentEvents: Vector[CombatEvent] = Vector.empty,
+  // Total event count (never decreases) - used by UI to detect new events
+  totalEventCount: Int = 0
 ) derives ReadWriter:
   def isEnemyDead: Boolean = enemyCurrentHp <= 0
   def isPlayerDead: Boolean = playerCurrentHp <= 0
