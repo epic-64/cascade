@@ -53,6 +53,33 @@ object AdventureView:
       dom.window.setTimeout(() => {
         projectilesVar.update(_.filterNot(_.id == projectile.id))
       }, 400)
+      
+  private def fireAutoAttackProjectile(isPlayer: Boolean): Unit =
+    val sourceSelector = if isPlayer then ".velor-combat-player" else ".velor-combat-enemy"
+    val targetSelector = if isPlayer then ".velor-combat-enemy .velor-hp-bar-container" else ".velor-combat-player .velor-hp-bar-container"
+    val icon = if isPlayer then "⚔️" else "💥"
+    
+    val source = dom.document.querySelector(s"$sourceSelector .velor-entity-icon")
+    val target = dom.document.querySelector(targetSelector)
+    val combatView = dom.document.querySelector(".velor-combat-view")
+    
+    if source != null && target != null && combatView != null then
+      val sourceRect = source.getBoundingClientRect()
+      val targetRect = target.getBoundingClientRect()
+      val combatRect = combatView.getBoundingClientRect()
+      
+      val startX = sourceRect.left + sourceRect.width / 2 - combatRect.left
+      val startY = sourceRect.top + sourceRect.height / 2 - combatRect.top
+      val endX = targetRect.left + targetRect.width / 2 - combatRect.left
+      val endY = targetRect.top + targetRect.height / 2 - combatRect.top
+      
+      val projectile = Projectile(nextProjectileId, icon, startX, startY, endX, endY)
+      nextProjectileId += 1
+      projectilesVar.update(_ :+ projectile)
+      
+      dom.window.setTimeout(() => {
+        projectilesVar.update(_.filterNot(_.id == projectile.id))
+      }, 400)
 
   def apply(
     onStartCombat: String => Unit,
@@ -329,13 +356,20 @@ object AdventureView:
                 val newEvents = combat.recentEvents.drop(lastCount)
                 lastEventCountVar.set(combat.recentEvents.length)
                 newEvents.foreach {
-                  case CombatEvent.PlayerAutoAttack(dmg) => showDamageNumber(dmg, false, false)
-                  case CombatEvent.EnemyAutoAttack(dmg) => showDamageNumber(dmg, true, false)
+                  case CombatEvent.PlayerAutoAttack(dmg) => 
+                    fireAutoAttackProjectile(isPlayer = true)
+                    showDamageNumber(dmg, false, false)
+                  case CombatEvent.EnemyAutoAttack(dmg) => 
+                    fireAutoAttackProjectile(isPlayer = false)
+                    showDamageNumber(dmg, true, false)
                   case CombatEvent.PlayerSkillUsed(skillName, dmg) => 
-                    // Find the skill slot index by matching skill name
-                    val slotIndex = combat.skillSlots.indexWhere(_.currentSkill.name == skillName)
+                    // Find the skill slot index by matching skill name (check both current and base skill)
+                    val slotIndex = combat.skillSlots.indexWhere { slot =>
+                      slot.currentSkill.name == skillName || slot.baseSkill.name == skillName
+                    }
                     if slotIndex >= 0 then
-                      val icon = combat.skillSlots(slotIndex).currentSkill.icon
+                      // Use the skill name's icon, not the current slot icon (which may have changed to chain skill)
+                      val icon = combat.skillSlots(slotIndex).baseSkill.icon
                       fireProjectile(icon, slotIndex)
                     if dmg > 0 then showDamageNumber(dmg, false, false)
                   case CombatEvent.PlayerHealed(amt) => showDamageNumber(amt, true, true)
