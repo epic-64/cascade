@@ -62,6 +62,7 @@ object AdventureCombat:
 
         Right(game.copy(
           currentSkill = Some(Skill.Adventure),
+          activeAction = ActiveAction.Adventure,
           adventureState = newAdventureState
         ))
 
@@ -113,7 +114,7 @@ object AdventureCombat:
         // Check for combat end
         val (finalCombat, endEvents, updatedGame) =
           if combat6.isEnemyDead then
-            handleEnemyDeath(combat6, game, random)
+            handleEnemyDeath(combat6, game, random, currentTime)
           else if combat6.isPlayerDead then
             val newCount = combat6.totalEventCount + 1
             (combat6.copy(
@@ -292,7 +293,8 @@ object AdventureCombat:
   private def handleEnemyDeath(
     combat: CombatState,
     game: VelorIdleGame,
-    random: Random
+    random: Random,
+    currentTime: Long
   ): (CombatState, Vector[GameEvent], VelorIdleGame) =
     val enemy = combat.enemy
     var events = Vector.empty[GameEvent]
@@ -324,12 +326,19 @@ object AdventureCombat:
 
     events :+= GameEvent.AdventureEnemyDefeated(enemy.id)
 
-    val combatWithEvents = combat.copy(
-      recentEvents = combat.recentEvents :+ CombatEvent.EnemyDied,
-      totalEventCount = combat.totalEventCount + 1
-    )
-
-    (combatWithEvents, events, updatedGame)
+    // Auto-restart combat with same enemy
+    restartCombat(updatedGame, currentTime) match
+      case Right(restarted) =>
+        // Return the new combat state from the restarted game
+        val newCombat = restarted.adventureState.combatState.getOrElse(combat)
+        (newCombat, events, restarted)
+      case Left(_) =>
+        // Fallback: mark combat as over (shouldn't happen normally)
+        val combatWithEvents = combat.copy(
+          recentEvents = combat.recentEvents :+ CombatEvent.EnemyDied,
+          totalEventCount = combat.totalEventCount + 1
+        )
+        (combatWithEvents, events, updatedGame)
 
   // ============================================================================
   // Skill Usage
