@@ -102,15 +102,11 @@ object ActionList:
     def isActive(activeAction: ActiveAction, skill: Skill): Boolean =
       activeAction match
         case ActiveAction.Thieving(a) => a.id == id
-        case ActiveAction.Stunned(_, a) => a.id == id
         case _ => false
     
     def canStart(game: VelorIdleGame, skill: Skill): Boolean =
       val level = game.skills.getOrElse(Skill.Thieving, SkillState.initial).level
-      val notStunned = game.activeAction match
-        case ActiveAction.Stunned(_, _) => false
-        case _ => true
-      level >= levelRequired && notStunned
+      level >= levelRequired
 
     def hasRequiredItems(inventory: Inventory): Boolean = true // Thieving doesn't need items
 
@@ -148,14 +144,10 @@ object ActionList:
 
     val isLockedSignal = skillStateSignal.map(_.level < action.levelRequired)
     val isActiveSignal = activeActionSignal.map(action.isActive(_, Skill.Thieving))
-    val isStunnedSignal = activeActionSignal.map:
-      case ActiveAction.Stunned(_, _) => true
-      case _ => false
 
-    val itemClsSignal = isLockedSignal.combineWith(isActiveSignal, isStunnedSignal).map:
-      case (true, _, _) => "velor-action-item locked"
-      case (_, true, _) => "velor-action-item active"
-      case (_, _, true) => "velor-action-item stunned"
+    val itemClsSignal = isLockedSignal.combineWith(isActiveSignal).map:
+      case (true, _) => "velor-action-item locked"
+      case (_, true) => "velor-action-item active"
       case _ => "velor-action-item"
 
     div(

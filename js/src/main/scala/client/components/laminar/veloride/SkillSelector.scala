@@ -20,7 +20,6 @@ object SkillSelector:
       case ActiveAction.Gathering(s, _) => s == skill
       case ActiveAction.Processing(s, _) => s == skill
       case ActiveAction.Thieving(_) => skill == Skill.Thieving
-      case ActiveAction.Stunned(_, _) => skill == Skill.Thieving
       case ActiveAction.Idle => false
     
     val tileClsSignal = isActiveSignal.map:

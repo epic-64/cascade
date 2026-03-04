@@ -348,8 +348,6 @@ object VelorIdleClient:
         FloatingRewards.showGold(amount)
       case GameEvent.ThievingFailed(reason) =>
         ToastSystem.show(s"🚨 $reason")
-      case GameEvent.StunEnded =>
-        ToastSystem.show("😊 Stun wore off!")
       case GameEvent.AdventureEnemyDefeated(enemyId) =>
         ToastSystem.show(s"⚔️ Enemy defeated!")
       case GameEvent.AdventurePlayerDied =>

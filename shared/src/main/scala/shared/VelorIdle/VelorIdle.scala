@@ -437,25 +437,24 @@ case class ThievingAction(
   baseSuccessRate: Double,     // 0.0-1.0
   goldMin: Int,
   goldMax: Int,
-  stunSeconds: Double,
   lootTable: Vector[(Item, Double)] = Vector.empty  // (item, chance)
 ) derives ReadWriter
 
 object ThievingActions:
   val targets: Vector[ThievingAction] = Vector(
     ThievingAction("man", "Man", "👤", 1, 15, 3.0,
-      0.80, 3, 10, 5.0),
+      0.80, 3, 10),
     ThievingAction("farmer", "Farmer", "👨‍🌾", 15, 30, 3.5,
-      0.75, 10, 25, 6.0,
+      0.75, 10, 25,
       Vector((Item.Seeds, 0.15))),
     ThievingAction("guard", "Guard", "💂", 30, 55, 4.0,
-      0.65, 25, 50, 8.0,
+      0.65, 25, 50,
       Vector((Item.SilverKey, 0.10))),
     ThievingAction("knight", "Knight", "🛡️", 50, 90, 4.5,
-      0.55, 50, 100, 10.0,
+      0.55, 50, 100,
       Vector((Item.SilverKey, 0.08), (Item.GoldKey, 0.03))),
     ThievingAction("noble", "Noble", "👑", 70, 150, 5.0,
-      0.45, 100, 250, 12.0,
+      0.45, 100, 250,
       Vector((Item.GoldKey, 0.10), (Item.Gem, 0.05)))
   )
 
@@ -682,7 +681,6 @@ enum SynergyEffect derives ReadWriter:
   case SeaChef          // Fisher + Artisan: Never burn fish when cooking
   case PotionMaster     // Herbalist + Alchemist: +20% double chance for potions
   case EfficientBrewer  // Artisan + Alchemist: +15% recycle chance for alchemy
-  case ShadowWalker     // Thief + Stargazer: No stun on thieving failure (future)
   case GroveKeeper      // Lumberjack + Herbalist: Find herbs while woodcutting
   case MasteryBoost     // Any + Master: Double the effect of the other tablet
 
@@ -701,7 +699,6 @@ object SynergyEffect:
     Set(TabletType.Fisher, TabletType.Artisan) -> SeaChef,
     Set(TabletType.Herbalist, TabletType.Alchemist) -> PotionMaster,
     Set(TabletType.Artisan, TabletType.Alchemist) -> EfficientBrewer,
-    Set(TabletType.Thief, TabletType.Stargazer) -> ShadowWalker,
     Set(TabletType.Lumberjack, TabletType.Herbalist) -> GroveKeeper
   )
 
@@ -717,7 +714,6 @@ object SynergyEffect:
     case SeaChef => "Sea Chef"
     case PotionMaster => "Potion Master"
     case EfficientBrewer => "Efficient Brewer"
-    case ShadowWalker => "Shadow Walker"
     case GroveKeeper => "Grove Keeper"
     case MasteryBoost => "Mastery Boost"
 
@@ -729,7 +725,6 @@ object SynergyEffect:
     case SeaChef => "Never burn fish when cooking"
     case PotionMaster => "+20% double chance for potions"
     case EfficientBrewer => "+15% recycle chance for alchemy"
-    case ShadowWalker => "No stun on thieving failure"
     case GroveKeeper => "Find herbs while woodcutting"
     case MasteryBoost => "Double the effect of the other tablet"
 
@@ -863,7 +858,6 @@ enum ActiveAction derives ReadWriter:
   case Gathering(skill: Skill, action: GatheringAction)
   case Processing(skill: Skill, action: ProcessingAction)
   case Thieving(action: ThievingAction)
-  case Stunned(until: Long, previousAction: ThievingAction)  // Stunned until timestamp, remembers what we were doing
   case Idle
 
 case class VelorIdleGame(
