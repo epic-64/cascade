@@ -17,6 +17,7 @@ enum Skill derives ReadWriter:
   case Summoning
   case Thieving
   case Astrology
+  case Adventure
 
 /** Skill metadata: icon and display name */
 case class SkillData(icon: String, displayName: String)
@@ -24,10 +25,11 @@ case class SkillData(icon: String, displayName: String)
 object Skill:
   val gathering: Set[Skill] = Set(Woodcutting, Mining, Fishing, Herbalism)
   val processing: Set[Skill] = Set(Cooking, Smithing, Alchemy, Summoning)
-  val special: Set[Skill] = Set(Thieving, Astrology)
+  val special: Set[Skill] = Set(Thieving, Astrology, Adventure)
 
   def isGathering(skill: Skill): Boolean = gathering.contains(skill)
   def isProcessing(skill: Skill): Boolean = processing.contains(skill)
+  def isCombat(skill: Skill): Boolean = skill == Adventure
 
   /** All skill metadata in one place */
   private val metadata: Map[Skill, SkillData] = Map(
@@ -40,7 +42,8 @@ object Skill:
     Alchemy     -> SkillData("🧪", "Alchemy"),
     Summoning   -> SkillData("📜", "Summoning"),
     Thieving    -> SkillData("🗡️", "Thieving"),
-    Astrology   -> SkillData("⭐", "Astrology")
+    Astrology   -> SkillData("⭐", "Astrology"),
+    Adventure   -> SkillData("⚔️", "Adventure")
   )
 
   private def get(skill: Skill): SkillData =
@@ -874,7 +877,8 @@ case class VelorIdleGame(
   lastTickTime: Long,
   potionSlots: PotionSlots = PotionSlots.empty,  // Active potions
   tabletSlots: TabletSlots = TabletSlots.empty,  // Equipped summoning tablets
-  junkItems: Set[Item] = Set.empty  // Items marked as junk for quick selling
+  junkItems: Set[Item] = Set.empty,  // Items marked as junk for quick selling
+  adventureState: AdventureState = AdventureState.initial  // Adventure/combat state
 ) derives ReadWriter
 
 object VelorIdleGame:
@@ -890,6 +894,7 @@ object VelorIdleGame:
       lastTickTime = timestamp,
       potionSlots = PotionSlots.empty,
       tabletSlots = TabletSlots.empty,
-      junkItems = Set.empty
+      junkItems = Set.empty,
+      adventureState = AdventureState.initial
     )
 

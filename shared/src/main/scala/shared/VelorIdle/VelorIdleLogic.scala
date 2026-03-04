@@ -836,4 +836,7 @@ enum GameEvent:
   case ThievingSuccess(goldAmount: Long)
   case ThievingFailed(reason: String)
   case StunEnded
+  // Adventure events
+  case AdventureEnemyDefeated(enemyId: String)
+  case AdventurePlayerDied
 

@@ -89,6 +89,7 @@ object VelorIdleState:
   enum ViewMode:
     case SkillSelect    // Grid of all skills to choose from
     case SkillTraining  // Active skill training screen
+    case Adventure      // Adventure/combat view
     case Inventory
     case Character      // Character screen with sub-tabs (Potions, Tablets, Equipment)
     case Shop
@@ -119,5 +120,8 @@ object VelorIdleState:
   /** Select a skill and navigate to training view */
   def selectSkill(skill: Skill): Unit =
     modify(game => VelorIdleLogic.selectSkill(game, skill))
-    goToSkillTraining()
+    if skill == Skill.Adventure then
+      viewModeVar.set(ViewMode.Adventure)
+    else
+      goToSkillTraining()
 

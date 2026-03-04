@@ -69,6 +69,7 @@ object VelorIdleClient:
         child <-- VelorIdleState.viewModeSignal.map:
           case VelorIdleState.ViewMode.SkillSelect => skillSelectView()
           case VelorIdleState.ViewMode.SkillTraining => skillTrainingView()
+          case VelorIdleState.ViewMode.Adventure => adventureView()
           case VelorIdleState.ViewMode.Inventory => inventoryView()
           case VelorIdleState.ViewMode.Character => characterView()
           case VelorIdleState.ViewMode.Shop => shopView()
@@ -89,6 +90,9 @@ object VelorIdleClient:
 
   private def skillTrainingView(): HtmlElement =
     SkillTrainingView(handleStartAction, handleStopAction)
+
+  private def adventureView(): HtmlElement =
+    AdventureView(handleStartCombat, handleUseSkill, handleStopCombat, handleRestartCombat)
 
   private def inventoryView(): HtmlElement =
     InventoryPanel(InventoryPanel.Actions(
@@ -232,6 +236,42 @@ object VelorIdleClient:
       case Left(error) =>
         ToastSystem.show(s"❌ $error")
 
+  // ============================================================================
+  // Combat Event Handlers
+  // ============================================================================
+
+  private def handleStartCombat(enemyId: String): Unit =
+    AdventureCombat.startCombat(currentGame, enemyId, System.currentTimeMillis()) match
+      case Right(newGame) =>
+        currentGame = newGame
+        VelorIdleState.update(currentGame)
+        isDirty = true
+      case Left(error) =>
+        ToastSystem.show(s"❌ $error")
+
+  private def handleUseSkill(slotIndex: Int): Unit =
+    AdventureCombat.useSkill(currentGame, slotIndex, System.currentTimeMillis()) match
+      case Right(newGame) =>
+        currentGame = newGame
+        VelorIdleState.update(currentGame)
+        isDirty = true
+      case Left(error) =>
+        ToastSystem.show(s"❌ $error")
+
+  private def handleStopCombat(): Unit =
+    currentGame = AdventureCombat.stopCombat(currentGame)
+    VelorIdleState.update(currentGame)
+    isDirty = true
+
+  private def handleRestartCombat(): Unit =
+    AdventureCombat.restartCombat(currentGame, System.currentTimeMillis()) match
+      case Right(newGame) =>
+        currentGame = newGame
+        VelorIdleState.update(currentGame)
+        isDirty = true
+      case Left(error) =>
+        ToastSystem.show(s"❌ $error")
+
   private def handleReset(): Unit =
     if dom.window.confirm("Are you sure you want to reset? All progress will be lost!") then
       currentGame = VelorIdleGame.newGame(System.currentTimeMillis())
@@ -260,17 +300,28 @@ object VelorIdleClient:
     currentGame = VelorIdleState.current
     
     val currentTime = System.currentTimeMillis()
-    val (newGame, events) = VelorIdleLogic.tick(currentGame, currentTime)
+    
+    // Process combat if in combat
+    val (gameAfterCombat, combatEvents) = 
+      if currentGame.adventureState.inCombat then
+        AdventureCombat.tick(currentGame, currentTime)
+      else
+        (currentGame, Vector.empty)
+    
+    // Process regular game tick
+    val (newGame, events) = VelorIdleLogic.tick(gameAfterCombat, currentTime)
+    val allEvents = combatEvents ++ events
 
-    if events.nonEmpty then
+    if allEvents.nonEmpty then
       // Meaningful change - update full game state
       currentGame = newGame
       VelorIdleState.update(currentGame)
       isDirty = true
-      processEvents(events)
-    else if newGame.actionProgress != currentGame.actionProgress then
-      // Only progress changed - update just the progress signal
+      processEvents(allEvents)
+    else if newGame.actionProgress != currentGame.actionProgress || gameAfterCombat != currentGame then
+      // Progress or combat state changed
       currentGame = newGame
+      VelorIdleState.update(currentGame)
       VelorIdleState.updateProgress(newGame.actionProgress)
 
   private def processEvents(events: Vector[GameEvent]): Unit =
@@ -299,6 +350,10 @@ object VelorIdleClient:
         ToastSystem.show(s"🚨 $reason")
       case GameEvent.StunEnded =>
         ToastSystem.show("😊 Stun wore off!")
+      case GameEvent.AdventureEnemyDefeated(enemyId) =>
+        ToastSystem.show(s"⚔️ Enemy defeated!")
+      case GameEvent.AdventurePlayerDied =>
+        ToastSystem.show(s"💀 You were defeated!")
       case _ => ()
 
   // ============================================================================
