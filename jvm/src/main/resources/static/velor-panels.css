@@ -137,9 +137,35 @@
    Shop Panel
    ============================================================================ */
 
-/* Uses .velor-view base class from velor-idle.css */
+/* Uses .velor-view and .velor-view-fill base classes from velor-idle.css */
 .velor-shop-panel {
-  padding-bottom: var(--velor-spacing-md);
+  /* Inherits flex column layout from .velor-view */
+}
+
+/* Fixed header */
+.velor-shop-header {
+  background: var(--velor-card);
+  border-radius: var(--velor-radius-lg);
+  padding: var(--velor-spacing-md);
+  border: 1px solid var(--velor-border);
+  flex-shrink: 0;
+}
+
+.velor-shop-header h3 {
+  margin: 0 0 var(--velor-spacing-xs) 0;
+}
+
+.velor-shop-header p {
+  margin: 0;
+}
+
+/* Scrollable content area */
+.velor-shop-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-md);
+  flex: 1;
+  overflow-y: auto;
 }
 
 .velor-shop-items-section {
