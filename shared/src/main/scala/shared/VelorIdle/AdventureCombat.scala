@@ -347,9 +347,10 @@ object AdventureCombat:
         )
         events :+= CombatEvent.PlayerAutoAttack(damage)
 
-    // Enemy auto-attack (only if not stunned and player not dead)
+    // Enemy auto-attack (only if not stunned/frozen and player not dead)
     val enemyStunned = c.enemyStun.exists(s => currentTime < s.endsAt)
-    if !enemyStunned && !c.isPlayerDead && currentTime >= c.lastEnemyAutoAttack + c.enemy.attackSpeedMs then
+    val enemyFrozen = c.enemyFreeze.exists(f => currentTime < f.endsAt)
+    if !enemyStunned && !enemyFrozen && !c.isPlayerDead && currentTime >= c.lastEnemyAutoAttack + c.enemy.attackSpeedMs then
       // Check if player evades (enemy attack rating vs player defense rating)
       val playerEvades = rollEvade(c.enemy.attackRating, advState.defenseRating, random)
       if playerEvades then
@@ -470,6 +471,24 @@ object AdventureCombat:
       case SkillEffect.Stun(duration) =>
         c = c.copy(enemyStun = Some(ActiveStun(currentTime + duration)))
         events :+= CombatEvent.EnemyStunned(duration)
+      case SkillEffect.Freeze(chancePercent, duration) =>
+        // Random chance to freeze
+        val roll = scala.util.Random.nextInt(100)
+        if roll < chancePercent then
+          c = c.copy(enemyFreeze = Some(ActiveFreeze(currentTime + duration)))
+          events :+= CombatEvent.EnemyFrozen(duration)
+      case SkillEffect.ConsumeFreeze(bonusDamagePercent) =>
+        // If enemy is frozen, consume it for bonus damage
+        c.enemyFreeze match
+          case Some(freeze) if freeze.endsAt > currentTime =>
+            val bonusDamage = (skill.damage * bonusDamagePercent).toInt
+            c = c.copy(
+              enemyCurrentHp = (c.enemyCurrentHp - bonusDamage).max(0),
+              enemyFreeze = None  // Consume the freeze
+            )
+            totalDamage += bonusDamage
+            events :+= CombatEvent.FreezeConsumed(bonusDamage)
+          case _ => // No freeze to consume
       case SkillEffect.Heal(amount) =>
         val healed = amount.min(c.playerMaxHp - c.playerCurrentHp)
         c = c.copy(playerCurrentHp = c.playerCurrentHp + healed)
@@ -527,6 +546,22 @@ object AdventureCombat:
       case SkillEffect.Stun(duration) =>
         c = c.copy(enemyStun = Some(ActiveStun(currentTime + duration)))
         events :+= CombatEvent.EnemyStunned(duration)
+      case SkillEffect.Freeze(chancePercent, duration) =>
+        val roll = scala.util.Random.nextInt(100)
+        if roll < chancePercent then
+          c = c.copy(enemyFreeze = Some(ActiveFreeze(currentTime + duration)))
+          events :+= CombatEvent.EnemyFrozen(duration)
+      case SkillEffect.ConsumeFreeze(bonusDamagePercent) =>
+        c.enemyFreeze match
+          case Some(freeze) if freeze.endsAt > currentTime =>
+            val bonusDamage = (skill.damage * bonusDamagePercent).toInt
+            c = c.copy(
+              enemyCurrentHp = (c.enemyCurrentHp - bonusDamage).max(0),
+              enemyFreeze = None
+            )
+            totalDamage += bonusDamage
+            events :+= CombatEvent.FreezeConsumed(bonusDamage)
+          case _ =>
       case SkillEffect.Heal(amount) =>
         val healed = amount.min(c.playerMaxHp - c.playerCurrentHp)
         c = c.copy(playerCurrentHp = c.playerCurrentHp + healed)
