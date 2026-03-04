@@ -229,8 +229,17 @@ object AdventureCombat:
     val oldLevel = skillState.level
     val newLevel = SkillState.levelFromXp(newXp)
     g = g.copy(skills = g.skills.updated(Skill.Adventure, skillState.copy(xp = newXp, level = newLevel)))
-    events :+= GameEvent.XpGained(Skill.Adventure, enemy.xpReward)
-    if newLevel > oldLevel then events :+= GameEvent.LevelUp(Skill.Adventure, newLevel)
+    events = events :+ GameEvent.XpGained(Skill.Adventure, enemy.xpReward)
+    
+    // Award skill points for each level gained
+    if newLevel > oldLevel then
+      val levelsGained = newLevel - oldLevel
+      val newCombatSkillState = SkillTreeLogic.awardPoints(g.adventureState.combatSkillState, levelsGained)
+      g = g.copy(
+        adventureState = g.adventureState.copy(combatSkillState = newCombatSkillState)
+      )
+      events = events :+ GameEvent.LevelUp(Skill.Adventure, newLevel)
+      events = events :+ GameEvent.SkillPointsGained(levelsGained)
 
     // Grant gold
     val goldAmount = enemy.goldReward._1 + random.nextInt(enemy.goldReward._2 - enemy.goldReward._1 + 1)

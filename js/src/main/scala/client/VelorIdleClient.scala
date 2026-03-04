@@ -147,6 +147,7 @@ object VelorIdleClient:
   private def skillTreesView(): HtmlElement =
     SkillTreeView(
       onAllocatePoint = handleAllocateSkillPoint,
+      onDeallocatePoint = handleDeallocateSkillPoint,
       onBindSkill = handleBindSkill,
       onBack = () => VelorIdleState.setViewMode(VelorIdleState.ViewMode.Adventure)
     )
@@ -310,6 +311,23 @@ object VelorIdleClient:
         shared.VelorIdle.SkillTrees.getSkillById(skillId).foreach { skill =>
           val level = newGame.adventureState.combatSkillState.getSkillLevel(skillId)
           ToastSystem.show(s"✨ ${skill.name} → Level $level")
+        }
+      case Left(error) =>
+        ToastSystem.show(s"❌ $error")
+
+  private def handleDeallocateSkillPoint(skillId: String): Unit =
+    VelorIdleLogic.deallocateCombatSkillPoint(currentGame, skillId) match
+      case Right(newGame) =>
+        currentGame = newGame
+        VelorIdleState.update(currentGame)
+        isDirty = true
+        shared.VelorIdle.SkillTrees.getSkillById(skillId).foreach { skill =>
+          val level = newGame.adventureState.combatSkillState.getSkillLevel(skillId)
+          val cost = shared.VelorIdle.SkillTreeLogic.RefundCostGold
+          if level > 0 then
+            ToastSystem.show(s"💰 ${skill.name} → Level $level (-$cost gold)")
+          else
+            ToastSystem.show(s"💰 ${skill.name} refunded (-$cost gold)")
         }
       case Left(error) =>
         ToastSystem.show(s"❌ $error")
