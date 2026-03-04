@@ -277,6 +277,7 @@
   gap: var(--velor-spacing-sm);
   width: 100%;
   max-width: 100%;
+  padding-bottom: var(--velor-spacing-md);
 }
 
 /* Container queries - responds to actual container width, not viewport */
