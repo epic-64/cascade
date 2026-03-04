@@ -33,6 +33,11 @@
         combatCss.href = '/static/velor-combat.css?v=' + v;
         document.head.appendChild(combatCss);
 
+        const panelsCss = document.createElement('link');
+        panelsCss.rel = 'stylesheet';
+        panelsCss.href = '/static/velor-panels.css?v=' + v;
+        document.head.appendChild(panelsCss);
+
         const js = document.createElement('script');
         js.src = '/static/js/main.js?v=' + v;
         document.head.appendChild(js);
@@ -42,6 +47,7 @@
       <link rel="stylesheet" href="/static/base.css">
       <link rel="stylesheet" href="/static/velor-idle.css">
       <link rel="stylesheet" href="/static/velor-combat.css">
+      <link rel="stylesheet" href="/static/velor-panels.css">
     </noscript>
   </head>
   <body>
