@@ -193,6 +193,8 @@ case class CastingState(
 enum CombatEvent derives ReadWriter:
   case PlayerAutoAttack(damage: Int)
   case EnemyAutoAttack(damage: Int)
+  case PlayerEvaded
+  case EnemyEvaded
   case PlayerSkillUsed(skillName: String, damage: Int)
   case PlayerHealed(amount: Int)
   case EnemyDotTick(damage: Int, sourceName: String)
@@ -450,10 +452,10 @@ object Enemies:
     icon = "🎯",
     levelRequired = 1,
     maxHp = 1000,
-    attackDamage = 0,
+    attackDamage = 1,
     attackSpeedMs = 9999999,  // Effectively never attacks
-    attackRating = 0,
-    defenseRating = 0,
+    attackRating = 1,
+    defenseRating = 1,
     resistances = Resistances.none,
     xpReward = 0,
     goldReward = (0, 0),

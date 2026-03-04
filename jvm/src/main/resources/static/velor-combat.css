@@ -625,6 +625,11 @@
   color: #22c55e;
 }
 
+.velor-floating-damage.evade {
+  color: #60a5fa;
+  font-style: italic;
+}
+
 @keyframes velor-damage-float {
   0% {
     opacity: 1;

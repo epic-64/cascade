@@ -9,6 +9,23 @@ object AdventureCombat:
   private val GlobalCooldownMs: Long = 1000L
 
   // ============================================================================
+  // Evade Calculation
+  // ============================================================================
+
+  /** Calculate evade chance based on attacker's attack rating vs defender's defense rating.
+    * Formula: evadeChance = defenseRating / (defenseRating + attackRating) * 0.5
+    * This gives a max of 50% evade when defense >> attack, and approaches 0% when attack >> defense.
+    * When attack = defense, evade chance is 25%.
+    */
+  def calculateEvadeChance(attackRating: Int, defenseRating: Int): Double =
+    if attackRating + defenseRating <= 0 then 0.0
+    else (defenseRating.toDouble / (defenseRating + attackRating)) * 0.5
+
+  /** Check if an attack is evaded */
+  def rollEvade(attackRating: Int, defenseRating: Int, random: Random): Boolean =
+    random.nextDouble() < calculateEvadeChance(attackRating, defenseRating)
+
+  // ============================================================================
   // Combat Initialization
   // ============================================================================
 
@@ -106,7 +123,7 @@ object AdventureCombat:
     val elapsedSeconds = (currentTime - game.lastTickTime).max(0) / 1000.0
 
     // Run all combat systems in order
-    val (processedCombat, combatEvents) = runCombatSystems(combat, currentTime, elapsedSeconds, game.adventureState.equippedWeapon, random)
+    val (processedCombat, combatEvents) = runCombatSystems(combat, currentTime, elapsedSeconds, game.adventureState, random)
 
     // Check outcomes and handle state transitions
     if processedCombat.isEnemyDead then
@@ -121,7 +138,7 @@ object AdventureCombat:
     combat: CombatState,
     currentTime: Long,
     elapsedSeconds: Double,
-    weapon: Weapon,
+    advState: AdventureState,
     random: Random
   ): (CombatState, Vector[CombatEvent]) =
     var c = combat
@@ -142,7 +159,7 @@ object AdventureCombat:
 
     // 3. Process auto-attacks (only if enemy not already dead from DoTs)
     if !c.isEnemyDead then
-      val (afterAutos, autoEvents) = processAutoAttacks(c, currentTime, weapon, random)
+      val (afterAutos, autoEvents) = processAutoAttacks(c, currentTime, advState.equippedWeapon, advState, random)
       c = afterAutos
       events ++= autoEvents
 
@@ -283,6 +300,7 @@ object AdventureCombat:
     combat: CombatState,
     currentTime: Long,
     weapon: Weapon,
+    advState: AdventureState,
     random: Random
   ): (CombatState, Vector[CombatEvent]) =
     var c = combat
@@ -290,25 +308,40 @@ object AdventureCombat:
 
     // Player auto-attack
     if currentTime >= c.lastPlayerAutoAttack + weapon.attackSpeedMs then
-      val damage = applyDamageBuff(weapon.attackDamage, c.playerDamageBuff)
-      c = c.copy(
-        enemyCurrentHp = (c.enemyCurrentHp - damage).max(0),
-        lastPlayerAutoAttack = currentTime,
-        playerDamageBuff = None
-      )
-      events :+= CombatEvent.PlayerAutoAttack(damage)
+      // Check if enemy evades (player attack rating vs enemy defense rating)
+      val enemyEvades = rollEvade(advState.attackRating, c.enemy.defenseRating, random)
+      if enemyEvades then
+        c = c.copy(
+          lastPlayerAutoAttack = currentTime,
+          playerDamageBuff = None  // Buff is consumed even on evade
+        )
+        events :+= CombatEvent.EnemyEvaded
+      else
+        val damage = applyDamageBuff(weapon.attackDamage, c.playerDamageBuff)
+        c = c.copy(
+          enemyCurrentHp = (c.enemyCurrentHp - damage).max(0),
+          lastPlayerAutoAttack = currentTime,
+          playerDamageBuff = None
+        )
+        events :+= CombatEvent.PlayerAutoAttack(damage)
 
     // Enemy auto-attack (only if not stunned and player not dead)
     val enemyStunned = c.enemyStun.exists(s => currentTime < s.endsAt)
     if !enemyStunned && !c.isPlayerDead && currentTime >= c.lastEnemyAutoAttack + c.enemy.attackSpeedMs then
-      val (newHp, newShield, shieldBroken) = applyDamageWithShield(c.playerCurrentHp, c.playerShield, c.enemy.attackDamage, currentTime)
-      c = c.copy(
-        playerCurrentHp = newHp.max(0),
-        playerShield = newShield,
-        lastEnemyAutoAttack = currentTime
-      )
-      events :+= CombatEvent.EnemyAutoAttack(c.enemy.attackDamage)
-      if shieldBroken then events :+= CombatEvent.ShieldBroken
+      // Check if player evades (enemy attack rating vs player defense rating)
+      val playerEvades = rollEvade(c.enemy.attackRating, advState.defenseRating, random)
+      if playerEvades then
+        c = c.copy(lastEnemyAutoAttack = currentTime)
+        events :+= CombatEvent.PlayerEvaded
+      else
+        val (newHp, newShield, shieldBroken) = applyDamageWithShield(c.playerCurrentHp, c.playerShield, c.enemy.attackDamage, currentTime)
+        c = c.copy(
+          playerCurrentHp = newHp.max(0),
+          playerShield = newShield,
+          lastEnemyAutoAttack = currentTime
+        )
+        events :+= CombatEvent.EnemyAutoAttack(c.enemy.attackDamage)
+        if shieldBroken then events :+= CombatEvent.ShieldBroken
 
     (c, events)
 
