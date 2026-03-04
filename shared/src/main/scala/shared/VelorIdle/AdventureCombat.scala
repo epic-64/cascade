@@ -91,8 +91,12 @@ object AdventureCombat:
       case None =>
         // Not in combat - nothing to do (use Rest action for regen)
         (game.copy(lastTickTime = currentTime), Vector.empty)
-      case Some(combat) if combat.isCombatOver =>
-        // Combat is over - nothing to do (use Rest action for regen after death)
+      case Some(combat) if combat.isEnemyDead =>
+        // Enemy is dead (killed by skill) - handle death and auto-restart
+        val (_, endEvents, updatedGame) = handleEnemyDeath(combat, game, random, currentTime)
+        (updatedGame.copy(lastTickTime = currentTime), endEvents)
+      case Some(combat) if combat.isPlayerDead =>
+        // Player died - nothing to do (use Rest action for regen)
         (game.copy(lastTickTime = currentTime), Vector.empty)
       case Some(combat) =>
         val elapsedMs = currentTime - game.lastTickTime
