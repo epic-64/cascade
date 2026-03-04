@@ -55,11 +55,11 @@ object VelorIdleState:
   val activeActionSignal: Signal[ActiveAction] = gameSignal.map(_.activeAction).distinct
 
 
-  val inventorySignal: Signal[Inventory] = gameSignal.map(_.inventory)
+  val inventorySignal: Signal[Inventory] = gameSignal.map(_.inventory).distinct
 
-  val potionSlotsSignal: Signal[PotionSlots] = gameSignal.map(_.potionSlots)
+  val potionSlotsSignal: Signal[PotionSlots] = gameSignal.map(_.potionSlots).distinct
 
-  val tabletSlotsSignal: Signal[TabletSlots] = gameSignal.map(_.tabletSlots)
+  val tabletSlotsSignal: Signal[TabletSlots] = gameSignal.map(_.tabletSlots).distinct
 
   def skillStateSignal(skill: Skill): Signal[SkillState] =
     gameSignal.map(_.skills.getOrElse(skill, SkillState.initial))

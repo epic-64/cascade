@@ -30,8 +30,8 @@ object InventoryPanel:
       // Sell all junk button
       div(
         cls := "velor-inventory-actions",
-        child <-- VelorIdleState.gameSignal.map: game =>
-          val junkCount = game.inventory.slots.flatten.count(s => game.junkItems.contains(s.item))
+        child <-- VelorIdleState.inventorySignal.combineWith(VelorIdleState.gameSignal.map(_.junkItems).distinct).map: (inventory, junkItems) =>
+          val junkCount = inventory.slots.flatten.count(s => junkItems.contains(s.item))
           if junkCount > 0 then
             button(
               cls := "btn btn-secondary velor-sell-junk-btn",
@@ -44,9 +44,9 @@ object InventoryPanel:
       
       div(
         cls := "velor-inventory-grid",
-        children <-- inventorySignal.combineWith(VelorIdleState.gameSignal).map: (inv, game) =>
+        children <-- inventorySignal.combineWith(VelorIdleState.gameSignal.map(_.junkItems).distinct).map: (inv, junkItems) =>
           inv.slots.zipWithIndex.map: (slot, idx) =>
-            itemSlot(slot, idx, game.junkItems, selectedItemVar)
+            itemSlot(slot, idx, junkItems, selectedItemVar)
       ),
       
       // Item detail modal
