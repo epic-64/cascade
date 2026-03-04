@@ -141,7 +141,7 @@ object VelorIdleClient:
 
 
   private def handleStartAction(actionId: String): Unit =
-    VelorIdleLogic.startAction(currentGame, actionId) match
+    VelorIdleLogic.startAction(currentGame, actionId, System.currentTimeMillis()) match
       case Right(newGame) =>
         currentGame = newGame
         VelorIdleState.update(currentGame)
@@ -241,7 +241,7 @@ object VelorIdleClient:
   // ============================================================================
 
   private def handleStartCombat(enemyId: String): Unit =
-    AdventureCombat.startCombat(currentGame, enemyId, System.currentTimeMillis()) match
+    VelorIdleLogic.startAction(currentGame, enemyId, System.currentTimeMillis()) match
       case Right(newGame) =>
         currentGame = newGame
         VelorIdleState.update(currentGame)
@@ -250,7 +250,7 @@ object VelorIdleClient:
         ToastSystem.show(s"❌ $error")
 
   private def handleUseSkill(slotIndex: Int): Unit =
-    AdventureCombat.useSkill(currentGame, slotIndex, System.currentTimeMillis()) match
+    VelorIdleLogic.useAdventureSkill(currentGame, slotIndex, System.currentTimeMillis()) match
       case Right(newGame) =>
         currentGame = newGame
         VelorIdleState.update(currentGame)
@@ -259,12 +259,12 @@ object VelorIdleClient:
         ToastSystem.show(s"❌ $error")
 
   private def handleStopCombat(): Unit =
-    currentGame = AdventureCombat.stopCombat(currentGame)
+    currentGame = VelorIdleLogic.stopAction(currentGame)
     VelorIdleState.update(currentGame)
     isDirty = true
 
   private def handleRestartCombat(): Unit =
-    AdventureCombat.restartCombat(currentGame, System.currentTimeMillis()) match
+    VelorIdleLogic.restartAdventure(currentGame, System.currentTimeMillis()) match
       case Right(newGame) =>
         currentGame = newGame
         VelorIdleState.update(currentGame)
@@ -301,25 +301,17 @@ object VelorIdleClient:
     
     val currentTime = System.currentTimeMillis()
     
-    // Process adventure (combat or out-of-combat regen) if on Adventure skill
-    val (gameAfterAdventure, combatEvents) = 
-      if currentGame.currentSkill.contains(Skill.Adventure) then
-        AdventureCombat.tick(currentGame, currentTime)
-      else
-        (currentGame, Vector.empty)
-    
-    // Process regular game tick
-    val (newGame, events) = VelorIdleLogic.tick(gameAfterAdventure, currentTime)
-    val allEvents = combatEvents ++ events
+    // Process game tick (handles all activities including Adventure)
+    val (newGame, events) = VelorIdleLogic.tick(currentGame, currentTime)
 
-    if allEvents.nonEmpty then
+    if events.nonEmpty then
       // Meaningful change - update full game state
       currentGame = newGame
       VelorIdleState.update(currentGame)
       isDirty = true
-      processEvents(allEvents)
-    else if newGame.actionProgress != currentGame.actionProgress || gameAfterAdventure != currentGame then
-      // Progress or combat/regen state changed
+      processEvents(events)
+    else if newGame.actionProgress != currentGame.actionProgress || newGame != currentGame then
+      // Progress or state changed
       currentGame = newGame
       VelorIdleState.update(currentGame)
       VelorIdleState.updateProgress(newGame.actionProgress)

@@ -29,8 +29,8 @@ object VelorIdleLogic:
         processThievingTick(game, action, elapsedSeconds, currentTime, random)
 
       case ActiveAction.Adventure =>
-        // Adventure combat is processed separately in AdventureCombat.tick
-        (game.copy(lastTickTime = currentTime), Vector.empty)
+        // Adventure combat is processed by AdventureCombat.tick
+        AdventureCombat.tick(game, currentTime, random)
 
 
   private def processGatheringTick(
@@ -506,27 +506,32 @@ object VelorIdleLogic:
   // Player Actions
   // ============================================================================
 
-  /** Clear adventure combat state - used when starting other skills */
-  private def clearAdventureCombat(game: VelorIdleGame): VelorIdleGame =
-    if game.adventureState.inCombat then
-      game.copy(adventureState = game.adventureState.copy(
-        inCombat = false,
-        combatState = None
-      ))
-    else game
 
   /** Select a skill to view/train - does not affect the currently running action */
   def selectSkill(game: VelorIdleGame, skill: Skill): VelorIdleGame =
     game.copy(currentSkill = Some(skill))
 
   /** Start an action - automatically dispatches to gathering or processing based on current skill */
-  def startAction(game: VelorIdleGame, actionId: String): Either[String, VelorIdleGame] =
+  def startAction(game: VelorIdleGame, actionId: String, currentTime: Long = System.currentTimeMillis()): Either[String, VelorIdleGame] =
     game.currentSkill match
       case None => Left("No skill selected")
       case Some(skill) if Skill.isGathering(skill) => startGathering(game, actionId)
       case Some(skill) if Skill.isProcessing(skill) => startProcessing(game, actionId)
       case Some(Skill.Thieving) => startThieving(game, actionId)
+      case Some(Skill.Adventure) => startAdventure(game, actionId, currentTime)
       case Some(skill) => Left(s"${Skill.displayName(skill)} actions not yet implemented")
+
+  /** Start adventure combat with an enemy */
+  def startAdventure(game: VelorIdleGame, enemyId: String, currentTime: Long): Either[String, VelorIdleGame] =
+    AdventureCombat.startCombat(game, enemyId, currentTime)
+
+  /** Restart adventure combat with the same enemy (after death) */
+  def restartAdventure(game: VelorIdleGame, currentTime: Long): Either[String, VelorIdleGame] =
+    AdventureCombat.restartCombat(game, currentTime)
+
+  /** Use an adventure combat skill */
+  def useAdventureSkill(game: VelorIdleGame, slotIndex: Int, currentTime: Long): Either[String, VelorIdleGame] =
+    AdventureCombat.useSkill(game, slotIndex, currentTime)
 
   /** Start a gathering action */
   def startGathering(game: VelorIdleGame, actionId: String): Either[String, VelorIdleGame] =
@@ -542,7 +547,7 @@ object VelorIdleLogic:
             if skillState.level < action.levelRequired then
               Left(s"Requires ${Skill.displayName(skill)} level ${action.levelRequired}")
             else
-              Right(clearAdventureCombat(game).copy(
+              Right(game.copy(
                 activeAction = ActiveAction.Gathering(skill, action),
                 actionProgress = 0.0
               ))
@@ -563,7 +568,7 @@ object VelorIdleLogic:
             else if !canProcess(game, action) then
               Left("Missing required materials")
             else
-              Right(clearAdventureCombat(game).copy(
+              Right(game.copy(
                 activeAction = ActiveAction.Processing(skill, action),
                 actionProgress = 0.0
               ))
@@ -582,14 +587,17 @@ object VelorIdleLogic:
             if skillState.level < action.levelRequired then
               Left(s"Requires Thieving level ${action.levelRequired}")
             else
-              Right(clearAdventureCombat(game).copy(
+              Right(game.copy(
                 activeAction = ActiveAction.Thieving(action),
                 actionProgress = 0.0
               ))
 
   /** Stop the current action */
   def stopAction(game: VelorIdleGame): VelorIdleGame =
-    game.copy(
+    val clearedGame = game.activeAction match
+      case ActiveAction.Adventure => AdventureCombat.stopCombat(game)
+      case _ => game
+    clearedGame.copy(
       activeAction = ActiveAction.Idle,
       actionProgress = 0.0
     )
