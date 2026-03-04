@@ -31,9 +31,10 @@ ui library:
 
 Important Laminar Concepts:
 - when using signals that update frequently (e.g., game state during combat), always use `.distinct` on the signal to prevent unnecessary DOM updates
-- without `.distinct`, every signal emission triggers a re-render even if the value hasn't changed
-- example: `child.text <-- gameSignal.map(g => g.someValue).distinct`
-- this is especially important for elements inside frequently-updating views like combat, animations, or real-time data
+  - without `.distinct`, every signal emission triggers a re-render even if the value hasn't changed
+  - example: `child.text <-- gameSignal.map(g => g.someValue).distinct`
+  - this is especially important for elements inside frequently-updating views like combat, animations, or real-time data
+- combineWith automatically flattens tuples: Signal[A].combineWith[B].combineWith[C] => Signal[(A, B, C)]
 
 terminal issues:
 - sometimes you will not be able to read terminal output. In this case, clear the terminal buffer and try again.
