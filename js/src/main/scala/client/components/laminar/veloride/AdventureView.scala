@@ -535,7 +535,7 @@ object AdventureView:
         cls := "velor-skill-cooldown-overlay",
         child.text <-- slotSignal.map { slot =>
           val now = System.currentTimeMillis()
-          slot.filter { s => 
+          slot.filter { s =>
             val isChainSkill = s.isInChainWindow(now) && s.currentSkill.id != s.baseSkill.id
             s.isOnCooldown(now) && !isChainSkill
           }.map { s =>
