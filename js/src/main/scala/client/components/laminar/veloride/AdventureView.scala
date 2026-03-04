@@ -415,13 +415,13 @@ object AdventureView:
           case None =>
             lastSeenInstanceId = -1L
             lastSeenEventCount = 0
-            
+
           case _ => ()
         }
       },
 
       // Enemy section - reactive
-      enemyDisplayReactive(combatSignal, floatingNumbersVar),
+      enemyDisplayReactive(combatSignal, floatingNumbersVar, onStopCombat),
 
       // Player section - reactive
       playerDisplayReactive(combatSignal, floatingNumbersVar),
@@ -429,22 +429,11 @@ object AdventureView:
       // Skill bar - reactive
       skillBarReactive(combatSignal, onUseSkill),
 
-      // Stop combat button
-      div(
-        cls := "velor-combat-controls",
-        display <-- combatSignal.map(_.map(_ => "flex").getOrElse("none")),
-        button(
-          cls := "btn btn-secondary",
-          "🛑 Stop Combat",
-          onClick --> { _ => onStopCombat() }
-        )
-      ),
-
       // Combat end overlay - only shown once combat ends
       combatEndOverlayReactive(combatEndedVar.signal, isVictoryVar.signal, combatSignal, onStopCombat, onRestartCombat, onRest)
     )
 
-  private def enemyDisplayReactive(combatSignal: Signal[Option[CombatState]], floatingNumbersVar: Var[Vector[FloatingNumber]]): HtmlElement =
+  private def enemyDisplayReactive(combatSignal: Signal[Option[CombatState]], floatingNumbersVar: Var[Vector[FloatingNumber]], onStopCombat: () => Unit): HtmlElement =
     div(
       cls := "velor-combat-entity velor-combat-enemy",
       cls <-- combatSignal.map {
@@ -479,6 +468,12 @@ object AdventureView:
             "💫 STUNNED",
             visibility <-- combatSignal.map(c => if c.exists(_.enemyStun.isDefined) then "visible" else "hidden")
           )
+        ),
+        // Stop button
+        button(
+          cls := "velor-combat-stop-btn",
+          "Stop",
+          onClick --> { _ => onStopCombat() }
         )
       ),
 
