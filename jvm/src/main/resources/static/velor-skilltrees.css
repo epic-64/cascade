@@ -44,12 +44,45 @@
   background: var(--velor-card);
   border-radius: var(--velor-radius-md);
   border: 1px solid var(--velor-border);
+  flex-wrap: wrap;
 }
 
 .velor-skill-points-display {
   font-size: 1.2rem;
   font-weight: 600;
   color: var(--velor-accent);
+}
+
+/* Current bindings preview in header */
+.velor-current-bindings {
+  display: flex;
+  gap: var(--velor-spacing-xs);
+}
+
+.velor-binding-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--velor-spacing-xs);
+  background: var(--velor-surface);
+  border: 1px solid var(--velor-border);
+  border-radius: var(--velor-radius-sm);
+  min-width: 36px;
+}
+
+.velor-binding-preview.has-skill {
+  border-color: var(--velor-accent);
+  background: rgba(74, 144, 226, 0.1);
+}
+
+.velor-binding-preview-key {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.velor-binding-preview-icon {
+  font-size: 1.2rem;
 }
 
 /* ============================================================================
@@ -224,9 +257,55 @@
   border-radius: var(--velor-radius-sm);
 }
 
-.velor-skill-allocate-btn {
+/* Skill node action buttons row */
+.velor-skill-node-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-sm);
   margin-top: auto;
-  padding: var(--velor-spacing-sm) var(--velor-spacing-md);
+  padding-top: var(--velor-spacing-sm);
+}
+
+.velor-skill-allocate-btn {
+  padding: var(--velor-spacing-xs) var(--velor-spacing-sm) !important;
+  min-width: 40px;
+  font-size: 1.1rem;
+}
+
+.velor-skill-bind-buttons {
+  display: flex;
+  gap: var(--velor-spacing-xs);
+  margin-left: auto;
+}
+
+.velor-bind-slot-btn {
+  padding: var(--velor-spacing-xs) var(--velor-spacing-sm) !important;
+  min-width: 32px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.velor-bind-slot-btn.active {
+  background: var(--velor-accent) !important;
+  color: white !important;
+  box-shadow: 0 0 8px rgba(74, 144, 226, 0.5);
+}
+
+.btn-accent {
+  background: var(--velor-accent);
+  color: white;
+  border: none;
+}
+
+.btn-accent:hover {
+  background: var(--velor-accent-hover, #357abd);
+}
+
+.velor-skill-bound-indicator {
+  font-size: 0.75rem;
+  color: var(--velor-success);
+  font-weight: 600;
+  margin-top: var(--velor-spacing-xs);
 }
 
 /* ============================================================================
