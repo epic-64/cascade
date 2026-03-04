@@ -23,7 +23,7 @@ object ItemDetailModal:
       case (Some(item), inv) => inv.getCount(item)
       case _ => 0L
     .distinct
-    
+
     // Derive isJunk signal that only updates when junk status changes
     val isJunkSignal = itemSignal.combineWith(VelorIdleState.gameSignal.map(_.junkItems).distinct).map:
       case (Some(item), junkItems) => junkItems.contains(item)
@@ -144,32 +144,24 @@ object ItemDetailModal:
             ),
             button(
               cls := "velor-sell-quick-btn",
-              "10",
-              disabled <-- countSignal.map(_ < 10),
-              onClick.compose(_.sample(countSignal)) --> { count => 
-                sellAmountVar.set(10L.min(count)) 
-              }
-            ),
-            button(
-              cls := "velor-sell-quick-btn",
               "Half",
-              onClick.compose(_.sample(countSignal)) --> { count => 
-                sellAmountVar.set((count / 2).max(1L)) 
+              onClick.compose(_.sample(countSignal)) --> { count =>
+                sellAmountVar.set((count / 2).max(1L))
               }
             ),
             button(
               cls := "velor-sell-quick-btn",
               "Keep 1",
               disabled <-- countSignal.map(_ <= 1),
-              onClick.compose(_.sample(countSignal)) --> { count => 
-                sellAmountVar.set((count - 1).max(1L)) 
+              onClick.compose(_.sample(countSignal)) --> { count =>
+                sellAmountVar.set((count - 1).max(1L))
               }
             ),
             button(
               cls := "velor-sell-quick-btn",
               "All",
-              onClick.compose(_.sample(countSignal)) --> { count => 
-                sellAmountVar.set(count) 
+              onClick.compose(_.sample(countSignal)) --> { count =>
+                sellAmountVar.set(count)
               }
             )
           ),
