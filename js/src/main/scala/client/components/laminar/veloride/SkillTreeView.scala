@@ -79,7 +79,6 @@ object SkillTreeView:
 
       div(cls := "velor-skill-tree-icon", tree.icon),
       div(cls := "velor-skill-tree-name", tree.name),
-      div(cls := "velor-skill-tree-desc", tree.description),
 
       // Show points spent in this tree
       div(
