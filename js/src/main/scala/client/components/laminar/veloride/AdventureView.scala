@@ -585,29 +585,12 @@ object AdventureView:
       cls := "velor-skill-bar",
       display <-- combatSignal.map(_.map(_ => "flex").getOrElse("none")),
 
-      // Weapon skills (slots 0-3)
+      // Single row with 5 skill slots
       div(
-        cls := "velor-skill-row weapon-skills",
-        div(cls := "velor-skill-row-label", "Weapon"),
-        div(
-          cls := "velor-skill-slots",
-          (0 until 4).map { idx =>
-            skillSlotReactive(combatSignal, idx, s"${idx + 1}", onUseSkill)
-          }
-        )
-      ),
-
-      // Armor skills (slots 4-7)
-      div(
-        cls := "velor-skill-row armor-skills",
-        div(cls := "velor-skill-row-label", "Armor"),
-        div(
-          cls := "velor-skill-slots",
-          (4 until 8).map { idx =>
-            val key = Vector("Q", "W", "E", "R")(idx - 4)
-            skillSlotReactive(combatSignal, idx, key, onUseSkill)
-          }
-        )
+        cls := "velor-skill-slots",
+        (0 until 5).map { idx =>
+          skillSlotReactive(combatSignal, idx, s"${idx + 1}", onUseSkill)
+        }
       )
     )
 
