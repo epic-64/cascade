@@ -278,22 +278,22 @@
 /* Skill Bar */
 .velor-skill-bar {
   display: flex;
-  justify-content: center;
-  padding: var(--velor-spacing-md);
   background: var(--velor-card);
   border-radius: var(--velor-radius-md);
   border: 1px solid var(--velor-border);
+  padding: var(--velor-spacing-xs);
 }
 
 .velor-skill-slots {
   display: flex;
-  gap: var(--velor-spacing-sm);
+  flex: 1;
+  gap: var(--velor-spacing-xs);
 }
 
 .velor-skill-slot {
   position: relative;
-  width: 70px;
-  height: 80px;
+  flex: 1;
+  aspect-ratio: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -301,14 +301,14 @@
   gap: 2px;
   padding: var(--velor-spacing-xs);
   background: var(--velor-bg);
-  border: 2px solid var(--velor-border);
-  border-radius: var(--velor-radius-md);
+  border: none;
+  border-radius: var(--velor-radius-sm);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
+
 .velor-skill-slot:not(:disabled):hover {
-  border-color: var(--velor-accent);
   background: var(--velor-card-hover);
 }
 
@@ -318,7 +318,6 @@
 
 .velor-skill-slot.empty {
   opacity: 0.4;
-  border-style: dashed;
 }
 
 .velor-skill-slot.on-cooldown {
@@ -326,12 +325,10 @@
 }
 
 .velor-skill-slot.no-mana {
-  border-color: #3b82f6;
   background: rgba(59, 130, 246, 0.1);
 }
 
 .velor-skill-slot.chain-skill {
-  border-color: #fbbf24;
   background: rgba(251, 191, 36, 0.15);
   animation: velor-chain-pulse 0.8s ease-in-out infinite;
 }
@@ -534,17 +531,6 @@
   margin-top: var(--velor-spacing-sm);
 }
 
-/* Responsive adjustments for skill bar */
-@media (max-width: 400px) {
-  .velor-skill-slot {
-    width: 60px;
-    height: 70px;
-  }
-
-  .velor-skill-icon {
-    font-size: 1.2rem;
-  }
-}
 
 /* ============================================================================
    Floating Damage Numbers
