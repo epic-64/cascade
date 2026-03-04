@@ -16,13 +16,13 @@ object AdventureView:
 
   // Store the key handler reference for cleanup
   private var currentKeyHandler: Option[scalajs.js.Function1[dom.KeyboardEvent, Unit]] = None
-  
+
   // Floating damage number state
   case class FloatingNumber(id: Int, text: String, isPlayer: Boolean, isHeal: Boolean, x: Int, y: Int)
   private val floatingNumbersVar = Var(Vector.empty[FloatingNumber])
   private var nextFloatingId = 0
   private val random = new Random()
-  
+
   private def showDamageNumber(damage: Int, isPlayer: Boolean, isHeal: Boolean = false): Unit =
     val text = if isHeal then s"+$damage" else s"-$damage"
     val x = random.nextInt(60) - 30  // Random x offset
@@ -149,10 +149,10 @@ object AdventureView:
     // Track if combat has ended to show overlay (only set once, not re-triggered)
     val combatEndedVar = Var(false)
     val isVictoryVar = Var(false)
-    
+
     // Track previous combat events to detect new ones
     var lastEventCount = 0
-    
+
     // Update combat ended state only when transitioning to ended
     // Also trigger damage numbers on new combat events
     combatSignal.foreach {
@@ -176,21 +176,21 @@ object AdventureView:
       case None =>
         lastEventCount = 0
       case _ => ()
-    }(unsafeWindowOwner)
-    
+    }(using unsafeWindowOwner)
+
     div(
       cls := "velor-combat-view",
       display <-- inCombatSignal.map(if _ then "flex" else "none"),
-      
+
       // Enemy section - reactive
       enemyDisplayReactive(combatSignal),
-      
+
       // Player section - reactive
       playerDisplayReactive(combatSignal),
-      
+
       // Skill bar - reactive
       skillBarReactive(combatSignal, onUseSkill),
-      
+
       // Combat end overlay - only shown once combat ends
       combatEndOverlayReactive(combatEndedVar.signal, isVictoryVar.signal, combatSignal, onStopCombat, onRestartCombat)
     )
@@ -204,7 +204,7 @@ object AdventureView:
       },
       display <-- combatSignal.map(_.map(_ => "block").getOrElse("none")),
       position := "relative",
-      
+
       // Floating damage numbers (enemy takes damage)
       div(
         cls := "velor-floating-damage-container",
@@ -216,7 +216,7 @@ object AdventureView:
           )
         })
       ),
-      
+
       // Enemy icon and name
       div(
         cls := "velor-entity-header",
@@ -228,7 +228,7 @@ object AdventureView:
           display <-- combatSignal.map(c => if c.exists(_.enemyStun.isDefined) then "inline" else "none")
         )
       ),
-      
+
       // HP bar
       div(
         cls := "velor-hp-bar-container",
@@ -243,7 +243,7 @@ object AdventureView:
           child.text <-- combatSignal.map(_.map(c => s"${c.enemyCurrentHp} / ${c.enemy.maxHp}").getOrElse(""))
         )
       ),
-      
+
       // DoT indicators
       div(
         cls := "velor-dot-indicators",
@@ -260,7 +260,7 @@ object AdventureView:
       cls := "velor-combat-entity velor-combat-player",
       display <-- combatSignal.map(_.map(_ => "block").getOrElse("none")),
       position := "relative",
-      
+
       // Floating damage numbers (player takes damage / heals)
       div(
         cls := "velor-floating-damage-container",
@@ -272,7 +272,7 @@ object AdventureView:
           )
         })
       ),
-      
+
       // Player header
       div(
         cls := "velor-entity-header",
@@ -291,7 +291,7 @@ object AdventureView:
           display <-- combatSignal.map(c => if c.exists(_.playerDamageBuff.isDefined) then "inline" else "none")
         )
       ),
-      
+
       // HP bar
       div(
         cls := "velor-hp-bar-container",
@@ -306,7 +306,7 @@ object AdventureView:
           child.text <-- combatSignal.map(_.map(c => s"❤️ ${c.playerCurrentHp} / ${c.playerMaxHp}").getOrElse(""))
         )
       ),
-      
+
       // Mana bar
       div(
         cls := "velor-mana-bar-container",
@@ -327,7 +327,7 @@ object AdventureView:
     div(
       cls := "velor-skill-bar",
       display <-- combatSignal.map(_.map(_ => "flex").getOrElse("none")),
-      
+
       // Weapon skills (slots 0-3)
       div(
         cls := "velor-skill-row weapon-skills",
@@ -339,7 +339,7 @@ object AdventureView:
           }
         )
       ),
-      
+
       // Armor skills (slots 4-7)
       div(
         cls := "velor-skill-row armor-skills",
@@ -362,7 +362,7 @@ object AdventureView:
   ): HtmlElement =
     val slotSignal = combatSignal.map(_.flatMap(c => c.skillSlots.lift(slotIndex)))
     val skillSignal = slotSignal.map(_.map(_.currentSkill))
-    
+
     button(
       cls := "velor-skill-slot",
       cls <-- slotSignal.map { slot =>
@@ -382,23 +382,23 @@ object AdventureView:
           slot.currentSkill.id == "empty" || slot.isOnCooldown(now) || c.exists(_.playerMana < slot.currentSkill.manaCost)
         }
       },
-      
+
       // Key binding label
       div(cls := "velor-skill-key", keyLabel),
-      
+
       // Skill icon
       div(cls := "velor-skill-icon", child.text <-- skillSignal.map(_.map(_.icon).getOrElse("➖"))),
-      
+
       // Skill name (truncated)
       div(cls := "velor-skill-name", child.text <-- skillSignal.map(_.map(_.name.take(8)).getOrElse(""))),
-      
+
       // Mana cost
       div(
         cls := "velor-skill-mana",
         child.text <-- skillSignal.map(_.filter(_.id != "empty").map(s => s"${s.manaCost}💧").getOrElse("")),
         display <-- skillSignal.map(s => if s.exists(_.id != "empty") then "block" else "none")
       ),
-      
+
       // Cooldown overlay
       div(
         cls := "velor-skill-cooldown-overlay",
@@ -409,7 +409,7 @@ object AdventureView:
         },
         display <-- slotSignal.map(s => if s.exists(_.isOnCooldown(System.currentTimeMillis())) then "flex" else "none")
       ),
-      
+
       // Chain indicator
       div(
         cls := "velor-chain-indicator",
@@ -419,7 +419,7 @@ object AdventureView:
           if s.exists(slot => slot.isInChainWindow(now) && slot.currentSkill.id != slot.baseSkill.id) then "block" else "none"
         }
       ),
-      
+
       onClick --> { _ => onUseSkill(slotIndex) }
     )
 
@@ -434,7 +434,7 @@ object AdventureView:
       cls := "velor-combat-end-overlay",
       cls <-- isVictorySignal.map(if _ then "victory" else "defeat"),
       display <-- combatEndedSignal.map(if _ then "flex" else "none"),
-      
+
       div(
         cls := "velor-combat-end-content",
         div(
@@ -464,7 +464,7 @@ object AdventureView:
           button(
             cls := "btn btn-secondary",
             "Leave",
-            onClick --> { _ => 
+            onClick --> { _ =>
               onStopCombat()
               VelorIdleState.setViewMode(VelorIdleState.ViewMode.SkillSelect)
             }
