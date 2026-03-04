@@ -312,6 +312,11 @@
   margin-bottom: var(--velor-spacing-xs);
 }
 
+.velor-xp-eta {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
 .velor-xp-bar {
   height: 6px;
   background: var(--velor-bg);
