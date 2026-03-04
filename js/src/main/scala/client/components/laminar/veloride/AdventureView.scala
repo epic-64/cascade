@@ -19,21 +19,7 @@ object AdventureView:
 
   // Floating damage number state
   case class FloatingNumber(id: Int, text: String, isPlayer: Boolean, isHeal: Boolean, x: Int, y: Int)
-  private val floatingNumbersVar = Var(Vector.empty[FloatingNumber])
-  private var nextFloatingId = 0
   private val random = new Random()
-
-  private def showDamageNumber(damage: Int, isPlayer: Boolean, isHeal: Boolean = false): Unit =
-    val text = if isHeal then s"+$damage" else s"-$damage"
-    val x = random.nextInt(60) - 30  // Random x offset
-    val y = random.nextInt(20) - 10  // Random y offset
-    val num = FloatingNumber(nextFloatingId, text, isPlayer, isHeal, x, y)
-    nextFloatingId += 1
-    floatingNumbersVar.update(_ :+ num)
-    // Remove after animation
-    dom.window.setTimeout(() => {
-      floatingNumbersVar.update(_.filterNot(_.id == num.id))
-    }, 1000)
 
   def apply(
     onStartCombat: String => Unit,
@@ -43,9 +29,31 @@ object AdventureView:
   ): HtmlElement =
     val adventureStateSignal = VelorIdleState.gameSignal.map(_.adventureState)
     val inCombatSignal = adventureStateSignal.map(_.inCombat)
+    
+    // Per-instance state for floating damage numbers
+    val floatingNumbersVar = Var(Vector.empty[FloatingNumber])
+    var nextFloatingId = 0
+    
+    def showDamageNumber(damage: Int, isPlayer: Boolean, isHeal: Boolean = false): Unit =
+      val text = if isHeal then s"+$damage" else s"-$damage"
+      val x = random.nextInt(60) - 30  // Random x offset
+      val y = random.nextInt(20) - 10  // Random y offset
+      val num = FloatingNumber(nextFloatingId, text, isPlayer, isHeal, x, y)
+      nextFloatingId += 1
+      floatingNumbersVar.update(_ :+ num)
+      // Remove after animation
+      dom.window.setTimeout(() => {
+        floatingNumbersVar.update(_.filterNot(_.id == num.id))
+      }, 1000)
 
     div(
       cls := "velor-adventure-view",
+      
+      // Reset state on mount
+      onMountCallback { _ =>
+        floatingNumbersVar.set(Vector.empty)
+        nextFloatingId = 0
+      },
 
       // Set up keyboard listener for skills
       onMountCallback { _ =>
@@ -94,7 +102,7 @@ object AdventureView:
       enemySelectView(onStartCombat, inCombatSignal),
 
       // Combat view (hidden when not in combat)
-      combatView(adventureStateSignal, inCombatSignal, onUseSkill, onStopCombat, onRestartCombat)
+      combatView(adventureStateSignal, inCombatSignal, floatingNumbersVar, showDamageNumber, onUseSkill, onStopCombat, onRestartCombat)
     )
 
   private def enemySelectView(onStartCombat: String => Unit, inCombatSignal: Signal[Boolean]): HtmlElement =
@@ -200,6 +208,8 @@ object AdventureView:
   private def combatView(
     adventureStateSignal: Signal[AdventureState],
     inCombatSignal: Signal[Boolean],
+    floatingNumbersVar: Var[Vector[FloatingNumber]],
+    showDamageNumber: (Int, Boolean, Boolean) => Unit,
     onUseSkill: Int => Unit,
     onStopCombat: () => Unit,
     onRestartCombat: () => Unit
@@ -209,8 +219,11 @@ object AdventureView:
     val combatEndedVar = Var(false)
     val isVictoryVar = Var(false)
 
-    // Track previous combat events to detect new ones
-    var lastEventCount = 0
+    // Track previous combat events to detect new ones - use Var to properly reset
+    val lastEventCountVar = Var(0)
+    
+    // Track if we were previously in combat to detect combat start
+    var wasInCombat = false
 
     // Update combat ended state only when transitioning to ended
     // Also trigger damage numbers on new combat events
@@ -220,20 +233,28 @@ object AdventureView:
         isVictoryVar.set(combat.isEnemyDead)
       case Some(combat) if !combat.isCombatOver =>
         combatEndedVar.set(false)
-        // Check for new combat events to show damage numbers
-        val newEvents = combat.recentEvents.drop(lastEventCount)
-        lastEventCount = combat.recentEvents.length
-        newEvents.foreach {
-          case CombatEvent.PlayerAutoAttack(dmg) => showDamageNumber(dmg, isPlayer = false)
-          case CombatEvent.EnemyAutoAttack(dmg) => showDamageNumber(dmg, isPlayer = true)
-          case CombatEvent.PlayerSkillUsed(_, dmg) if dmg > 0 => showDamageNumber(dmg, isPlayer = false)
-          case CombatEvent.PlayerHealed(amt) => showDamageNumber(amt, isPlayer = true, isHeal = true)
-          case CombatEvent.EnemyDotTick(dmg, _) => showDamageNumber(dmg, isPlayer = false)
-          case CombatEvent.PlayerDotTick(dmg, _) => showDamageNumber(dmg, isPlayer = true)
-          case _ => ()
-        }
+        
+        // Reset event count when combat starts fresh
+        if !wasInCombat then
+          lastEventCountVar.set(combat.recentEvents.length)
+          wasInCombat = true
+        else
+          // Check for new combat events to show damage numbers
+          val lastCount = lastEventCountVar.now()
+          val newEvents = combat.recentEvents.drop(lastCount)
+          lastEventCountVar.set(combat.recentEvents.length)
+          newEvents.foreach {
+            case CombatEvent.PlayerAutoAttack(dmg) => showDamageNumber(dmg, false, false)
+            case CombatEvent.EnemyAutoAttack(dmg) => showDamageNumber(dmg, true, false)
+            case CombatEvent.PlayerSkillUsed(_, dmg) if dmg > 0 => showDamageNumber(dmg, false, false)
+            case CombatEvent.PlayerHealed(amt) => showDamageNumber(amt, true, true)
+            case CombatEvent.EnemyDotTick(dmg, _) => showDamageNumber(dmg, false, false)
+            case CombatEvent.PlayerDotTick(dmg, _) => showDamageNumber(dmg, true, false)
+            case _ => ()
+          }
       case None =>
-        lastEventCount = 0
+        lastEventCountVar.set(0)
+        wasInCombat = false
       case _ => ()
     }(using unsafeWindowOwner)
 
@@ -242,10 +263,10 @@ object AdventureView:
       display <-- inCombatSignal.map(if _ then "flex" else "none"),
 
       // Enemy section - reactive
-      enemyDisplayReactive(combatSignal),
+      enemyDisplayReactive(combatSignal, floatingNumbersVar),
 
       // Player section - reactive
-      playerDisplayReactive(combatSignal),
+      playerDisplayReactive(combatSignal, floatingNumbersVar),
 
       // Skill bar - reactive
       skillBarReactive(combatSignal, onUseSkill),
@@ -254,7 +275,7 @@ object AdventureView:
       combatEndOverlayReactive(combatEndedVar.signal, isVictoryVar.signal, combatSignal, onStopCombat, onRestartCombat)
     )
 
-  private def enemyDisplayReactive(combatSignal: Signal[Option[CombatState]]): HtmlElement =
+  private def enemyDisplayReactive(combatSignal: Signal[Option[CombatState]], floatingNumbersVar: Var[Vector[FloatingNumber]]): HtmlElement =
     div(
       cls := "velor-combat-entity velor-combat-enemy",
       cls <-- combatSignal.map {
@@ -318,7 +339,7 @@ object AdventureView:
       )
     )
 
-  private def playerDisplayReactive(combatSignal: Signal[Option[CombatState]]): HtmlElement =
+  private def playerDisplayReactive(combatSignal: Signal[Option[CombatState]], floatingNumbersVar: Var[Vector[FloatingNumber]]): HtmlElement =
     div(
       cls := "velor-combat-entity velor-combat-player",
       display <-- combatSignal.map(_.map(_ => "block").getOrElse("none")),
