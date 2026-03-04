@@ -27,7 +27,6 @@ object AdventureCombat:
       case Some(enemy) =>
         val advState = game.adventureState
         val weapon = advState.equippedWeapon
-        val armor = advState.equippedArmor
 
         // Use persisted player stats
         val maxHp = advState.maxHp
@@ -35,11 +34,8 @@ object AdventureCombat:
         val currentHp = advState.currentHp.min(maxHp)
         val currentMana = advState.currentMana.min(maxMana)
 
-        // Build skill slots from weapon (slots 0-3) and armor (slots 4-7)
-        val weaponSlots = weapon.skills.map(SkillSlotState.fromSkill)
-        val armorSlots = armor.map(_.skills.map(SkillSlotState.fromSkill)).getOrElse(
-          Vector.fill(4)(SkillSlotState.fromSkill(emptySkill))
-        )
+        // Build 5 skill slots from weapon
+        val skillSlots = weapon.skills.take(5).map(SkillSlotState.fromSkill)
 
         // Each combat instance gets a unique ID - UI uses this to detect new combats
         val instanceId = advState.nextCombatInstanceId
@@ -54,7 +50,7 @@ object AdventureCombat:
           playerMaxMana = maxMana,
           lastPlayerAutoAttack = currentTime,
           lastEnemyAutoAttack = currentTime,
-          skillSlots = weaponSlots ++ armorSlots
+          skillSlots = skillSlots
         )
 
         val newAdventureState = advState.copy(
@@ -212,7 +208,7 @@ object AdventureCombat:
     // Auto-restart combat
     restartCombat(g, currentTime) match
       case Right(restarted) => (restarted, events)
-      case Left(_) => 
+      case Left(_) =>
         // Fallback: clear combat (shouldn't happen)
         val clearedState = g.adventureState.copy(inCombat = false, combatState = None)
         (g.copy(adventureState = clearedState), events)

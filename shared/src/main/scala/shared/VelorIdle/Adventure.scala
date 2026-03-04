@@ -43,7 +43,7 @@ case class Weapon(
   icon: String,
   attackDamage: Int,         // Auto-attack damage
   attackSpeedMs: Long,       // Time between auto-attacks (default 2000ms)
-  skills: Vector[CombatSkill]  // 4 skills from weapon
+  skills: Vector[CombatSkill]  // 5 skills from weapon
 ) derives ReadWriter
 
 /** An armor piece that provides combat skills (future) */
@@ -116,7 +116,7 @@ case class CombatState(
   // Unique identifier for this combat instance - increments on each new combat
   // Used by UI to detect combat restarts and reset event tracking
   instanceId: Long,
-  
+
   enemy: Enemy,
   enemyCurrentHp: Int,
   enemyDoTs: Vector[ActiveDoT] = Vector.empty,
@@ -277,6 +277,16 @@ object Weapons:
         manaCost = 30,
         cooldownMs = 15000,
         damage = 40
+      ),
+      CombatSkill(
+        id = "defensive_stance",
+        name = "Defensive Stance",
+        icon = "🛡️",
+        description = "Brace for impact, absorbing damage",
+        manaCost = 20,
+        cooldownMs = 12000,
+        damage = 0,
+        effects = Vector(SkillEffect.Shield(30, 5000))
       )
     )
   )
@@ -338,6 +348,16 @@ object Weapons:
         cooldownMs = 18000,
         damage = 15,
         effects = Vector(SkillEffect.Stun(2000))
+      ),
+      CombatSkill(
+        id = "iron_will",
+        name = "Iron Will",
+        icon = "🛡️",
+        description = "Steel yourself against attacks",
+        manaCost = 25,
+        cooldownMs = 15000,
+        damage = 0,
+        effects = Vector(SkillEffect.Shield(50, 6000))
       )
     )
   )
