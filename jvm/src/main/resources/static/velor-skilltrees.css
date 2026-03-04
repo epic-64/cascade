@@ -337,6 +337,12 @@
   font-size: 0.9rem;
 }
 
+.velor-skill-deallocate-btn {
+  padding: 2px var(--velor-spacing-xs) !important;
+  min-width: 28px;
+  font-size: 0.9rem;
+}
+
 .velor-skill-bind-buttons {
   display: flex;
   gap: 2px;

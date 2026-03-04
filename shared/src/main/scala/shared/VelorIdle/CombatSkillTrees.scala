@@ -629,6 +629,9 @@ object CombatSkillHelpers:
 
 object SkillTreeLogic:
 
+  /** Cost in gold to refund a single skill point */
+  val RefundCostGold: Long = 100
+
   /** Allocate a point to a skill */
   def allocatePoint(state: CombatSkillState, skillId: String): Either[String, CombatSkillState] =
     if state.availablePoints <= 0 then
@@ -654,6 +657,34 @@ object SkillTreeLogic:
                   allocatedPoints = state.allocatedPoints.updated(skillId, currentLevel + 1),
                   availablePoints = state.availablePoints - 1
                 ))
+
+  /** Deallocate a point from a skill (refund). Returns new state or error. */
+  def deallocatePoint(state: CombatSkillState, skillId: String): Either[String, CombatSkillState] =
+    SkillTrees.getSkillById(skillId) match
+      case None => Left("Unknown skill")
+      case Some(skill) =>
+        val currentLevel = state.getSkillLevel(skillId)
+        if currentLevel <= 0 then
+          Left(s"${skill.name} has no points to refund")
+        else
+          val newLevel = currentLevel - 1
+          val newAllocatedPoints = 
+            if newLevel == 0 then state.allocatedPoints - skillId
+            else state.allocatedPoints.updated(skillId, newLevel)
+          
+          // If skill becomes level 0, unbind it from any slots
+          val newBoundSkills = 
+            if newLevel == 0 then state.boundSkills.map {
+              case Some(id) if id == skillId => None
+              case other => other
+            }
+            else state.boundSkills
+          
+          Right(state.copy(
+            allocatedPoints = newAllocatedPoints,
+            boundSkills = newBoundSkills,
+            availablePoints = state.availablePoints + 1
+          ))
 
   /** Bind a skill to a combat slot */
   def bindSkill(state: CombatSkillState, skillId: String, slot: Int): Either[String, CombatSkillState] =

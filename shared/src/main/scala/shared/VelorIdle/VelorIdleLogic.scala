@@ -844,6 +844,19 @@ object VelorIdleLogic:
       )
     }
 
+  /** Deallocate a skill point from a combat skill (costs gold) */
+  def deallocateCombatSkillPoint(game: VelorIdleGame, skillId: String): Either[String, VelorIdleGame] =
+    val refundCost = SkillTreeLogic.RefundCostGold
+    if game.gold < refundCost then
+      Left(s"Refund costs $refundCost gold")
+    else
+      SkillTreeLogic.deallocatePoint(game.adventureState.combatSkillState, skillId).map { newCombatSkillState =>
+        game.copy(
+          gold = game.gold - refundCost,
+          adventureState = game.adventureState.copy(combatSkillState = newCombatSkillState)
+        )
+      }
+
   /** Bind a combat skill to a slot (1-4) */
   def bindCombatSkill(game: VelorIdleGame, skillId: String, slot: Int): Either[String, VelorIdleGame] =
     SkillTreeLogic.bindSkill(game.adventureState.combatSkillState, skillId, slot).map { newCombatSkillState =>
@@ -899,4 +912,5 @@ enum GameEvent:
   // Adventure events
   case AdventureEnemyDefeated(enemyId: String)
   case AdventurePlayerDied
+  case SkillPointsGained(points: Int)
 

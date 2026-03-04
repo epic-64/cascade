@@ -12,6 +12,7 @@ object SkillTreeView:
 
   def apply(
     onAllocatePoint: String => Unit,
+    onDeallocatePoint: String => Unit,
     onBindSkill: (String, Int) => Unit,
     onBack: () => Unit
   ): HtmlElement =
@@ -56,7 +57,7 @@ object SkillTreeView:
         case None => treeSelector()
         case Some(treeId) =>
           SkillTrees.getById(treeId) match
-            case Some(tree) => treeDetail(tree, onAllocatePoint, onBindSkill)
+            case Some(tree) => treeDetail(tree, onAllocatePoint, onDeallocatePoint, onBindSkill)
             case None => div("Unknown skill tree")
     )
 
@@ -90,7 +91,7 @@ object SkillTreeView:
       )
     )
 
-  private def treeDetail(tree: SkillTree, onAllocatePoint: String => Unit, onBindSkill: (String, Int) => Unit): HtmlElement =
+  private def treeDetail(tree: SkillTree, onAllocatePoint: String => Unit, onDeallocatePoint: String => Unit, onBindSkill: (String, Int) => Unit): HtmlElement =
     val combatSkillStateSignal = VelorIdleState.gameSignal.map(_.adventureState.combatSkillState)
 
     div(
@@ -111,7 +112,7 @@ object SkillTreeView:
       // Skills grid
       div(
         cls := "velor-skill-tree-skills",
-        tree.skills.map(skill => skillNode(skill, combatSkillStateSignal, onAllocatePoint, onBindSkill))
+        tree.skills.map(skill => skillNode(skill, combatSkillStateSignal, onAllocatePoint, onDeallocatePoint, onBindSkill))
       )
     )
 
@@ -155,12 +156,14 @@ object SkillTreeView:
     skill: TreeSkill,
     combatSkillStateSignal: Signal[CombatSkillState],
     onAllocatePoint: String => Unit,
+    onDeallocatePoint: String => Unit,
     onBindSkill: (String, Int) => Unit
   ): HtmlElement =
     val levelSignal = combatSkillStateSignal.map(_.getSkillLevel(skill.id)).distinct
     val canAllocateSignal = combatSkillStateSignal.map { state =>
       state.availablePoints > 0 && state.getSkillLevel(skill.id) < skill.maxLevel
     }.distinct
+    val canDeallocateSignal = levelSignal.map(_ > 0)
     val isUnlockedSignal = levelSignal.map(_ > 0)
     
     // Which slot (if any) this skill is bound to
@@ -172,7 +175,7 @@ object SkillTreeView:
       cls := "velor-skill-node",
       cls <-- levelSignal.map(level => if level > 0 then "unlocked" else "locked"),
 
-      // Skill icon, name, level, and allocate button
+      // Skill icon, name, level, and allocate/deallocate buttons
       div(
         cls := "velor-skill-node-header",
         span(cls := "velor-skill-node-icon", skill.icon),
@@ -180,6 +183,13 @@ object SkillTreeView:
         span(
           cls := "velor-skill-node-level",
           child.text <-- levelSignal.map(level => s"$level / ${skill.maxLevel}")
+        ),
+        button(
+          cls := "btn btn-secondary velor-skill-deallocate-btn",
+          "➖",
+          title := s"Refund Point (${SkillTreeLogic.RefundCostGold} gold)",
+          disabled <-- canDeallocateSignal.map(!_),
+          onClick --> { _ => onDeallocatePoint(skill.id) }
         ),
         button(
           cls := "btn btn-primary velor-skill-allocate-btn",
@@ -225,7 +235,7 @@ object SkillTreeView:
       div(
         cls := "velor-skill-node-actions",
         display <-- isUnlockedSignal.map(if _ then "flex" else "none"),
-        
+
         (0 until 4).map { slot =>
           button(
             cls := "btn velor-bind-slot-btn",
@@ -235,12 +245,12 @@ object SkillTreeView:
             onClick.stopPropagation --> { _ => onBindSkill(skill.id, slot) }
           )
         },
-        
+
         // Show current binding status
         child <-- boundSlotSignal.map:
-          case Some(slot) => 
+          case Some(slot) =>
             span(cls := "velor-skill-bound-indicator", s"✓ Slot ${slot + 1}")
-          case None => 
+          case None =>
             span(cls := "velor-skill-unbound-indicator", "Not bound")
       )
     )
