@@ -317,6 +317,14 @@
   background: var(--velor-card-hover);
 }
 
+.velor-skill-tile.active .velor-skill-tile-name {
+  color: var(--velor-accent);
+}
+
+.velor-skill-tile.active .velor-skill-tile-icon {
+  animation: velor-skill-spin 0.6s steps(2) infinite;
+}
+
 .velor-skill-tile-icon {
   font-size: 1.75rem;
 }
@@ -407,6 +415,10 @@
 .velor-action-item.active {
   border-color: var(--velor-accent);
   background: var(--velor-bg);
+}
+
+.velor-action-item.active .velor-action-item-name {
+  color: var(--velor-accent);
 }
 
 .velor-action-item.locked {

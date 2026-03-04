@@ -15,8 +15,20 @@ object SkillSelector:
   private def skillTile(skill: Skill, onSelect: Skill => Unit): HtmlElement =
     val levelSignal = VelorIdleState.skillStateSignal(skill).map(_.level)
     
+    // Check if this skill has an active action
+    val isActiveSignal = VelorIdleState.activeActionSignal.map:
+      case ActiveAction.Gathering(s, _) => s == skill
+      case ActiveAction.Processing(s, _) => s == skill
+      case ActiveAction.Thieving(_) => skill == Skill.Thieving
+      case ActiveAction.Stunned(_, _) => skill == Skill.Thieving
+      case ActiveAction.Idle => false
+    
+    val tileClsSignal = isActiveSignal.map:
+      case true => "velor-skill-tile active"
+      case false => "velor-skill-tile"
+    
     div(
-      cls := "velor-skill-tile",
+      cls <-- tileClsSignal,
       dataAttr("skill") := skill.toString.toLowerCase,
       onClick --> { _ => onSelect(skill) },
       
