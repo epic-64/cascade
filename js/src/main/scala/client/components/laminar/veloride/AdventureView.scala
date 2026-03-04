@@ -366,10 +366,11 @@ object AdventureView:
       // Combat stats row
       div(
         cls := "velor-player-combat-stats",
+        span(child.text <-- adventureStateSignal.map(s => s"⚔️ ${s.attackDamage}").distinct),
         span(child.text <-- adventureStateSignal.map(s => s"🎯 ${s.attackRating}").distinct),
         span(child.text <-- adventureStateSignal.map(s => s"🛡️ ${s.defenseRating}").distinct),
         // Show unlocked skills count
-        span(child.text <-- combatSkillStateSignal.map(s => s"⚔️ ${s.boundSkills.flatten.size}/4 skills").distinct)
+        span(child.text <-- combatSkillStateSignal.map(s => s"📚 ${s.boundSkills.flatten.size}/4").distinct)
       ),
       // Resistances row (only show if player has any)
       div(
@@ -791,6 +792,7 @@ object AdventureView:
       // Combat stats row
       div(
         cls := "velor-entity-combat-stats",
+        span(child.text <-- VelorIdleState.gameSignal.map(g => s"⚔️ ${g.adventureState.attackDamage}").distinct),
         span(child.text <-- VelorIdleState.gameSignal.map(g => s"🎯 ${g.adventureState.attackRating}").distinct),
         span(child.text <-- VelorIdleState.gameSignal.map(g => s"🛡️ ${g.adventureState.defenseRating}").distinct),
         span(child.text <-- combatSignal.combineWith(VelorIdleState.gameSignal).map { case (c, g) =>
