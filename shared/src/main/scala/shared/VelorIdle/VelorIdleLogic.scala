@@ -54,7 +54,16 @@ object VelorIdleLogic:
     val newMana = (advState.currentMana + manaRegen).min(maxMana)
 
     val newAdvState = advState.copy(currentHp = newHp, currentMana = newMana)
-    val newGame = game.copy(adventureState = newAdvState, lastTickTime = currentTime)
+    
+    // Auto-switch to IDLE when fully recovered
+    val isFullyRecovered = newHp >= maxHp && newMana >= maxMana
+    val newActiveAction = if isFullyRecovered then ActiveAction.Idle else game.activeAction
+    
+    val newGame = game.copy(
+      adventureState = newAdvState,
+      activeAction = newActiveAction,
+      lastTickTime = currentTime
+    )
     
     (newGame, Vector.empty)
 
