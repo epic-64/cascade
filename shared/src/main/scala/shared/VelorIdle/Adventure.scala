@@ -453,7 +453,7 @@ object Enemies:
     levelRequired = 1,
     maxHp = 1000,
     attackDamage = 1,
-    attackSpeedMs = 9999999,  // Effectively never attacks
+    attackSpeedMs = 3000,
     attackRating = 1,
     defenseRating = 1,
     resistances = Resistances.none,
