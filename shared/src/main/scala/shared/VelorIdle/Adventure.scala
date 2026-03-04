@@ -37,6 +37,17 @@ case class CombatSkill(
   chainInto: Option[ChainSkill] = None  // If present, this skill chains into another
 ) derives ReadWriter
 
+object CombatSkill:
+  val empty: CombatSkill = CombatSkill(
+    id = "empty",
+    name = "Empty",
+    icon = "➖",
+    description = "No skill equipped",
+    manaCost = 0,
+    cooldownMs = 0,
+    damage = 0
+  )
+
 /** A chain skill that replaces the original skill temporarily after activation */
 case class ChainSkill(
   skill: CombatSkill,
