@@ -43,17 +43,23 @@
         skillsCss.href = '/static/velor-skills.css?v=' + v;
         document.head.appendChild(skillsCss);
 
+        const miscCss = document.createElement('link');
+        miscCss.rel = 'stylesheet';
+        miscCss.href = '/static/velor-misc.css?v=' + v;
+        document.head.appendChild(miscCss);
+
+        const inventoryCss = document.createElement('link');
+        inventoryCss.rel = 'stylesheet';
+        inventoryCss.href = '/static/velor-inventory.css?v=' + v;
+        document.head.appendChild(inventoryCss);
+
         const js = document.createElement('script');
         js.src = '/static/js/main.js?v=' + v;
         document.head.appendChild(js);
       })();
     </script>
     <noscript>
-      <link rel="stylesheet" href="/static/base.css">
-      <link rel="stylesheet" href="/static/velor-idle.css">
-      <link rel="stylesheet" href="/static/velor-combat.css">
-      <link rel="stylesheet" href="/static/velor-panels.css">
-      <link rel="stylesheet" href="/static/velor-skills.css">
+      This game requires JavaScript to run. Please enable JavaScript in your browser settings and refresh the page.
     </noscript>
   </head>
   <body>
