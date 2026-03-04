@@ -364,8 +364,13 @@ case class AdventureState(
   combatState: Option[CombatState] = None,
   selectedEnemyId: Option[String] = None,
   equippedWeapon: Weapon = Weapons.starterSword,
-  equippedArmor: Option[Armor] = None  // Future
-) derives ReadWriter
+  equippedArmor: Option[Armor] = None,  // Future
+  // Persistent player stats (persists between combats)
+  currentHp: Int = AdventureState.BaseMaxHp,
+  currentMana: Int = AdventureState.BaseMaxMana
+) derives ReadWriter:
+  def maxHp: Int = AdventureState.BaseMaxHp + equippedArmor.map(_.maxHpBonus).getOrElse(0)
+  def maxMana: Int = AdventureState.BaseMaxMana
 
 object AdventureState:
   val initial: AdventureState = AdventureState()
@@ -374,4 +379,5 @@ object AdventureState:
   val BaseMaxHp: Int = 100
   val BaseMaxMana: Int = 50
   val ManaRegenPerSecond: Double = 2.0
+  val OutOfCombatHpRegenPerSecond: Double = 1.0  // HP regen when not in combat
 
