@@ -25,6 +25,12 @@ object VelorIdleLogic:
       case ActiveAction.Processing(skill, action) =>
         processProcessingTick(game, skill, action, elapsedSeconds, currentTime, random)
 
+      case ActiveAction.Thieving(action) =>
+        processThievingTick(game, action, elapsedSeconds, currentTime, random)
+
+      case ActiveAction.Stunned(until, previousAction) =>
+        processStunnedTick(game, until, previousAction, currentTime)
+
   private def processGatheringTick(
     game: VelorIdleGame,
     skill: Skill,
@@ -323,6 +329,131 @@ object VelorIdleLogic:
     }
 
   // ============================================================================
+  // Thieving Tick
+  // ============================================================================
+
+  private def processThievingTick(
+    game: VelorIdleGame,
+    action: ThievingAction,
+    elapsedSeconds: Double,
+    currentTime: Long,
+    random: Random
+  ): (VelorIdleGame, Vector[GameEvent]) =
+    val skillState = game.skills.getOrElse(Skill.Thieving, SkillState.initial)
+    val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
+
+    // Calculate effective action time
+    val efficiencyBonus = calculateEfficiencyBonus(actionState.level)
+    val potionSpeedBonus = game.potionSlots.speedBonusFor(Skill.Thieving)
+    val tabletSpeedBonus = game.tabletSlots.speedBonusFor(Skill.Thieving)
+    val effectiveTime = action.timeSeconds * (1.0 - efficiencyBonus) * (1.0 - potionSpeedBonus) * (1.0 - tabletSpeedBonus)
+
+    val progressPerSecond = 1.0 / effectiveTime
+    val newProgress = game.actionProgress + (elapsedSeconds * progressPerSecond)
+
+    if newProgress >= 1.0 then
+      val (updatedGame, events) = completeThievingAction(game, action, skillState, currentTime, random)
+
+      // Consume potion charge
+      val gameWithPotionConsumed = updatedGame.copy(
+        potionSlots = updatedGame.potionSlots.consumeAction
+      )
+      val potionEvents = checkPotionExpired(game.potionSlots, gameWithPotionConsumed.potionSlots)
+
+      // Consume tablet charges
+      val (gameWithTabletsConsumed, tabletEvents) = consumeTablets(gameWithPotionConsumed)
+
+      val overflowProgress = newProgress - 1.0
+      val finalProgress = if overflowProgress > 0 && overflowProgress < 1.0 then overflowProgress else 0.0
+      (gameWithTabletsConsumed.copy(actionProgress = finalProgress, lastTickTime = currentTime), events ++ potionEvents ++ tabletEvents)
+    else
+      (game.copy(actionProgress = newProgress, lastTickTime = currentTime), Vector.empty)
+
+  private def completeThievingAction(
+    game: VelorIdleGame,
+    action: ThievingAction,
+    skillState: SkillState,
+    currentTime: Long,
+    random: Random
+  ): (VelorIdleGame, Vector[GameEvent]) =
+    val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
+    
+    // Calculate success rate - increases with level difference
+    val levelBonus = (skillState.level - action.levelRequired) * 0.005 // 0.5% per level above requirement
+    val tabletBonus = if game.tabletSlots.equippedTypes.contains(TabletType.Thief) then 0.10 else 0.0
+    val effectiveSuccessRate = (action.baseSuccessRate + levelBonus + tabletBonus).min(0.95) // Cap at 95%
+
+    // Check for Shadow Walker synergy - prevents stun on failure
+    val hasShadowWalker = game.tabletSlots.activeSynergy.contains(SynergyEffect.ShadowWalker)
+
+    if random.nextDouble() < effectiveSuccessRate then
+      // Success!
+      val result = GameUpdate(game, Vector.empty)
+        .pipe(grantXp(Skill.Thieving, skillState, action.xpGain))
+        .pipe(grantActionXp(action.id, actionState, action.xpGain))
+        .pipe(grantThievingLoot(action, random))
+      (result.game, result.events)
+    else
+      // Failure - stun (unless Shadow Walker)
+      if hasShadowWalker then
+        // No stun, just no loot
+        (game, Vector(GameEvent.ThievingFailed("Caught! (Shadow Walker prevented stun)")))
+      else
+        val stunDuration = calculateStunDuration(action.stunSeconds, skillState.level)
+        val stunnedUntil = currentTime + (stunDuration * 1000).toLong
+        val stunnedGame = game.copy(
+          activeAction = ActiveAction.Stunned(stunnedUntil, action),
+          actionProgress = 0.0
+        )
+        (stunnedGame, Vector(GameEvent.ThievingFailed(s"Caught! Stunned for ${stunDuration.toInt}s")))
+
+  private def grantThievingLoot(action: ThievingAction, random: Random)(update: GameUpdate): GameUpdate =
+    // Grant gold
+    val goldAmount = action.goldMin + random.nextInt(action.goldMax - action.goldMin + 1)
+    val withGold = update
+      .mapGame(g => g.copy(gold = g.gold + goldAmount))
+      .addEvent(GameEvent.GoldGained(goldAmount))
+
+    // Check loot table for item drops
+    action.lootTable.foldLeft(withGold) { case (acc, (item, chance)) =>
+      if random.nextDouble() < chance then
+        val (newInv, overflow) = acc.game.inventory.addItem(item, 1)
+        val withItem = acc
+          .mapGame(_.copy(inventory = newInv))
+          .addEvent(GameEvent.ItemGained(item, 1))
+        if overflow > 0 then withItem.addEvent(GameEvent.InventoryFull)
+        else withItem
+      else acc
+    }
+
+  /** Calculate stun duration - decreases with level */
+  private def calculateStunDuration(baseStun: Double, level: Int): Double =
+    // Reduce stun by 1% per level, minimum 50% of base
+    val reduction = (level * 0.01).min(0.5)
+    baseStun * (1.0 - reduction)
+
+  private def processStunnedTick(
+    game: VelorIdleGame,
+    until: Long,
+    previousAction: ThievingAction,
+    currentTime: Long
+  ): (VelorIdleGame, Vector[GameEvent]) =
+    if currentTime >= until then
+      // Stun over - resume thieving
+      val resumedGame = game.copy(
+        activeAction = ActiveAction.Thieving(previousAction),
+        actionProgress = 0.0,
+        lastTickTime = currentTime
+      )
+      (resumedGame, Vector(GameEvent.StunEnded))
+    else
+      // Still stunned - update progress to show remaining time
+      val totalStun = until - game.lastTickTime
+      val elapsed = currentTime - game.lastTickTime
+      val progress = if totalStun > 0 then elapsed.toDouble / totalStun else 1.0
+      (game.copy(actionProgress = progress.min(1.0), lastTickTime = currentTime), Vector.empty)
+
+  // ============================================================================
   // Perk Calculations
   // ============================================================================
 
@@ -422,6 +553,7 @@ object VelorIdleLogic:
       case None => Left("No skill selected")
       case Some(skill) if Skill.isGathering(skill) => startGathering(game, actionId)
       case Some(skill) if Skill.isProcessing(skill) => startProcessing(game, actionId)
+      case Some(Skill.Thieving) => startThieving(game, actionId)
       case Some(skill) => Left(s"${Skill.displayName(skill)} actions not yet implemented")
 
   /** Start a gathering action */
@@ -463,6 +595,30 @@ object VelorIdleLogic:
                 activeAction = ActiveAction.Processing(skill, action),
                 actionProgress = 0.0
               ))
+
+  /** Start a thieving action */
+  def startThieving(game: VelorIdleGame, actionId: String): Either[String, VelorIdleGame] =
+    // Check if currently stunned
+    game.activeAction match
+      case ActiveAction.Stunned(_, _) =>
+        Left("You are stunned!")
+      case _ =>
+        game.currentSkill match
+          case None => Left("No skill selected")
+          case Some(skill) if skill != Skill.Thieving => Left("Not thieving skill")
+          case Some(_) =>
+            val actions = ThievingActions.targets
+            actions.find(_.id == actionId) match
+              case None => Left("Target not found")
+              case Some(action) =>
+                val skillState = game.skills.getOrElse(Skill.Thieving, SkillState.initial)
+                if skillState.level < action.levelRequired then
+                  Left(s"Requires Thieving level ${action.levelRequired}")
+                else
+                  Right(game.copy(
+                    activeAction = ActiveAction.Thieving(action),
+                    actionProgress = 0.0
+                  ))
 
   /** Stop the current action */
   def stopAction(game: VelorIdleGame): VelorIdleGame =
@@ -677,4 +833,7 @@ enum GameEvent:
   case TabletEquipped(tablet: Item, slot: Int)
   case TabletUnequipped(tablet: Item, slot: Int)
   case TabletConsumed(tablet: Item, slot: Int)
+  case ThievingSuccess(goldAmount: Long)
+  case ThievingFailed(reason: String)
+  case StunEnded
 

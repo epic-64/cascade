@@ -158,6 +158,8 @@ enum Item derives ReadWriter:
   case GathererTablet, MinerTablet, FisherTablet, LumberjackTablet
   case ArtisanTablet, HerbalistTablet, AlchemistTablet
   case ThiefTablet, StargazerTablet, MasterTablet
+  // Thieving loot
+  case Seeds, SilverKey, GoldKey
   // Rare drops
   case BirdNest, Gem
 
@@ -233,6 +235,10 @@ object Item:
     Item.ThiefTablet -> ItemData("📜", "Thief Tablet", 200),
     Item.StargazerTablet -> ItemData("📜", "Stargazer Tablet", 250),
     Item.MasterTablet -> ItemData("📜", "Master Tablet", 1000),
+    // Thieving loot
+    Item.Seeds -> ItemData("🌱", "Seeds", 15),
+    Item.SilverKey -> ItemData("🗝️", "Silver Key", 50),
+    Item.GoldKey -> ItemData("🔑", "Gold Key", 150),
     // Rare drops
     Item.BirdNest -> ItemData("🪺", "Bird Nest", 100),
     Item.Gem -> ItemData("💎", "Gem", 200)
@@ -412,6 +418,46 @@ object ProcessingActions:
     case Skill.Smithing => smithing
     case Skill.Alchemy => alchemy
     case Skill.Summoning => summoning
+    case _ => Vector.empty
+
+// ============================================================================
+// Thieving Actions
+// ============================================================================
+
+case class ThievingAction(
+  id: String,
+  name: String,
+  icon: String,
+  levelRequired: Int,
+  xpGain: Int,
+  timeSeconds: Double,
+  baseSuccessRate: Double,     // 0.0-1.0
+  goldMin: Int,
+  goldMax: Int,
+  stunSeconds: Double,
+  lootTable: Vector[(Item, Double)] = Vector.empty  // (item, chance)
+) derives ReadWriter
+
+object ThievingActions:
+  val targets: Vector[ThievingAction] = Vector(
+    ThievingAction("man", "Man", "👤", 1, 15, 3.0,
+      0.80, 3, 10, 5.0),
+    ThievingAction("farmer", "Farmer", "👨‍🌾", 15, 30, 3.5,
+      0.75, 10, 25, 6.0,
+      Vector((Item.Seeds, 0.15))),
+    ThievingAction("guard", "Guard", "💂", 30, 55, 4.0,
+      0.65, 25, 50, 8.0,
+      Vector((Item.SilverKey, 0.10))),
+    ThievingAction("knight", "Knight", "🛡️", 50, 90, 4.5,
+      0.55, 50, 100, 10.0,
+      Vector((Item.SilverKey, 0.08), (Item.GoldKey, 0.03))),
+    ThievingAction("noble", "Noble", "👑", 70, 150, 5.0,
+      0.45, 100, 250, 12.0,
+      Vector((Item.GoldKey, 0.10), (Item.Gem, 0.05)))
+  )
+
+  def forSkill(skill: Skill): Vector[ThievingAction] = skill match
+    case Skill.Thieving => targets
     case _ => Vector.empty
 
 // ============================================================================
@@ -813,6 +859,8 @@ object TabletSlots:
 enum ActiveAction derives ReadWriter:
   case Gathering(skill: Skill, action: GatheringAction)
   case Processing(skill: Skill, action: ProcessingAction)
+  case Thieving(action: ThievingAction)
+  case Stunned(until: Long, previousAction: ThievingAction)  // Stunned until timestamp, remembers what we were doing
   case Idle
 
 case class VelorIdleGame(

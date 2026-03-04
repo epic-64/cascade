@@ -293,6 +293,12 @@ object VelorIdleClient:
         ToastSystem.show(s"🧪 ${Item.displayName(potion)} wore off")
       case GameEvent.TabletConsumed(tablet, slot) =>
         ToastSystem.show(s"📜 ${Item.displayName(tablet)} depleted from slot $slot")
+      case GameEvent.GoldGained(amount) =>
+        FloatingRewards.showGold(amount)
+      case GameEvent.ThievingFailed(reason) =>
+        ToastSystem.show(s"🚨 $reason")
+      case GameEvent.StunEnded =>
+        ToastSystem.show("😊 Stun wore off!")
       case _ => ()
 
   // ============================================================================

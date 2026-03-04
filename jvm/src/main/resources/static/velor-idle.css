@@ -154,6 +154,15 @@
   color: var(--velor-accent);
 }
 
+.velor-active-skill-content.stunned {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid #ef4444;
+}
+
+.velor-active-skill-content.stunned .velor-active-skill-status {
+  color: #ef4444;
+}
+
 @keyframes velor-skill-spin {
   0% {
     transform: rotate(0deg);
@@ -1822,7 +1831,7 @@
   .velor-tablet-slots-container {
     flex-direction: row;
   }
-  
+
   .velor-tablet-slot {
     flex: 1;
   }
@@ -2120,5 +2129,83 @@
 .velor-character-panel > .velor-tablet-panel {
   flex: 1;
   overflow-y: auto;
+}
+
+/* ============================================================================
+   Thieving Stun Indicator
+   ============================================================================ */
+
+.velor-stun-indicator {
+  padding: 0 var(--velor-spacing-md);
+  margin-bottom: var(--velor-spacing-md);
+}
+
+.velor-stun-card {
+  background: linear-gradient(135deg, var(--velor-card) 0%, rgba(239, 68, 68, 0.2) 100%);
+  border: 2px solid #ef4444;
+  border-radius: var(--velor-radius-lg);
+  padding: var(--velor-spacing-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--velor-spacing-sm);
+  animation: pulse-stun 1s ease-in-out infinite;
+}
+
+@keyframes pulse-stun {
+  0%, 100% { border-color: #ef4444; }
+  50% { border-color: #f87171; }
+}
+
+.velor-stun-icon {
+  font-size: 2rem;
+  animation: wobble 0.5s ease-in-out infinite;
+}
+
+@keyframes wobble {
+  0%, 100% { transform: rotate(-5deg); }
+  50% { transform: rotate(5deg); }
+}
+
+.velor-stun-text {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #ef4444;
+}
+
+.velor-stun-bar {
+  width: 100%;
+  max-width: 200px;
+  height: 8px;
+  background: var(--velor-bg);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.velor-stun-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ef4444, #f87171);
+  transition: width 0.1s linear;
+}
+
+/* Stunned action item style */
+.velor-action-item.stunned {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.velor-action-item.stunned::after {
+  content: "😵";
+  position: absolute;
+  right: var(--velor-spacing-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.2rem;
+}
+
+/* Gold floating reward */
+.velor-floating-reward.gold {
+  color: var(--velor-xp);
+  font-weight: 700;
 }
 

@@ -493,7 +493,7 @@ case class ItemStack(
 - [ ] Add ingredient checking/consuming
 
 ### Phase 8: Special Skills
-- [ ] Implement Thieving (success/fail/stun)
+- [x] Implement Thieving (success/fail/stun)
 - [ ] Implement Astrology (stardust, constellations)
 - [ ] Create constellation UI
 
