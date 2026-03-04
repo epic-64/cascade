@@ -177,7 +177,9 @@ case class CombatState(
   // Combat log for display - capped at 10 events
   recentEvents: Vector[CombatEvent] = Vector.empty,
   // Total event count within this combat instance - resets with each new combat
-  totalEventCount: Int = 0
+  totalEventCount: Int = 0,
+  // Monotonically increasing event ID - used by UI for reliable event deduplication
+  nextEventId: Long = 0L
 ) derives ReadWriter:
   def isEnemyDead: Boolean = enemyCurrentHp <= 0
   def isPlayerDead: Boolean = playerCurrentHp <= 0
@@ -201,8 +203,15 @@ case class CastingState(
     else ((now - startedAt).toDouble / total).min(1.0).max(0.0)
   def isComplete(now: Long): Boolean = now >= completesAt
 
-/** Events that occur during combat (for UI feedback) */
-enum CombatEvent derives ReadWriter:
+/** Events that occur during combat (for UI feedback).
+  * Each event has a unique ID within its combat instance for reliable deduplication.
+  */
+case class CombatEvent(
+  id: Long,
+  detail: CombatEventDetail
+) derives ReadWriter
+
+enum CombatEventDetail derives ReadWriter:
   case PlayerAutoAttack(damage: Int)
   case EnemyAutoAttack(damage: Int)
   case PlayerEvaded
