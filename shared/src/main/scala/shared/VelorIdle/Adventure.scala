@@ -15,6 +15,7 @@ case class CombatSkill(
   manaCost: Int,
   cooldownMs: Long,          // Cooldown in milliseconds
   damage: Int,               // Base damage (0 for utility skills)
+  castTimeMs: Long = 0L,     // Cast time in milliseconds (0 = instant)
   effects: Vector[SkillEffect] = Vector.empty,
   chainInto: Option[ChainSkill] = None  // If present, this skill chains into another
 ) derives ReadWriter
@@ -132,6 +133,9 @@ case class CombatState(
   // Global cooldown - prevents spamming all skills at once
   globalCooldownEndsAt: Long = 0L,
   
+  // Casting state - when casting a skill with cast time
+  castingSkill: Option[CastingState] = None,
+  
   // Skill slots (weapon skills in slots 0-3, armor skills in slots 4-7)
   skillSlots: Vector[SkillSlotState] = Vector.empty,
   
@@ -145,6 +149,21 @@ case class CombatState(
   def isCombatOver: Boolean = isEnemyDead || isPlayerDead
   def isOnGlobalCooldown(now: Long): Boolean = now < globalCooldownEndsAt
   def globalCooldownRemainingMs(now: Long): Long = (globalCooldownEndsAt - now).max(0)
+  def isCasting: Boolean = castingSkill.isDefined
+  def castProgress(now: Long): Double = castingSkill.map(_.progress(now)).getOrElse(0.0)
+
+/** State of a skill being cast */
+case class CastingState(
+  slotIndex: Int,
+  skill: CombatSkill,
+  startedAt: Long,
+  completesAt: Long
+) derives ReadWriter:
+  def progress(now: Long): Double = 
+    val total = completesAt - startedAt
+    if total <= 0 then 1.0
+    else ((now - startedAt).toDouble / total).min(1.0).max(0.0)
+  def isComplete(now: Long): Boolean = now >= completesAt
 
 /** Events that occur during combat (for UI feedback) */
 enum CombatEvent derives ReadWriter:
@@ -219,7 +238,22 @@ object Weapons:
         manaCost = 20,
         cooldownMs = 8000,
         damage = 5,
-        effects = Vector(SkillEffect.DamageOverTime(3, 5, 1000))
+        castTimeMs = 1500,  // 1.5 second cast time
+        effects = Vector(SkillEffect.DamageOverTime(3, 5, 1000)),
+        chainInto = Some(ChainSkill(
+          CombatSkill(
+            id = "hemorrhage",
+            name = "Hemorrhage",
+            icon = "🩸💀",
+            description = "Cause severe bleeding on an already wounded target",
+            manaCost = 25,
+            cooldownMs = 10000,
+            damage = 10,
+            castTimeMs = 1000,
+            effects = Vector(SkillEffect.DamageOverTime(5, 6, 1000))
+          ),
+          windowMs = 4000
+        ))
       ),
       CombatSkill(
         id = "vampiric_strike",
