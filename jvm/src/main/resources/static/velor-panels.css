@@ -139,7 +139,7 @@
 
 /* Uses .velor-view base class from velor-idle.css */
 .velor-shop-panel {
-  /* Inherits from .velor-view - no extra padding needed */
+  padding-bottom: var(--velor-spacing-md);
 }
 
 .velor-shop-items-section {
@@ -148,6 +148,7 @@
   padding: var(--velor-spacing-md);
   border: 1px solid var(--velor-border);
 }
+
 
 .velor-shop-items-section h4 {
   font-size: 0.9rem;
@@ -822,5 +823,6 @@
 .velor-character-panel > .velor-tablet-panel {
   flex: 1;
   overflow-y: auto;
+  padding-bottom: var(--velor-spacing-md);
 }
 

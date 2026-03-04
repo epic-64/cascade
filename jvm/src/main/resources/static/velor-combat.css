@@ -43,6 +43,7 @@
   gap: var(--velor-spacing-md);
   flex: 1;
   overflow-y: auto;
+  padding-bottom: var(--velor-spacing-md);
 }
 
 .velor-enemy-select-title {

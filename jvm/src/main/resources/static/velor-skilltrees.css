@@ -100,6 +100,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--velor-spacing-sm);
+  padding-bottom: var(--velor-spacing-md);
 }
 
 .velor-skill-tree-card {
@@ -169,6 +170,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: var(--velor-spacing-sm);
+  padding-bottom: var(--velor-spacing-md);
 }
 
 /* ============================================================================
@@ -545,6 +547,7 @@
   background: var(--velor-card);
   border-radius: var(--velor-radius-lg);
   padding: var(--velor-spacing-md);
+  padding-bottom: var(--velor-spacing-lg);
   border: 1px solid var(--velor-border);
   flex: 1;
   overflow-y: auto;

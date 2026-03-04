@@ -9,6 +9,7 @@
   border-radius: var(--velor-radius-lg);
   padding: var(--velor-spacing-md);
   border: 1px solid var(--velor-border);
+  margin-bottom: var(--velor-spacing-md);
 }
 
 .velor-inventory-header {
