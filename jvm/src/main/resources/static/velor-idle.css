@@ -528,55 +528,68 @@
 }
 
 /* ============================================================================
-   Desktop Enhancements (>768px)
+   Desktop Mode - Phone Emulator (>768px)
    ============================================================================ */
 
 @media (min-width: 768px) {
-  .velor-container {
-    flex-direction: row;
-  }
-
-  .velor-sidebar {
-    width: 280px;
-    flex-shrink: 0;
-    border-right: 1px solid var(--velor-border);
+  /* Background for the entire page */
+  body {
+    background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #0f0f1a 100%);
+    min-height: 100vh;
     display: flex;
-    flex-direction: column;
-    background: var(--velor-bg-secondary);
+    align-items: center;
+    justify-content: center;
+    padding: 0;
   }
 
-  .velor-sidebar-header {
-    padding: var(--velor-spacing-md);
-    border-bottom: 1px solid var(--velor-border);
-  }
-
-  .velor-main-desktop {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .velor-skill-grid {
-    grid-template-columns: repeat(2, 1fr);
-    padding: var(--velor-spacing-md);
-  }
-
-  .velor-skill-tile {
-    aspect-ratio: auto;
-    flex-direction: row;
-    justify-content: flex-start;
-    padding: var(--velor-spacing-md);
-    gap: var(--velor-spacing-md);
-  }
-
-  .velor-skill-tile-info {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .velor-bottom-nav {
+  /* Hide base.css animated gradient background */
+  body::before {
     display: none;
+  }
+
+  /* Phone-shaped container */
+  .velor-container {
+    position: relative;
+    width: 400px;
+    height: 700px;
+    max-height: 95vh;
+    border-radius: 24px;
+    border: 3px solid var(--velor-border-bright);
+    box-shadow:
+      0 0 0 1px rgba(74, 222, 128, 0.1),
+      0 20px 60px rgba(0, 0, 0, 0.6),
+      0 0 100px rgba(74, 222, 128, 0.1);
+    overflow: hidden;
+  }
+
+  /* Phone notch decoration (optional visual flair) */
+  .velor-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 24px;
+    background: var(--velor-bg);
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    z-index: 1002;
+    border: 1px solid var(--velor-border);
+    border-top: none;
+  }
+
+  /* Keep fixed elements contained within phone frame */
+  .velor-floating {
+    position: absolute;
+  }
+
+  .velor-toast-container {
+    position: absolute;
+  }
+
+  .velor-modal-overlay {
+    position: absolute;
   }
 }
 
