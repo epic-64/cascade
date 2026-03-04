@@ -6,6 +6,23 @@ import upickle.default.{ReadWriter, readwriter}
 // Adventure (Combat) System
 // ============================================================================
 
+/** Elemental resistances for an entity (percentage damage reduction, 0-100) */
+case class Resistances(
+  fire: Int = 0,
+  ice: Int = 0,
+  lightning: Int = 0,
+  poison: Int = 0
+) derives ReadWriter:
+  def asSeq: Seq[(String, String, Int)] = Seq(
+    ("🔥", "Fire", fire),
+    ("❄️", "Ice", ice),
+    ("⚡", "Lightning", lightning),
+    ("☠️", "Poison", poison)
+  ).filter(_._3 > 0)
+
+object Resistances:
+  val none: Resistances = Resistances()
+
 /** A combat skill that can be used in adventure mode */
 case class CombatSkill(
   id: String,
@@ -65,6 +82,9 @@ case class Enemy(
   maxHp: Int,
   attackDamage: Int,
   attackSpeedMs: Long,
+  attackRating: Int = 0,
+  defenseRating: Int = 0,
+  resistances: Resistances = Resistances.none,
   xpReward: Int,
   goldReward: (Int, Int),    // (min, max)
   lootTable: Vector[(Item, Double)] = Vector.empty
@@ -353,6 +373,9 @@ object Enemies:
     maxHp = 30,
     attackDamage = 3,
     attackSpeedMs = 2500,
+    attackRating = 2,
+    defenseRating = 1,
+    resistances = Resistances.none,
     xpReward = 20,
     goldReward = (5, 15)
   )
@@ -365,6 +388,9 @@ object Enemies:
     maxHp = 50,
     attackDamage = 5,
     attackSpeedMs = 2000,
+    attackRating = 5,
+    defenseRating = 3,
+    resistances = Resistances(poison = 50, ice = 25),
     xpReward = 40,
     goldReward = (10, 30),
     lootTable = Vector((Item.BronzeBar, 0.1))
@@ -378,6 +404,9 @@ object Enemies:
     maxHp = 80,
     attackDamage = 8,
     attackSpeedMs = 2200,
+    attackRating = 10,
+    defenseRating = 8,
+    resistances = Resistances(fire = 10),
     xpReward = 70,
     goldReward = (20, 50),
     lootTable = Vector((Item.IronBar, 0.08))
@@ -391,6 +420,9 @@ object Enemies:
     maxHp = 150,
     attackDamage = 12,
     attackSpeedMs = 1800,
+    attackRating = 18,
+    defenseRating = 20,
+    resistances = Resistances(lightning = 15, poison = 25),
     xpReward = 150,
     goldReward = (50, 100),
     lootTable = Vector((Item.SteelBar, 0.1), (Item.Gem, 0.05))
@@ -404,6 +436,9 @@ object Enemies:
     maxHp = 300,
     attackDamage = 20,
     attackSpeedMs = 2500,
+    attackRating = 30,
+    defenseRating = 25,
+    resistances = Resistances(fire = 75, ice = -25, lightning = 20),
     xpReward = 400,
     goldReward = (100, 250),
     lootTable = Vector((Item.MithrilBar, 0.15), (Item.Gem, 0.2))
@@ -417,6 +452,9 @@ object Enemies:
     maxHp = 1000,
     attackDamage = 0,
     attackSpeedMs = 9999999,  // Effectively never attacks
+    attackRating = 0,
+    defenseRating = 0,
+    resistances = Resistances.none,
     xpReward = 0,
     goldReward = (0, 0),
     lootTable = Vector.empty
@@ -443,6 +481,9 @@ case class AdventureState(
 ) derives ReadWriter:
   def maxHp: Int = AdventureState.BaseMaxHp + equippedArmor.map(_.maxHpBonus).getOrElse(0)
   def maxMana: Int = AdventureState.BaseMaxMana
+  def attackRating: Int = AdventureState.BaseAttackRating + equippedWeapon.attackDamage
+  def defenseRating: Int = AdventureState.BaseDefenseRating + equippedArmor.map(_.defense).getOrElse(0)
+  def resistances: Resistances = Resistances.none // TODO: Add from equipment
 
 object AdventureState:
   val initial: AdventureState = AdventureState()
@@ -450,6 +491,8 @@ object AdventureState:
   /** Base player stats */
   val BaseMaxHp: Int = 100
   val BaseMaxMana: Int = 50
+  val BaseAttackRating: Int = 5
+  val BaseDefenseRating: Int = 5
   val ManaRegenPerSecond: Double = 10.0  // Mana regen while resting
   val HpRegenPerSecond: Double = 5.0     // HP regen while resting
 
