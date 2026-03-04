@@ -34,8 +34,8 @@ object AdventureCombat:
         val currentHp = advState.currentHp.min(maxHp)
         val currentMana = advState.currentMana.min(maxMana)
 
-        // Build 5 skill slots from weapon
-        val skillSlots = weapon.skills.take(5).map(SkillSlotState.fromSkill)
+        // Build 4 skill slots from weapon
+        val skillSlots = weapon.skills.take(4).map(SkillSlotState.fromSkill)
 
         // Each combat instance gets a unique ID - UI uses this to detect new combats
         val instanceId = advState.nextCombatInstanceId

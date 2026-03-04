@@ -585,10 +585,10 @@ object AdventureView:
       cls := "velor-skill-bar",
       display <-- combatSignal.map(_.map(_ => "flex").getOrElse("none")),
 
-      // Single row with 5 skill slots
+      // Single row with 4 skill slots
       div(
         cls := "velor-skill-slots",
-        (0 until 5).map { idx =>
+        (0 until 4).map { idx =>
           skillSlotReactive(combatSignal, idx, s"${idx + 1}", onUseSkill)
         }
       )
