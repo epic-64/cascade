@@ -199,7 +199,7 @@
   color: var(--velor-accent);
 }
 
-/* HP Bar */
+/* HP Bar - uses base .velor-bar pattern */
 .velor-hp-bar-container {
   position: relative;
   height: 24px;
@@ -222,18 +222,12 @@
   background: linear-gradient(90deg, #16a34a, #22c55e);
 }
 
+/* Uses .velor-bar-text base styles from velor-idle.css */
 .velor-hp-text {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   font-size: 0.75rem;
-  font-weight: 600;
-  color: white;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
-/* Mana Bar */
+/* Mana Bar - uses base .velor-bar pattern */
 .velor-mana-bar-container {
   position: relative;
   height: 16px;
@@ -248,15 +242,9 @@
   transition: width 0.15s ease;
 }
 
+/* Uses .velor-bar-text base styles from velor-idle.css */
 .velor-mana-text {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   font-size: 0.7rem;
-  font-weight: 600;
-  color: white;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 /* DoT Indicators */

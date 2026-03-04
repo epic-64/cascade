@@ -191,6 +191,7 @@
   color: #ef4444;
 }
 
+/* Stun Bar - uses base .velor-bar pattern */
 .velor-stun-bar {
   width: 100%;
   max-width: 200px;
