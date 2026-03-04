@@ -301,15 +301,15 @@ object VelorIdleClient:
     
     val currentTime = System.currentTimeMillis()
     
-    // Process combat if in combat
-    val (gameAfterCombat, combatEvents) = 
-      if currentGame.adventureState.inCombat then
+    // Process adventure (combat or out-of-combat regen) if on Adventure skill
+    val (gameAfterAdventure, combatEvents) = 
+      if currentGame.currentSkill.contains(Skill.Adventure) then
         AdventureCombat.tick(currentGame, currentTime)
       else
         (currentGame, Vector.empty)
     
     // Process regular game tick
-    val (newGame, events) = VelorIdleLogic.tick(gameAfterCombat, currentTime)
+    val (newGame, events) = VelorIdleLogic.tick(gameAfterAdventure, currentTime)
     val allEvents = combatEvents ++ events
 
     if allEvents.nonEmpty then
@@ -318,8 +318,8 @@ object VelorIdleClient:
       VelorIdleState.update(currentGame)
       isDirty = true
       processEvents(allEvents)
-    else if newGame.actionProgress != currentGame.actionProgress || gameAfterCombat != currentGame then
-      // Progress or combat state changed
+    else if newGame.actionProgress != currentGame.actionProgress || gameAfterAdventure != currentGame then
+      // Progress or combat/regen state changed
       currentGame = newGame
       VelorIdleState.update(currentGame)
       VelorIdleState.updateProgress(newGame.actionProgress)
