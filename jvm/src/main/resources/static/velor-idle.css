@@ -394,24 +394,40 @@
 .velor-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   padding: var(--velor-spacing-md);
-  animation: velor-fade-in 0.2s ease-out;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.velor-modal-overlay.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .velor-modal {
   background: var(--velor-card);
   border-radius: var(--velor-radius-lg);
   padding: var(--velor-spacing-lg);
+  width: 90%;
   max-width: 400px;
-  width: 100%;
   max-height: 80vh;
   overflow-y: auto;
   border: 1px solid var(--velor-border);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  transform: scale(0.9);
+  transition: transform 0.2s ease;
+}
+
+.velor-modal-overlay.show .velor-modal {
+  transform: scale(1);
 }
 
 .velor-modal-header {
@@ -419,10 +435,12 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--velor-spacing-md);
+  padding-bottom: var(--velor-spacing-sm);
+  border-bottom: 1px solid var(--velor-border);
 }
 
 .velor-modal-title {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 700;
 }
 
@@ -445,9 +463,10 @@
   color: var(--text-primary);
 }
 
-@keyframes velor-fade-in {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
+.velor-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-sm);
 }
 
 /* ============================================================================

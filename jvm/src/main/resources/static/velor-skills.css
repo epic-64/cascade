@@ -193,6 +193,7 @@
 
 .velor-floating-reward.gold {
   color: var(--velor-xp);
+  font-weight: 700;
 }
 
 @keyframes velor-reward-float {
