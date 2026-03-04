@@ -543,6 +543,7 @@ object AdventureView:
       cls := "velor-combat-entity velor-combat-enemy",
       cls <-- combatSignal.map {
         case Some(c) if c.enemyStun.isDefined => "stunned"
+        case Some(c) if c.enemyFreeze.isDefined => "frozen"
         case _ => ""
       },
       display <-- combatSignal.map(_.map(_ => "block").getOrElse("none")),
@@ -586,6 +587,11 @@ object AdventureView:
             cls := "velor-status-badge stunned",
             "💫 STUNNED",
             visibility <-- combatSignal.map(c => if c.exists(_.enemyStun.isDefined) then "visible" else "hidden")
+          ),
+          span(
+            cls := "velor-status-badge frozen",
+            "❄️ FROZEN",
+            visibility <-- combatSignal.map(c => if c.exists(_.enemyFreeze.isDefined) then "visible" else "hidden")
           )
         ),
         // Stop button (hidden during loading since overlay has one)
