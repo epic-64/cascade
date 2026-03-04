@@ -117,14 +117,23 @@ object SkillTreeView:
 
   /** Recursively render a chain skill and its nested chain skills */
   private def renderChainSkill(chain: TreeChainSkill, levelSignal: Signal[Int]): Vector[HtmlElement] =
+    val isUnlockedSignal = levelSignal.map(_ >= chain.requiredLevel).distinct
     val thisSkill = div(
       cls := "velor-chain-skill-item",
+      cls <-- isUnlockedSignal.map(if _ then "unlocked" else "locked"),
       div(
         cls := "velor-chain-skill-header",
         span(cls := "velor-chain-skill-icon", chain.skill.icon),
         span(chain.skill.name),
-        span(cls := "velor-chain-skill-window", s"${chain.windowMs / 1000.0}s window")
+        span(
+          cls := "velor-chain-skill-req",
+          child.text <-- isUnlockedSignal.map(unlocked =>
+            if unlocked then s"${chain.windowMs / 1000.0}s window"
+            else s"🔒 Lv${chain.requiredLevel}"
+          )
+        )
       ),
+      div(cls := "velor-chain-skill-desc", chain.skill.description),
       div(
         cls := "velor-chain-skill-stats",
         child <-- levelSignal.map { level =>

@@ -266,6 +266,21 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  padding-top: var(--velor-spacing-xs);
+  border-top: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.velor-chain-skill-item:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+
+.velor-chain-skill-item.locked {
+  opacity: 0.6;
+}
+
+.velor-chain-skill-item.unlocked {
+  opacity: 1;
 }
 
 .velor-chain-skill-header {
@@ -280,10 +295,24 @@
   font-size: 1rem;
 }
 
-.velor-chain-skill-window {
+.velor-chain-skill-req {
   font-size: 0.7rem;
   color: var(--text-secondary);
   margin-left: auto;
+}
+
+.velor-chain-skill-item.locked .velor-chain-skill-req {
+  color: var(--velor-warning);
+}
+
+.velor-chain-skill-item.unlocked .velor-chain-skill-req {
+  color: var(--velor-accent);
+}
+
+.velor-chain-skill-desc {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  line-height: 1.2;
 }
 
 .velor-chain-skill-stats {

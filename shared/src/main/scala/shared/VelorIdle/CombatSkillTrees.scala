@@ -39,7 +39,8 @@ case class TreeSkill(
 /** A chain skill that automatically becomes available after using the parent skill */
 case class TreeChainSkill(
   skill: TreeSkill,
-  windowMs: Long  // How long the chain window is open
+  windowMs: Long,           // How long the chain window is open
+  requiredLevel: Int = 1    // Parent skill level required to unlock this chain
 ) derives ReadWriter
 
 /** Requirement to unlock a skill in the tree */
@@ -126,11 +127,13 @@ object SkillTrees:
                     baseDamage = 40,
                     damagePerLevel = 8
                   ),
-                  windowMs = 2500
+                  windowMs = 2500,
+                  requiredLevel = 6
                 )
               )
             ),
-            windowMs = 2500
+            windowMs = 2500,
+            requiredLevel = 3
           )
         )
       ),
@@ -155,7 +158,8 @@ object SkillTrees:
               baseDamage = 35,
               damagePerLevel = 7
             ),
-            windowMs = 2500
+            windowMs = 2500,
+            requiredLevel = 4
           )
         )
       ),
@@ -228,11 +232,13 @@ object SkillTrees:
                     damagePerLevel = 12,
                     castTimeMs = 1200
                   ),
-                  windowMs = 3000
+                  windowMs = 3000,
+                  requiredLevel = 6
                 )
               )
             ),
-            windowMs = 3000
+            windowMs = 3000,
+            requiredLevel = 3
           )
         )
       ),
@@ -272,11 +278,13 @@ object SkillTrees:
                     castTimeMs = 1000,
                     effects = Vector(SkillEffect.Stun(1500))
                   ),
-                  windowMs = 2500
+                  windowMs = 2500,
+                  requiredLevel = 6
                 )
               )
             ),
-            windowMs = 2500
+            windowMs = 2500,
+            requiredLevel = 3
           )
         )
       ),
@@ -315,11 +323,13 @@ object SkillTrees:
                     damagePerLevel = 11,
                     castTimeMs = 1000
                   ),
-                  windowMs = 2500
+                  windowMs = 2500,
+                  requiredLevel = 6
                 )
               )
             ),
-            windowMs = 2500
+            windowMs = 2500,
+            requiredLevel = 3
           )
         )
       ),
@@ -358,11 +368,13 @@ object SkillTrees:
                     damagePerLevel = 10,
                     castTimeMs = 600
                   ),
-                  windowMs = 3000
+                  windowMs = 3000,
+                  requiredLevel = 6
                 )
               )
             ),
-            windowMs = 3000
+            windowMs = 3000,
+            requiredLevel = 3
           )
         )
       ),
@@ -411,7 +423,8 @@ object SkillTrees:
               baseDamage = 28,
               damagePerLevel = 6
             ),
-            windowMs = 2000
+            windowMs = 2000,
+            requiredLevel = 3
           )
         )
       ),
@@ -481,7 +494,8 @@ object SkillTrees:
               baseDamage = 35,
               damagePerLevel = 7
             ),
-            windowMs = 2500
+            windowMs = 2500,
+            requiredLevel = 4
           )
         )
       ),
