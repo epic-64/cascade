@@ -170,6 +170,9 @@ object SkillTrainingView:
       case (ActiveAction.Processing(s, action), game) if s == skill =>
         val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
         Some(VelorIdleLogic.calculateEfficiencyBonus(actionState.level))
+      case (ActiveAction.EquipmentCrafting(action), game) if skill == Skill.Smithing =>
+        val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
+        Some(VelorIdleLogic.calculateEfficiencyBonus(actionState.level))
       case _ => None
 
     div(
@@ -244,6 +247,17 @@ object SkillTrainingView:
                 val remainingInCurrentAction = effectiveTime * (1.0 - currentProgress)
                 val secondsRemaining = remainingInCurrentAction + (actionsNeeded - 1) * effectiveTime
                 formatEta(secondsRemaining.toLong)
+            case ActiveAction.EquipmentCrafting(action) =>
+              val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
+              val efficiency = VelorIdleLogic.calculateEfficiencyBonus(actionState.level)
+              val effectiveTime = action.timeSeconds * (1.0 - efficiency)
+              val xpPerAction = action.xpGain.toDouble
+              if xpPerAction <= 0 then "—"
+              else
+                val actionsNeeded = Math.ceil(xpNeeded / xpPerAction)
+                val remainingInCurrentAction = effectiveTime * (1.0 - currentProgress)
+                val secondsRemaining = remainingInCurrentAction + (actionsNeeded - 1) * effectiveTime
+                formatEta(secondsRemaining.toLong)
             case _ => "—"
     .map(formatEtaString).distinct
 
@@ -294,6 +308,7 @@ object SkillTrainingView:
     val isActiveSignal = activeSignal.map:
       case ActiveAction.Gathering(skill, _) if skill == viewingSkill => true
       case ActiveAction.Processing(skill, _) if skill == viewingSkill => true
+      case ActiveAction.EquipmentCrafting(_) if viewingSkill == Skill.Smithing => true
       case ActiveAction.Thieving(_) if viewingSkill == Skill.Thieving => true
       case _ => false
 
@@ -303,6 +318,8 @@ object SkillTrainingView:
         Some((action.id, action.icon, action.name, action.timeSeconds, action.xpGain, action.output, true))
       case ActiveAction.Processing(skill, action) if skill == viewingSkill =>
         Some((action.id, action.icon, action.name, action.timeSeconds, action.xpGain, action.output, false))
+      case ActiveAction.EquipmentCrafting(action) if viewingSkill == Skill.Smithing =>
+        Some((action.id, action.icon, action.name, action.timeSeconds, action.xpGain, Item.BronzeBar, false)) // Placeholder output
       case ActiveAction.Thieving(action) if viewingSkill == Skill.Thieving =>
         Some((action.id, action.icon, action.name, action.timeSeconds, action.xpGain, Item.Gem, false)) // Gem is placeholder
       case _ => None

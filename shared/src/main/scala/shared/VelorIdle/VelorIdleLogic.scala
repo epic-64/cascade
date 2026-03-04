@@ -57,17 +57,17 @@ object VelorIdleLogic:
     val newMana = (advState.currentMana + manaRegen).min(maxMana)
 
     val newAdvState = advState.copy(currentHp = newHp, currentMana = newMana)
-    
+
     // Auto-switch to IDLE when fully recovered
     val isFullyRecovered = newHp >= maxHp && newMana >= maxMana
     val newActiveAction = if isFullyRecovered then ActiveAction.Idle else game.activeAction
-    
+
     val newGame = game.copy(
       adventureState = newAdvState,
       activeAction = newActiveAction,
       lastTickTime = currentTime
     )
-    
+
     (newGame, Vector.empty)
 
   private def processGatheringTick(
@@ -172,7 +172,7 @@ object VelorIdleLogic:
       if skill == Skill.Adventure then
         val levelsGained = newLevel - oldLevel
         withLevelUp
-          .mapGame(g => 
+          .mapGame(g =>
             val newCombatSkillState = SkillTreeLogic.awardPoints(g.adventureState.combatSkillState, levelsGained)
             g.copy(adventureState = g.adventureState.copy(combatSkillState = newCombatSkillState))
           )
@@ -545,7 +545,7 @@ object VelorIdleLogic:
             adventureState = newAdvState,
             equipmentInventory = newEquipInv
           )
-          val craftEvent = GameEvent.EquipmentCrafted(equipment.defId, equipment.rarity, equipment.affixes)
+          val craftEvent = GameEvent.EquipmentCrafted(equipment.defId, equipment.quality, equipment.rarity, equipment.affixes)
           (finalGame, result.events :+ craftEvent)
 
   /** Check if player has all required inputs for equipment crafting */
@@ -1006,13 +1006,15 @@ object VelorIdleLogic:
         equipment.definition match
           case None => Left("Invalid equipment type")
           case Some(def_) =>
-            // Calculate sell value based on rarity
+            // Calculate sell value based on quality and rarity
             val baseValue = def_.tier * 50  // Bronze=50, Iron=100, Steel=150, Mithril=200
+            val qualityMultiplier = equipment.quality match
+              case EquipmentQuality.Normal => 1.0
+              case EquipmentQuality.Superior => 1.5
             val rarityMultiplier = equipment.rarity match
               case EquipmentRarity.Normal => 1.0
-              case EquipmentRarity.Superior => 1.5
-              case EquipmentRarity.Magical => 2.5
-            val sellValue = (baseValue * rarityMultiplier).toInt
+              case EquipmentRarity.Magical => 2.0
+            val sellValue = (baseValue * qualityMultiplier * rarityMultiplier).toInt
             val newEquipInv = game.equipmentInventory.filterNot(_.instanceId == instanceId)
             Right(game.copy(
               equipmentInventory = newEquipInv,
@@ -1164,5 +1166,5 @@ enum GameEvent:
   case AdventurePlayerDied
   case SkillPointsGained(points: Int)
   // Equipment events
-  case EquipmentCrafted(defId: String, rarity: EquipmentRarity, affixes: Vector[MagicalAffix])
+  case EquipmentCrafted(defId: String, quality: EquipmentQuality, rarity: EquipmentRarity, affixes: Vector[MagicalAffix])
 

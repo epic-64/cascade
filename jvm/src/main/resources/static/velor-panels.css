@@ -1049,12 +1049,22 @@
 }
 
 .rarity-magical {
-  border-color: var(--velor-xp) !important;
-  background: linear-gradient(135deg, var(--velor-bg-secondary) 0%, rgba(251, 191, 36, 0.1) 100%) !important;
+  border-color: #a855f7 !important;
+  background: linear-gradient(135deg, var(--velor-bg-secondary) 0%, rgba(168, 85, 247, 0.1) 100%) !important;
 }
 
 .rarity-magical .velor-equipment-slot-name,
 .rarity-magical .velor-equipment-item-name {
+  color: #a855f7;
+}
+
+.rarity-superior-magical {
+  border-color: var(--velor-xp) !important;
+  background: linear-gradient(135deg, var(--velor-bg-secondary) 0%, rgba(251, 191, 36, 0.15) 100%) !important;
+}
+
+.rarity-superior-magical .velor-equipment-slot-name,
+.rarity-superior-magical .velor-equipment-item-name {
   color: var(--velor-xp);
 }
 

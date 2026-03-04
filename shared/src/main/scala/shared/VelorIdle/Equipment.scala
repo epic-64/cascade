@@ -12,24 +12,35 @@ enum EquipmentSlot derives ReadWriter:
   case Weapon
   case Armor
 
-/** Equipment rarity - determines stat modifiers and affixes */
-enum EquipmentRarity derives ReadWriter:
+/** Equipment quality - determines stat bonus */
+enum EquipmentQuality derives ReadWriter:
   case Normal    // Base stats
   case Superior  // +10% to base stats
-  case Magical   // +10% to base stats + magical affixes
+
+object EquipmentQuality:
+  /** Icon for displaying quality */
+  def icon(quality: EquipmentQuality): String = quality match
+    case Normal   => ""
+    case Superior => "✨"
+
+/** Equipment rarity - determines if item has magical affixes */
+enum EquipmentRarity derives ReadWriter:
+  case Normal    // No affixes
+  case Magical   // Has magical affixes
 
 object EquipmentRarity:
   /** Icon for displaying rarity */
   def icon(rarity: EquipmentRarity): String = rarity match
     case Normal   => ""
-    case Superior => "✨"
     case Magical  => "🔮"
 
   /** Color class for CSS styling */
-  def cssClass(rarity: EquipmentRarity): String = rarity match
-    case Normal   => "rarity-normal"
-    case Superior => "rarity-superior"
-    case Magical  => "rarity-magical"
+  def cssClass(quality: EquipmentQuality, rarity: EquipmentRarity): String = 
+    (quality, rarity) match
+      case (EquipmentQuality.Superior, EquipmentRarity.Magical) => "rarity-superior-magical"
+      case (EquipmentQuality.Superior, EquipmentRarity.Normal)  => "rarity-superior"
+      case (EquipmentQuality.Normal, EquipmentRarity.Magical)   => "rarity-magical"
+      case _ => "rarity-normal"
 
 /** Magical affixes that can appear on magical equipment */
 enum MagicalAffix derives ReadWriter:
@@ -68,9 +79,10 @@ case class EquipmentDef(
   baseStats: EquipmentBaseStats
 ) derives ReadWriter
 
-/** An actual equipment instance with rarity and affixes */
+/** An actual equipment instance with quality, rarity, and affixes */
 case class EquipmentInstance(
   defId: String,           // Reference to EquipmentDef.id
+  quality: EquipmentQuality,
   rarity: EquipmentRarity,
   affixes: Vector[MagicalAffix] = Vector.empty,
   instanceId: Long = 0L    // Unique ID for this specific item
@@ -79,28 +91,28 @@ case class EquipmentInstance(
   /** Get the definition for this equipment */
   def definition: Option[EquipmentDef] = EquipmentDefs.byId.get(defId)
 
-  /** Calculate effective attack damage (base + rarity modifier + affixes) */
+  /** Calculate effective attack damage (base + quality modifier + affixes) */
   def attackDamage: Int = definition.map { d =>
     val base = d.baseStats.attackDamage
-    val rarityMod = if rarity != EquipmentRarity.Normal then (base * 0.1).toInt else 0
+    val qualityMod = if quality == EquipmentQuality.Superior then (base * 0.1).toInt else 0
     val affixMod = affixes.collect { case MagicalAffix.AttackDamageBonus(amt) => amt }.sum
-    base + rarityMod + affixMod
+    base + qualityMod + affixMod
   }.getOrElse(0)
 
-  /** Calculate effective defense (base + rarity modifier + affixes) */
+  /** Calculate effective defense (base + quality modifier + affixes) */
   def defense: Int = definition.map { d =>
     val base = d.baseStats.defense
-    val rarityMod = if rarity != EquipmentRarity.Normal then (base * 0.1).toInt else 0
+    val qualityMod = if quality == EquipmentQuality.Superior then (base * 0.1).toInt else 0
     val affixMod = affixes.collect { case MagicalAffix.DefenseBonus(amt) => amt }.sum
-    base + rarityMod + affixMod
+    base + qualityMod + affixMod
   }.getOrElse(0)
 
-  /** Calculate effective max HP bonus (base + rarity modifier + affixes) */
+  /** Calculate effective max HP bonus (base + quality modifier + affixes) */
   def maxHpBonus: Int = definition.map { d =>
     val base = d.baseStats.maxHpBonus
-    val rarityMod = if rarity != EquipmentRarity.Normal then (base * 0.1).toInt else 0
+    val qualityMod = if quality == EquipmentQuality.Superior then (base * 0.1).toInt else 0
     val affixMod = affixes.collect { case MagicalAffix.MaxHpBonus(amt) => amt }.sum
-    base + rarityMod + affixMod
+    base + qualityMod + affixMod
   }.getOrElse(0)
 
   /** Calculate max mana bonus from affixes */
@@ -110,11 +122,16 @@ case class EquipmentInstance(
   def skillBonuses: Map[String, Int] =
     affixes.collect { case MagicalAffix.SkillLevelBonus(treeId, amt) => treeId -> amt }.toMap
 
-  /** Display name with rarity indicator */
+  /** Display name with quality and rarity indicators */
   def displayName: String = definition.map { d =>
-    val prefix = EquipmentRarity.icon(rarity)
+    val qualityPrefix = EquipmentQuality.icon(quality)
+    val rarityPrefix = EquipmentRarity.icon(rarity)
+    val prefix = (qualityPrefix + rarityPrefix).trim
     if prefix.isEmpty then d.name else s"$prefix ${d.name}"
   }.getOrElse("Unknown Equipment")
+  
+  /** CSS class based on quality and rarity */
+  def cssClass: String = EquipmentRarity.cssClass(quality, rarity)
 
 /** Equipment definitions (templates) */
 object EquipmentDefs:
@@ -218,15 +235,18 @@ object EquipmentDefs:
 
 /** Equipment crafting and generation logic */
 object EquipmentCrafting:
-  // Chances for superior and magical items
-  val SuperiorChance: Double = 0.15  // 15% chance for superior
-  val MagicalChance: Double = 0.05   // 5% chance for magical (on top of superior)
+  // Chances for quality and rarity
+  val SuperiorChance: Double = 0.15  // 15% chance for superior quality
+  val MagicalChance: Double = 0.10   // 10% chance for magical rarity
 
-  /** Roll for equipment rarity */
+  /** Roll for equipment quality (Normal or Superior) */
+  def rollQuality(random: Random): EquipmentQuality =
+    if random.nextDouble() < SuperiorChance then EquipmentQuality.Superior
+    else EquipmentQuality.Normal
+
+  /** Roll for equipment rarity (Normal or Magical) - independent of quality */
   def rollRarity(random: Random): EquipmentRarity =
-    val roll = random.nextDouble()
-    if roll < MagicalChance then EquipmentRarity.Magical
-    else if roll < SuperiorChance + MagicalChance then EquipmentRarity.Superior
+    if random.nextDouble() < MagicalChance then EquipmentRarity.Magical
     else EquipmentRarity.Normal
 
   /** Generate magical affixes for an equipment piece */
@@ -261,9 +281,10 @@ object EquipmentCrafting:
   /** Create an equipment instance from a definition */
   def createEquipment(defId: String, instanceId: Long, random: Random): Option[EquipmentInstance] =
     EquipmentDefs.byId.get(defId).map { def_ =>
+      val quality = rollQuality(random)
       val rarity = rollRarity(random)
       val affixes = if rarity == EquipmentRarity.Magical then rollAffixes(def_, random) else Vector.empty
-      EquipmentInstance(defId, rarity, affixes, instanceId)
+      EquipmentInstance(defId, quality, rarity, affixes, instanceId)
     }
 
 /** Equipment slots in the player's gear */

@@ -63,7 +63,7 @@ object EquipmentPanel:
       case Some(eq) =>
         val def_ = eq.definition
         div(
-          cls := s"velor-equipment-slot ${EquipmentRarity.cssClass(eq.rarity)}",
+          cls := s"velor-equipment-slot ${eq.cssClass}",
           div(cls := "velor-equipment-slot-icon", def_.map(_.icon).getOrElse("❓")),
           div(
             cls := "velor-equipment-slot-info",
@@ -133,7 +133,7 @@ object EquipmentPanel:
     val canEquip = adventureLevel >= levelReq
 
     div(
-      cls := s"velor-equipment-item ${EquipmentRarity.cssClass(eq.rarity)}",
+      cls := s"velor-equipment-item ${eq.cssClass}",
       div(cls := "velor-equipment-item-icon", def_.map(_.icon).getOrElse("❓")),
       div(
         cls := "velor-equipment-item-info",
