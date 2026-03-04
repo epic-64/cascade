@@ -20,6 +20,39 @@ object AdventureView:
   // Floating damage number state
   case class FloatingNumber(id: Int, text: String, isPlayer: Boolean, isHeal: Boolean, x: Int, y: Int)
   private val random = new Random()
+  
+  // Projectile state for skill activation
+  case class Projectile(id: Int, icon: String, startX: Double, startY: Double, endX: Double, endY: Double)
+  private val projectilesVar = Var(Vector.empty[Projectile])
+  private var nextProjectileId = 0
+  
+  private def fireProjectile(icon: String, fromSlotIndex: Int): Unit =
+    // Get the skill slot element position
+    val slotSelector = s".velor-skill-slot:nth-child(${(fromSlotIndex % 4) + 1})"
+    val rowSelector = if fromSlotIndex < 4 then ".weapon-skills" else ".armor-skills"
+    val slot = dom.document.querySelector(s"$rowSelector $slotSelector")
+    val target = dom.document.querySelector(".velor-combat-enemy .velor-hp-bar-container")
+    
+    if slot != null && target != null then
+      val slotRect = slot.getBoundingClientRect()
+      val targetRect = target.getBoundingClientRect()
+      val combatView = dom.document.querySelector(".velor-combat-view")
+      val combatRect = if combatView != null then combatView.getBoundingClientRect() else slotRect
+      
+      // Calculate positions relative to combat view
+      val startX = slotRect.left + slotRect.width / 2 - combatRect.left
+      val startY = slotRect.top + slotRect.height / 2 - combatRect.top
+      val endX = targetRect.left + targetRect.width / 2 - combatRect.left
+      val endY = targetRect.top + targetRect.height / 2 - combatRect.top
+      
+      val projectile = Projectile(nextProjectileId, icon, startX, startY, endX, endY)
+      nextProjectileId += 1
+      projectilesVar.update(_ :+ projectile)
+      
+      // Remove projectile after animation completes
+      dom.window.setTimeout(() => {
+        projectilesVar.update(_.filterNot(_.id == projectile.id))
+      }, 400)
 
   def apply(
     onStartCombat: String => Unit,
@@ -263,6 +296,18 @@ object AdventureView:
     div(
       cls := "velor-combat-view",
       display <-- inCombatSignal.map(if _ then "flex" else "none"),
+      
+      // Projectiles layer (positioned absolute over the combat view)
+      div(
+        cls := "velor-projectiles-container",
+        children <-- projectilesVar.signal.map(_.map { proj =>
+          div(
+            cls := "velor-projectile",
+            styleAttr := s"--start-x: ${proj.startX}px; --start-y: ${proj.startY}px; --end-x: ${proj.endX}px; --end-y: ${proj.endY}px;",
+            proj.icon
+          )
+        })
+      ),
 
       // Use onMountBind to properly scope the subscription to element lifecycle
       onMountBind { ctx =>
@@ -279,14 +324,20 @@ object AdventureView:
                 lastEventCountVar.set(combat.recentEvents.length)
                 wasInCombat = true
               else
-                // Check for new combat events to show damage numbers
+                // Check for new combat events to show damage numbers and projectiles
                 val lastCount = lastEventCountVar.now()
                 val newEvents = combat.recentEvents.drop(lastCount)
                 lastEventCountVar.set(combat.recentEvents.length)
                 newEvents.foreach {
                   case CombatEvent.PlayerAutoAttack(dmg) => showDamageNumber(dmg, false, false)
                   case CombatEvent.EnemyAutoAttack(dmg) => showDamageNumber(dmg, true, false)
-                  case CombatEvent.PlayerSkillUsed(_, dmg) if dmg > 0 => showDamageNumber(dmg, false, false)
+                  case CombatEvent.PlayerSkillUsed(skillName, dmg) => 
+                    // Find the skill slot index by matching skill name
+                    val slotIndex = combat.skillSlots.indexWhere(_.currentSkill.name == skillName)
+                    if slotIndex >= 0 then
+                      val icon = combat.skillSlots(slotIndex).currentSkill.icon
+                      fireProjectile(icon, slotIndex)
+                    if dmg > 0 then showDamageNumber(dmg, false, false)
                   case CombatEvent.PlayerHealed(amt) => showDamageNumber(amt, true, true)
                   case CombatEvent.EnemyDotTick(dmg, _) => showDamageNumber(dmg, false, false)
                   case CombatEvent.PlayerDotTick(dmg, _) => showDamageNumber(dmg, true, false)
