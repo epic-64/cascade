@@ -244,12 +244,12 @@ object SkillTrainingView:
       cls := "velor-xp-bar-container",
       div(
         cls := "velor-xp-bar-label",
-        span(child.text <-- stateSignal.map(s => s"XP: ${formatNumber(s.xp)}")),
+        span(child.text <-- stateSignal.map(s => s"XP: ${s.xp}")),
         span(child.text <-- stateSignal.map { s =>
           if s.level >= 99 then "MAX"
           else
             val nextLevelXp = SkillState.totalXpForLevel(s.level + 1)
-            s"Next: ${formatNumber(nextLevelXp)}"
+            s"Next: $nextLevelXp"
         })
       ),
       div(
@@ -398,10 +398,10 @@ object SkillTrainingView:
       cls := "velor-xp-bar-container",
       div(
         cls := "velor-xp-bar-label",
-        span(s"XP: ${formatNumber(actionState.xp)}"),
+        span(s"XP: ${actionState.xp}"),
         span(
           if actionState.level >= 99 then "MAX"
-          else s"Next: ${formatNumber(ActionState.totalXpForLevel(actionState.level + 1))}"
+          else s"Next: ${ActionState.totalXpForLevel(actionState.level + 1)}"
         )
       ),
       div(
