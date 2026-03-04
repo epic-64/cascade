@@ -279,14 +279,14 @@
   max-width: 100%;
 }
 
-
-@media (min-width: 550px) {
+/* Container queries - responds to actual container width, not viewport */
+@container (min-width: 450px) {
   .velor-skill-grid {
     grid-template-columns: repeat(4, 1fr);
   }
 }
 
-@media (min-width: 700px) {
+@container (min-width: 600px) {
   .velor-skill-grid {
     grid-template-columns: repeat(5, 1fr);
   }
