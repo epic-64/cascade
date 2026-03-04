@@ -8,24 +8,29 @@ object ShopPanel:
 
   def apply(onBuyItem: (Item, Int) => Unit, onBuyInventorySlots: () => Unit): HtmlElement =
     div(
-      cls := "velor-view velor-shop-panel",
+      cls := "velor-view velor-view-fill velor-shop-panel",
 
-      // Header
+      // Fixed header
       div(
-        cls := "velor-skill-card",
+        cls := "velor-shop-header",
         h3("🏪 Shop"),
         p(cls := "velor-text-muted", "Buy supplies for your adventures.")
       ),
 
-      // Inventory upgrade section
-      inventoryUpgradeCard(onBuyInventorySlots),
-
-      // Shop items
+      // Scrollable content
       div(
-        cls := "velor-shop-items-section",
-        h4("Supplies"),
-        VelorIdleLogic.shopItems.map: shopItem =>
-          shopItemCard(shopItem, onBuyItem)
+        cls := "velor-shop-content",
+
+        // Inventory upgrade section
+        inventoryUpgradeCard(onBuyInventorySlots),
+
+        // Shop items
+        div(
+          cls := "velor-shop-items-section",
+          h4("Supplies"),
+          VelorIdleLogic.shopItems.map: shopItem =>
+            shopItemCard(shopItem, onBuyItem)
+        )
       )
     )
 
@@ -149,4 +154,3 @@ object ShopPanel:
       s"$amount",
       onClick --> { _ => amountVar.set(amount) }
     )
-
