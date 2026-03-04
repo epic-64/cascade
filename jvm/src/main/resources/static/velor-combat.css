@@ -544,6 +544,14 @@
   margin-top: var(--velor-spacing-sm);
 }
 
+/* Combat controls (stop button) */
+.velor-combat-controls {
+  display: flex;
+  justify-content: center;
+  padding: var(--velor-spacing-sm);
+  margin-top: var(--velor-spacing-sm);
+}
+
 /* Responsive adjustments for skill bar */
 @media (max-width: 400px) {
   .velor-skill-slot {

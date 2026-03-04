@@ -92,7 +92,7 @@ object VelorIdleClient:
     SkillTrainingView(handleStartAction, handleStopAction)
 
   private def adventureView(): HtmlElement =
-    AdventureView(handleStartCombat, handleUseSkill, handleStopCombat, handleRestartCombat)
+    AdventureView(handleStartCombat, handleUseSkill, handleStopCombat, handleRestartCombat, handleRest)
 
   private def inventoryView(): HtmlElement =
     InventoryPanel(InventoryPanel.Actions(
@@ -271,6 +271,11 @@ object VelorIdleClient:
         isDirty = true
       case Left(error) =>
         ToastSystem.show(s"❌ $error")
+
+  private def handleRest(): Unit =
+    currentGame = VelorIdleLogic.startRest(currentGame)
+    VelorIdleState.update(currentGame)
+    isDirty = true
 
   private def handleReset(): Unit =
     if dom.window.confirm("Are you sure you want to reset? All progress will be lost!") then

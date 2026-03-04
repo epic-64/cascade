@@ -859,6 +859,7 @@ enum ActiveAction derives ReadWriter:
   case Processing(skill: Skill, action: ProcessingAction)
   case Thieving(action: ThievingAction)
   case Adventure
+  case Rest
   case Idle
 
 case class VelorIdleGame(

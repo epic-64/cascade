@@ -33,6 +33,7 @@ object Header:
         case ActiveAction.Processing(skill, _) => activeSkillDiv(skill)
         case ActiveAction.Thieving(_) => activeSkillDiv(Skill.Thieving)
         case ActiveAction.Adventure => activeSkillDiv(Skill.Adventure)
+        case ActiveAction.Rest => activeSkillDiv(Skill.Adventure, "Resting")
         case ActiveAction.Idle =>
           div(
             cls := "velor-active-skill-content none",
@@ -40,12 +41,12 @@ object Header:
           )
     )
 
-  private def activeSkillDiv(skill: Skill): HtmlElement =
+  private def activeSkillDiv(skill: Skill, status: String = "Active"): HtmlElement =
     div(
       cls := "velor-active-skill-content active clickable",
       onClick --> { _ => VelorIdleState.selectSkill(skill) },
       span(cls := "velor-active-skill-icon spinning", Skill.icon(skill)),
-      span(cls := "velor-active-skill-status", "Active")
+      span(cls := "velor-active-skill-status", status)
     )
 
 

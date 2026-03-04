@@ -89,19 +89,10 @@ object AdventureCombat:
   ): (VelorIdleGame, Vector[GameEvent]) =
     game.adventureState.combatState match
       case None =>
-        // Not in combat - apply out-of-combat regen
-        val elapsedMs = currentTime - game.lastTickTime
-        val elapsedSeconds = elapsedMs / 1000.0
-        val regenedGame = applyOutOfCombatRegen(game, elapsedSeconds)
-        (regenedGame.copy(lastTickTime = currentTime), Vector.empty)
-      case Some(combat) if combat.isPlayerDead =>
-        // Player died - apply regen so they can recover and try again
-        val elapsedMs = currentTime - game.lastTickTime
-        val elapsedSeconds = elapsedMs / 1000.0
-        val regenedGame = applyOutOfCombatRegen(game, elapsedSeconds)
-        (regenedGame.copy(lastTickTime = currentTime), Vector.empty)
+        // Not in combat - nothing to do (use Rest action for regen)
+        (game.copy(lastTickTime = currentTime), Vector.empty)
       case Some(combat) if combat.isCombatOver =>
-        // Enemy dead case shouldn't happen (auto-restart), but handle gracefully
+        // Combat is over - nothing to do (use Rest action for regen after death)
         (game.copy(lastTickTime = currentTime), Vector.empty)
       case Some(combat) =>
         val elapsedMs = currentTime - game.lastTickTime
@@ -153,22 +144,6 @@ object AdventureCombat:
 
         (newGame, endEvents)
 
-  /** Apply out-of-combat HP and mana regeneration */
-  private def applyOutOfCombatRegen(game: VelorIdleGame, elapsedSeconds: Double): VelorIdleGame =
-    val advState = game.adventureState
-    val maxHp = advState.maxHp
-    val maxMana = advState.maxMana
-
-    val hpRegen = (AdventureState.OutOfCombatHpRegenPerSecond * elapsedSeconds).toInt
-    val manaRegen = (AdventureState.ManaRegenPerSecond * elapsedSeconds).toInt
-
-    val newHp = (advState.currentHp + hpRegen).min(maxHp)
-    val newMana = (advState.currentMana + manaRegen).min(maxMana)
-
-    if newHp != advState.currentHp || newMana != advState.currentMana then
-      game.copy(adventureState = advState.copy(currentHp = newHp, currentMana = newMana))
-    else
-      game
 
   private def processDoTs(combat: CombatState, currentTime: Long): (CombatState, Vector[CombatEvent]) =
     var enemyHp = combat.enemyCurrentHp

@@ -32,6 +32,31 @@ object VelorIdleLogic:
         // Adventure combat is processed by AdventureCombat.tick
         AdventureCombat.tick(game, currentTime, random)
 
+      case ActiveAction.Rest =>
+        // Rest action - regenerate HP and Mana
+        processRestTick(game, elapsedSeconds, currentTime)
+
+  /** Process rest tick - regenerate HP and Mana for adventure */
+  private def processRestTick(
+    game: VelorIdleGame,
+    elapsedSeconds: Double,
+    currentTime: Long
+  ): (VelorIdleGame, Vector[GameEvent]) =
+    val advState = game.adventureState
+    val maxHp = advState.maxHp
+    val maxMana = advState.maxMana
+
+    // Use round to avoid losing small increments due to truncation
+    val hpRegen = (AdventureState.HpRegenPerSecond * elapsedSeconds).round.toInt
+    val manaRegen = (AdventureState.ManaRegenPerSecond * elapsedSeconds).round.toInt
+
+    val newHp = (advState.currentHp + hpRegen).min(maxHp)
+    val newMana = (advState.currentMana + manaRegen).min(maxMana)
+
+    val newAdvState = advState.copy(currentHp = newHp, currentMana = newMana)
+    val newGame = game.copy(adventureState = newAdvState, lastTickTime = currentTime)
+    
+    (newGame, Vector.empty)
 
   private def processGatheringTick(
     game: VelorIdleGame,
@@ -599,6 +624,16 @@ object VelorIdleLogic:
       case _ => game
     clearedGame.copy(
       activeAction = ActiveAction.Idle,
+      actionProgress = 0.0
+    )
+
+  /** Start resting to regenerate HP and Mana */
+  def startRest(game: VelorIdleGame): VelorIdleGame =
+    // Clear any combat state when starting rest
+    val clearedGame = AdventureCombat.stopCombat(game)
+    clearedGame.copy(
+      currentSkill = Some(Skill.Adventure),
+      activeAction = ActiveAction.Rest,
       actionProgress = 0.0
     )
 
