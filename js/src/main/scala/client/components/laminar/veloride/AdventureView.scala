@@ -417,9 +417,39 @@ object AdventureView:
     val combatEndedVar = Var(false)
     val isVictoryVar = Var(false)
 
-    // Event tracking state - reset when combat instance changes
+    // Event tracking state - using event IDs for reliable deduplication
     var lastSeenInstanceId = -1L
-    var lastSeenEventCount = 0
+    var lastProcessedEventId = -1L
+    
+    // Current combat state for reconciliation (updated by signal observer)
+    var currentCombatState: Option[CombatState] = None
+    
+    // Reconciliation: periodically sync visual HP toward authoritative HP
+    val ReconciliationIntervalMs = 500
+    var reconciliationTimerId: Option[Int] = None
+    
+    def startReconciliation(): Unit =
+      reconciliationTimerId.foreach(dom.window.clearInterval(_))
+      reconciliationTimerId = Some(dom.window.setInterval(() => {
+        currentCombatState.foreach { c =>
+          // Smoothly move visual HP toward authoritative HP
+          val currentVisualEnemy = visualEnemyHpVar.now()
+          val currentVisualPlayer = visualPlayerHpVar.now()
+          
+          // If visual HP differs significantly from authoritative, snap toward it
+          if math.abs(currentVisualEnemy - c.enemyCurrentHp) > 1 then
+            val newVisual = currentVisualEnemy + ((c.enemyCurrentHp - currentVisualEnemy) * 0.3).toInt
+            visualEnemyHpVar.set(newVisual.max(0).min(c.enemy.maxHp))
+          
+          if math.abs(currentVisualPlayer - c.playerCurrentHp) > 1 then
+            val newVisual = currentVisualPlayer + ((c.playerCurrentHp - currentVisualPlayer) * 0.3).toInt
+            visualPlayerHpVar.set(newVisual.max(0).min(c.playerMaxHp))
+        }
+      }, ReconciliationIntervalMs))
+    
+    def stopReconciliation(): Unit =
+      reconciliationTimerId.foreach(dom.window.clearInterval(_))
+      reconciliationTimerId = None
 
     div(
       cls := "velor-combat-view",
@@ -448,75 +478,91 @@ object AdventureView:
         })
       ),
 
-      // Event processing
+      // Event processing - using ID-based deduplication
       onMountBind { _ =>
         combatSignal --> { 
           case Some(combat) if combat.isPlayerDead && !combatEndedVar.now() =>
             // Only show modal on player death - victory auto-restarts
             combatEndedVar.set(true)
             isVictoryVar.set(false)
+            currentCombatState = None
+            stopReconciliation()
 
           case Some(combat) if !combat.isCombatOver =>
             combatEndedVar.set(false)
+            currentCombatState = Some(combat)
             
             // New combat instance? Reset our tracking and sync visual HP
             if combat.instanceId != lastSeenInstanceId then
               lastSeenInstanceId = combat.instanceId
-              lastSeenEventCount = combat.totalEventCount
+              lastProcessedEventId = -1L
               visualEnemyHpVar.set(combat.enemyCurrentHp)
               visualPlayerHpVar.set(combat.playerCurrentHp)
-            // Same instance, new events? Process them
-            else if combat.totalEventCount > lastSeenEventCount then
-              val numNewEvents = combat.totalEventCount - lastSeenEventCount
-              val newEvents = combat.recentEvents.takeRight(numNewEvents)
-              lastSeenEventCount = combat.totalEventCount
+              startReconciliation()
+            
+            // Process new events using ID-based deduplication
+            val newEvents = combat.recentEvents.filter(_.id > lastProcessedEventId)
+            if newEvents.nonEmpty then
+              lastProcessedEventId = newEvents.map(_.id).max
               
-              newEvents.foreach {
-                case CombatEvent.PlayerAutoAttack(dmg) => 
-                  // Fire projectile with damage effect - damage number shows when it lands
-                  fireAutoAttackProjectile(true, ProjectileEffect.Damage(dmg, targetIsPlayer = false))
-                case CombatEvent.EnemyAutoAttack(dmg) =>
-                  fireAutoAttackProjectile(false, ProjectileEffect.Damage(dmg, targetIsPlayer = true))
-                case CombatEvent.PlayerEvaded =>
-                  // Enemy attacked but player evaded - show enemy's projectile, then "Evaded" on player
-                  fireAutoAttackProjectile(false, ProjectileEffect.Evade(targetIsPlayer = true))
-                case CombatEvent.EnemyEvaded =>
-                  // Player attacked but enemy evaded - show player's projectile, then "Evaded" on enemy
-                  fireAutoAttackProjectile(true, ProjectileEffect.Evade(targetIsPlayer = false))
-                case CombatEvent.PlayerSkillUsed(skillName, dmg) =>
-                  // Find the skill slot - check current, base, chain skills, and nested chains
-                  val slotIndex = combat.skillSlots.indexWhere { slot =>
-                    slot.currentSkill.name == skillName || 
-                    slot.baseSkill.name == skillName ||
-                    slot.baseSkill.chainInto.exists(_.skill.name == skillName) ||
-                    slot.baseSkill.chainInto.flatMap(_.skill.chainInto).exists(_.skill.name == skillName)
-                  }
-                  if slotIndex >= 0 then
-                    // Find the actual skill icon (could be base, chain, or nested chain)
-                    val slot = combat.skillSlots(slotIndex)
-                    val icon = if slot.baseSkill.name == skillName then 
-                      slot.baseSkill.icon
-                    else if slot.baseSkill.chainInto.exists(_.skill.name == skillName) then
-                      slot.baseSkill.chainInto.get.skill.icon
-                    else if slot.baseSkill.chainInto.flatMap(_.skill.chainInto).exists(_.skill.name == skillName) then
-                      slot.baseSkill.chainInto.get.skill.chainInto.get.skill.icon
-                    else 
-                      slot.currentSkill.icon
-                    fireSkillProjectile(icon, slotIndex, ProjectileEffect.SkillDamage(dmg))
-                // These effects are instant (no projectile)
-                case CombatEvent.PlayerHealed(amt) => showDamageNumber(amt, true, true)
-                case CombatEvent.EnemyDotTick(dmg, _) => showDamageNumber(dmg, false, false)
-                case CombatEvent.PlayerDotTick(dmg, _) => showDamageNumber(dmg, true, false)
-                case _ => ()
+              newEvents.foreach { event =>
+                event.detail match
+                  case CombatEventDetail.PlayerAutoAttack(dmg) => 
+                    // Fire projectile with damage effect - damage number shows when it lands
+                    fireAutoAttackProjectile(true, ProjectileEffect.Damage(dmg, targetIsPlayer = false))
+                  case CombatEventDetail.EnemyAutoAttack(dmg) =>
+                    fireAutoAttackProjectile(false, ProjectileEffect.Damage(dmg, targetIsPlayer = true))
+                  case CombatEventDetail.PlayerEvaded =>
+                    // Enemy attacked but player evaded - show enemy's projectile, then "Evaded" on player
+                    fireAutoAttackProjectile(false, ProjectileEffect.Evade(targetIsPlayer = true))
+                  case CombatEventDetail.EnemyEvaded =>
+                    // Player attacked but enemy evaded - show player's projectile, then "Evaded" on enemy
+                    fireAutoAttackProjectile(true, ProjectileEffect.Evade(targetIsPlayer = false))
+                  case CombatEventDetail.PlayerSkillUsed(skillName, dmg) =>
+                    // Find the skill slot - check current, base, chain skills, and nested chains
+                    val slotIndex = combat.skillSlots.indexWhere { slot =>
+                      slot.currentSkill.name == skillName || 
+                      slot.baseSkill.name == skillName ||
+                      slot.baseSkill.chainInto.exists(_.skill.name == skillName) ||
+                      slot.baseSkill.chainInto.flatMap(_.skill.chainInto).exists(_.skill.name == skillName)
+                    }
+                    if slotIndex >= 0 then
+                      // Find the actual skill icon (could be base, chain, or nested chain)
+                      val slot = combat.skillSlots(slotIndex)
+                      val icon = if slot.baseSkill.name == skillName then 
+                        slot.baseSkill.icon
+                      else if slot.baseSkill.chainInto.exists(_.skill.name == skillName) then
+                        slot.baseSkill.chainInto.get.skill.icon
+                      else if slot.baseSkill.chainInto.flatMap(_.skill.chainInto).exists(_.skill.name == skillName) then
+                        slot.baseSkill.chainInto.get.skill.chainInto.get.skill.icon
+                      else 
+                        slot.currentSkill.icon
+                      fireSkillProjectile(icon, slotIndex, ProjectileEffect.SkillDamage(dmg))
+                  // These effects are instant (no projectile) - also update visual HP
+                  case CombatEventDetail.PlayerHealed(amt) => 
+                    showDamageNumber(amt, true, true)
+                    visualPlayerHpVar.update(hp => (hp + amt).min(combat.playerMaxHp))
+                  case CombatEventDetail.EnemyDotTick(dmg, _) => 
+                    showDamageNumber(dmg, false, false)
+                    visualEnemyHpVar.update(hp => (hp - dmg).max(0))
+                  case CombatEventDetail.PlayerDotTick(dmg, _) => 
+                    showDamageNumber(dmg, true, false)
+                    visualPlayerHpVar.update(hp => (hp - dmg).max(0))
+                  case _ => ()
               }
               
           case None =>
             lastSeenInstanceId = -1L
-            lastSeenEventCount = 0
+            lastProcessedEventId = -1L
+            currentCombatState = None
+            stopReconciliation()
 
           case _ => ()
         }
       },
+      
+      // Cleanup reconciliation timer on unmount
+      onUnmountCallback(_ => stopReconciliation()),
 
       // Enemy section - reactive (uses visual HP)
       enemyDisplayReactive(combatSignal, floatingNumbersVar, visualEnemyHpVar.signal, onStopCombat),
