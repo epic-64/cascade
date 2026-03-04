@@ -194,7 +194,19 @@ object Weapons:
             description = "Follow-up slash dealing heavy damage",
             manaCost = 15,
             cooldownMs = 5000,
-            damage = 25
+            damage = 25,
+            chainInto = Some(ChainSkill(
+              CombatSkill(
+                id = "triple_slash",
+                name = "Triple Slash",
+                icon = "⚔️⚔️⚔️",
+                description = "Devastating finishing blow",
+                manaCost = 20,
+                cooldownMs = 8000,
+                damage = 40
+              ),
+              windowMs = 2500
+            ))
           ),
           windowMs = 3000
         ))

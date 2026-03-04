@@ -365,19 +365,22 @@ object AdventureView:
                   fireAutoAttackProjectile(isPlayer = false)
                   showDamageNumber(dmg, true, false)
                 case CombatEvent.PlayerSkillUsed(skillName, dmg) => 
-                  // Find the skill slot - check current, base, and chain skills
+                  // Find the skill slot - check current, base, chain skills, and nested chains
                   val slotIndex = combat.skillSlots.indexWhere { slot =>
                     slot.currentSkill.name == skillName || 
                     slot.baseSkill.name == skillName ||
-                    slot.baseSkill.chainInto.exists(_.skill.name == skillName)
+                    slot.baseSkill.chainInto.exists(_.skill.name == skillName) ||
+                    slot.baseSkill.chainInto.flatMap(_.skill.chainInto).exists(_.skill.name == skillName)
                   }
                   if slotIndex >= 0 then
-                    // Find the actual skill icon (could be base or chain)
+                    // Find the actual skill icon (could be base, chain, or nested chain)
                     val slot = combat.skillSlots(slotIndex)
                     val icon = if slot.baseSkill.name == skillName then 
                       slot.baseSkill.icon
                     else if slot.baseSkill.chainInto.exists(_.skill.name == skillName) then
                       slot.baseSkill.chainInto.get.skill.icon
+                    else if slot.baseSkill.chainInto.flatMap(_.skill.chainInto).exists(_.skill.name == skillName) then
+                      slot.baseSkill.chainInto.get.skill.chainInto.get.skill.icon
                     else 
                       slot.currentSkill.icon
                     fireProjectile(icon, slotIndex)
