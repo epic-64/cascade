@@ -580,13 +580,20 @@ object CombatSkillHelpers:
       damage = treeSkill.damageAtLevel(level),
       castTimeMs = treeSkill.castTimeMs,
       effects = treeSkill.effects,
-      chainInto = treeSkill.chainSkills.headOption.map { chain =>
-        ChainSkill(
-          skill = toCombatSkill(chain.skill, level),  // Chain skills inherit level
-          windowMs = chain.windowMs
-        )
-      }
+      chainInto = getUnlockedChainSkill(treeSkill, level)
     )
+
+  /** Get the first unlocked chain skill (if any) at the given level */
+  private def getUnlockedChainSkill(treeSkill: TreeSkill, level: Int): Option[ChainSkill] =
+    treeSkill.chainSkills.headOption.flatMap { chain =>
+      if level >= chain.requiredLevel then
+        Some(ChainSkill(
+          skill = toCombatSkill(chain.skill, level),  // Recursive - will check nested chain requirements
+          windowMs = chain.windowMs
+        ))
+      else
+        None  // Chain skill not unlocked yet
+    }
 
   /** Build combat skill slots from bound skills and their levels */
   def buildSkillSlots(combatSkillState: CombatSkillState): Vector[SkillSlotState] =
