@@ -498,11 +498,43 @@ object AdventureCombat:
     skill: CombatSkill,
     currentTime: Long
   ): (CombatState, Vector[CombatEvent]) =
-    var c = combat.copy(
+    // Instant skill: deduct mana, set GCD, apply effects, assign event IDs
+    val prepared = combat.copy(
       globalCooldownEndsAt = currentTime + GlobalCooldownMs,
       playerMana = combat.playerMana - skill.manaCost
     )
-    var events = Vector.empty[CombatEvent]
+    val (afterEffects, details) = applySkillEffects(prepared, slotIndex, skill, currentTime)
+    
+    // Assign IDs to events
+    val builder = EventBuilder(afterEffects.nextEventId)
+    builder.addAll(details)
+    val (events, nextId) = builder.build()
+    
+    val finalCombat = afterEffects.copy(
+      recentEvents = (afterEffects.recentEvents ++ events).takeRight(10),
+      totalEventCount = afterEffects.totalEventCount + events.length,
+      nextEventId = nextId
+    )
+    (finalCombat, events)
+
+  private def executeCastedSkill(
+    combat: CombatState,
+    slotIndex: Int,
+    skill: CombatSkill,
+    currentTime: Long
+  ): (CombatState, Vector[CombatEventDetail]) =
+    // Casted skill: mana already paid, no GCD needed, return details for caller to assign IDs
+    applySkillEffects(combat, slotIndex, skill, currentTime)
+
+  /** Core skill effect application - shared by instant and casted skills */
+  private def applySkillEffects(
+    combat: CombatState,
+    slotIndex: Int,
+    skill: CombatSkill,
+    currentTime: Long
+  ): (CombatState, Vector[CombatEventDetail]) =
+    var c = combat
+    var events = Vector.empty[CombatEventDetail]
     var totalDamage = 0
 
     // Apply base damage
@@ -512,88 +544,6 @@ object AdventureCombat:
       totalDamage = buffedDamage
 
     // Apply effects
-    skill.effects.foreach {
-      case SkillEffect.Damage(amount) =>
-        c = c.copy(enemyCurrentHp = (c.enemyCurrentHp - amount).max(0))
-        totalDamage += amount
-      case SkillEffect.DamageOverTime(dpt, ticks, interval) =>
-        c = c.copy(enemyDoTs = c.enemyDoTs :+ ActiveDoT(skill.name, dpt, ticks, interval, currentTime))
-      case SkillEffect.Stun(duration) =>
-        c = c.copy(enemyStun = Some(ActiveStun(currentTime + duration)))
-        events :+= CombatEvent(c.nextEventId + events.length, CombatEventDetail.EnemyStunned(duration))
-      case SkillEffect.Freeze(chancePercent, duration) =>
-        // Random chance to freeze
-        val roll = scala.util.Random.nextInt(100)
-        if roll < chancePercent then
-          c = c.copy(enemyFreeze = Some(ActiveFreeze(currentTime + duration)))
-          events :+= CombatEvent(c.nextEventId + events.length, CombatEventDetail.EnemyFrozen(duration))
-      case SkillEffect.ConsumeFreeze(bonusDamagePercent) =>
-        // If enemy is frozen, consume it for bonus damage
-        c.enemyFreeze match
-          case Some(freeze) if freeze.endsAt > currentTime =>
-            val bonusDamage = (skill.damage * bonusDamagePercent).toInt
-            c = c.copy(
-              enemyCurrentHp = (c.enemyCurrentHp - bonusDamage).max(0),
-              enemyFreeze = None  // Consume the freeze
-            )
-            totalDamage += bonusDamage
-            events :+= CombatEvent(c.nextEventId + events.length, CombatEventDetail.FreezeConsumed(bonusDamage))
-          case _ => // No freeze to consume
-      case SkillEffect.Heal(amount) =>
-        val healed = amount.min(c.playerMaxHp - c.playerCurrentHp)
-        c = c.copy(playerCurrentHp = c.playerCurrentHp + healed)
-        events :+= CombatEvent(c.nextEventId + events.length, CombatEventDetail.PlayerHealed(healed))
-      case SkillEffect.LifeDrain(percent) =>
-        val heal = (totalDamage * percent).toInt.min(c.playerMaxHp - c.playerCurrentHp)
-        c = c.copy(playerCurrentHp = c.playerCurrentHp + heal)
-        if heal > 0 then events :+= CombatEvent(c.nextEventId + events.length, CombatEventDetail.PlayerHealed(heal))
-      case SkillEffect.Shield(amount, duration) =>
-        c = c.copy(playerShield = Some(ActiveShield(amount, currentTime + duration)))
-        events :+= CombatEvent(c.nextEventId + events.length, CombatEventDetail.ShieldApplied(amount))
-      case SkillEffect.IncreaseNextDamage(percent) =>
-        c = c.copy(playerDamageBuff = Some(ActiveDamageBuff(percent)))
-        events :+= CombatEvent(c.nextEventId + events.length, CombatEventDetail.DamageBuffApplied(percent))
-    }
-
-    events :+= CombatEvent(c.nextEventId + events.length, CombatEventDetail.PlayerSkillUsed(skill.name, totalDamage))
-
-    // Update skill slot
-    // Cooldown is only applied when the chain ends (no more chain skills available)
-    val slot = c.skillSlots(slotIndex)
-    val newSlot = skill.chainInto match
-      case Some(chain) => 
-        // Has chain skill available - don't start cooldown yet, open chain window
-        slot.copy(currentSkill = chain.skill, cooldownEndsAt = 0L, chainWindowEndsAt = currentTime + chain.windowMs)
-      case None => 
-        // No chain - chain ended, apply base skill cooldown
-        slot.copy(currentSkill = slot.baseSkill, cooldownEndsAt = currentTime + slot.baseSkill.cooldownMs, chainWindowEndsAt = 0L)
-
-    c = c.copy(
-      skillSlots = c.skillSlots.updated(slotIndex, newSlot),
-      recentEvents = (c.recentEvents ++ events).takeRight(10),
-      totalEventCount = c.totalEventCount + events.length,
-      nextEventId = c.nextEventId + events.length
-    )
-
-    (c, events)
-
-  private def executeCastedSkill(
-    combat: CombatState,
-    slotIndex: Int,
-    skill: CombatSkill,
-    currentTime: Long
-  ): (CombatState, Vector[CombatEventDetail]) =
-    // Same as executeSkill but no mana cost (already paid) and no GCD
-    // Events are returned to caller for ID assignment
-    var c = combat
-    var events = Vector.empty[CombatEventDetail]
-    var totalDamage = 0
-
-    if skill.damage > 0 then
-      val buffedDamage = applyDamageBuff(skill.damage, c.playerDamageBuff)
-      c = c.copy(enemyCurrentHp = (c.enemyCurrentHp - buffedDamage).max(0), playerDamageBuff = None)
-      totalDamage = buffedDamage
-
     skill.effects.foreach {
       case SkillEffect.Damage(amount) =>
         c = c.copy(enemyCurrentHp = (c.enemyCurrentHp - amount).max(0))
@@ -640,9 +590,9 @@ object AdventureCombat:
     // Update skill slot - cooldown only when chain ends
     val slot = c.skillSlots(slotIndex)
     val newSlot = skill.chainInto match
-      case Some(chain) => 
+      case Some(chain) =>
         slot.copy(currentSkill = chain.skill, cooldownEndsAt = 0L, chainWindowEndsAt = currentTime + chain.windowMs)
-      case None => 
+      case None =>
         slot.copy(currentSkill = slot.baseSkill, cooldownEndsAt = currentTime + slot.baseSkill.cooldownMs, chainWindowEndsAt = 0L)
 
     c = c.copy(skillSlots = c.skillSlots.updated(slotIndex, newSlot))
