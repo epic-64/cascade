@@ -457,7 +457,14 @@ object AdventureCombat:
         val (executed, _) = executeSkill(combat, slotIndex, skill, currentTime)
         executed
 
-      Right(game.copy(adventureState = game.adventureState.copy(combatState = Some(newCombat))))
+      // If skill killed the enemy, immediately transition to loading state
+      // This prevents further actions before the next tick processes victory
+      val finalCombat = if newCombat.isEnemyDead && !newCombat.isLoadingNextEnemy then
+        newCombat.copy(loadingNextEnemyUntil = Some(currentTime + LoadingNextEnemyMs))
+      else
+        newCombat
+
+      Right(game.copy(adventureState = game.adventureState.copy(combatState = Some(finalCombat))))
 
   private def executeSkill(
     combat: CombatState,
