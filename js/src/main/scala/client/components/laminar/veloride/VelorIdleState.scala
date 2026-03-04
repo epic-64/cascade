@@ -52,7 +52,7 @@ object VelorIdleState:
 
   val currentSkillSignal: Signal[Option[Skill]] = gameSignal.map(_.currentSkill).distinct
 
-  val activeActionSignal: Signal[ActiveAction] = gameSignal.map(_.activeAction)
+  val activeActionSignal: Signal[ActiveAction] = gameSignal.map(_.activeAction).distinct
 
 
   val inventorySignal: Signal[Inventory] = gameSignal.map(_.inventory)
