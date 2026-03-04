@@ -230,11 +230,20 @@ object AdventureView:
               div(cls := "velor-enemy-stats",
                 span(s"❤️ ${enemy.maxHp}"),
                 span(s"⚔️ ${enemy.attackDamage}"),
-                span(s"💰 ${enemy.goldReward._1}-${enemy.goldReward._2}")
+                span(s"🎯 ${enemy.attackRating}"),
+                span(s"🛡️ ${enemy.defenseRating}")
               ),
+              // Resistances row (only show if enemy has any)
+              if enemy.resistances.asSeq.nonEmpty then
+                div(cls := "velor-enemy-resistances",
+                  enemy.resistances.asSeq.map { case (icon, _, value) =>
+                    span(s"$icon$value%")
+                  }
+                )
+              else emptyNode,
               div(cls := "velor-enemy-level-req",
                 child.text <-- adventureLevel.map { s =>
-                  if s.level >= enemy.levelRequired then s"XP: ${enemy.xpReward}"
+                  if s.level >= enemy.levelRequired then s"XP: ${enemy.xpReward} | 💰 ${enemy.goldReward._1}-${enemy.goldReward._2}"
                   else s"Requires Lv.${enemy.levelRequired}"
                 }
               )
@@ -301,6 +310,25 @@ object AdventureView:
           )
         )
       ),
+      // Combat stats row
+      div(
+        cls := "velor-player-combat-stats",
+        span(child.text <-- adventureStateSignal.map(s => s"⚔️ ${s.equippedWeapon.attackDamage}")),
+        span(child.text <-- adventureStateSignal.map(s => s"🎯 ${s.attackRating}")),
+        span(child.text <-- adventureStateSignal.map(s => s"🛡️ ${s.defenseRating}"))
+      ),
+      // Resistances row (only show if player has any)
+      child <-- adventureStateSignal.map { state =>
+        val resistSeq = state.resistances.asSeq
+        if resistSeq.nonEmpty then
+          div(
+            cls := "velor-player-resistances",
+            resistSeq.map { case (icon, name, value) =>
+              span(title := name, s"$icon$value%")
+            }
+          )
+        else emptyNode
+      },
       // Rest button or resting status
       div(
         cls := "velor-player-stats-regen",
@@ -492,6 +520,24 @@ object AdventureView:
         )
       ),
 
+      // Combat stats row
+      div(
+        cls := "velor-entity-combat-stats",
+        span(child.text <-- combatSignal.map(_.map(c => s"⚔️ ${c.enemy.attackDamage}").getOrElse(""))),
+        span(child.text <-- combatSignal.map(_.map(c => s"🎯 ${c.enemy.attackRating}").getOrElse(""))),
+        span(child.text <-- combatSignal.map(_.map(c => s"🛡️ ${c.enemy.defenseRating}").getOrElse("")))
+      ),
+
+      // Resistances row
+      div(
+        cls := "velor-entity-resistances",
+        children <-- combatSignal.map { c =>
+          c.map(_.enemy.resistances.asSeq.map { case (icon, name, value) =>
+            span(title := name, s"$icon$value%")
+          }).getOrElse(Vector.empty)
+        }
+      ),
+
       // DoT indicators
       div(
         cls := "velor-dot-indicators",
@@ -572,6 +618,14 @@ object AdventureView:
           cls := "velor-mana-text",
           child.text <-- combatSignal.map(_.map(c => s"💧 ${c.playerMana} / ${c.playerMaxMana}").getOrElse(""))
         )
+      ),
+
+      // Combat stats row
+      div(
+        cls := "velor-entity-combat-stats",
+        span(child.text <-- VelorIdleState.gameSignal.map(g => s"⚔️ ${g.adventureState.equippedWeapon.attackDamage}")),
+        span(child.text <-- VelorIdleState.gameSignal.map(g => s"🎯 ${g.adventureState.attackRating}")),
+        span(child.text <-- VelorIdleState.gameSignal.map(g => s"🛡️ ${g.adventureState.defenseRating}"))
       )
     )
 

@@ -113,6 +113,19 @@
   color: var(--text-secondary);
 }
 
+.velor-enemy-resistances {
+  display: flex;
+  gap: var(--velor-spacing-sm);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.velor-enemy-resistances span {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: var(--velor-radius-sm);
+}
+
 .velor-enemy-level-req {
   font-size: 0.8rem;
   color: var(--text-muted);
@@ -166,6 +179,30 @@
   font-size: 1.1rem;
   font-weight: 600;
   flex: 1;
+}
+
+/* Combat stats row for entities */
+.velor-entity-combat-stats {
+  display: flex;
+  gap: var(--velor-spacing-md);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: var(--velor-spacing-xs);
+  padding: var(--velor-spacing-xs) 0;
+}
+
+.velor-entity-resistances {
+  display: flex;
+  gap: var(--velor-spacing-sm);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: var(--velor-spacing-xs);
+}
+
+.velor-entity-resistances span {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: var(--velor-radius-sm);
 }
 
 /* Fixed-size status area for buffs/debuffs */
@@ -645,6 +682,30 @@
 .velor-player-stat-row .velor-hp-bar-container,
 .velor-player-stat-row .velor-mana-bar-container {
   flex: 1;
+}
+
+.velor-player-combat-stats {
+  display: flex;
+  gap: var(--velor-spacing-md);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: var(--velor-spacing-sm);
+  padding-top: var(--velor-spacing-sm);
+  border-top: 1px solid var(--velor-border);
+}
+
+.velor-player-resistances {
+  display: flex;
+  gap: var(--velor-spacing-sm);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: var(--velor-spacing-xs);
+}
+
+.velor-player-resistances span {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: var(--velor-radius-sm);
 }
 
 .velor-player-stats-regen {
