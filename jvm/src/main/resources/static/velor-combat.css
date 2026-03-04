@@ -224,7 +224,14 @@
 
 /* Uses .velor-bar-text base styles from velor-idle.css */
 .velor-hp-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   font-size: 0.75rem;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 /* Mana Bar - uses base .velor-bar pattern */
@@ -244,7 +251,14 @@
 
 /* Uses .velor-bar-text base styles from velor-idle.css */
 .velor-mana-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   font-size: 0.7rem;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 /* DoT Indicators */
