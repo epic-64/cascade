@@ -225,21 +225,19 @@ object AdventureCombat:
 
     // Grant XP
     val skillState = g.skills.getOrElse(Skill.Adventure, SkillState.initial)
-    val newXp = skillState.xp + enemy.xpReward
     val oldLevel = skillState.level
+    val newXp = skillState.xp + enemy.xpReward
     val newLevel = SkillState.levelFromXp(newXp)
     g = g.copy(skills = g.skills.updated(Skill.Adventure, skillState.copy(xp = newXp, level = newLevel)))
     events = events :+ GameEvent.XpGained(Skill.Adventure, enemy.xpReward)
     
-    // Award skill points for each level gained
+    // Check for level up and award skill points
     if newLevel > oldLevel then
-      val levelsGained = newLevel - oldLevel
-      val newCombatSkillState = SkillTreeLogic.awardPoints(g.adventureState.combatSkillState, levelsGained)
-      g = g.copy(
-        adventureState = g.adventureState.copy(combatSkillState = newCombatSkillState)
-      )
       events = events :+ GameEvent.LevelUp(Skill.Adventure, newLevel)
-      events = events :+ GameEvent.SkillPointsGained(levelsGained)
+      val (updatedGame, skillPointsAwarded) = VelorIdleLogic.checkAndAwardAdventureSkillPoints(g, oldLevel)
+      g = updatedGame
+      if skillPointsAwarded > 0 then
+        events = events :+ GameEvent.SkillPointsGained(skillPointsAwarded)
 
     // Grant gold
     val goldAmount = enemy.goldReward._1 + random.nextInt(enemy.goldReward._2 - enemy.goldReward._1 + 1)

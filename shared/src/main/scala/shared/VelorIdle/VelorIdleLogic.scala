@@ -163,7 +163,18 @@ object VelorIdleLogic:
       .mapGame(g => g.copy(skills = g.skills.updated(skill, newSkillState)))
       .addEvent(GameEvent.XpGained(skill, xpGain))
     
-    if newLevel > oldLevel then withXp.addEvent(GameEvent.LevelUp(skill, newLevel))
+    if newLevel > oldLevel then
+      val withLevelUp = withXp.addEvent(GameEvent.LevelUp(skill, newLevel))
+      // Award skill points for Adventure level ups
+      if skill == Skill.Adventure then
+        val levelsGained = newLevel - oldLevel
+        withLevelUp
+          .mapGame(g => 
+            val newCombatSkillState = SkillTreeLogic.awardPoints(g.adventureState.combatSkillState, levelsGained)
+            g.copy(adventureState = g.adventureState.copy(combatSkillState = newCombatSkillState))
+          )
+          .addEvent(GameEvent.SkillPointsGained(levelsGained))
+      else withLevelUp
     else withXp
 
   private def grantActionXp(actionId: String, actionState: ActionState, xpGain: Int)(update: GameUpdate): GameUpdate =
@@ -835,6 +846,22 @@ object VelorIdleLogic:
   // ============================================================================
   // Combat Skill Tree Actions
   // ============================================================================
+
+  /** Check if Adventure level changed and award skill points if so.
+    * Call this after any operation that might change Adventure level.
+    * Returns (updatedGame, skillPointsAwarded)
+    */
+  def checkAndAwardAdventureSkillPoints(game: VelorIdleGame, oldLevel: Int): (VelorIdleGame, Int) =
+    val newLevel = game.skills.getOrElse(Skill.Adventure, SkillState.initial).level
+    if newLevel > oldLevel then
+      val levelsGained = newLevel - oldLevel
+      val newCombatSkillState = SkillTreeLogic.awardPoints(game.adventureState.combatSkillState, levelsGained)
+      val updatedGame = game.copy(
+        adventureState = game.adventureState.copy(combatSkillState = newCombatSkillState)
+      )
+      (updatedGame, levelsGained)
+    else
+      (game, 0)
 
   /** Allocate a skill point to a combat skill */
   def allocateCombatSkillPoint(game: VelorIdleGame, skillId: String): Either[String, VelorIdleGame] =

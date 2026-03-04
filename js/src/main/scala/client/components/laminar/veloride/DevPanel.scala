@@ -45,13 +45,20 @@ object DevPanel:
   private def adjustLevel(skill: Skill, delta: Int): Unit =
     VelorIdleState.modify { game =>
       val currentState = game.skills.getOrElse(skill, SkillState.initial)
-      val currentLevel = currentState.level
-      val newLevel = (currentLevel + delta).max(1).min(99)
+      val oldLevel = currentState.level
+      val newLevel = (oldLevel + delta).max(1).min(99)
       
       // Calculate XP needed for new level
       val newXp = SkillState.totalXpForLevel(newLevel)
       val newState = currentState.copy(level = newLevel, xp = newXp)
       
-      game.copy(skills = game.skills.updated(skill, newState))
+      val updatedGame = game.copy(skills = game.skills.updated(skill, newState))
+      
+      // Award skill points if Adventure level increased
+      if skill == Skill.Adventure && newLevel > oldLevel then
+        val (finalGame, _) = VelorIdleLogic.checkAndAwardAdventureSkillPoints(updatedGame, oldLevel)
+        finalGame
+      else
+        updatedGame
     }
 
