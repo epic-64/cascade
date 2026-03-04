@@ -113,6 +113,10 @@ object SkillSlotState:
 
 /** Current state of combat */
 case class CombatState(
+  // Unique identifier for this combat instance - increments on each new combat
+  // Used by UI to detect combat restarts and reset event tracking
+  instanceId: Long,
+  
   enemy: Enemy,
   enemyCurrentHp: Int,
   enemyDoTs: Vector[ActiveDoT] = Vector.empty,
@@ -141,7 +145,7 @@ case class CombatState(
   
   // Combat log for display - capped at 10 events
   recentEvents: Vector[CombatEvent] = Vector.empty,
-  // Total event count (never decreases) - used by UI to detect new events
+  // Total event count within this combat instance - resets with each new combat
   totalEventCount: Int = 0
 ) derives ReadWriter:
   def isEnemyDead: Boolean = enemyCurrentHp <= 0
@@ -433,7 +437,9 @@ case class AdventureState(
   equippedArmor: Option[Armor] = None,  // Future
   // Persistent player stats (persists between combats)
   currentHp: Int = AdventureState.BaseMaxHp,
-  currentMana: Int = AdventureState.BaseMaxMana
+  currentMana: Int = AdventureState.BaseMaxMana,
+  // Counter for generating unique combat instance IDs
+  nextCombatInstanceId: Long = 1L
 ) derives ReadWriter:
   def maxHp: Int = AdventureState.BaseMaxHp + equippedArmor.map(_.maxHpBonus).getOrElse(0)
   def maxMana: Int = AdventureState.BaseMaxMana

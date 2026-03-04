@@ -330,8 +330,9 @@ object AdventureView:
     val combatEndedVar = Var(false)
     val isVictoryVar = Var(false)
 
-    // Track last seen totalEventCount - this counter never decreases during combat
-    var lastSeenEventCount = -1
+    // Event tracking state - reset when combat instance changes
+    var lastSeenInstanceId = -1L
+    var lastSeenEventCount = 0
 
     div(
       cls := "velor-combat-view",
@@ -340,7 +341,8 @@ object AdventureView:
       // Reset on mount
       onMountCallback { _ =>
         projectilesVar.set(Vector.empty)
-        lastSeenEventCount = -1
+        lastSeenInstanceId = -1L
+        lastSeenEventCount = 0
       },
       
       // Projectiles layer
@@ -366,10 +368,11 @@ object AdventureView:
           case Some(combat) if !combat.isCombatOver =>
             combatEndedVar.set(false)
             
-            // First time seeing this combat? Initialize counter
-            if lastSeenEventCount < 0 then
+            // New combat instance? Reset our tracking
+            if combat.instanceId != lastSeenInstanceId then
+              lastSeenInstanceId = combat.instanceId
               lastSeenEventCount = combat.totalEventCount
-            // New events? Process them
+            // Same instance, new events? Process them
             else if combat.totalEventCount > lastSeenEventCount then
               val numNewEvents = combat.totalEventCount - lastSeenEventCount
               val newEvents = combat.recentEvents.takeRight(numNewEvents)
@@ -410,7 +413,8 @@ object AdventureView:
               }
               
           case None =>
-            lastSeenEventCount = -1
+            lastSeenInstanceId = -1L
+            lastSeenEventCount = 0
             
           case _ => ()
         }
