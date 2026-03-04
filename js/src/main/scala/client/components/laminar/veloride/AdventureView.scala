@@ -628,7 +628,7 @@ object AdventureView:
         display <-- skillSignal.map(s => if s.exists(_.id != "empty") then "block" else "none")
       ),
 
-      // Cooldown overlay - shows GCD or skill cooldown, whichever is longer
+      // Regular cooldown overlay (skill-specific cooldown)
       div(
         cls := "velor-skill-cooldown-overlay",
         child.text <-- combatSignal.combineWith(slotSignal).map { case (combat, slot) =>
@@ -638,8 +638,8 @@ object AdventureView:
             val isChainSkill = s.isInChainWindow(now) && s.currentSkill.id != s.baseSkill.id
             if isChainSkill then 0L else s.cooldownRemainingMs(now)
           }.getOrElse(0L)
-          val maxRemaining = gcdRemaining.max(skillCdRemaining)
-          if maxRemaining > 0 then f"${maxRemaining / 1000.0}%.1fs" else ""
+          // Only show skill CD text when skill CD is longer than GCD
+          if skillCdRemaining > gcdRemaining then f"${skillCdRemaining / 1000.0}%.1fs" else ""
         },
         display <-- combatSignal.combineWith(slotSignal).map { case (combat, slot) =>
           val now = System.currentTimeMillis()
@@ -648,7 +648,21 @@ object AdventureView:
             val isChainSkill = s.isInChainWindow(now) && s.currentSkill.id != s.baseSkill.id
             if isChainSkill then 0L else s.cooldownRemainingMs(now)
           }.getOrElse(0L)
-          if gcdRemaining > 0 || skillCdRemaining > 0 then "flex" else "none"
+          // Show when skill CD is active and longer than GCD
+          if skillCdRemaining > gcdRemaining then "flex" else "none"
+        }
+      ),
+      
+      // GCD sweep overlay - clockwise vanishing animation
+      div(
+        cls := "velor-skill-gcd-overlay",
+        cls <-- combatSignal.map { combat =>
+          val now = System.currentTimeMillis()
+          if combat.exists(_.isOnGlobalCooldown(now)) then "active" else ""
+        },
+        display <-- combatSignal.map { combat =>
+          val now = System.currentTimeMillis()
+          if combat.exists(_.isOnGlobalCooldown(now)) then "block" else "none"
         }
       ),
 
