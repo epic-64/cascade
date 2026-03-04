@@ -139,7 +139,7 @@ object AdventureView:
       fireProjectileWithEffect(icon, sourceSelector, targetSelector, effect)
 
     div(
-      cls := "velor-view velor-adventure-view",
+      cls := "velor-view velor-view-fill velor-adventure-view",
 
       // Reset state on mount
       onMountCallback { _ =>

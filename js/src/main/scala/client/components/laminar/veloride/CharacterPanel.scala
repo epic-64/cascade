@@ -13,8 +13,8 @@ object CharacterPanel:
     onUnequipTablet: Int => Unit
   ): HtmlElement =
     div(
-      cls := "velor-view velor-character-panel",
-      
+      cls := "velor-view velor-view-fill velor-character-panel",
+
       // Sub-tab navigation
       tabNavigation(),
       
