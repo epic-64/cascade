@@ -329,6 +329,8 @@ object AdventureCombat:
           val slot = combat.skillSlots(slotIndex)
           val skill = slot.currentSkill
           val isChainSkill = slot.isInChainWindow(currentTime) && skill.id != slot.baseSkill.id
+          val isTrainingDummy = combat.enemy.id == "training_dummy"
+          val effectiveManaCost = if isTrainingDummy then 0 else skill.manaCost
 
           // Check if skill is empty
           if skill.id == "empty" then
@@ -337,12 +339,12 @@ object AdventureCombat:
           else if slot.isOnCooldown(currentTime) && !isChainSkill then
             val remaining = slot.cooldownRemainingMs(currentTime) / 1000.0
             Left(f"${skill.name} on cooldown ($remaining%.1fs)")
-          // Check mana
-          else if combat.playerMana < skill.manaCost then
+          // Check mana (free against training dummy)
+          else if combat.playerMana < effectiveManaCost then
             Left(s"Not enough mana (${skill.manaCost} required, ${combat.playerMana} available)")
           else
-            // Execute the skill
-            val (newCombat, events) = executeSkill(combat, slotIndex, skill, currentTime)
+            // Execute the skill (with effective mana cost)
+            val (newCombat, events) = executeSkill(combat, slotIndex, skill, currentTime, isTrainingDummy)
             val newAdventureState = game.adventureState.copy(combatState = Some(newCombat))
             Right(game.copy(adventureState = newAdventureState))
 
@@ -350,13 +352,15 @@ object AdventureCombat:
     combat: CombatState,
     slotIndex: Int,
     skill: CombatSkill,
-    currentTime: Long
+    currentTime: Long,
+    isTrainingDummy: Boolean = false
   ): (CombatState, Vector[CombatEvent]) =
     var c = combat
     var events = Vector.empty[CombatEvent]
 
-    // Consume mana
-    c = c.copy(playerMana = c.playerMana - skill.manaCost)
+    // Consume mana (free against training dummy)
+    val effectiveManaCost = if isTrainingDummy then 0 else skill.manaCost
+    c = c.copy(playerMana = c.playerMana - effectiveManaCost)
 
     // Apply base damage
     var totalDamage = skill.damage

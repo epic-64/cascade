@@ -352,7 +352,20 @@ object Enemies:
     lootTable = Vector((Item.MithrilBar, 0.15), (Item.Gem, 0.2))
   )
 
-  val all: Vector[Enemy] = Vector(goblin, skeleton, orc, darkKnight, dragon)
+  val trainingDummy: Enemy = Enemy(
+    id = "training_dummy",
+    name = "Training Dummy",
+    icon = "🎯",
+    levelRequired = 1,
+    maxHp = 1000,
+    attackDamage = 0,
+    attackSpeedMs = 9999999,  // Effectively never attacks
+    xpReward = 0,
+    goldReward = (0, 0),
+    lootTable = Vector.empty
+  )
+
+  val all: Vector[Enemy] = Vector(trainingDummy, goblin, skeleton, orc, darkKnight, dragon)
 
 // ============================================================================
 // Adventure State (for VelorIdleGame)
