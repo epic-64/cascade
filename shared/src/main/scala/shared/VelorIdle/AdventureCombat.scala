@@ -6,6 +6,9 @@ import scala.util.chaining.*
 /** Combat logic for Adventure mode */
 object AdventureCombat:
 
+  // Global cooldown duration in milliseconds
+  val GlobalCooldownMs: Long = 1000L
+
   // ============================================================================
   // Combat Initialization
   // ============================================================================
@@ -342,6 +345,10 @@ object AdventureCombat:
           // Check if skill is empty
           if skill.id == "empty" then
             Left("No skill in this slot")
+          // Check global cooldown
+          else if combat.isOnGlobalCooldown(currentTime) then
+            val remaining = combat.globalCooldownRemainingMs(currentTime) / 1000.0
+            Left(f"Global cooldown ($remaining%.1fs)")
           // Check cooldown - but allow chain skills during chain window
           else if slot.isOnCooldown(currentTime) && !isChainSkill then
             val remaining = slot.cooldownRemainingMs(currentTime) / 1000.0
@@ -365,7 +372,8 @@ object AdventureCombat:
     var c = combat
     var events = Vector.empty[CombatEvent]
 
-    // Consume mana (free against training dummy)
+    // Set global cooldown
+    c = c.copy(globalCooldownEndsAt = currentTime + GlobalCooldownMs)    // Consume mana (free against training dummy)
     val effectiveManaCost = if isTrainingDummy then 0 else skill.manaCost
     c = c.copy(playerMana = c.playerMana - effectiveManaCost)
 
