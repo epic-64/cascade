@@ -29,5 +29,11 @@ running tests:
 ui library:
 - we are using a fully custom css lib, defined in `jvm/src/main/resources/static/base.css`
 
+Important Laminar Concepts:
+- when using signals that update frequently (e.g., game state during combat), always use `.distinct` on the signal to prevent unnecessary DOM updates
+- without `.distinct`, every signal emission triggers a re-render even if the value hasn't changed
+- example: `child.text <-- gameSignal.map(g => g.someValue).distinct`
+- this is especially important for elements inside frequently-updating views like combat, animations, or real-time data
+
 terminal issues:
 - sometimes you will not be able to read terminal output. In this case, clear the terminal buffer and try again.

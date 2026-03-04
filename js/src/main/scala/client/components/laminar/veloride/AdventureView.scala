@@ -523,9 +523,9 @@ object AdventureView:
       // Combat stats row
       div(
         cls := "velor-entity-combat-stats",
-        span(child.text <-- combatSignal.map(_.map(c => s"⚔️ ${c.enemy.attackDamage}").getOrElse(""))),
-        span(child.text <-- combatSignal.map(_.map(c => s"🎯 ${c.enemy.attackRating}").getOrElse(""))),
-        span(child.text <-- combatSignal.map(_.map(c => s"🛡️ ${c.enemy.defenseRating}").getOrElse("")))
+        span(child.text <-- combatSignal.map(_.map(c => s"⚔️ ${c.enemy.attackDamage}").getOrElse("")).distinct),
+        span(child.text <-- combatSignal.map(_.map(c => s"🎯 ${c.enemy.attackRating}").getOrElse("")).distinct),
+        span(child.text <-- combatSignal.map(_.map(c => s"🛡️ ${c.enemy.defenseRating}").getOrElse("")).distinct)
       ),
 
       // Resistances row
@@ -535,7 +535,7 @@ object AdventureView:
           c.map(_.enemy.resistances.asSeq.map { case (icon, name, value) =>
             span(title := name, s"$icon$value%")
           }).getOrElse(Vector.empty)
-        }
+        }.distinct
       ),
 
       // DoT indicators
