@@ -108,6 +108,20 @@ object AdventureCombat:
         (game.copy(lastTickTime = currentTime), Vector.empty)
       case Some(combat) if combat.isPlayerDead =>
         (game.copy(lastTickTime = currentTime), Vector.empty)
+      case Some(combat) if combat.isLoadingNextEnemy =>
+        // Check if loading timer has expired
+        combat.loadingNextEnemyUntil match
+          case Some(until) if currentTime >= until =>
+            // Timer expired - spawn next enemy
+            restartCombat(game, currentTime) match
+              case Right(restarted) => (restarted.copy(lastTickTime = currentTime), Vector.empty)
+              case Left(_) =>
+                // Fallback: clear combat (shouldn't happen)
+                val clearedState = game.adventureState.copy(inCombat = false, combatState = None)
+                (game.copy(adventureState = clearedState, lastTickTime = currentTime), Vector.empty)
+          case _ =>
+            // Still loading - just update tick time
+            (game.copy(lastTickTime = currentTime), Vector.empty)
       case Some(combat) =>
         // Process combat and handle any resulting state changes
         val (updatedGame, events) = processCombatTick(game, combat, currentTime, random)
@@ -187,7 +201,10 @@ object AdventureCombat:
 
     (finalCombat, events)
 
-  /** Handle victory: grant rewards and auto-restart combat */
+  // Duration to wait between enemy kills before next enemy spawns
+  private val LoadingNextEnemyMs: Long = 1500L
+
+  /** Handle victory: grant rewards and set loading state for next enemy */
   private def handleVictory(
     combat: CombatState,
     game: VelorIdleGame,
@@ -222,13 +239,16 @@ object AdventureCombat:
 
     events :+= GameEvent.AdventureEnemyDefeated(enemy.id)
 
-    // Auto-restart combat
-    restartCombat(g, currentTime) match
-      case Right(restarted) => (restarted, events)
-      case Left(_) =>
-        // Fallback: clear combat (shouldn't happen)
-        val clearedState = g.adventureState.copy(inCombat = false, combatState = None)
-        (g.copy(adventureState = clearedState), events)
+    // Set loading state - next enemy will spawn after delay
+    val loadingCombat = combat.copy(
+      loadingNextEnemyUntil = Some(currentTime + LoadingNextEnemyMs)
+    )
+    val newAdvState = g.adventureState.copy(
+      combatState = Some(loadingCombat),
+      currentHp = combat.playerCurrentHp,
+      currentMana = combat.playerMana
+    )
+    (g.copy(adventureState = newAdvState), events)
 
   /** Handle defeat: update combat state with death event */
   private def handleDefeat(

@@ -160,6 +160,9 @@ case class CombatState(
   // Casting state - when casting a skill with cast time
   castingSkill: Option[CastingState] = None,
   
+  // Loading next enemy - when set, we're waiting for next enemy to spawn
+  loadingNextEnemyUntil: Option[Long] = None,
+  
   // Skill slots (weapon skills in slots 0-3, armor skills in slots 4-7)
   skillSlots: Vector[SkillSlotState] = Vector.empty,
   
@@ -171,6 +174,7 @@ case class CombatState(
   def isEnemyDead: Boolean = enemyCurrentHp <= 0
   def isPlayerDead: Boolean = playerCurrentHp <= 0
   def isCombatOver: Boolean = isEnemyDead || isPlayerDead
+  def isLoadingNextEnemy: Boolean = loadingNextEnemyUntil.isDefined
   def isOnGlobalCooldown(now: Long): Boolean = now < globalCooldownEndsAt
   def globalCooldownRemainingMs(now: Long): Long = (globalCooldownEndsAt - now).max(0)
   def isCasting: Boolean = castingSkill.isDefined
