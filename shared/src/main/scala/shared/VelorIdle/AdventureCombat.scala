@@ -12,6 +12,14 @@ object AdventureCombat:
   private val BaseAutoAttackDamage: Int = 5
   private val BaseAutoAttackSpeedMs: Long = 2000L
 
+  /** Append already-ID'd events to combat state */
+  private def appendEvents(combat: CombatState, events: Vector[CombatEvent]): CombatState =
+    combat.copy(
+      recentEvents = (combat.recentEvents ++ events).takeRight(10),
+      totalEventCount = combat.totalEventCount + events.length,
+      nextEventId = combat.nextEventId + events.length
+    )
+
   /** Assign unique IDs to event details and update combat state tracking */
   private def finalizeEvents(
     combat: CombatState,
@@ -20,12 +28,7 @@ object AdventureCombat:
     val events = details.zipWithIndex.map { case (detail, i) =>
       CombatEvent(combat.nextEventId + i, detail)
     }
-    val updated = combat.copy(
-      recentEvents = (combat.recentEvents ++ events).takeRight(10),
-      totalEventCount = combat.totalEventCount + events.length,
-      nextEventId = combat.nextEventId + events.length
-    )
-    (updated, events)
+    (appendEvents(combat, events), events)
 
   // ============================================================================
   // Evade Calculation
@@ -259,12 +262,7 @@ object AdventureCombat:
     game: VelorIdleGame,
     combatEvents: Vector[CombatEvent]
   ): (VelorIdleGame, Vector[GameEvent]) =
-    // First apply the combat events, then add death event
-    val withCombatEvents = combat.copy(
-      recentEvents = (combat.recentEvents ++ combatEvents).takeRight(10),
-      totalEventCount = combat.totalEventCount + combatEvents.length,
-      nextEventId = combat.nextEventId + combatEvents.length
-    )
+    val withCombatEvents = appendEvents(combat, combatEvents)
     val (updatedCombat, _) = finalizeEvents(withCombatEvents, Vector(CombatEventDetail.PlayerDied))
     val newAdvState = game.adventureState.copy(
       combatState = Some(updatedCombat),
