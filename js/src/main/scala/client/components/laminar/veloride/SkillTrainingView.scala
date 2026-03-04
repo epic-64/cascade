@@ -11,7 +11,7 @@ object SkillTrainingView:
     val initialSkill = VelorIdleState.current.currentSkill
     
     div(
-      cls := "velor-training-view",
+      cls := "velor-view velor-training-view",
       initialSkill match
         case None =>
           div("No skill selected")

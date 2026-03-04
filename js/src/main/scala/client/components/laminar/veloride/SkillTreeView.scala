@@ -18,7 +18,7 @@ object SkillTreeView:
     val combatSkillStateSignal = VelorIdleState.gameSignal.map(_.adventureState.combatSkillState)
 
     div(
-      cls := "velor-skill-tree-view",
+      cls := "velor-view velor-skill-tree-view",
 
       // Header with available points and current bindings
       div(

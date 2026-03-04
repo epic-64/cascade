@@ -184,15 +184,26 @@
 }
 
 /* ============================================================================
+   Reusable View Container
+   All views should use this base class for consistent layout
+   ============================================================================ */
+
+.velor-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-md);
+  flex: 1;
+  min-height: 0;
+  /* No extra padding - .velor-main already handles it */
+}
+
+/* ============================================================================
    Skill Training View
    ============================================================================ */
 
+/* Uses .velor-view base class */
 .velor-training-view {
-  display: flex;
-  flex-direction: column;
-  gap: var(--velor-spacing-sm);
-  flex: 1;
-  min-height: 0;
+  gap: var(--velor-spacing-sm); /* Override default gap for tighter layout */
 }
 
 .velor-training-content {
