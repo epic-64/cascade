@@ -314,15 +314,22 @@ object AdventureView:
     val combatEndedVar = Var(false)
     val isVictoryVar = Var(false)
 
-    // Track previous combat events to detect new ones - use Var to properly reset
-    val lastEventCountVar = Var(0)
-
-    // Track if we were previously in combat to detect combat start
+    // Simple event tracking: store the length of events we've processed
+    // When truncation happens (length decreases), we reset and skip processing that tick
+    var lastProcessedLength = 0
     var wasInCombat = false
 
     div(
       cls := "velor-combat-view",
       display <-- inCombatSignal.map(if _ then "flex" else "none"),
+      
+      // Reset state on mount
+      onMountCallback { _ =>
+        projectilesVar.set(Vector.empty)
+        nextProjectileId = 0
+        lastProcessedLength = 0
+        wasInCombat = false
+      },
       
       // Projectiles layer (positioned absolute over the combat view)
       div(
@@ -345,16 +352,21 @@ object AdventureView:
               isVictoryVar.set(combat.isEnemyDead)
             case Some(combat) if !combat.isCombatOver =>
               combatEndedVar.set(false)
+              
+              val currentLength = combat.recentEvents.length
 
-              // Reset event count when combat starts fresh
+              // Combat just started - initialize
               if !wasInCombat then
-                lastEventCountVar.set(combat.recentEvents.length)
+                lastProcessedLength = currentLength
                 wasInCombat = true
-              else
-                // Check for new combat events to show damage numbers and projectiles
-                val lastCount = lastEventCountVar.now()
-                val newEvents = combat.recentEvents.drop(lastCount)
-                lastEventCountVar.set(combat.recentEvents.length)
+              // Events were truncated (takeRight kicked in) - reset counter
+              else if currentLength < lastProcessedLength then
+                lastProcessedLength = currentLength
+              // New events to process
+              else if currentLength > lastProcessedLength then
+                val newEvents = combat.recentEvents.drop(lastProcessedLength)
+                lastProcessedLength = currentLength
+                
                 newEvents.foreach {
                   case CombatEvent.PlayerAutoAttack(dmg) => 
                     fireAutoAttackProjectile(isPlayer = true)
@@ -368,7 +380,6 @@ object AdventureView:
                       slot.currentSkill.name == skillName || slot.baseSkill.name == skillName
                     }
                     if slotIndex >= 0 then
-                      // Use the skill name's icon, not the current slot icon (which may have changed to chain skill)
                       val icon = combat.skillSlots(slotIndex).baseSkill.icon
                       fireProjectile(icon, slotIndex)
                     if dmg > 0 then showDamageNumber(dmg, false, false)
@@ -378,7 +389,7 @@ object AdventureView:
                   case _ => ()
                 }
             case None =>
-              lastEventCountVar.set(0)
+              lastProcessedLength = 0
               wasInCombat = false
             case _ => ()
         }
