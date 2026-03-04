@@ -482,7 +482,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--velor-spacing-md);
-  padding: var(--velor-spacing-md);
+  /* No extra padding - parent handles it */
 }
 
 .velor-tablet-slots-section,
@@ -509,7 +509,7 @@
   gap: var(--velor-spacing-md);
 }
 
-@media (min-width: 768px) {
+@container (min-width: 500px) {
   .velor-tablet-slots-container {
     flex-direction: row;
   }
@@ -715,15 +715,27 @@
   border-radius: var(--velor-radius-sm);
   padding: var(--velor-spacing-sm);
   border: 1px solid var(--velor-border);
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-direction: column;
   gap: var(--velor-spacing-xs);
 }
 
-@media (min-width: 768px) {
+@container (min-width: 500px) {
   .velor-synergy-reference-item {
-    grid-template-columns: 150px 150px 1fr;
+    flex-direction: row;
     align-items: center;
+  }
+
+  .velor-synergy-reference-tablets {
+    min-width: 150px;
+  }
+
+  .velor-synergy-reference-name {
+    min-width: 120px;
+  }
+
+  .velor-synergy-reference-effect {
+    flex: 1;
   }
 }
 
