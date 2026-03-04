@@ -444,6 +444,6 @@ object AdventureState:
   /** Base player stats */
   val BaseMaxHp: Int = 100
   val BaseMaxMana: Int = 50
-  val ManaRegenPerSecond: Double = 2.0
-  val OutOfCombatHpRegenPerSecond: Double = 1.0  // HP regen when not in combat
+  val ManaRegenPerSecond: Double = 10.0  // Mana regen while resting
+  val HpRegenPerSecond: Double = 5.0     // HP regen while resting
 

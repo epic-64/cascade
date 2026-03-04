@@ -85,7 +85,8 @@ object AdventureView:
     onStartCombat: String => Unit,
     onUseSkill: Int => Unit,
     onStopCombat: () => Unit,
-    onRestartCombat: () => Unit
+    onRestartCombat: () => Unit,
+    onRest: () => Unit
   ): HtmlElement =
     val adventureStateSignal = VelorIdleState.gameSignal.map(_.adventureState)
     val inCombatSignal = adventureStateSignal.map(_.inCombat)
@@ -164,10 +165,10 @@ object AdventureView:
       ),
 
       // Enemy select view (hidden when in combat)
-      enemySelectView(onStartCombat, inCombatSignal),
+      enemySelectView(onStartCombat, inCombatSignal, onRest),
 
       // Combat view (hidden when not in combat)
-      combatView(adventureStateSignal, inCombatSignal, floatingNumbersVar, showDamageNumber, onUseSkill, onStopCombat, onRestartCombat)
+      combatView(adventureStateSignal, inCombatSignal, floatingNumbersVar, showDamageNumber, onUseSkill, onStopCombat, onRestartCombat, onRest)
     )
 
   private def adventureXpBar(skillStateSignal: Signal[SkillState]): HtmlElement =
@@ -200,16 +201,18 @@ object AdventureView:
       )
     )
 
-  private def enemySelectView(onStartCombat: String => Unit, inCombatSignal: Signal[Boolean]): HtmlElement =
+  private def enemySelectView(onStartCombat: String => Unit, inCombatSignal: Signal[Boolean], onRest: () => Unit): HtmlElement =
     val adventureLevel = VelorIdleState.skillStateSignal(Skill.Adventure)
     val adventureStateSignal = VelorIdleState.gameSignal.map(_.adventureState)
+    val isRestingSignal = VelorIdleState.activeActionSignal.map(_ == ActiveAction.Rest)
+    val needsRestSignal = adventureStateSignal.map(s => s.currentHp < s.maxHp || s.currentMana < s.maxMana)
 
     div(
       cls := "velor-enemy-select",
       display <-- inCombatSignal.map(if _ then "none" else "flex"),
 
       // Player stats card (shows current HP/Mana before entering combat)
-      playerStatsCard(adventureStateSignal),
+      playerStatsCard(adventureStateSignal, isRestingSignal, needsRestSignal, onRest),
 
       h3(cls := "velor-enemy-select-title", "Select an Enemy"),
       div(
@@ -246,7 +249,12 @@ object AdventureView:
       )
     )
 
-  private def playerStatsCard(adventureStateSignal: Signal[AdventureState]): HtmlElement =
+  private def playerStatsCard(
+    adventureStateSignal: Signal[AdventureState],
+    isRestingSignal: Signal[Boolean],
+    needsRestSignal: Signal[Boolean],
+    onRest: () => Unit
+  ): HtmlElement =
     div(
       cls := "velor-player-stats-card",
       div(
@@ -293,10 +301,18 @@ object AdventureView:
           )
         )
       ),
-      // Regen info
+      // Rest button or resting status
       div(
         cls := "velor-player-stats-regen",
-        span("Regenerating out of combat...")
+        child <-- isRestingSignal.combineWith(needsRestSignal).map {
+          case (true, _) => span("🛏️ Resting... regenerating HP and Mana")
+          case (false, true) => button(
+            cls := "btn btn-secondary",
+            "🛏️ Rest",
+            onClick --> { _ => onRest() }
+          )
+          case (false, false) => span("✨ Fully recovered!")
+        }
       )
     )
 
@@ -307,7 +323,8 @@ object AdventureView:
     showDamageNumber: (Int, Boolean, Boolean) => Unit,
     onUseSkill: Int => Unit,
     onStopCombat: () => Unit,
-    onRestartCombat: () => Unit
+    onRestartCombat: () => Unit,
+    onRest: () => Unit
   ): HtmlElement =
     val combatSignal = adventureStateSignal.map(_.combatState)
     val combatEndedVar = Var(false)
@@ -345,7 +362,7 @@ object AdventureView:
             // Only show modal on player death - victory auto-restarts
             combatEndedVar.set(true)
             isVictoryVar.set(false)
-            
+
           case Some(combat) if !combat.isCombatOver =>
             combatEndedVar.set(false)
             
@@ -408,8 +425,19 @@ object AdventureView:
       // Skill bar - reactive
       skillBarReactive(combatSignal, onUseSkill),
 
+      // Stop combat button
+      div(
+        cls := "velor-combat-controls",
+        display <-- combatSignal.map(_.map(_ => "flex").getOrElse("none")),
+        button(
+          cls := "btn btn-secondary",
+          "🛑 Stop Combat",
+          onClick --> { _ => onStopCombat() }
+        )
+      ),
+
       // Combat end overlay - only shown once combat ends
-      combatEndOverlayReactive(combatEndedVar.signal, isVictoryVar.signal, combatSignal, onStopCombat, onRestartCombat)
+      combatEndOverlayReactive(combatEndedVar.signal, isVictoryVar.signal, combatSignal, onStopCombat, onRestartCombat, onRest)
     )
 
   private def enemyDisplayReactive(combatSignal: Signal[Option[CombatState]], floatingNumbersVar: Var[Vector[FloatingNumber]]): HtmlElement =
@@ -711,7 +739,8 @@ object AdventureView:
     isVictorySignal: Signal[Boolean],
     combatSignal: Signal[Option[CombatState]],
     onStopCombat: () => Unit,
-    onRestartCombat: () => Unit
+    onRestartCombat: () => Unit,
+    onRest: () => Unit
   ): HtmlElement =
     div(
       cls := "velor-combat-end-overlay defeat",
@@ -729,14 +758,14 @@ object AdventureView:
         ),
         div(
           cls := "velor-combat-end-message",
-          "You were defeated. Recover your HP and try again!"
+          "You were defeated. Rest to recover your HP!"
         ),
         div(
           cls := "velor-combat-end-buttons",
           button(
             cls := "btn btn-primary",
-            "Fight Again",
-            onClick --> { _ => onRestartCombat() }
+            "🛏️ Rest",
+            onClick --> { _ => onRest() }
           ),
           button(
             cls := "btn btn-secondary",
