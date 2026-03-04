@@ -99,8 +99,11 @@ object AdventureCombat:
         val elapsedMs = currentTime - game.lastTickTime
         val elapsedSeconds = elapsedMs / 1000.0
 
+        // Process casting first - if a cast completes, execute the skill
+        val (combat0, castEvents) = processCasting(combat, currentTime)
+        
         // Process in order: DoTs, auto-attacks, mana regen, chain windows
-        val (combat1, events1) = processDoTs(combat, currentTime)
+        val (combat1, events1) = processDoTs(combat0, currentTime)
         val (combat2, events2) = processAutoAttacks(combat1, currentTime, game.adventureState.equippedWeapon, random)
         val combat3 = processManaRegen(combat2, elapsedSeconds)
         val combat4 = processChainWindows(combat3, currentTime)
@@ -120,7 +123,7 @@ object AdventureCombat:
           else
             (combat6, Vector.empty, game)
 
-        val allCombatEvents = events1 ++ events2
+        val allCombatEvents = castEvents ++ events1 ++ events2
         val newEventCount = finalCombat.totalEventCount + allCombatEvents.length
         val finalCombatWithEvents = finalCombat.copy(
           recentEvents = (finalCombat.recentEvents ++ allCombatEvents).takeRight(10),
@@ -249,6 +252,15 @@ object AdventureCombat:
       case _ =>
         (currentHp - damage, None, false)
 
+  private def processCasting(combat: CombatState, currentTime: Long): (CombatState, Vector[CombatEvent]) =
+    combat.castingSkill match
+      case Some(casting) if casting.isComplete(currentTime) =>
+        // Cast complete - execute the skill (no GCD after cast)
+        val (newCombat, events) = executeCastedSkill(combat, casting.slotIndex, casting.skill, currentTime)
+        (newCombat.copy(castingSkill = None), events)
+      case _ =>
+        (combat, Vector.empty)
+
   private def processManaRegen(combat: CombatState, elapsedSeconds: Double): CombatState =
     val regenAmount = (AdventureState.ManaRegenPerSecond * elapsedSeconds).toInt
     combat.copy(
@@ -345,6 +357,9 @@ object AdventureCombat:
           // Check if skill is empty
           if skill.id == "empty" then
             Left("No skill in this slot")
+          // Check if already casting
+          else if combat.isCasting then
+            Left("Already casting a skill")
           // Check global cooldown
           else if combat.isOnGlobalCooldown(currentTime) then
             val remaining = combat.globalCooldownRemainingMs(currentTime) / 1000.0
@@ -357,10 +372,25 @@ object AdventureCombat:
           else if combat.playerMana < effectiveManaCost then
             Left(s"Not enough mana (${skill.manaCost} required, ${combat.playerMana} available)")
           else
-            // Execute the skill (with effective mana cost)
-            val (newCombat, events) = executeSkill(combat, slotIndex, skill, currentTime, isTrainingDummy)
-            val newAdventureState = game.adventureState.copy(combatState = Some(newCombat))
-            Right(game.copy(adventureState = newAdventureState))
+            // Check if skill has cast time
+            if skill.castTimeMs > 0 then
+              // Start casting - consume mana now, skill executes when cast completes
+              val newCombat = combat.copy(
+                playerMana = combat.playerMana - effectiveManaCost,
+                castingSkill = Some(CastingState(
+                  slotIndex = slotIndex,
+                  skill = skill,
+                  startedAt = currentTime,
+                  completesAt = currentTime + skill.castTimeMs
+                ))
+              )
+              val newAdventureState = game.adventureState.copy(combatState = Some(newCombat))
+              Right(game.copy(adventureState = newAdventureState))
+            else
+              // Execute the skill immediately (with effective mana cost)
+              val (newCombat, events) = executeSkill(combat, slotIndex, skill, currentTime, isTrainingDummy)
+              val newAdventureState = game.adventureState.copy(combatState = Some(newCombat))
+              Right(game.copy(adventureState = newAdventureState))
 
   private def executeSkill(
     combat: CombatState,
@@ -376,6 +406,90 @@ object AdventureCombat:
     c = c.copy(globalCooldownEndsAt = currentTime + GlobalCooldownMs)    // Consume mana (free against training dummy)
     val effectiveManaCost = if isTrainingDummy then 0 else skill.manaCost
     c = c.copy(playerMana = c.playerMana - effectiveManaCost)
+
+    // Apply base damage
+    var totalDamage = skill.damage
+    if skill.damage > 0 then
+      val buffedDamage = calculatePlayerDamage(skill.damage, c.playerDamageBuff)
+      c = c.copy(
+        enemyCurrentHp = (c.enemyCurrentHp - buffedDamage).max(0),
+        playerDamageBuff = None  // Consume buff
+      )
+      totalDamage = buffedDamage
+
+    // Apply effects
+    skill.effects.foreach {
+      case SkillEffect.Damage(amount) =>
+        c = c.copy(enemyCurrentHp = (c.enemyCurrentHp - amount).max(0))
+        totalDamage += amount
+
+      case SkillEffect.DamageOverTime(damagePerTick, ticks, interval) =>
+        val dot = ActiveDoT(skill.name, damagePerTick, ticks, interval, currentTime)
+        c = c.copy(enemyDoTs = c.enemyDoTs :+ dot)
+
+      case SkillEffect.Stun(duration) =>
+        c = c.copy(enemyStun = Some(ActiveStun(currentTime + duration)))
+        events :+= CombatEvent.EnemyStunned(duration)
+
+      case SkillEffect.Heal(amount) =>
+        val healedAmount = amount.min(c.playerMaxHp - c.playerCurrentHp)
+        c = c.copy(playerCurrentHp = c.playerCurrentHp + healedAmount)
+        events :+= CombatEvent.PlayerHealed(healedAmount)
+
+      case SkillEffect.LifeDrain(percent) =>
+        val healAmount = (totalDamage * percent).toInt
+        val actualHeal = healAmount.min(c.playerMaxHp - c.playerCurrentHp)
+        c = c.copy(playerCurrentHp = c.playerCurrentHp + actualHeal)
+        if actualHeal > 0 then events :+= CombatEvent.PlayerHealed(actualHeal)
+
+      case SkillEffect.Shield(amount, duration) =>
+        c = c.copy(playerShield = Some(ActiveShield(amount, currentTime + duration)))
+        events :+= CombatEvent.ShieldApplied(amount)
+
+      case SkillEffect.IncreaseNextDamage(percent) =>
+        c = c.copy(playerDamageBuff = Some(ActiveDamageBuff(percent)))
+        events :+= CombatEvent.DamageBuffApplied(percent)
+    }
+
+    events :+= CombatEvent.PlayerSkillUsed(skill.name, totalDamage)
+
+    // Update skill slot: set cooldown and handle chain skill
+    val slot = c.skillSlots(slotIndex)
+    val newSlot = skill.chainInto match
+      case Some(chain) =>
+        slot.copy(
+          currentSkill = chain.skill,
+          cooldownEndsAt = currentTime + skill.cooldownMs,
+          chainWindowEndsAt = currentTime + chain.windowMs
+        )
+      case None =>
+        // If this was a chain skill, revert to base
+        slot.copy(
+          currentSkill = slot.baseSkill,
+          cooldownEndsAt = currentTime + skill.cooldownMs,
+          chainWindowEndsAt = 0L
+        )
+
+    c = c.copy(
+      skillSlots = c.skillSlots.updated(slotIndex, newSlot),
+      recentEvents = (c.recentEvents ++ events).takeRight(10),
+      totalEventCount = c.totalEventCount + events.length
+    )
+
+    (c, events)
+
+  /** Execute a skill after its cast time completes. No mana cost (already paid), no GCD. */
+  private def executeCastedSkill(
+    combat: CombatState,
+    slotIndex: Int,
+    skill: CombatSkill,
+    currentTime: Long
+  ): (CombatState, Vector[CombatEvent]) =
+    var c = combat
+    var events = Vector.empty[CombatEvent]
+
+    // No GCD after cast completes
+    // No mana cost - already consumed when cast started
 
     // Apply base damage
     var totalDamage = skill.damage

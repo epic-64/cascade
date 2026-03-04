@@ -2643,6 +2643,39 @@
   }
 }
 
+/* Cast bar overlay - fills from bottom to top */
+.velor-skill-cast-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--velor-radius-md);
+  pointer-events: none;
+  z-index: 3;
+  overflow: hidden;
+  --cast-progress: 0%;
+}
+
+.velor-skill-cast-overlay::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--cast-progress);
+  background: linear-gradient(to top, rgba(251, 191, 36, 0.7), rgba(251, 191, 36, 0.4));
+  transition: height 0.05s linear;
+}
+
+/* Casting state for skill slot */
+.velor-skill-slot.casting {
+  border-color: #fbbf24;
+  animation: velor-casting-pulse 0.5s ease-in-out infinite;
+}
+
+@keyframes velor-casting-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4); }
+  50% { box-shadow: 0 0 10px 3px rgba(251, 191, 36, 0.6); }
+}
+
 .velor-chain-indicator {
   position: absolute;
   top: 2px;

@@ -586,6 +586,8 @@ object AdventureView:
   ): HtmlElement =
     val slotSignal = combatSignal.map(_.flatMap(c => c.skillSlots.lift(slotIndex)))
     val skillSignal = slotSignal.map(_.map(_.currentSkill))
+    // Check if this slot is currently casting
+    val isCastingThisSlot = combatSignal.map(_.exists(c => c.castingSkill.exists(_.slotIndex == slotIndex)))
 
     button(
       cls := "velor-skill-slot",
@@ -597,10 +599,12 @@ object AdventureView:
             val now = System.currentTimeMillis()
             val isChainSkill = s.isInChainWindow(now) && s.currentSkill.id != s.baseSkill.id
             val isOnGcd = combat.exists(_.isOnGlobalCooldown(now))
+            val isCasting = combat.exists(_.castingSkill.exists(_.slotIndex == slotIndex))
             if s.currentSkill.id == "empty" then classes += "empty"
-            // Show on-cooldown if GCD active OR skill cooldown (but not for chain skills)
-            if (s.isOnCooldown(now) && !isChainSkill) || isOnGcd then classes += "on-cooldown"
+            // Show on-cooldown if GCD active OR skill cooldown (but not for chain skills), unless casting
+            if !isCasting && ((s.isOnCooldown(now) && !isChainSkill) || isOnGcd) then classes += "on-cooldown"
             if isChainSkill then classes += "chain-skill"
+            if isCasting then classes += "casting"
         classes.mkString(" ")
       },
       disabled <-- combatSignal.map { c =>
@@ -610,8 +614,9 @@ object AdventureView:
           val isEmpty = slot.currentSkill.id == "empty"
           val isOnCooldownAndNotChain = slot.isOnCooldown(now) && !isChainSkill
           val isOnGcd = c.exists(_.isOnGlobalCooldown(now))
+          val isCasting = c.exists(_.isCasting)
           val notEnoughMana = c.exists(_.playerMana < slot.currentSkill.manaCost)
-          isEmpty || isOnCooldownAndNotChain || isOnGcd || notEnoughMana
+          isEmpty || isOnCooldownAndNotChain || isOnGcd || isCasting || notEnoughMana
         }
       },
 
@@ -661,11 +666,29 @@ object AdventureView:
         cls := "velor-skill-gcd-overlay",
         cls <-- combatSignal.map { combat =>
           val now = System.currentTimeMillis()
-          if combat.exists(_.isOnGlobalCooldown(now)) then "active" else ""
+          // Don't show GCD if casting this slot
+          val isCastingThis = combat.exists(_.castingSkill.exists(_.slotIndex == slotIndex))
+          if !isCastingThis && combat.exists(_.isOnGlobalCooldown(now)) then "active" else ""
         },
         display <-- combatSignal.map { combat =>
           val now = System.currentTimeMillis()
-          if combat.exists(_.isOnGlobalCooldown(now)) then "block" else "none"
+          val isCastingThis = combat.exists(_.castingSkill.exists(_.slotIndex == slotIndex))
+          if !isCastingThis && combat.exists(_.isOnGlobalCooldown(now)) then "block" else "none"
+        }
+      ),
+      
+      // Cast bar overlay - fills up from bottom to top
+      div(
+        cls := "velor-skill-cast-overlay",
+        styleAttr <-- combatSignal.map { combat =>
+          val now = System.currentTimeMillis()
+          combat.flatMap(_.castingSkill).filter(_.slotIndex == slotIndex).map { casting =>
+            val progress = casting.progress(now) * 100
+            s"--cast-progress: $progress%"
+          }.getOrElse("--cast-progress: 0%")
+        },
+        display <-- combatSignal.map { combat =>
+          if combat.exists(_.castingSkill.exists(_.slotIndex == slotIndex)) then "block" else "none"
         }
       ),
 
