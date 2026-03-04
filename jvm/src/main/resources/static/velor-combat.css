@@ -75,7 +75,6 @@
 .velor-enemy-card.unlocked:hover {
   background: var(--velor-card-hover);
   border-color: var(--velor-accent);
-  transform: translateX(4px);
 }
 
 .velor-enemy-card.locked {
