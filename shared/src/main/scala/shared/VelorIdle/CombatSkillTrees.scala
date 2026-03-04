@@ -243,47 +243,48 @@ object SkillTrees:
         )
       ),
       TreeSkill(
-        id = "ice_shard",
-        name = "Ice Shard",
-        icon = "❄️",
-        description = "Launch a piercing shard of ice that builds into a frozen assault",
+        id = "frost_nova",
+        name = "Frost Nova",
+        icon = "💠",
+        description = "Unleash a frozen explosion with a high chance to freeze the enemy",
         manaCost = 12,
         cooldownMs = 10000,  // Long cooldown - has 3-skill chain
-        baseDamage = 18,
-        damagePerLevel = 4,
+        baseDamage = 15,
+        damagePerLevel = 3,
         castTimeMs = 1000,
+        effects = Vector(SkillEffect.Freeze(75, 5000)),  // 75% chance to freeze for 5s
         chainSkills = Vector(
           TreeChainSkill(
             skill = TreeSkill(
-              id = "frost_lance",
-              name = "Frost Lance",
-              icon = "🧊",
-              description = "A razor-sharp lance of frozen magic",
-              manaCost = 18,
+              id = "ice_shard",
+              name = "Ice Shard",
+              icon = "❄️",
+              description = "Launch a piercing shard of ice at the frozen target",
+              manaCost = 15,
               cooldownMs = 0,
-              baseDamage = 28,
-              damagePerLevel = 6,
+              baseDamage = 25,
+              damagePerLevel = 5,
               castTimeMs = 1200,
               chainSkills = Vector(
                 TreeChainSkill(
                   skill = TreeSkill(
-                    id = "frost_nova",
-                    name = "Frost Nova",
-                    icon = "💠",
-                    description = "Freeze and shatter enemies with a frozen explosion",
-                    manaCost = 25,
+                    id = "frost_lance",
+                    name = "Frost Lance",
+                    icon = "🧊",
+                    description = "Shatter the frozen enemy for massive bonus damage",
+                    manaCost = 20,
                     cooldownMs = 0,
-                    baseDamage = 45,
-                    damagePerLevel = 9,
+                    baseDamage = 30,
+                    damagePerLevel = 6,
                     castTimeMs = 1500,
-                    effects = Vector(SkillEffect.Stun(1500))
+                    effects = Vector(SkillEffect.ConsumeFreeze(2.0))  // 200% bonus damage if frozen
                   ),
-                  windowMs = 2500,
+                  windowMs = 3000,
                   requiredLevel = 6
                 )
               )
             ),
-            windowMs = 2500,
+            windowMs = 3000,
             requiredLevel = 3
           )
         )

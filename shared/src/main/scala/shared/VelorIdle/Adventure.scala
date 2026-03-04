@@ -52,6 +52,8 @@ enum SkillEffect derives ReadWriter:
   case LifeDrain(percent: Double)             // Heal % of damage dealt
   case Shield(amount: Int, durationMs: Long)  // Absorb damage
   case IncreaseNextDamage(percent: Double)    // Buff next attack
+  case Freeze(chancePercent: Int, durationMs: Long)  // Chance to freeze enemy
+  case ConsumeFreeze(bonusDamagePercent: Double)     // Consume freeze for bonus damage
 
 /** A weapon that provides combat skills */
 case class Weapon(
@@ -104,6 +106,11 @@ case class ActiveStun(
   endsAt: Long
 ) derives ReadWriter
 
+/** Active freeze effect - can be consumed for bonus damage */
+case class ActiveFreeze(
+  endsAt: Long
+) derives ReadWriter
+
 /** Active shield effect */
 case class ActiveShield(
   remainingAbsorb: Int,
@@ -141,6 +148,7 @@ case class CombatState(
   enemyCurrentHp: Int,
   enemyDoTs: Vector[ActiveDoT] = Vector.empty,
   enemyStun: Option[ActiveStun] = None,
+  enemyFreeze: Option[ActiveFreeze] = None,  // Frozen state - can be consumed for bonus damage
   
   playerCurrentHp: Int,
   playerMaxHp: Int,
@@ -204,6 +212,8 @@ enum CombatEvent derives ReadWriter:
   case EnemyDotTick(damage: Int, sourceName: String)
   case PlayerDotTick(damage: Int, sourceName: String)
   case EnemyStunned(durationMs: Long)
+  case EnemyFrozen(durationMs: Long)
+  case FreezeConsumed(bonusDamage: Int)
   case EnemyDied
   case PlayerDied
   case LootGained(item: Item, count: Int)
