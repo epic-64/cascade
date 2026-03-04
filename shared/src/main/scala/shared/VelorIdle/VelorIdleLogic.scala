@@ -25,6 +25,9 @@ object VelorIdleLogic:
       case ActiveAction.Processing(skill, action) =>
         processProcessingTick(game, skill, action, elapsedSeconds, currentTime, random)
 
+      case ActiveAction.EquipmentCrafting(action) =>
+        processEquipmentCraftingTick(game, action, elapsedSeconds, currentTime, random)
+
       case ActiveAction.Thieving(action) =>
         processThievingTick(game, action, elapsedSeconds, currentTime, random)
 
@@ -462,6 +465,97 @@ object VelorIdleLogic:
 
 
   // ============================================================================
+  // Equipment Crafting Tick
+  // ============================================================================
+
+  private def processEquipmentCraftingTick(
+    game: VelorIdleGame,
+    action: EquipmentCraftingAction,
+    elapsedSeconds: Double,
+    currentTime: Long,
+    random: Random
+  ): (VelorIdleGame, Vector[GameEvent]) =
+    val skillState = game.skills.getOrElse(Skill.Smithing, SkillState.initial)
+    val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
+
+    // Check if we still have materials
+    if !canCraftEquipment(game, action) then
+      (game.copy(
+        activeAction = ActiveAction.Idle,
+        actionProgress = 0.0,
+        lastTickTime = currentTime
+      ), Vector(GameEvent.OutOfMaterials))
+    else
+      // Calculate effective action time
+      val efficiencyBonus = calculateEfficiencyBonus(actionState.level)
+      val potionSpeedBonus = game.potionSlots.speedBonusFor(Skill.Smithing)
+      val tabletSpeedBonus = game.tabletSlots.speedBonusFor(Skill.Smithing)
+      val effectiveTime = action.timeSeconds * (1.0 - efficiencyBonus) * (1.0 - potionSpeedBonus) * (1.0 - tabletSpeedBonus)
+
+      val progressPerSecond = 1.0 / effectiveTime
+      val newProgress = game.actionProgress + (elapsedSeconds * progressPerSecond)
+
+      if newProgress >= 1.0 then
+        val (updatedGame, events) = completeEquipmentCraftingAction(game, action, skillState, random)
+
+        // Consume potion and tablet charges
+        val gameWithPotionConsumed = updatedGame.copy(
+          potionSlots = updatedGame.potionSlots.consumeAction
+        )
+        val potionEvents = checkPotionExpired(game.potionSlots, gameWithPotionConsumed.potionSlots)
+        val (gameWithTabletsConsumed, tabletEvents) = consumeTablets(gameWithPotionConsumed)
+
+        val overflowProgress = newProgress - 1.0
+        val finalProgress = if overflowProgress > 0 && overflowProgress < 1.0 then overflowProgress else 0.0
+        (gameWithTabletsConsumed.copy(actionProgress = finalProgress, lastTickTime = currentTime), events ++ potionEvents ++ tabletEvents)
+      else
+        (game.copy(actionProgress = newProgress, lastTickTime = currentTime), Vector.empty)
+
+  private def completeEquipmentCraftingAction(
+    game: VelorIdleGame,
+    action: EquipmentCraftingAction,
+    skillState: SkillState,
+    random: Random
+  ): (VelorIdleGame, Vector[GameEvent]) =
+    val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
+
+    // Consume inputs (with potential recycle)
+    val recycleChance = calculateRecycleChance(skillState.level) + game.tabletSlots.recycleBonusFor(Skill.Smithing)
+    val (gameAfterConsume, allConsumed) = consumeInputs(game, action.inputs, recycleChance, random)
+
+    if !allConsumed then
+      (gameAfterConsume, Vector(GameEvent.OutOfMaterials))
+    else
+      // Grant XP to both skill and action
+      val result = GameUpdate(gameAfterConsume, Vector.empty)
+        .pipe(grantXp(Skill.Smithing, skillState, action.xpGain))
+        .pipe(grantActionXp(action.id, actionState, action.xpGain))
+
+      // Create the equipment with rolled rarity and affixes
+      val advState = result.game.adventureState
+      val instanceId = advState.nextEquipmentInstanceId
+      val maybeEquipment = EquipmentCrafting.createEquipment(action.outputDefId, instanceId, random)
+
+      maybeEquipment match
+        case None => (result.game, result.events :+ GameEvent.ActionFailed("Unknown equipment type"))
+        case Some(equipment) =>
+          val newAdvState = advState.copy(nextEquipmentInstanceId = instanceId + 1)
+          val newEquipInv = result.game.equipmentInventory :+ equipment
+          val finalGame = result.game.copy(
+            adventureState = newAdvState,
+            equipmentInventory = newEquipInv
+          )
+          val craftEvent = GameEvent.EquipmentCrafted(equipment.defId, equipment.rarity, equipment.affixes)
+          (finalGame, result.events :+ craftEvent)
+
+  /** Check if player has all required inputs for equipment crafting */
+  def canCraftEquipment(game: VelorIdleGame, action: EquipmentCraftingAction): Boolean =
+    action.inputs.forall { case (item, count) =>
+      game.inventory.getCount(item) >= count
+    }
+
+
+  // ============================================================================
   // Perk Calculations
   // ============================================================================
 
@@ -603,9 +697,9 @@ object VelorIdleLogic:
       case None => Left("No skill selected")
       case Some(skill) if !Skill.isProcessing(skill) => Left("Not a processing skill")
       case Some(skill) =>
+        // First check regular processing actions
         val actions = ProcessingActions.forSkill(skill)
         actions.find(_.id == actionId) match
-          case None => Left("Action not found")
           case Some(action) =>
             val skillState = game.skills.getOrElse(skill, SkillState.initial)
             if skillState.level < action.levelRequired then
@@ -617,6 +711,28 @@ object VelorIdleLogic:
                 activeAction = ActiveAction.Processing(skill, action),
                 actionProgress = 0.0
               ))
+          case None =>
+            // Check for equipment crafting actions (Smithing only)
+            if skill == Skill.Smithing then
+              startEquipmentCrafting(game, actionId)
+            else
+              Left("Action not found")
+
+  /** Start an equipment crafting action (Smithing) */
+  def startEquipmentCrafting(game: VelorIdleGame, actionId: String): Either[String, VelorIdleGame] =
+    EquipmentCraftingActions.byId.get(actionId) match
+      case None => Left("Action not found")
+      case Some(action) =>
+        val skillState = game.skills.getOrElse(Skill.Smithing, SkillState.initial)
+        if skillState.level < action.levelRequired then
+          Left(s"Requires Smithing level ${action.levelRequired}")
+        else if !canCraftEquipment(game, action) then
+          Left("Missing required materials")
+        else
+          Right(game.copy(
+            activeAction = ActiveAction.EquipmentCrafting(action),
+            actionProgress = 0.0
+          ))
 
   /** Start a thieving action */
   def startThieving(game: VelorIdleGame, actionId: String): Either[String, VelorIdleGame] =
@@ -797,6 +913,113 @@ object VelorIdleLogic:
             ))
 
   // ============================================================================
+  // Equipment Management
+  // ============================================================================
+
+  /** Equip a weapon from inventory by instance ID */
+  def equipWeapon(game: VelorIdleGame, instanceId: Long): Either[String, VelorIdleGame] =
+    game.equipmentInventory.find(_.instanceId == instanceId) match
+      case None => Left("Equipment not found")
+      case Some(equipment) =>
+        equipment.definition match
+          case None => Left("Invalid equipment type")
+          case Some(def_) if def_.slot != EquipmentSlot.Weapon => Left("Not a weapon")
+          case Some(def_) =>
+            // Check level requirement
+            val adventureLevel = game.skills.getOrElse(Skill.Adventure, SkillState.initial).level
+            if adventureLevel < def_.levelRequired then
+              Left(s"Requires Adventure level ${def_.levelRequired}")
+            else
+              // Remove from inventory
+              val newEquipInv = game.equipmentInventory.filterNot(_.instanceId == instanceId)
+              // Put old weapon back in inventory if any
+              val newEquipInvWithOld = game.adventureState.equipment.weapon match
+                case Some(old) => newEquipInv :+ old
+                case None => newEquipInv
+              // Equip new weapon
+              val newEquipment = game.adventureState.equipment.copy(weapon = Some(equipment))
+              val newAdvState = game.adventureState.copy(equipment = newEquipment)
+              Right(game.copy(
+                equipmentInventory = newEquipInvWithOld,
+                adventureState = newAdvState
+              ))
+
+  /** Unequip current weapon, moving it to inventory */
+  def unequipWeapon(game: VelorIdleGame): Either[String, VelorIdleGame] =
+    game.adventureState.equipment.weapon match
+      case None => Left("No weapon equipped")
+      case Some(weapon) =>
+        val newEquipInv = game.equipmentInventory :+ weapon
+        val newEquipment = game.adventureState.equipment.copy(weapon = None)
+        val newAdvState = game.adventureState.copy(equipment = newEquipment)
+        Right(game.copy(
+          equipmentInventory = newEquipInv,
+          adventureState = newAdvState
+        ))
+
+  /** Equip armor from inventory by instance ID */
+  def equipArmor(game: VelorIdleGame, instanceId: Long): Either[String, VelorIdleGame] =
+    game.equipmentInventory.find(_.instanceId == instanceId) match
+      case None => Left("Equipment not found")
+      case Some(equipment) =>
+        equipment.definition match
+          case None => Left("Invalid equipment type")
+          case Some(def_) if def_.slot != EquipmentSlot.Armor => Left("Not armor")
+          case Some(def_) =>
+            // Check level requirement
+            val adventureLevel = game.skills.getOrElse(Skill.Adventure, SkillState.initial).level
+            if adventureLevel < def_.levelRequired then
+              Left(s"Requires Adventure level ${def_.levelRequired}")
+            else
+              // Remove from inventory
+              val newEquipInv = game.equipmentInventory.filterNot(_.instanceId == instanceId)
+              // Put old armor back in inventory if any
+              val newEquipInvWithOld = game.adventureState.equipment.armor match
+                case Some(old) => newEquipInv :+ old
+                case None => newEquipInv
+              // Equip new armor
+              val newEquipment = game.adventureState.equipment.copy(armor = Some(equipment))
+              val newAdvState = game.adventureState.copy(equipment = newEquipment)
+              Right(game.copy(
+                equipmentInventory = newEquipInvWithOld,
+                adventureState = newAdvState
+              ))
+
+  /** Unequip current armor, moving it to inventory */
+  def unequipArmor(game: VelorIdleGame): Either[String, VelorIdleGame] =
+    game.adventureState.equipment.armor match
+      case None => Left("No armor equipped")
+      case Some(armor) =>
+        val newEquipInv = game.equipmentInventory :+ armor
+        val newEquipment = game.adventureState.equipment.copy(armor = None)
+        val newAdvState = game.adventureState.copy(equipment = newEquipment)
+        Right(game.copy(
+          equipmentInventory = newEquipInv,
+          adventureState = newAdvState
+        ))
+
+  /** Sell equipment by instance ID */
+  def sellEquipment(game: VelorIdleGame, instanceId: Long): Either[String, VelorIdleGame] =
+    game.equipmentInventory.find(_.instanceId == instanceId) match
+      case None => Left("Equipment not found")
+      case Some(equipment) =>
+        equipment.definition match
+          case None => Left("Invalid equipment type")
+          case Some(def_) =>
+            // Calculate sell value based on rarity
+            val baseValue = def_.tier * 50  // Bronze=50, Iron=100, Steel=150, Mithril=200
+            val rarityMultiplier = equipment.rarity match
+              case EquipmentRarity.Normal => 1.0
+              case EquipmentRarity.Superior => 1.5
+              case EquipmentRarity.Magical => 2.5
+            val sellValue = (baseValue * rarityMultiplier).toInt
+            val newEquipInv = game.equipmentInventory.filterNot(_.instanceId == instanceId)
+            Right(game.copy(
+              equipmentInventory = newEquipInv,
+              gold = game.gold + sellValue
+            ))
+
+  // ============================================================================
   // Shop
   // ============================================================================
 
@@ -940,4 +1163,6 @@ enum GameEvent:
   case AdventureEnemyDefeated(enemyId: String)
   case AdventurePlayerDied
   case SkillPointsGained(points: Int)
+  // Equipment events
+  case EquipmentCrafted(defId: String, rarity: EquipmentRarity, affixes: Vector[MagicalAffix])
 

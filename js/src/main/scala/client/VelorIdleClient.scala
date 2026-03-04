@@ -112,7 +112,12 @@ object VelorIdleClient:
       onDrinkPotion = handleDrinkPotion,
       onRemovePotion = handleRemovePotion,
       onEquipTablet = handleEquipTablet,
-      onUnequipTablet = handleUnequipTablet
+      onUnequipTablet = handleUnequipTablet,
+      onEquipWeapon = handleEquipWeapon,
+      onUnequipWeapon = handleUnequipWeapon,
+      onEquipArmor = handleEquipArmor,
+      onUnequipArmor = handleUnequipArmor,
+      onSellEquipment = handleSellEquipment
     )
 
   private def shopView(): HtmlElement =
@@ -234,6 +239,56 @@ object VelorIdleClient:
         VelorIdleState.update(currentGame)
         isDirty = true
         ToastSystem.show(s"📜 Tablet unequipped from slot $slot")
+      case Left(error) =>
+        ToastSystem.show(s"❌ $error")
+
+  private def handleEquipWeapon(instanceId: Long): Unit =
+    VelorIdleLogic.equipWeapon(currentGame, instanceId) match
+      case Right(newGame) =>
+        currentGame = newGame
+        VelorIdleState.update(currentGame)
+        isDirty = true
+        ToastSystem.show(s"⚔️ Weapon equipped!")
+      case Left(error) =>
+        ToastSystem.show(s"❌ $error")
+
+  private def handleUnequipWeapon(): Unit =
+    VelorIdleLogic.unequipWeapon(currentGame) match
+      case Right(newGame) =>
+        currentGame = newGame
+        VelorIdleState.update(currentGame)
+        isDirty = true
+        ToastSystem.show(s"⚔️ Weapon unequipped")
+      case Left(error) =>
+        ToastSystem.show(s"❌ $error")
+
+  private def handleEquipArmor(instanceId: Long): Unit =
+    VelorIdleLogic.equipArmor(currentGame, instanceId) match
+      case Right(newGame) =>
+        currentGame = newGame
+        VelorIdleState.update(currentGame)
+        isDirty = true
+        ToastSystem.show(s"🛡️ Armor equipped!")
+      case Left(error) =>
+        ToastSystem.show(s"❌ $error")
+
+  private def handleUnequipArmor(): Unit =
+    VelorIdleLogic.unequipArmor(currentGame) match
+      case Right(newGame) =>
+        currentGame = newGame
+        VelorIdleState.update(currentGame)
+        isDirty = true
+        ToastSystem.show(s"🛡️ Armor unequipped")
+      case Left(error) =>
+        ToastSystem.show(s"❌ $error")
+
+  private def handleSellEquipment(instanceId: Long): Unit =
+    VelorIdleLogic.sellEquipment(currentGame, instanceId) match
+      case Right(newGame) =>
+        currentGame = newGame
+        VelorIdleState.update(currentGame)
+        isDirty = true
+        ToastSystem.show(s"💰 Equipment sold!")
       case Left(error) =>
         ToastSystem.show(s"❌ $error")
 

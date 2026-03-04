@@ -19,6 +19,7 @@ object SkillSelector:
     val isActiveSignal = VelorIdleState.activeActionSignal.map:
       case ActiveAction.Gathering(s, _) => s == skill
       case ActiveAction.Processing(s, _) => s == skill
+      case ActiveAction.EquipmentCrafting(_) => skill == Skill.Smithing
       case ActiveAction.Thieving(_) => skill == Skill.Thieving
       case ActiveAction.Adventure => skill == Skill.Adventure
       case ActiveAction.Rest => skill == Skill.Adventure

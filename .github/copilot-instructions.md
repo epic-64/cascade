@@ -17,11 +17,9 @@ Test style:
 - tests should avoid shared state and invisible dependencies
 - tests must not rely on if-statements and should avoid loops
 
-sbt configuration:
-- This is a cross-project with three modules: `shared`, `js`, and `jvm`
-- shared is not compiled standalone, but is included in both js and jvm
-- to build the js, run `sbt js/fastLinkJS`
-- to build the jvm, run `sbt jvm/compile`
+Compiling:
+- bloop compile jvm
+- bloop compile js
 
 running tests:
 - to run jvm tests, use bloop: `bloop test jvm`

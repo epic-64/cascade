@@ -848,8 +848,213 @@
 
 /* Make the sub-panel content scrollable */
 .velor-character-panel > .velor-potion-panel,
-.velor-character-panel > .velor-tablet-panel {
+.velor-character-panel > .velor-tablet-panel,
+.velor-character-panel > .velor-equipment-panel {
   flex: 1;
   overflow-y: auto;
+}
+
+/* ============================================================================
+   Equipment Panel
+   ============================================================================ */
+
+.velor-equipment-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-md);
+}
+
+.velor-equipped-section,
+.velor-equipment-inventory-section {
+  background: var(--velor-card);
+  border-radius: var(--velor-radius-lg);
+  padding: var(--velor-spacing-md);
+  border: 1px solid var(--velor-border);
+}
+
+.velor-equipped-section h4,
+.velor-equipment-inventory-section h4 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: var(--velor-spacing-md);
+  color: var(--text-primary);
+}
+
+.velor-equipped-slots {
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-sm);
+}
+
+.velor-equipment-slot {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-sm);
+  padding: var(--velor-spacing-sm) var(--velor-spacing-md);
+  background: var(--velor-bg-secondary);
+  border-radius: var(--velor-radius-md);
+  border: 1px solid var(--velor-border);
+}
+
+.velor-equipment-slot.empty {
+  opacity: 0.6;
+}
+
+.velor-equipment-slot-icon {
+  font-size: 1.5rem;
+  width: 2rem;
+  text-align: center;
+}
+
+.velor-equipment-slot-info {
+  flex: 1;
+}
+
+.velor-equipment-slot-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.velor-equipment-slot-stats {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.velor-equipment-unequip-btn {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  border: none;
+  background: var(--velor-danger);
+  color: white;
+  cursor: pointer;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.velor-equipment-stats-summary {
+  display: flex;
+  gap: var(--velor-spacing-md);
+  margin-top: var(--velor-spacing-md);
+  padding: var(--velor-spacing-sm);
+  background: var(--velor-bg);
+  border-radius: var(--velor-radius-sm);
+  justify-content: center;
+}
+
+.velor-stat {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--velor-accent);
+}
+
+.velor-no-equipment {
+  padding: var(--velor-spacing-lg);
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.velor-equipment-inventory-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-sm);
+}
+
+.velor-equipment-item {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-sm);
+  padding: var(--velor-spacing-sm) var(--velor-spacing-md);
+  background: var(--velor-bg-secondary);
+  border-radius: var(--velor-radius-md);
+  border: 1px solid var(--velor-border);
+}
+
+.velor-equipment-item-icon {
+  font-size: 1.5rem;
+  width: 2rem;
+  text-align: center;
+}
+
+.velor-equipment-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.velor-equipment-item-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.velor-equipment-item-stats {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.velor-equipment-item-affixes {
+  font-size: 0.7rem;
+  color: var(--velor-xp);
+  margin-top: 2px;
+}
+
+.velor-equipment-level-req {
+  font-size: 0.7rem;
+  color: var(--velor-danger);
+}
+
+.velor-equipment-item-actions {
+  display: flex;
+  gap: var(--velor-spacing-xs);
+}
+
+.velor-equipment-equip-btn,
+.velor-equipment-sell-btn {
+  padding: var(--velor-spacing-xs) var(--velor-spacing-sm);
+  border-radius: var(--velor-radius-sm);
+  border: none;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.velor-equipment-equip-btn {
+  background: var(--velor-accent);
+  color: var(--velor-bg);
+}
+
+.velor-equipment-equip-btn:disabled {
+  background: var(--velor-border);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+.velor-equipment-sell-btn {
+  background: var(--velor-danger);
+  color: white;
+}
+
+/* Equipment rarity colors */
+.rarity-normal {
+  /* No special styling */
+}
+
+.rarity-superior {
+  border-color: var(--velor-accent) !important;
+}
+
+.rarity-superior .velor-equipment-slot-name,
+.rarity-superior .velor-equipment-item-name {
+  color: var(--velor-accent);
+}
+
+.rarity-magical {
+  border-color: var(--velor-xp) !important;
+  background: linear-gradient(135deg, var(--velor-bg-secondary) 0%, rgba(251, 191, 36, 0.1) 100%) !important;
+}
+
+.rarity-magical .velor-equipment-slot-name,
+.rarity-magical .velor-equipment-item-name {
+  color: var(--velor-xp);
 }
 

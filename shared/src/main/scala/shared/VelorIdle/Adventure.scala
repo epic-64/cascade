@@ -507,20 +507,27 @@ case class AdventureState(
   inCombat: Boolean = false,
   combatState: Option[CombatState] = None,
   selectedEnemyId: Option[String] = None,
-  equippedArmor: Option[Armor] = None,  // Future
+  // Equipment slots
+  equipment: EquipmentSlots = EquipmentSlots.empty,
   // Combat skill tree state
   combatSkillState: CombatSkillState = CombatSkillState.initial,
   // Persistent player stats (persists between combats)
   currentHp: Int = AdventureState.BaseMaxHp,
   currentMana: Int = AdventureState.BaseMaxMana,
   // Counter for generating unique combat instance IDs
-  nextCombatInstanceId: Long = 1L
+  nextCombatInstanceId: Long = 1L,
+  // Counter for generating unique equipment instance IDs
+  nextEquipmentInstanceId: Long = 1L
 ) derives ReadWriter:
-  def maxHp: Int = AdventureState.BaseMaxHp + equippedArmor.map(_.maxHpBonus).getOrElse(0)
-  def maxMana: Int = AdventureState.BaseMaxMana
+  def maxHp: Int = AdventureState.BaseMaxHp + equipment.totalMaxHpBonus
+  def maxMana: Int = AdventureState.BaseMaxMana + equipment.totalMaxManaBonus
   def attackRating: Int = AdventureState.BaseAttackRating
-  def defenseRating: Int = AdventureState.BaseDefenseRating + equippedArmor.map(_.defense).getOrElse(0)
+  def defenseRating: Int = AdventureState.BaseDefenseRating + equipment.totalDefense
+  def attackDamage: Int = AdventureState.BaseAutoAttackDamage + equipment.totalAttackDamage
   def resistances: Resistances = Resistances.none // TODO: Add from equipment
+  
+  /** Get skill level bonuses from equipment */
+  def equipmentSkillBonuses: Map[String, Int] = equipment.allSkillBonuses
 
 object AdventureState:
   val initial: AdventureState = AdventureState()
@@ -530,6 +537,7 @@ object AdventureState:
   val BaseMaxMana: Int = 50
   val BaseAttackRating: Int = 5
   val BaseDefenseRating: Int = 5
+  val BaseAutoAttackDamage: Int = 5
   val ManaRegenPerSecond: Double = 10.0  // Mana regen while resting
   val HpRegenPerSecond: Double = 5.0     // HP regen while resting
 

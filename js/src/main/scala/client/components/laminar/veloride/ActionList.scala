@@ -110,6 +110,41 @@ object ActionList:
 
     def hasRequiredItems(inventory: Inventory): Boolean = true // Thieving doesn't need items
 
+  /** Wrapper for equipment crafting actions */
+  private class EquipmentCraftingActionInfo(action: EquipmentCraftingAction) extends ActionInfo:
+    def id: String = action.id
+    def name: String = action.name
+    def icon: String = action.icon
+    def levelRequired: Int = action.levelRequired
+    def xpGain: Int = action.xpGain
+    def timeSeconds: Double = action.timeSeconds
+    def isGathering: Boolean = false
+    def outputItem: Item = Item.BronzeBar // Placeholder, equipment crafting doesn't output regular items
+
+    def subtitle(inventory: Inventory, isLocked: Boolean): String =
+      if isLocked then s"🔒 Level $levelRequired"
+      else ingredientsList(inventory)
+    
+    private def ingredientsList(inventory: Inventory): String =
+      action.inputs.map { case (item, count) =>
+        val have = inventory.getCount(item)
+        s"${Item.icon(item)} $have/$count"
+      }.mkString(" ")
+    
+    def isActive(activeAction: ActiveAction, skill: Skill): Boolean =
+      activeAction match
+        case ActiveAction.EquipmentCrafting(a) => a.id == id
+        case _ => false
+    
+    def canStart(game: VelorIdleGame, skill: Skill): Boolean =
+      val level = game.skills.getOrElse(Skill.Smithing, SkillState.initial).level
+      level >= levelRequired && hasRequiredItems(game.inventory)
+
+    def hasRequiredItems(inventory: Inventory): Boolean =
+      action.inputs.forall { case (item, count) =>
+        inventory.getCount(item) >= count
+      }
+
   /** Create action list for a gathering skill */
   def forGathering(skill: Skill, onStartAction: String => Unit): HtmlElement =
     val actions = GatheringActions.forSkill(skill).map(GatheringActionInfo(_))
@@ -117,8 +152,13 @@ object ActionList:
 
   /** Create action list for a processing skill */
   def forProcessing(skill: Skill, onStartAction: String => Unit): HtmlElement =
-    val actions = ProcessingActions.forSkill(skill).map(ProcessingActionInfo(_))
-    renderList(skill, actions, onStartAction)
+    val processingActions = ProcessingActions.forSkill(skill).map(ProcessingActionInfo(_))
+    // For Smithing, also include equipment crafting actions
+    val equipmentActions = if skill == Skill.Smithing then
+      EquipmentCraftingActions.all.map(EquipmentCraftingActionInfo(_))
+    else
+      Vector.empty
+    renderList(skill, processingActions ++ equipmentActions, onStartAction)
 
   /** Create action list for thieving skill */
   def forThieving(onStartAction: String => Unit): HtmlElement =
