@@ -28,6 +28,10 @@ object VelorIdleLogic:
       case ActiveAction.Thieving(action) =>
         processThievingTick(game, action, elapsedSeconds, currentTime, random)
 
+      case ActiveAction.Adventure =>
+        // Adventure combat is processed separately in AdventureCombat.tick
+        (game.copy(lastTickTime = currentTime), Vector.empty)
+
 
   private def processGatheringTick(
     game: VelorIdleGame,
@@ -502,6 +506,15 @@ object VelorIdleLogic:
   // Player Actions
   // ============================================================================
 
+  /** Clear adventure combat state - used when starting other skills */
+  private def clearAdventureCombat(game: VelorIdleGame): VelorIdleGame =
+    if game.adventureState.inCombat then
+      game.copy(adventureState = game.adventureState.copy(
+        inCombat = false,
+        combatState = None
+      ))
+    else game
+
   /** Select a skill to view/train - does not affect the currently running action */
   def selectSkill(game: VelorIdleGame, skill: Skill): VelorIdleGame =
     game.copy(currentSkill = Some(skill))
@@ -529,7 +542,7 @@ object VelorIdleLogic:
             if skillState.level < action.levelRequired then
               Left(s"Requires ${Skill.displayName(skill)} level ${action.levelRequired}")
             else
-              Right(game.copy(
+              Right(clearAdventureCombat(game).copy(
                 activeAction = ActiveAction.Gathering(skill, action),
                 actionProgress = 0.0
               ))
@@ -550,7 +563,7 @@ object VelorIdleLogic:
             else if !canProcess(game, action) then
               Left("Missing required materials")
             else
-              Right(game.copy(
+              Right(clearAdventureCombat(game).copy(
                 activeAction = ActiveAction.Processing(skill, action),
                 actionProgress = 0.0
               ))
@@ -569,7 +582,7 @@ object VelorIdleLogic:
             if skillState.level < action.levelRequired then
               Left(s"Requires Thieving level ${action.levelRequired}")
             else
-              Right(game.copy(
+              Right(clearAdventureCombat(game).copy(
                 activeAction = ActiveAction.Thieving(action),
                 actionProgress = 0.0
               ))

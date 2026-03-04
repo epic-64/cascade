@@ -32,6 +32,7 @@ object Header:
         case ActiveAction.Gathering(skill, _) => activeSkillDiv(skill)
         case ActiveAction.Processing(skill, _) => activeSkillDiv(skill)
         case ActiveAction.Thieving(_) => activeSkillDiv(Skill.Thieving)
+        case ActiveAction.Adventure => activeSkillDiv(Skill.Adventure)
         case ActiveAction.Idle =>
           div(
             cls := "velor-active-skill-content none",
