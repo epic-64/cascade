@@ -310,28 +310,23 @@ object AdventureView:
     onRestartCombat: () => Unit
   ): HtmlElement =
     val combatSignal = adventureStateSignal.map(_.combatState)
-    // Track if combat has ended to show overlay (only set once, not re-triggered)
     val combatEndedVar = Var(false)
     val isVictoryVar = Var(false)
 
-    // Simple event tracking: store the length of events we've processed
-    // When truncation happens (length decreases), we reset and skip processing that tick
-    var lastProcessedLength = 0
-    var wasInCombat = false
+    // Track last seen totalEventCount - this counter never decreases during combat
+    var lastSeenEventCount = -1
 
     div(
       cls := "velor-combat-view",
       display <-- inCombatSignal.map(if _ then "flex" else "none"),
       
-      // Reset state on mount
+      // Reset on mount
       onMountCallback { _ =>
         projectilesVar.set(Vector.empty)
-        nextProjectileId = 0
-        lastProcessedLength = 0
-        wasInCombat = false
+        lastSeenEventCount = -1
       },
       
-      // Projectiles layer (positioned absolute over the combat view)
+      // Projectiles layer
       div(
         cls := "velor-projectiles-container",
         children <-- projectilesVar.signal.map(_.map { proj =>
@@ -343,55 +338,49 @@ object AdventureView:
         })
       ),
 
-      // Use onMountBind to properly scope the subscription to element lifecycle
-      onMountBind { ctx =>
-        combatSignal --> { state =>
-          state match
-            case Some(combat) if combat.isCombatOver && !combatEndedVar.now() =>
-              combatEndedVar.set(true)
-              isVictoryVar.set(combat.isEnemyDead)
-            case Some(combat) if !combat.isCombatOver =>
-              combatEndedVar.set(false)
+      // Event processing
+      onMountBind { _ =>
+        combatSignal --> { 
+          case Some(combat) if combat.isCombatOver && !combatEndedVar.now() =>
+            combatEndedVar.set(true)
+            isVictoryVar.set(combat.isEnemyDead)
+            
+          case Some(combat) if !combat.isCombatOver =>
+            combatEndedVar.set(false)
+            
+            // First time seeing this combat? Initialize counter
+            if lastSeenEventCount < 0 then
+              lastSeenEventCount = combat.totalEventCount
+            // New events? Process them
+            else if combat.totalEventCount > lastSeenEventCount then
+              val numNewEvents = combat.totalEventCount - lastSeenEventCount
+              val newEvents = combat.recentEvents.takeRight(numNewEvents)
+              lastSeenEventCount = combat.totalEventCount
               
-              val currentLength = combat.recentEvents.length
-
-              // Combat just started - initialize
-              if !wasInCombat then
-                lastProcessedLength = currentLength
-                wasInCombat = true
-              // Events were truncated (takeRight kicked in) - reset counter
-              else if currentLength < lastProcessedLength then
-                lastProcessedLength = currentLength
-              // New events to process
-              else if currentLength > lastProcessedLength then
-                val newEvents = combat.recentEvents.drop(lastProcessedLength)
-                lastProcessedLength = currentLength
-                
-                newEvents.foreach {
-                  case CombatEvent.PlayerAutoAttack(dmg) => 
-                    fireAutoAttackProjectile(isPlayer = true)
-                    showDamageNumber(dmg, false, false)
-                  case CombatEvent.EnemyAutoAttack(dmg) => 
-                    fireAutoAttackProjectile(isPlayer = false)
-                    showDamageNumber(dmg, true, false)
-                  case CombatEvent.PlayerSkillUsed(skillName, dmg) => 
-                    // Find the skill slot index by matching skill name (check both current and base skill)
-                    val slotIndex = combat.skillSlots.indexWhere { slot =>
-                      slot.currentSkill.name == skillName || slot.baseSkill.name == skillName
-                    }
-                    if slotIndex >= 0 then
-                      val icon = combat.skillSlots(slotIndex).baseSkill.icon
-                      fireProjectile(icon, slotIndex)
-                    if dmg > 0 then showDamageNumber(dmg, false, false)
-                  case CombatEvent.PlayerHealed(amt) => showDamageNumber(amt, true, true)
-                  case CombatEvent.EnemyDotTick(dmg, _) => showDamageNumber(dmg, false, false)
-                  case CombatEvent.PlayerDotTick(dmg, _) => showDamageNumber(dmg, true, false)
-                  case _ => ()
-                }
-            case None =>
-              lastProcessedLength = 0
-              wasInCombat = false
-            case _ => ()
+              newEvents.foreach {
+                case CombatEvent.PlayerAutoAttack(dmg) => 
+                  fireAutoAttackProjectile(isPlayer = true)
+                  showDamageNumber(dmg, false, false)
+                case CombatEvent.EnemyAutoAttack(dmg) => 
+                  fireAutoAttackProjectile(isPlayer = false)
+                  showDamageNumber(dmg, true, false)
+                case CombatEvent.PlayerSkillUsed(skillName, dmg) => 
+                  val slotIndex = combat.skillSlots.indexWhere { slot =>
+                    slot.currentSkill.name == skillName || slot.baseSkill.name == skillName
+                  }
+                  if slotIndex >= 0 then
+                    fireProjectile(combat.skillSlots(slotIndex).baseSkill.icon, slotIndex)
+                  if dmg > 0 then showDamageNumber(dmg, false, false)
+                case CombatEvent.PlayerHealed(amt) => showDamageNumber(amt, true, true)
+                case CombatEvent.EnemyDotTick(dmg, _) => showDamageNumber(dmg, false, false)
+                case CombatEvent.PlayerDotTick(dmg, _) => showDamageNumber(dmg, true, false)
+                case _ => ()
+              }
+              
+          case None =>
+            lastSeenEventCount = -1
+            
+          case _ => ()
         }
       },
 

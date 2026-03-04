@@ -109,13 +109,19 @@ object AdventureCombat:
           if combat6.isEnemyDead then
             handleEnemyDeath(combat6, game, random)
           else if combat6.isPlayerDead then
-            (combat6.copy(recentEvents = combat6.recentEvents :+ CombatEvent.PlayerDied), Vector(GameEvent.AdventurePlayerDied), game)
+            val newCount = combat6.totalEventCount + 1
+            (combat6.copy(
+              recentEvents = combat6.recentEvents :+ CombatEvent.PlayerDied,
+              totalEventCount = newCount
+            ), Vector(GameEvent.AdventurePlayerDied), game)
           else
             (combat6, Vector.empty, game)
 
         val allCombatEvents = events1 ++ events2
+        val newEventCount = finalCombat.totalEventCount + allCombatEvents.length
         val finalCombatWithEvents = finalCombat.copy(
-          recentEvents = (finalCombat.recentEvents ++ allCombatEvents).takeRight(10)
+          recentEvents = (finalCombat.recentEvents ++ allCombatEvents).takeRight(10),
+          totalEventCount = newEventCount
         )
 
         // Sync player HP/Mana back to AdventureState
@@ -304,7 +310,8 @@ object AdventureCombat:
     events :+= GameEvent.AdventureEnemyDefeated(enemy.id)
 
     val combatWithEvents = combat.copy(
-      recentEvents = combat.recentEvents :+ CombatEvent.EnemyDied
+      recentEvents = combat.recentEvents :+ CombatEvent.EnemyDied,
+      totalEventCount = combat.totalEventCount + 1
     )
 
     (combatWithEvents, events, updatedGame)
@@ -427,7 +434,8 @@ object AdventureCombat:
 
     c = c.copy(
       skillSlots = c.skillSlots.updated(slotIndex, newSlot),
-      recentEvents = (c.recentEvents ++ events).takeRight(10)
+      recentEvents = (c.recentEvents ++ events).takeRight(10),
+      totalEventCount = c.totalEventCount + events.length
     )
 
     (c, events)
