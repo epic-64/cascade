@@ -128,8 +128,8 @@ object SkillTreeView:
         span(
           cls := "velor-chain-skill-req",
           child.text <-- isUnlockedSignal.map(unlocked =>
-            if unlocked then s"${chain.windowMs / 1000.0}s window"
-            else s"🔒 Lv${chain.requiredLevel}"
+            if unlocked then s"✓ Lv${chain.requiredLevel}+ | ${chain.windowMs / 1000.0}s window"
+            else s"🔒 Requires Lv${chain.requiredLevel}"
           )
         )
       ),
