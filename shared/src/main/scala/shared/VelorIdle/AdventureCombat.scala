@@ -191,7 +191,12 @@ object AdventureCombat:
       case Some(stun) if currentTime >= stun.endsAt => c.copy(enemyStun = None)
       case _ => c
 
-    // 7. Process shields
+    // 7. Process freezes
+    c = c.enemyFreeze match
+      case Some(freeze) if currentTime >= freeze.endsAt => c.copy(enemyFreeze = None)
+      case _ => c
+
+    // 8. Process shields
     c = c.playerShield match
       case Some(shield) if currentTime >= shield.endsAt => c.copy(playerShield = None)
       case _ => c
