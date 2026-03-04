@@ -41,10 +41,11 @@ object AdventureCombat:
           Vector.fill(4)(SkillSlotState.fromSkill(emptySkill))
         )
 
-        // Preserve totalEventCount across combat restarts so UI event tracking continues working
-        val previousEventCount = advState.combatState.map(_.totalEventCount).getOrElse(0)
+        // Each combat instance gets a unique ID - UI uses this to detect new combats
+        val instanceId = advState.nextCombatInstanceId
 
         val combatState = CombatState(
+          instanceId = instanceId,
           enemy = enemy,
           enemyCurrentHp = enemy.maxHp,
           playerCurrentHp = currentHp,
@@ -53,14 +54,14 @@ object AdventureCombat:
           playerMaxMana = maxMana,
           lastPlayerAutoAttack = currentTime,
           lastEnemyAutoAttack = currentTime,
-          skillSlots = weaponSlots ++ armorSlots,
-          totalEventCount = previousEventCount
+          skillSlots = weaponSlots ++ armorSlots
         )
 
         val newAdventureState = advState.copy(
           inCombat = true,
           combatState = Some(combatState),
-          selectedEnemyId = Some(enemyId)
+          selectedEnemyId = Some(enemyId),
+          nextCombatInstanceId = instanceId + 1
         )
 
         Right(game.copy(
