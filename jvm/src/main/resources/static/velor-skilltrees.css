@@ -343,13 +343,13 @@
 
 .velor-binding-slots-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--velor-spacing-md);
 }
 
-@media (max-width: 600px) {
+@container (min-width: 400px) {
   .velor-binding-slots-row {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
