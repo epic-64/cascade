@@ -328,14 +328,15 @@ object AdventureCombat:
         else
           val slot = combat.skillSlots(slotIndex)
           val skill = slot.currentSkill
+          val isChainSkill = slot.isInChainWindow(currentTime) && skill.id != slot.baseSkill.id
 
           // Check if skill is empty
           if skill.id == "empty" then
             Left("No skill in this slot")
-          // Check cooldown
-          else if slot.isOnCooldown(currentTime) then
+          // Check cooldown - but allow chain skills during chain window
+          else if slot.isOnCooldown(currentTime) && !isChainSkill then
             val remaining = slot.cooldownRemainingMs(currentTime) / 1000.0
-            Left(f"$${skill.name} on cooldown ($remaining%.1fs)")
+            Left(f"${skill.name} on cooldown ($remaining%.1fs)")
           // Check mana
           else if combat.playerMana < skill.manaCost then
             Left(s"Not enough mana (${skill.manaCost} required, ${combat.playerMana} available)")
