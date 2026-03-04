@@ -12,23 +12,20 @@ object AdventureCombat:
   private val BaseAutoAttackDamage: Int = 5
   private val BaseAutoAttackSpeedMs: Long = 2000L
 
-  /** Helper class for building events with auto-incrementing IDs.
-    * This ensures each event has a unique ID for reliable deduplication in the UI.
-    */
-  private class EventBuilder(startId: Long):
-    private var currentId = startId
-    private var events = Vector.empty[CombatEvent]
-
-    def add(detail: CombatEventDetail): Unit =
-      events = events :+ CombatEvent(currentId, detail)
-      currentId += 1
-
-    def addAll(details: Vector[CombatEventDetail]): Unit =
-      details.foreach(add)
-
-    def build(): (Vector[CombatEvent], Long) = (events, currentId)
-
-    def isEmpty: Boolean = events.isEmpty
+  /** Assign unique IDs to event details and update combat state tracking */
+  private def finalizeEvents(
+    combat: CombatState,
+    details: Vector[CombatEventDetail]
+  ): (CombatState, Vector[CombatEvent]) =
+    val events = details.zipWithIndex.map { case (detail, i) =>
+      CombatEvent(combat.nextEventId + i, detail)
+    }
+    val updated = combat.copy(
+      recentEvents = (combat.recentEvents ++ events).takeRight(10),
+      totalEventCount = combat.totalEventCount + events.length,
+      nextEventId = combat.nextEventId + events.length
+    )
+    (updated, events)
 
   // ============================================================================
   // Evade Calculation
@@ -104,15 +101,6 @@ object AdventureCombat:
           adventureState = newAdventureState
         ))
 
-  private val emptySkill = CombatSkill(
-    id = "empty",
-    name = "Empty",
-    icon = "➖",
-    description = "No skill equipped",
-    manaCost = 0,
-    cooldownMs = 0,
-    damage = 0
-  )
 
   // ============================================================================
   // Combat Tick - Single entry point for all combat processing
@@ -204,34 +192,10 @@ object AdventureCombat:
     // 5. Process chain windows
     c = processChainWindows(c, currentTime)
 
-    // 6. Process stuns
-    c = c.enemyStun match
-      case Some(stun) if currentTime >= stun.endsAt => c.copy(enemyStun = None)
-      case _ => c
+    // 6. Expire timed effects
+    c = expireTimedEffects(c, currentTime)
 
-    // 7. Process freezes
-    c = c.enemyFreeze match
-      case Some(freeze) if currentTime >= freeze.endsAt => c.copy(enemyFreeze = None)
-      case _ => c
-
-    // 8. Process shields
-    c = c.playerShield match
-      case Some(shield) if currentTime >= shield.endsAt => c.copy(playerShield = None)
-      case _ => c
-
-    // Assign unique IDs to events using EventBuilder
-    val builder = EventBuilder(c.nextEventId)
-    builder.addAll(details)
-    val (events, nextId) = builder.build()
-
-    // Update event tracking
-    val finalCombat = c.copy(
-      recentEvents = (c.recentEvents ++ events).takeRight(10),
-      totalEventCount = c.totalEventCount + events.length,
-      nextEventId = nextId
-    )
-
-    (finalCombat, events)
+    finalizeEvents(c, details)
 
   // Duration to wait between enemy kills before next enemy spawns
   private val LoadingNextEnemyMs: Long = 1500L
@@ -295,12 +259,13 @@ object AdventureCombat:
     game: VelorIdleGame,
     combatEvents: Vector[CombatEvent]
   ): (VelorIdleGame, Vector[GameEvent]) =
-    val deathEvent = CombatEvent(combat.nextEventId + combatEvents.length, CombatEventDetail.PlayerDied)
-    val updatedCombat = combat.copy(
-      recentEvents = (combat.recentEvents ++ combatEvents :+ deathEvent).takeRight(10),
-      totalEventCount = combat.totalEventCount + combatEvents.length + 1,
-      nextEventId = combat.nextEventId + combatEvents.length + 1
+    // First apply the combat events, then add death event
+    val withCombatEvents = combat.copy(
+      recentEvents = (combat.recentEvents ++ combatEvents).takeRight(10),
+      totalEventCount = combat.totalEventCount + combatEvents.length,
+      nextEventId = combat.nextEventId + combatEvents.length
     )
+    val (updatedCombat, _) = finalizeEvents(withCombatEvents, Vector(CombatEventDetail.PlayerDied))
     val newAdvState = game.adventureState.copy(
       combatState = Some(updatedCombat),
       currentHp = 0,
@@ -325,37 +290,53 @@ object AdventureCombat:
   // Combat Systems
   // ============================================================================
 
-  private def processDoTs(combat: CombatState, currentTime: Long): (CombatState, Vector[CombatEventDetail]) =
-    var enemyHp = combat.enemyCurrentHp
-    var playerHp = combat.playerCurrentHp
+  /** Process a single DoT list, returning updated HP, remaining DoTs, and events */
+  private def tickDoTs(
+    dots: Vector[ActiveDoT],
+    currentHp: Int,
+    currentTime: Long,
+    makeEvent: (Int, String) => CombatEventDetail
+  ): (Int, Vector[ActiveDoT], Vector[CombatEventDetail]) =
+    var hp = currentHp
     var events = Vector.empty[CombatEventDetail]
-
-    val updatedEnemyDoTs = combat.enemyDoTs.flatMap { dot =>
+    val remaining = dots.flatMap { dot =>
       if currentTime >= dot.lastTickTime + dot.tickIntervalMs then
-        enemyHp -= dot.damagePerTick
-        events :+= CombatEventDetail.EnemyDotTick(dot.damagePerTick, dot.name)
-        val remaining = dot.ticksRemaining - 1
-        if remaining > 0 then Some(dot.copy(ticksRemaining = remaining, lastTickTime = currentTime))
+        hp -= dot.damagePerTick
+        events :+= makeEvent(dot.damagePerTick, dot.name)
+        val ticksLeft = dot.ticksRemaining - 1
+        if ticksLeft > 0 then Some(dot.copy(ticksRemaining = ticksLeft, lastTickTime = currentTime))
         else None
       else Some(dot)
     }
+    (hp.max(0), remaining, events)
 
-    val updatedPlayerDoTs = combat.playerDoTs.flatMap { dot =>
-      if currentTime >= dot.lastTickTime + dot.tickIntervalMs then
-        playerHp -= dot.damagePerTick
-        events :+= CombatEventDetail.PlayerDotTick(dot.damagePerTick, dot.name)
-        val remaining = dot.ticksRemaining - 1
-        if remaining > 0 then Some(dot.copy(ticksRemaining = remaining, lastTickTime = currentTime))
-        else None
-      else Some(dot)
-    }
-
+  private def processDoTs(combat: CombatState, currentTime: Long): (CombatState, Vector[CombatEventDetail]) =
+    val (enemyHp, enemyDoTs, enemyEvents) = tickDoTs(
+      combat.enemyDoTs, combat.enemyCurrentHp, currentTime,
+      CombatEventDetail.EnemyDotTick.apply
+    )
+    val (playerHp, playerDoTs, playerEvents) = tickDoTs(
+      combat.playerDoTs, combat.playerCurrentHp, currentTime,
+      CombatEventDetail.PlayerDotTick.apply
+    )
     (combat.copy(
-      enemyCurrentHp = enemyHp.max(0),
-      playerCurrentHp = playerHp.max(0),
-      enemyDoTs = updatedEnemyDoTs,
-      playerDoTs = updatedPlayerDoTs
-    ), events)
+      enemyCurrentHp = enemyHp,
+      playerCurrentHp = playerHp,
+      enemyDoTs = enemyDoTs,
+      playerDoTs = playerDoTs
+    ), enemyEvents ++ playerEvents)
+
+  /** Expire an optional timed effect if past its end time */
+  private def expireIfPast[T](effect: Option[T], currentTime: Long, getEndsAt: T => Long): Option[T] =
+    effect.filter(e => currentTime < getEndsAt(e))
+
+  /** Expire all timed effects (stuns, freezes, shields) */
+  private def expireTimedEffects(combat: CombatState, currentTime: Long): CombatState =
+    combat.copy(
+      enemyStun = expireIfPast(combat.enemyStun, currentTime, _.endsAt),
+      enemyFreeze = expireIfPast(combat.enemyFreeze, currentTime, _.endsAt),
+      playerShield = expireIfPast(combat.playerShield, currentTime, _.endsAt)
+    )
 
   private def processAutoAttacks(
     combat: CombatState,
@@ -366,41 +347,31 @@ object AdventureCombat:
     var c = combat
     var events = Vector.empty[CombatEventDetail]
 
-    // Player auto-attack - using base auto-attack stats
+    // Player auto-attack
     if currentTime >= c.lastPlayerAutoAttack + BaseAutoAttackSpeedMs then
-      // Check if enemy evades (player attack rating vs enemy defense rating)
-      val enemyEvades = rollEvade(advState.attackRating, c.enemy.defenseRating, random)
-      if enemyEvades then
-        c = c.copy(
-          lastPlayerAutoAttack = currentTime,
-          playerDamageBuff = None  // Buff is consumed even on evade
-        )
+      val evaded = rollEvade(advState.attackRating, c.enemy.defenseRating, random)
+      c = c.copy(lastPlayerAutoAttack = currentTime, playerDamageBuff = None)
+      if evaded then
         events :+= CombatEventDetail.EnemyEvaded
       else
-        val damage = applyDamageBuff(BaseAutoAttackDamage, c.playerDamageBuff)
-        c = c.copy(
-          enemyCurrentHp = (c.enemyCurrentHp - damage).max(0),
-          lastPlayerAutoAttack = currentTime,
-          playerDamageBuff = None
-        )
+        val damage = applyDamageBuff(BaseAutoAttackDamage, combat.playerDamageBuff)
+        c = c.copy(enemyCurrentHp = (c.enemyCurrentHp - damage).max(0))
         events :+= CombatEventDetail.PlayerAutoAttack(damage)
 
     // Enemy auto-attack (only if not stunned/frozen and player not dead)
-    val enemyStunned = c.enemyStun.exists(s => currentTime < s.endsAt)
-    val enemyFrozen = c.enemyFreeze.exists(f => currentTime < f.endsAt)
-    if !enemyStunned && !enemyFrozen && !c.isPlayerDead && currentTime >= c.lastEnemyAutoAttack + c.enemy.attackSpeedMs then
-      // Check if player evades (enemy attack rating vs player defense rating)
-      val playerEvades = rollEvade(c.enemy.attackRating, advState.defenseRating, random)
-      if playerEvades then
-        c = c.copy(lastEnemyAutoAttack = currentTime)
+    val canEnemyAttack = !c.enemyStun.exists(_.endsAt > currentTime) &&
+                         !c.enemyFreeze.exists(_.endsAt > currentTime) &&
+                         !c.isPlayerDead &&
+                         currentTime >= c.lastEnemyAutoAttack + c.enemy.attackSpeedMs
+    
+    if canEnemyAttack then
+      val evaded = rollEvade(c.enemy.attackRating, advState.defenseRating, random)
+      c = c.copy(lastEnemyAutoAttack = currentTime)
+      if evaded then
         events :+= CombatEventDetail.PlayerEvaded
       else
         val (newHp, newShield, shieldBroken) = applyDamageWithShield(c.playerCurrentHp, c.playerShield, c.enemy.attackDamage, currentTime)
-        c = c.copy(
-          playerCurrentHp = newHp.max(0),
-          playerShield = newShield,
-          lastEnemyAutoAttack = currentTime
-        )
+        c = c.copy(playerCurrentHp = newHp.max(0), playerShield = newShield)
         events :+= CombatEventDetail.EnemyAutoAttack(c.enemy.attackDamage)
         if shieldBroken then events :+= CombatEventDetail.ShieldBroken
 
@@ -504,18 +475,7 @@ object AdventureCombat:
       playerMana = combat.playerMana - skill.manaCost
     )
     val (afterEffects, details) = applySkillEffects(prepared, slotIndex, skill, currentTime)
-    
-    // Assign IDs to events
-    val builder = EventBuilder(afterEffects.nextEventId)
-    builder.addAll(details)
-    val (events, nextId) = builder.build()
-    
-    val finalCombat = afterEffects.copy(
-      recentEvents = (afterEffects.recentEvents ++ events).takeRight(10),
-      totalEventCount = afterEffects.totalEventCount + events.length,
-      nextEventId = nextId
-    )
-    (finalCombat, events)
+    finalizeEvents(afterEffects, details)
 
   private def executeCastedSkill(
     combat: CombatState,

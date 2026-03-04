@@ -610,18 +610,8 @@ object CombatSkillHelpers:
           val combatSkill = toCombatSkill(treeSkill, level)
           SkillSlotState.fromSkill(combatSkill)
         case None =>
-          SkillSlotState.fromSkill(emptySkill)
+          SkillSlotState.fromSkill(CombatSkill.empty)
     }
-
-  private val emptySkill = CombatSkill(
-    id = "empty",
-    name = "Empty",
-    icon = "➖",
-    description = "No skill equipped",
-    manaCost = 0,
-    cooldownMs = 0,
-    damage = 0
-  )
 
 // ============================================================================
 // Skill Point Allocation Logic
