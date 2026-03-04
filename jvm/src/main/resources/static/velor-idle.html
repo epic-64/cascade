@@ -38,6 +38,11 @@
         panelsCss.href = '/static/velor-panels.css?v=' + v;
         document.head.appendChild(panelsCss);
 
+        const skillsCss = document.createElement('link');
+        skillsCss.rel = 'stylesheet';
+        skillsCss.href = '/static/velor-skills.css?v=' + v;
+        document.head.appendChild(skillsCss);
+
         const js = document.createElement('script');
         js.src = '/static/js/main.js?v=' + v;
         document.head.appendChild(js);
@@ -48,6 +53,7 @@
       <link rel="stylesheet" href="/static/velor-idle.css">
       <link rel="stylesheet" href="/static/velor-combat.css">
       <link rel="stylesheet" href="/static/velor-panels.css">
+      <link rel="stylesheet" href="/static/velor-skills.css">
     </noscript>
   </head>
   <body>
