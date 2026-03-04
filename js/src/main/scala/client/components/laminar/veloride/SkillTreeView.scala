@@ -170,11 +170,32 @@ object SkillTreeView:
         }
       ),
 
-      // Chain skills indicator
+      // Chain skills detailed section
       if skill.chainSkills.nonEmpty then
         div(
-          cls := "velor-skill-chain-indicator",
-          s"🔗 Chains into: ${skill.chainSkills.map(_.skill.name).mkString(", ")}"
+          cls := "velor-chain-skills-section",
+          skill.chainSkills.map { chain =>
+            div(
+              cls := "velor-chain-skill-item",
+              div(
+                cls := "velor-chain-skill-header",
+                span(cls := "velor-chain-skill-icon", chain.skill.icon),
+                span(chain.skill.name),
+                span(cls := "velor-chain-skill-window", s"${chain.windowMs / 1000.0}s window")
+              ),
+              div(
+                cls := "velor-chain-skill-stats",
+                child <-- levelSignal.map { level =>
+                  val damage = chain.skill.damageAtLevel(level.max(1))
+                  div(
+                    span(s"💥 $damage"),
+                    span(s"💧 ${chain.skill.manaCost}"),
+                    span(s"⏱️ ${chain.skill.cooldownMs / 1000.0}s")
+                  )
+                }
+              )
+            )
+          }
         )
       else emptyNode,
 

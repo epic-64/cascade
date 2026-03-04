@@ -167,8 +167,8 @@
 
 .velor-skill-tree-skills {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: var(--velor-spacing-md);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--velor-spacing-sm);
 }
 
 /* ============================================================================
@@ -179,10 +179,10 @@
   background: var(--velor-card);
   border: 2px solid var(--velor-border);
   border-radius: var(--velor-radius-md);
-  padding: var(--velor-spacing-md);
+  padding: var(--velor-spacing-sm);
   display: flex;
   flex-direction: column;
-  gap: var(--velor-spacing-sm);
+  gap: var(--velor-spacing-xs);
   transition: border-color 0.2s ease;
 }
 
@@ -199,38 +199,40 @@
 .velor-skill-node-header {
   display: flex;
   align-items: center;
-  gap: var(--velor-spacing-sm);
+  gap: var(--velor-spacing-xs);
 }
 
 .velor-skill-node-icon {
-  font-size: 1.8rem;
+  font-size: 1.3rem;
 }
 
 .velor-skill-node-name {
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   font-weight: 600;
+  flex: 1;
 }
 
 .velor-skill-node-level {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   color: var(--velor-accent);
   font-weight: 600;
 }
 
 .velor-skill-node-desc {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   color: var(--text-secondary);
+  line-height: 1.3;
 }
 
 .velor-skill-node-stats {
   display: flex;
-  gap: var(--velor-spacing-md);
-  font-size: 0.85rem;
+  gap: var(--velor-spacing-sm);
+  font-size: 0.75rem;
   flex-wrap: wrap;
 }
 
 .velor-skill-node-stats span {
-  padding: 2px 6px;
+  padding: 1px 4px;
   background: var(--velor-bg-secondary);
   border-radius: var(--velor-radius-sm);
 }
@@ -241,38 +243,80 @@
 }
 
 .velor-skill-chain-indicator {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--velor-xp);
-  padding: var(--velor-spacing-xs) var(--velor-spacing-sm);
+  padding: var(--velor-spacing-xs);
   background: rgba(251, 191, 36, 0.15);
   border-radius: var(--velor-radius-sm);
+}
+
+/* Chain skill details section */
+.velor-chain-skills-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-xs);
+  padding: var(--velor-spacing-xs);
+  background: rgba(251, 191, 36, 0.1);
+  border-radius: var(--velor-radius-sm);
+  border-left: 2px solid var(--velor-xp);
+}
+
+.velor-chain-skill-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.velor-chain-skill-header {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-xs);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.velor-chain-skill-icon {
+  font-size: 1rem;
+}
+
+.velor-chain-skill-window {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-left: auto;
+}
+
+.velor-chain-skill-stats {
+  display: flex;
+  gap: var(--velor-spacing-sm);
+  font-size: 0.7rem;
+  color: var(--text-secondary);
 }
 
 /* Skill node action buttons row */
 .velor-skill-node-actions {
   display: flex;
   align-items: center;
-  gap: var(--velor-spacing-sm);
+  gap: var(--velor-spacing-xs);
   margin-top: auto;
-  padding-top: var(--velor-spacing-sm);
+  padding-top: var(--velor-spacing-xs);
 }
 
 .velor-skill-allocate-btn {
-  padding: var(--velor-spacing-xs) var(--velor-spacing-sm) !important;
-  min-width: 40px;
-  font-size: 1.1rem;
+  padding: 2px var(--velor-spacing-xs) !important;
+  min-width: 28px;
+  font-size: 0.9rem;
 }
 
 .velor-skill-bind-buttons {
   display: flex;
-  gap: var(--velor-spacing-xs);
+  gap: 2px;
   margin-left: auto;
 }
 
 .velor-bind-slot-btn {
-  padding: var(--velor-spacing-xs) var(--velor-spacing-sm) !important;
-  min-width: 32px;
-  font-size: 0.9rem;
+  padding: 2px var(--velor-spacing-xs) !important;
+  min-width: 24px;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
