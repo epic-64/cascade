@@ -192,7 +192,6 @@ object TabletPanel:
       ("Fisher", "Artisan", SynergyEffect.SeaChef),
       ("Herbalist", "Alchemist", SynergyEffect.PotionMaster),
       ("Artisan", "Alchemist", SynergyEffect.EfficientBrewer),
-      ("Thief", "Stargazer", SynergyEffect.ShadowWalker),
       ("Lumberjack", "Herbalist", SynergyEffect.GroveKeeper)
     )
     
