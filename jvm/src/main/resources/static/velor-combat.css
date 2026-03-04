@@ -184,11 +184,17 @@
 /* Combat stats row for entities */
 .velor-entity-combat-stats {
   display: flex;
-  gap: var(--velor-spacing-md);
+  gap: var(--velor-spacing-sm);
   font-size: 0.8rem;
   color: var(--text-secondary);
   margin-top: var(--velor-spacing-xs);
   padding: var(--velor-spacing-xs) 0;
+}
+
+.velor-entity-combat-stats span {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: var(--velor-radius-sm);
 }
 
 .velor-entity-resistances {
@@ -686,12 +692,18 @@
 
 .velor-player-combat-stats {
   display: flex;
-  gap: var(--velor-spacing-md);
+  gap: var(--velor-spacing-sm);
   font-size: 0.85rem;
   color: var(--text-secondary);
   margin-top: var(--velor-spacing-sm);
   padding-top: var(--velor-spacing-sm);
   border-top: 1px solid var(--velor-border);
+}
+
+.velor-player-combat-stats span {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: var(--velor-radius-sm);
 }
 
 .velor-player-resistances {
