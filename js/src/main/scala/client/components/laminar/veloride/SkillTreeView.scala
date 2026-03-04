@@ -115,6 +115,33 @@ object SkillTreeView:
       )
     )
 
+  /** Recursively render a chain skill and its nested chain skills */
+  private def renderChainSkill(chain: TreeChainSkill, levelSignal: Signal[Int]): Vector[HtmlElement] =
+    val thisSkill = div(
+      cls := "velor-chain-skill-item",
+      div(
+        cls := "velor-chain-skill-header",
+        span(cls := "velor-chain-skill-icon", chain.skill.icon),
+        span(chain.skill.name),
+        span(cls := "velor-chain-skill-window", s"${chain.windowMs / 1000.0}s window")
+      ),
+      div(
+        cls := "velor-chain-skill-stats",
+        child <-- levelSignal.map { level =>
+          val damage = chain.skill.damageAtLevel(level.max(1))
+          div(
+            span(s"💥 $damage"),
+            span(s"💧 ${chain.skill.manaCost}"),
+            if chain.skill.castTimeMs > 0 then span(s"🎯 ${chain.skill.castTimeMs / 1000.0}s") else emptyNode,
+            span(s"⏱️ ${chain.skill.cooldownMs / 1000.0}s")
+          )
+        }
+      )
+    )
+    // Recursively add nested chain skills
+    val nested = chain.skill.chainSkills.flatMap(c => renderChainSkill(c, levelSignal))
+    thisSkill +: nested
+
   private def skillNode(
     skill: TreeSkill,
     combatSkillStateSignal: Signal[CombatSkillState],
@@ -166,6 +193,7 @@ object SkillTreeView:
           div(
             span(s"💥 $damage"),
             span(s"💧 ${skill.manaCost}"),
+            if skill.castTimeMs > 0 then span(s"🎯 ${skill.castTimeMs / 1000.0}s") else emptyNode,
             span(s"⏱️ ${skill.cooldownMs / 1000.0}s"),
             if level > 0 && level < skill.maxLevel then
               span(cls := "velor-skill-next-level", s"→ 💥 $nextDamage")
@@ -176,31 +204,11 @@ object SkillTreeView:
       ),
 
       // Chain skills detailed section
+      // Chain skills detailed section (recursive for 3-level chains)
       if skill.chainSkills.nonEmpty then
         div(
           cls := "velor-chain-skills-section",
-          skill.chainSkills.map { chain =>
-            div(
-              cls := "velor-chain-skill-item",
-              div(
-                cls := "velor-chain-skill-header",
-                span(cls := "velor-chain-skill-icon", chain.skill.icon),
-                span(chain.skill.name),
-                span(cls := "velor-chain-skill-window", s"${chain.windowMs / 1000.0}s window")
-              ),
-              div(
-                cls := "velor-chain-skill-stats",
-                child <-- levelSignal.map { level =>
-                  val damage = chain.skill.damageAtLevel(level.max(1))
-                  div(
-                    span(s"💥 $damage"),
-                    span(s"💧 ${chain.skill.manaCost}"),
-                    span(s"⏱️ ${chain.skill.cooldownMs / 1000.0}s")
-                  )
-                }
-              )
-            )
-          }
+          skill.chainSkills.flatMap(chain => renderChainSkill(chain, levelSignal))
         )
       else emptyNode,
 
