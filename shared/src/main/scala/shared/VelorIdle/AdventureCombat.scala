@@ -372,7 +372,12 @@ object AdventureCombat:
     combat.copy(skillSlots = combat.skillSlots.map { slot =>
       if slot.isInChainWindow(currentTime) then slot
       else if slot.currentSkill.id != slot.baseSkill.id then
-        slot.copy(currentSkill = slot.baseSkill, chainWindowEndsAt = 0L)
+        // Chain window expired - reset to base skill and apply cooldown
+        slot.copy(
+          currentSkill = slot.baseSkill, 
+          cooldownEndsAt = currentTime + slot.baseSkill.cooldownMs,
+          chainWindowEndsAt = 0L
+        )
       else slot
     })
 
@@ -508,10 +513,15 @@ object AdventureCombat:
     events :+= CombatEvent.PlayerSkillUsed(skill.name, totalDamage)
 
     // Update skill slot
+    // Cooldown is only applied when the chain ends (no more chain skills available)
     val slot = c.skillSlots(slotIndex)
     val newSlot = skill.chainInto match
-      case Some(chain) => slot.copy(currentSkill = chain.skill, cooldownEndsAt = currentTime + skill.cooldownMs, chainWindowEndsAt = currentTime + chain.windowMs)
-      case None => slot.copy(currentSkill = slot.baseSkill, cooldownEndsAt = currentTime + skill.cooldownMs, chainWindowEndsAt = 0L)
+      case Some(chain) => 
+        // Has chain skill available - don't start cooldown yet, open chain window
+        slot.copy(currentSkill = chain.skill, cooldownEndsAt = 0L, chainWindowEndsAt = currentTime + chain.windowMs)
+      case None => 
+        // No chain - chain ended, apply base skill cooldown
+        slot.copy(currentSkill = slot.baseSkill, cooldownEndsAt = currentTime + slot.baseSkill.cooldownMs, chainWindowEndsAt = 0L)
 
     c = c.copy(
       skillSlots = c.skillSlots.updated(slotIndex, newSlot),
@@ -580,10 +590,13 @@ object AdventureCombat:
 
     events :+= CombatEvent.PlayerSkillUsed(skill.name, totalDamage)
 
+    // Update skill slot - cooldown only when chain ends
     val slot = c.skillSlots(slotIndex)
     val newSlot = skill.chainInto match
-      case Some(chain) => slot.copy(currentSkill = chain.skill, cooldownEndsAt = currentTime + skill.cooldownMs, chainWindowEndsAt = currentTime + chain.windowMs)
-      case None => slot.copy(currentSkill = slot.baseSkill, cooldownEndsAt = currentTime + skill.cooldownMs, chainWindowEndsAt = 0L)
+      case Some(chain) => 
+        slot.copy(currentSkill = chain.skill, cooldownEndsAt = 0L, chainWindowEndsAt = currentTime + chain.windowMs)
+      case None => 
+        slot.copy(currentSkill = slot.baseSkill, cooldownEndsAt = currentTime + slot.baseSkill.cooldownMs, chainWindowEndsAt = 0L)
 
     c = c.copy(
       skillSlots = c.skillSlots.updated(slotIndex, newSlot),
