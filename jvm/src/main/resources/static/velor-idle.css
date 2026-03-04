@@ -155,14 +155,6 @@
   color: var(--velor-accent);
 }
 
-.velor-active-skill-content.stunned {
-  background: rgba(239, 68, 68, 0.2);
-  border: 1px solid #ef4444;
-}
-
-.velor-active-skill-content.stunned .velor-active-skill-status {
-  color: #ef4444;
-}
 
 @keyframes velor-skill-spin {
   0% {

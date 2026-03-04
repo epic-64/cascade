@@ -28,8 +28,6 @@ object VelorIdleLogic:
       case ActiveAction.Thieving(action) =>
         processThievingTick(game, action, elapsedSeconds, currentTime, random)
 
-      case ActiveAction.Stunned(until, previousAction) =>
-        processStunnedTick(game, until, previousAction, currentTime)
 
   private def processGatheringTick(
     game: VelorIdleGame,
@@ -383,9 +381,6 @@ object VelorIdleLogic:
     val tabletBonus = if game.tabletSlots.equippedTypes.contains(TabletType.Thief) then 0.10 else 0.0
     val effectiveSuccessRate = (action.baseSuccessRate + levelBonus + tabletBonus).min(0.95) // Cap at 95%
 
-    // Check for Shadow Walker synergy - prevents stun on failure
-    val hasShadowWalker = game.tabletSlots.activeSynergy.contains(SynergyEffect.ShadowWalker)
-
     if random.nextDouble() < effectiveSuccessRate then
       // Success!
       val result = GameUpdate(game, Vector.empty)
@@ -394,18 +389,8 @@ object VelorIdleLogic:
         .pipe(grantThievingLoot(action, random))
       (result.game, result.events)
     else
-      // Failure - stun (unless Shadow Walker)
-      if hasShadowWalker then
-        // No stun, just no loot
-        (game, Vector(GameEvent.ThievingFailed("Caught! (Shadow Walker prevented stun)")))
-      else
-        val stunDuration = calculateStunDuration(action.stunSeconds, skillState.level)
-        val stunnedUntil = currentTime + (stunDuration * 1000).toLong
-        val stunnedGame = game.copy(
-          activeAction = ActiveAction.Stunned(stunnedUntil, action),
-          actionProgress = 0.0
-        )
-        (stunnedGame, Vector(GameEvent.ThievingFailed(s"Caught! Stunned for ${stunDuration.toInt}s")))
+      // Failure - no loot, no XP
+      (game, Vector(GameEvent.ThievingFailed("Caught!")))
 
   private def grantThievingLoot(action: ThievingAction, random: Random)(update: GameUpdate): GameUpdate =
     // Grant gold
@@ -426,32 +411,6 @@ object VelorIdleLogic:
       else acc
     }
 
-  /** Calculate stun duration - decreases with level */
-  private def calculateStunDuration(baseStun: Double, level: Int): Double =
-    // Reduce stun by 1% per level, minimum 50% of base
-    val reduction = (level * 0.01).min(0.5)
-    baseStun * (1.0 - reduction)
-
-  private def processStunnedTick(
-    game: VelorIdleGame,
-    until: Long,
-    previousAction: ThievingAction,
-    currentTime: Long
-  ): (VelorIdleGame, Vector[GameEvent]) =
-    if currentTime >= until then
-      // Stun over - resume thieving
-      val resumedGame = game.copy(
-        activeAction = ActiveAction.Thieving(previousAction),
-        actionProgress = 0.0,
-        lastTickTime = currentTime
-      )
-      (resumedGame, Vector(GameEvent.StunEnded))
-    else
-      // Still stunned - update progress to show remaining time
-      val totalStun = until - game.lastTickTime
-      val elapsed = currentTime - game.lastTickTime
-      val progress = if totalStun > 0 then elapsed.toDouble / totalStun else 1.0
-      (game.copy(actionProgress = progress.min(1.0), lastTickTime = currentTime), Vector.empty)
 
   // ============================================================================
   // Perk Calculations
@@ -598,27 +557,22 @@ object VelorIdleLogic:
 
   /** Start a thieving action */
   def startThieving(game: VelorIdleGame, actionId: String): Either[String, VelorIdleGame] =
-    // Check if currently stunned
-    game.activeAction match
-      case ActiveAction.Stunned(_, _) =>
-        Left("You are stunned!")
-      case _ =>
-        game.currentSkill match
-          case None => Left("No skill selected")
-          case Some(skill) if skill != Skill.Thieving => Left("Not thieving skill")
-          case Some(_) =>
-            val actions = ThievingActions.targets
-            actions.find(_.id == actionId) match
-              case None => Left("Target not found")
-              case Some(action) =>
-                val skillState = game.skills.getOrElse(Skill.Thieving, SkillState.initial)
-                if skillState.level < action.levelRequired then
-                  Left(s"Requires Thieving level ${action.levelRequired}")
-                else
-                  Right(game.copy(
-                    activeAction = ActiveAction.Thieving(action),
-                    actionProgress = 0.0
-                  ))
+    game.currentSkill match
+      case None => Left("No skill selected")
+      case Some(skill) if skill != Skill.Thieving => Left("Not thieving skill")
+      case Some(_) =>
+        val actions = ThievingActions.targets
+        actions.find(_.id == actionId) match
+          case None => Left("Target not found")
+          case Some(action) =>
+            val skillState = game.skills.getOrElse(Skill.Thieving, SkillState.initial)
+            if skillState.level < action.levelRequired then
+              Left(s"Requires Thieving level ${action.levelRequired}")
+            else
+              Right(game.copy(
+                activeAction = ActiveAction.Thieving(action),
+                actionProgress = 0.0
+              ))
 
   /** Stop the current action */
   def stopAction(game: VelorIdleGame): VelorIdleGame =
@@ -835,7 +789,6 @@ enum GameEvent:
   case TabletConsumed(tablet: Item, slot: Int)
   case ThievingSuccess(goldAmount: Long)
   case ThievingFailed(reason: String)
-  case StunEnded
   // Adventure events
   case AdventureEnemyDefeated(enemyId: String)
   case AdventurePlayerDied

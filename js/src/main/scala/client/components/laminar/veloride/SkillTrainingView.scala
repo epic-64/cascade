@@ -59,8 +59,6 @@ object SkillTrainingView:
       // Action progress (if active) - in its own card
       actionProgress(skill, onStopAction),
 
-      // Stun indicator for thieving
-      if skill == Skill.Thieving then stunIndicator() else emptyNode,
 
       // Action selector based on skill type
       div(
@@ -141,17 +139,6 @@ object SkillTrainingView:
 
     div(
       cls := "velor-perk-bonuses",
-      // Stun reduction
-      div(
-        cls := "velor-perk-item",
-        span(cls := "velor-perk-label", "Stun ↓"),
-        span(cls := "velor-perk-value",
-          child.text <-- stateSignal.map { s =>
-            val reduction = (s.level * 1).min(50)
-            s"$reduction%"
-          }
-        )
-      ),
       // Success bonus from level
       div(
         cls := "velor-perk-item",
@@ -176,29 +163,6 @@ object SkillTrainingView:
       )
     )
 
-  private def stunIndicator(): HtmlElement =
-    val activeSignal = VelorIdleState.activeActionSignal
-    val progressSignal = VelorIdleState.actionProgressSignal
-    
-    div(
-      cls := "velor-stun-indicator",
-      display <-- activeSignal.map:
-        case ActiveAction.Stunned(_, _) => "block"
-        case _ => "none"
-      ,
-      div(
-        cls := "velor-stun-card",
-        div(cls := "velor-stun-icon", "😵"),
-        div(cls := "velor-stun-text", "Stunned!"),
-        div(
-          cls := "velor-stun-bar",
-          div(
-            cls := "velor-stun-bar-fill",
-            styleAttr <-- progressSignal.map(p => s"width: ${(p * 100).toInt}%")
-          )
-        )
-      )
-    )
 
   private def processingPerkBonuses(skill: Skill, stateSignal: Signal[SkillState]): HtmlElement =
     // Get efficiency from active action
@@ -331,7 +295,6 @@ object SkillTrainingView:
       case ActiveAction.Gathering(skill, _) if skill == viewingSkill => true
       case ActiveAction.Processing(skill, _) if skill == viewingSkill => true
       case ActiveAction.Thieving(_) if viewingSkill == Skill.Thieving => true
-      case ActiveAction.Stunned(_, _) if viewingSkill == Skill.Thieving => true
       case _ => false
 
     // Get action details when active (including action id for yield calculation)
@@ -342,8 +305,6 @@ object SkillTrainingView:
         Some((action.id, action.icon, action.name, action.timeSeconds, action.xpGain, action.output, false))
       case ActiveAction.Thieving(action) if viewingSkill == Skill.Thieving =>
         Some((action.id, action.icon, action.name, action.timeSeconds, action.xpGain, Item.Gem, false)) // Gem is placeholder
-      case ActiveAction.Stunned(_, action) if viewingSkill == Skill.Thieving =>
-        Some((action.id, "😵", "Stunned!", action.stunSeconds, 0, Item.Gem, false))
       case _ => None
 
     div(
