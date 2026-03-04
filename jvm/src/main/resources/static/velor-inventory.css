@@ -34,7 +34,7 @@
   gap: var(--velor-spacing-xs);
 }
 
-@media (min-width: 500px) {
+@container (min-width: 400px) {
   .velor-inventory-grid {
     grid-template-columns: repeat(6, 1fr);
   }
