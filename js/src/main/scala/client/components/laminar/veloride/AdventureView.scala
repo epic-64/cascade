@@ -28,9 +28,8 @@ object AdventureView:
   
   private def fireProjectile(icon: String, fromSlotIndex: Int): Unit =
     // Get the skill slot element position
-    val slotSelector = s".velor-skill-slot:nth-child(${(fromSlotIndex % 4) + 1})"
-    val rowSelector = if fromSlotIndex < 4 then ".weapon-skills" else ".armor-skills"
-    val slot = dom.document.querySelector(s"$rowSelector $slotSelector")
+    val slotSelector = s".velor-skill-slots .velor-skill-slot:nth-child(${fromSlotIndex + 1})"
+    val slot = dom.document.querySelector(slotSelector)
     val target = dom.document.querySelector(".velor-combat-enemy .velor-hp-bar-container")
     
     if slot != null && target != null then
