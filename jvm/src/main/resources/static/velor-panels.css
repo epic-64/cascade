@@ -73,6 +73,7 @@
   font-weight: 600;
 }
 
+/* Potion Progress Bar - uses base .velor-bar pattern */
 .velor-potion-progress-bar {
   height: 6px;
   background: var(--velor-bg);

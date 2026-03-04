@@ -490,6 +490,52 @@
 }
 
 /* ============================================================================
+   Base Progress Bar Components
+   ============================================================================ */
+
+/* Base bar container - used by HP, Mana, XP, Action, Potion, Stun bars */
+.velor-bar {
+  background: var(--velor-bg);
+  border-radius: var(--velor-radius-sm);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Base bar fill */
+.velor-bar-fill {
+  height: 100%;
+  transition: width 0.15s ease;
+}
+
+/* Bar with centered text overlay */
+.velor-bar-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Common gradient fills */
+.velor-bar-fill.green {
+  background: linear-gradient(90deg, var(--velor-accent-dark), var(--velor-accent));
+}
+
+.velor-bar-fill.gold {
+  background: linear-gradient(90deg, var(--velor-xp-dark), var(--velor-xp));
+}
+
+.velor-bar-fill.red {
+  background: linear-gradient(90deg, #dc2626, #ef4444);
+}
+
+.velor-bar-fill.blue {
+  background: linear-gradient(90deg, #2563eb, #3b82f6);
+}
+
+/* ============================================================================
    Desktop Enhancements (>768px)
    ============================================================================ */
 

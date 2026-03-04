@@ -51,6 +51,7 @@
   font-weight: 500;
 }
 
+/* XP Progress Bar - uses base .velor-bar pattern */
 .velor-xp-bar {
   height: 6px;
   background: var(--velor-bg);
@@ -60,7 +61,7 @@
 
 .velor-xp-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--velor-xp-dark) 0%, var(--velor-xp) 100%);
+  background: linear-gradient(90deg, var(--velor-xp-dark), var(--velor-xp));
   border-radius: 3px;
   transition: width 0.3s ease;
 }
@@ -136,17 +137,17 @@
   margin-bottom: var(--velor-spacing-xs);
 }
 
+/* Action Progress Bar - uses base .velor-bar pattern */
 .velor-action-bar {
   height: 20px;
   background: var(--velor-bg);
   border-radius: 10px;
   overflow: hidden;
-  position: relative;
 }
 
 .velor-action-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--velor-accent-dark) 0%, var(--velor-accent) 100%);
+  background: linear-gradient(90deg, var(--velor-accent-dark), var(--velor-accent));
   border-radius: 10px;
   transition: width 0.1s linear;
 }
