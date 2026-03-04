@@ -29,11 +29,11 @@ object AdventureView:
   ): HtmlElement =
     val adventureStateSignal = VelorIdleState.gameSignal.map(_.adventureState)
     val inCombatSignal = adventureStateSignal.map(_.inCombat)
-    
+
     // Per-instance state for floating damage numbers
     val floatingNumbersVar = Var(Vector.empty[FloatingNumber])
     var nextFloatingId = 0
-    
+
     def showDamageNumber(damage: Int, isPlayer: Boolean, isHeal: Boolean = false): Unit =
       val text = if isHeal then s"+$damage" else s"-$damage"
       val x = random.nextInt(60) - 30  // Random x offset
@@ -48,7 +48,7 @@ object AdventureView:
 
     div(
       cls := "velor-adventure-view",
-      
+
       // Reset state on mount
       onMountCallback { _ =>
         floatingNumbersVar.set(Vector.empty)
@@ -75,27 +75,32 @@ object AdventureView:
         currentKeyHandler = None
       },
 
-      // Header with back button
+      // Header with back button and XP bar
       div(
-        cls := "velor-adventure-header",
-        button(
-          cls := "velor-back-btn",
-          "←",
-          onClick --> { _ =>
-            onStopCombat()
-            VelorIdleState.setViewMode(VelorIdleState.ViewMode.SkillSelect)
-          }
-        ),
+        cls := "velor-skill-header-card",
         div(
-          cls := "velor-adventure-title",
-          span("⚔️"),
-          span("Adventure")
+          cls := "velor-adventure-header",
+          button(
+            cls := "velor-back-btn",
+            "←",
+            onClick --> { _ =>
+              onStopCombat()
+              VelorIdleState.setViewMode(VelorIdleState.ViewMode.SkillSelect)
+            }
+          ),
+          div(
+            cls := "velor-adventure-title",
+            span("⚔️"),
+            span("Adventure")
+          ),
+          // Level display
+          div(
+            cls := "velor-adventure-level",
+            child.text <-- VelorIdleState.skillStateSignal(Skill.Adventure).map(s => s"Lv.${s.level}")
+          )
         ),
-        // Level display
-        div(
-          cls := "velor-adventure-level",
-          child.text <-- VelorIdleState.skillStateSignal(Skill.Adventure).map(s => s"Lv.${s.level}")
-        )
+        // XP Progress bar
+        adventureXpBar(VelorIdleState.skillStateSignal(Skill.Adventure))
       ),
 
       // Enemy select view (hidden when in combat)
@@ -105,6 +110,36 @@ object AdventureView:
       combatView(adventureStateSignal, inCombatSignal, floatingNumbersVar, showDamageNumber, onUseSkill, onStopCombat, onRestartCombat)
     )
 
+  private def adventureXpBar(skillStateSignal: Signal[SkillState]): HtmlElement =
+    div(
+      cls := "velor-xp-bar-container",
+      div(
+        cls := "velor-xp-bar-label",
+        span(child.text <-- skillStateSignal.map { s =>
+          val currentLevelXp = SkillState.xpForLevel(s.level)
+          val nextLevelXp = SkillState.xpForLevel(s.level + 1)
+          val xpIntoLevel = s.xp - currentLevelXp
+          val xpNeeded = nextLevelXp - currentLevelXp
+          s"XP: $xpIntoLevel / $xpNeeded"
+        }),
+        span(child.text <-- skillStateSignal.map(s => s"Total: ${s.xp}"))
+      ),
+      div(
+        cls := "velor-xp-bar",
+        div(
+          cls := "velor-xp-bar-fill",
+          width <-- skillStateSignal.map { s =>
+            val currentLevelXp = SkillState.xpForLevel(s.level)
+            val nextLevelXp = SkillState.xpForLevel(s.level + 1)
+            val progress = if nextLevelXp > currentLevelXp then
+              ((s.xp - currentLevelXp).toDouble / (nextLevelXp - currentLevelXp) * 100).min(100)
+            else 0.0
+            s"$progress%"
+          }
+        )
+      )
+    )
+
   private def enemySelectView(onStartCombat: String => Unit, inCombatSignal: Signal[Boolean]): HtmlElement =
     val adventureLevel = VelorIdleState.skillStateSignal(Skill.Adventure)
     val adventureStateSignal = VelorIdleState.gameSignal.map(_.adventureState)
@@ -112,10 +147,10 @@ object AdventureView:
     div(
       cls := "velor-enemy-select",
       display <-- inCombatSignal.map(if _ then "none" else "flex"),
-      
+
       // Player stats card (shows current HP/Mana before entering combat)
       playerStatsCard(adventureStateSignal),
-      
+
       h3(cls := "velor-enemy-select-title", "Select an Enemy"),
       div(
         cls := "velor-enemy-list",
@@ -221,14 +256,14 @@ object AdventureView:
 
     // Track previous combat events to detect new ones - use Var to properly reset
     val lastEventCountVar = Var(0)
-    
+
     // Track if we were previously in combat to detect combat start
     var wasInCombat = false
 
     div(
       cls := "velor-combat-view",
       display <-- inCombatSignal.map(if _ then "flex" else "none"),
-      
+
       // Use onMountBind to properly scope the subscription to element lifecycle
       onMountBind { ctx =>
         combatSignal --> { state =>
@@ -238,7 +273,7 @@ object AdventureView:
               isVictoryVar.set(combat.isEnemyDead)
             case Some(combat) if !combat.isCombatOver =>
               combatEndedVar.set(false)
-              
+
               // Reset event count when combat starts fresh
               if !wasInCombat then
                 lastEventCountVar.set(combat.recentEvents.length)
