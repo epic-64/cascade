@@ -61,6 +61,8 @@ object VelorIdleState:
 
   val tabletSlotsSignal: Signal[TabletSlots] = gameSignal.map(_.tabletSlots).distinct
 
+  val adventureStateSignal: Signal[AdventureState] = gameSignal.map(_.adventureState).distinct
+
   def skillStateSignal(skill: Skill): Signal[SkillState] =
     gameSignal.map(_.skills.getOrElse(skill, SkillState.initial))
 
@@ -100,7 +102,7 @@ object VelorIdleState:
   enum CharacterTab:
     case Potions
     case Tablets
-    // case Equipment  // Future
+    case Equipment
 
   val viewModeVar: Var[ViewMode] = Var(ViewMode.SkillSelect)
   val viewModeSignal: Signal[ViewMode] = viewModeVar.signal

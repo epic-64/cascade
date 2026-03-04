@@ -31,6 +31,7 @@ object Header:
       child <-- activeActionSignal.map:
         case ActiveAction.Gathering(skill, _) => activeSkillDiv(skill)
         case ActiveAction.Processing(skill, _) => activeSkillDiv(skill)
+        case ActiveAction.EquipmentCrafting(_) => activeSkillDiv(Skill.Smithing)
         case ActiveAction.Thieving(_) => activeSkillDiv(Skill.Thieving)
         case ActiveAction.Adventure => activeSkillDiv(Skill.Adventure)
         case ActiveAction.Rest => activeSkillDiv(Skill.Adventure, "Resting")

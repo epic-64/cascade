@@ -857,6 +857,7 @@ object TabletSlots:
 enum ActiveAction derives ReadWriter:
   case Gathering(skill: Skill, action: GatheringAction)
   case Processing(skill: Skill, action: ProcessingAction)
+  case EquipmentCrafting(action: EquipmentCraftingAction)
   case Thieving(action: ThievingAction)
   case Adventure
   case Rest
@@ -866,6 +867,7 @@ case class VelorIdleGame(
   skills: Map[Skill, SkillState],
   actionLevels: Map[String, ActionState],  // action id -> state
   inventory: Inventory,
+  equipmentInventory: Vector[EquipmentInstance] = Vector.empty,  // Unique equipment items
   gold: Long,
   currentSkill: Option[Skill],
   activeAction: ActiveAction,
@@ -883,6 +885,7 @@ object VelorIdleGame:
       skills = Skill.values.map(s => s -> SkillState.initial).toMap,
       actionLevels = Map.empty,
       inventory = Inventory.empty(),
+      equipmentInventory = Vector.empty,
       gold = 0L,
       currentSkill = None,
       activeAction = ActiveAction.Idle,

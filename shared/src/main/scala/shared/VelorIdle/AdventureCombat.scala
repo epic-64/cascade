@@ -8,8 +8,7 @@ object AdventureCombat:
   // Global cooldown duration in milliseconds
   private val GlobalCooldownMs: Long = 1000L
 
-  // Base auto-attack stats (without equipment)
-  private val BaseAutoAttackDamage: Int = 5
+  // Base auto-attack speed (without equipment modifiers)
   private val BaseAutoAttackSpeedMs: Long = 2000L
 
   /** Append already-ID'd events to combat state */
@@ -352,7 +351,7 @@ object AdventureCombat:
       if evaded then
         events :+= CombatEventDetail.EnemyEvaded
       else
-        val damage = applyDamageBuff(BaseAutoAttackDamage, combat.playerDamageBuff)
+        val damage = applyDamageBuff(advState.attackDamage, combat.playerDamageBuff)
         c = c.copy(enemyCurrentHp = (c.enemyCurrentHp - damage).max(0))
         events :+= CombatEventDetail.PlayerAutoAttack(damage)
 
