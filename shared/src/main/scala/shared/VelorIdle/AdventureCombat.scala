@@ -51,7 +51,7 @@ object AdventureCombat:
   // ============================================================================
 
   /** Maximum levels above player level that an enemy can be fought */
-  val MaxLevelsAbovePlayer: Int = 10
+  val MaxLevelsAbovePlayer: Int = 100
 
   /** Start combat with an enemy */
   def startCombat(
