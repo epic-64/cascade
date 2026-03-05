@@ -11,6 +11,9 @@ object AdventureCombat:
   // Base auto-attack speed (without equipment modifiers)
   private val BaseAutoAttackSpeedMs: Long = 2000L
 
+  // Projectile flight time - damage lands after this delay (matches UI animation)
+  private val ProjectileFlightTimeMs: Long = 200L
+
   /** Append already-ID'd events to combat state */
   private def appendEvents(combat: CombatState, events: Vector[CombatEvent]): CombatState =
     combat.copy(
@@ -180,28 +183,33 @@ object AdventureCombat:
         details ++= castDetails
       case _ => ()
 
-    // 2. Process DoTs
+    // 2. Process pending damage (projectiles landing)
+    val (afterPending, pendingDetails) = processPendingDamage(c, currentTime)
+    c = afterPending
+    details ++= pendingDetails
+
+    // 3. Process DoTs
     val (afterDoTs, dotDetails) = processDoTs(c, currentTime)
     c = afterDoTs
     details ++= dotDetails
 
-    // 3. Process auto-attacks (only if enemy not already dead from DoTs)
+    // 4. Process auto-attacks (only if enemy not already dead)
     if !c.isEnemyDead then
       val (afterAutos, autoDetails) = processAutoAttacks(c, currentTime, advState, random)
       c = afterAutos
       details ++= autoDetails
 
-    // 4. Mana regen (use floating point accumulator for precision)
+    // 5. Mana regen (use floating point accumulator for precision)
     val manaRegen = advState.manaRegenPerSecond * elapsedSeconds
     val newMana = (c.playerMana.toDouble + c.manaRegenAccumulator + manaRegen)
     val wholeMana = newMana.toInt.min(c.playerMaxMana)
     val fractionalMana = if wholeMana >= c.playerMaxMana then 0.0 else newMana - wholeMana
     c = c.copy(playerMana = wholeMana, manaRegenAccumulator = fractionalMana)
 
-    // 5. Process chain windows
+    // 6. Process chain windows
     c = processChainWindows(c, currentTime)
 
-    // 6. Expire timed effects
+    // 7. Expire timed effects
     c = expireTimedEffects(c, currentTime)
 
     finalizeEvents(c, details)
@@ -346,6 +354,32 @@ object AdventureCombat:
       playerShield = expireIfPast(combat.playerShield, currentTime, _.endsAt)
     )
 
+  /** Process pending damage - projectiles that have landed */
+  private def processPendingDamage(
+    combat: CombatState,
+    currentTime: Long
+  ): (CombatState, Vector[CombatEventDetail]) =
+    var c = combat
+    // No events emitted here - events were emitted when projectile was fired
+    // This just applies the damage when the projectile lands
+    
+    // Find all pending damage that has landed
+    val (landed, stillPending) = c.pendingDamage.partition(_.landsAt <= currentTime)
+    c = c.copy(pendingDamage = stillPending)
+    
+    // Apply landed damage (no events - already fired when projectile launched)
+    landed.foreach { pd =>
+      if pd.targetIsPlayer then
+        // Damage to player - apply with shield
+        val (newHp, newShield, _) = applyDamageWithShield(c.playerCurrentHp, c.playerShield, pd.damage, currentTime)
+        c = c.copy(playerCurrentHp = newHp.max(0), playerShield = newShield)
+      else
+        // Damage to enemy
+        c = c.copy(enemyCurrentHp = (c.enemyCurrentHp - pd.damage).max(0))
+    }
+    
+    (c, Vector.empty) // No events - they were already emitted
+
   private def processAutoAttacks(
     combat: CombatState,
     currentTime: Long,
@@ -368,7 +402,10 @@ object AdventureCombat:
         // Roll damage in range [min, max] inclusive
         val baseDamage = advState.attackDamageMin + random.nextInt((advState.attackDamageMax - advState.attackDamageMin + 1).max(1))
         val damage = applyDamageBuff(baseDamage, combat.playerDamageBuff)
-        c = c.copy(enemyCurrentHp = (c.enemyCurrentHp - damage).max(0))
+        // Queue damage to land after projectile flight time
+        val pending = PendingDamage(damage, targetIsPlayer = false, currentTime + ProjectileFlightTimeMs, "auto")
+        c = c.copy(pendingDamage = c.pendingDamage :+ pending)
+        // Event fires now (projectile launched), damage lands later
         events :+= CombatEventDetail.PlayerAutoAttack(damage)
 
     // Enemy auto-attack (only if not stunned/frozen and player not dead)
@@ -383,10 +420,11 @@ object AdventureCombat:
       if evaded then
         events :+= CombatEventDetail.PlayerEvaded
       else
-        val (newHp, newShield, shieldBroken) = applyDamageWithShield(c.playerCurrentHp, c.playerShield, c.enemy.attackDamage, currentTime)
-        c = c.copy(playerCurrentHp = newHp.max(0), playerShield = newShield)
+        // Queue damage to land after projectile flight time
+        val pending = PendingDamage(c.enemy.attackDamage, targetIsPlayer = true, currentTime + ProjectileFlightTimeMs, "enemy")
+        c = c.copy(pendingDamage = c.pendingDamage :+ pending)
+        // Event fires now (projectile launched), damage lands later
         events :+= CombatEventDetail.EnemyAutoAttack(c.enemy.attackDamage)
-        if shieldBroken then events :+= CombatEventDetail.ShieldBroken
 
     (c, events)
 

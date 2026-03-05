@@ -22,8 +22,8 @@ object AdventureView:
     def isEvade: Boolean = text == "Evaded"
   private val random = new Random()
   
-  // Projectile animation duration in ms
-  private val ProjectileFlightTimeMs = 350
+  // Projectile animation duration in ms - must match server's ProjectileFlightTimeMs
+  private val ProjectileFlightTimeMs = 200
 
   // Effect that triggers when projectile lands
   enum ProjectileEffect:
