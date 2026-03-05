@@ -67,13 +67,16 @@ object SkillState:
   val initial: SkillState = SkillState()
 
   /** XP required to go from level N to level N+1.
-    * Formula: 100*level + 10*level² (strong quadratic scaling)
+    * Formula: 100*level + 10*level² + 0.5*level³ (cubic scaling)
+    * Early levels stay reasonable, but high levels require dramatically more XP.
     * - Level 1→2: 110 XP
-    * - Level 50→51: 30,000 XP
-    * - Level 98→99: 105,840 XP
-    * Total to 99: ~5.6M XP
+    * - Level 50→51: 92,500 XP  
+    * - Level 80→81: 326,400 XP
+    * - Level 98→99: 576,626 XP
     */
-  def xpForLevel(level: Int): Long = (100L * level) + (10L * level * level)
+  def xpForLevel(level: Int): Long = 
+    val l = level.toLong
+    (100L * l) + (10L * l * l) + (l * l * l / 2)
 
   /** Total XP required to reach a given level from level 1 */
   def totalXpForLevel(level: Int): Long =
