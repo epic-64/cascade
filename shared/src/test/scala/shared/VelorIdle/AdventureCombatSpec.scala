@@ -385,21 +385,57 @@ class AdventureCombatSpec extends AnyFunSpec with Matchers:
         combat.skillSlots.head.baseSkill.damage shouldBe expectedDamage
 
       it("should stack skill bonuses from multiple equipment pieces"):
+        val game = VelorIdleGame.newGame(0L)
+        val slashSkill = SkillTrees.warrior.skills.head
+        
+        // Set up combat skill state with slash at level 1
         val combatSkillState = CombatSkillState(
-          allocatedPoints = Map(SkillTrees.warrior.skills.head.id -> 1),
-          boundSkills = Vector(Some(SkillTrees.warrior.skills.head.id), None, None, None),
+          allocatedPoints = Map(slashSkill.id -> 1),
+          boundSkills = Vector(Some(slashSkill.id), None, None, None),
           availablePoints = 0
         )
         
-        // +1 from weapon, +2 from armor = +3 total
-        val bonuses = Map("warrior" -> 3)
+        // Create weapon with +1 warrior bonus
+        val magicalWeapon = EquipmentInstance(
+          instanceId = 1L,
+          defId = "bronze_sword",
+          quality = EquipmentQuality.Normal,
+          rarity = EquipmentRarity.Magical,
+          affixes = Vector(MagicalAffix.SkillLevelBonus("warrior", 1))
+        )
         
-        val slots = CombatSkillHelpers.buildSkillSlots(combatSkillState, bonuses)
+        // Create armor with +2 warrior bonus
+        val magicalArmor = EquipmentInstance(
+          instanceId = 2L,
+          defId = "bronze_armor",
+          quality = EquipmentQuality.Normal,
+          rarity = EquipmentRarity.Magical,
+          affixes = Vector(MagicalAffix.SkillLevelBonus("warrior", 2))
+        )
         
-        // Effective level should be 4 (1 base + 3 equipment)
-        val slashSkill = SkillTrees.warrior.skills.head
+        // Set up equipment with both pieces
+        val equipment = EquipmentSlots(weapon = Some(magicalWeapon), armor = Some(magicalArmor))
+        
+        // Verify bonuses stack: +1 from weapon + +2 from armor = +3 total
+        equipment.allSkillBonuses.getOrElse("warrior", 0) shouldBe 3
+        
+        // Set up game and start combat
+        val gameWithSetup = game.copy(
+          adventureState = game.adventureState.copy(
+            combatSkillState = combatSkillState,
+            equipment = equipment
+          ),
+          skills = game.skills.updated(Skill.Adventure, SkillState(level = 10, xp = 0))
+        )
+        
+        val result = AdventureCombat.startCombat(gameWithSetup, "training_dummy", 10000L)
+        result.isRight shouldBe true
+        
+        val combat = result.toOption.get.adventureState.combatState.get
+        
+        // Effective level should be 4 (1 base + 3 from equipment)
         val expectedDamage = slashSkill.damageAtLevel(4)
-        slots.head.baseSkill.damage shouldBe expectedDamage
+        combat.skillSlots.head.baseSkill.damage shouldBe expectedDamage
 
       it("should not affect other skill trees"):
         // Create state with both warrior and mage skills
