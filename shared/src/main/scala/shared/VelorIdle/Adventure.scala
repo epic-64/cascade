@@ -149,12 +149,19 @@ object SkillSlotState:
   def fromSkill(skill: CombatSkill): SkillSlotState =
     SkillSlotState(skill, skill)
 
-/** Damage that has been fired but not yet landed (projectile in flight) */
-case class PendingDamage(
+/** Auto-attack projectile in flight */
+case class PendingAttack(
   damage: Int,
-  targetIsPlayer: Boolean,  // true = damage to player, false = damage to enemy
-  landsAt: Long,            // When the damage lands
-  source: String            // For logging: "auto", "skill:Fireball", etc.
+  targetIsPlayer: Boolean,
+  landsAt: Long
+) derives ReadWriter
+
+/** Skill projectile in flight - skill effects apply when it lands */
+case class PendingSkill(
+  slotIndex: Int,
+  skill: CombatSkill,
+  landsAt: Long,
+  damageBuffPercent: Option[Double] = None  // Captured at cast time if buff was active
 ) derives ReadWriter
 
 /** Current state of combat */
@@ -178,8 +185,9 @@ case class CombatState(
   playerShield: Option[ActiveShield] = None,
   playerDamageBuff: Option[ActiveDamageBuff] = None,
   
-  // Pending damage - projectiles in flight
-  pendingDamage: Vector[PendingDamage] = Vector.empty,
+  // Projectiles in flight
+  pendingAttacks: Vector[PendingAttack] = Vector.empty,
+  pendingSkills: Vector[PendingSkill] = Vector.empty,
   
   // Timing
   lastPlayerAutoAttack: Long = 0L,

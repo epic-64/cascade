@@ -360,25 +360,42 @@ object AdventureCombat:
     currentTime: Long
   ): (CombatState, Vector[CombatEventDetail]) =
     var c = combat
-    // No events emitted here - events were emitted when projectile was fired
-    // This just applies the damage when the projectile lands
+    var events = Vector.empty[CombatEventDetail]
     
-    // Find all pending damage that has landed
-    val (landed, stillPending) = c.pendingDamage.partition(_.landsAt <= currentTime)
-    c = c.copy(pendingDamage = stillPending)
+    // Process pending auto-attacks
+    val (landedAttacks, stillPendingAttacks) = c.pendingAttacks.partition(_.landsAt <= currentTime)
+    c = c.copy(pendingAttacks = stillPendingAttacks)
     
-    // Apply landed damage (no events - already fired when projectile launched)
-    landed.foreach { pd =>
-      if pd.targetIsPlayer then
-        // Damage to player - apply with shield
-        val (newHp, newShield, _) = applyDamageWithShield(c.playerCurrentHp, c.playerShield, pd.damage, currentTime)
+    landedAttacks.foreach { pa =>
+      if pa.damage == 0 then
+        // Evaded attack
+        if pa.targetIsPlayer then
+          events :+= CombatEventDetail.PlayerEvaded
+        else
+          events :+= CombatEventDetail.EnemyEvaded
+      else if pa.targetIsPlayer then
+        // Enemy attack landed on player
+        val (newHp, newShield, shieldBroken) = applyDamageWithShield(c.playerCurrentHp, c.playerShield, pa.damage, currentTime)
         c = c.copy(playerCurrentHp = newHp.max(0), playerShield = newShield)
+        events :+= CombatEventDetail.EnemyAutoAttack(pa.damage)
+        if shieldBroken then events :+= CombatEventDetail.ShieldBroken
       else
-        // Damage to enemy
-        c = c.copy(enemyCurrentHp = (c.enemyCurrentHp - pd.damage).max(0))
+        // Player attack landed on enemy
+        c = c.copy(enemyCurrentHp = (c.enemyCurrentHp - pa.damage).max(0))
+        events :+= CombatEventDetail.PlayerAutoAttack(pa.damage)
     }
     
-    (c, Vector.empty) // No events - they were already emitted
+    // Process pending skills - apply full skill effects when they land
+    val (landedSkills, stillPendingSkills) = c.pendingSkills.partition(_.landsAt <= currentTime)
+    c = c.copy(pendingSkills = stillPendingSkills)
+    
+    landedSkills.foreach { ps =>
+      val (newCombat, skillEvents) = applySkillEffectsOnLanding(c, ps.slotIndex, ps.skill, currentTime, ps.damageBuffPercent)
+      c = newCombat
+      events ++= skillEvents
+    }
+    
+    (c, events)
 
   private def processAutoAttacks(
     combat: CombatState,
@@ -387,7 +404,7 @@ object AdventureCombat:
     random: Random
   ): (CombatState, Vector[CombatEventDetail]) =
     var c = combat
-    var events = Vector.empty[CombatEventDetail]
+    // No events here - events fire when projectiles land in processPendingDamage
 
     // Player auto-attack (disabled while casting)
     val canPlayerAutoAttack = !c.isCasting && 
@@ -397,16 +414,15 @@ object AdventureCombat:
       val evaded = rollEvade(advState.attackRating, c.enemy.defenseRating, random)
       c = c.copy(lastPlayerAutoAttack = currentTime, playerDamageBuff = None)
       if evaded then
-        events :+= CombatEventDetail.EnemyEvaded
+        // Queue evade "projectile" - will show evade text when it lands
+        val pending = PendingAttack(0, targetIsPlayer = false, currentTime + ProjectileFlightTimeMs)
+        c = c.copy(pendingAttacks = c.pendingAttacks :+ pending)
       else
-        // Roll damage in range [min, max] inclusive
+        // Roll damage and queue it
         val baseDamage = advState.attackDamageMin + random.nextInt((advState.attackDamageMax - advState.attackDamageMin + 1).max(1))
         val damage = applyDamageBuff(baseDamage, combat.playerDamageBuff)
-        // Queue damage to land after projectile flight time
-        val pending = PendingDamage(damage, targetIsPlayer = false, currentTime + ProjectileFlightTimeMs, "auto")
-        c = c.copy(pendingDamage = c.pendingDamage :+ pending)
-        // Event fires now (projectile launched), damage lands later
-        events :+= CombatEventDetail.PlayerAutoAttack(damage)
+        val pending = PendingAttack(damage, targetIsPlayer = false, currentTime + ProjectileFlightTimeMs)
+        c = c.copy(pendingAttacks = c.pendingAttacks :+ pending)
 
     // Enemy auto-attack (only if not stunned/frozen and player not dead)
     val canEnemyAttack = !c.enemyStun.exists(_.endsAt > currentTime) &&
@@ -418,15 +434,14 @@ object AdventureCombat:
       val evaded = rollEvade(c.enemy.attackRating, advState.defenseRating, random)
       c = c.copy(lastEnemyAutoAttack = currentTime)
       if evaded then
-        events :+= CombatEventDetail.PlayerEvaded
+        // Queue evade "projectile"
+        val pending = PendingAttack(0, targetIsPlayer = true, currentTime + ProjectileFlightTimeMs)
+        c = c.copy(pendingAttacks = c.pendingAttacks :+ pending)
       else
-        // Queue damage to land after projectile flight time
-        val pending = PendingDamage(c.enemy.attackDamage, targetIsPlayer = true, currentTime + ProjectileFlightTimeMs, "enemy")
-        c = c.copy(pendingDamage = c.pendingDamage :+ pending)
-        // Event fires now (projectile launched), damage lands later
-        events :+= CombatEventDetail.EnemyAutoAttack(c.enemy.attackDamage)
+        val pending = PendingAttack(c.enemy.attackDamage, targetIsPlayer = true, currentTime + ProjectileFlightTimeMs)
+        c = c.copy(pendingAttacks = c.pendingAttacks :+ pending)
 
-    (c, events)
+    (c, Vector.empty) // No events until projectiles land
 
   private def processChainWindows(combat: CombatState, currentTime: Long): CombatState =
     combat.copy(skillSlots = combat.skillSlots.map { slot =>
@@ -536,7 +551,7 @@ object AdventureCombat:
     // Casted skill: mana already paid, no GCD needed, return details for caller to assign IDs
     applySkillEffects(combat, slotIndex, skill, currentTime)
 
-  /** Core skill effect application - shared by instant and casted skills */
+  /** Queue skill to land after projectile flight time - captures damage buff at cast time */
   private def applySkillEffects(
     combat: CombatState,
     slotIndex: Int,
@@ -544,21 +559,51 @@ object AdventureCombat:
     currentTime: Long
   ): (CombatState, Vector[CombatEventDetail]) =
     var c = combat
+    
+    // Capture and consume damage buff at cast time
+    val damageBuffPercent = c.playerDamageBuff.map(_.percent)
+    c = c.copy(playerDamageBuff = None)
+    
+    // Queue skill to land after flight time
+    val pending = PendingSkill(slotIndex, skill, currentTime + ProjectileFlightTimeMs, damageBuffPercent)
+    c = c.copy(pendingSkills = c.pendingSkills :+ pending)
+    
+    // Update skill slot immediately (cooldown, chain window)
+    val slot = c.skillSlots(slotIndex)
+    val newSlot = skill.chainInto match
+      case Some(chain) =>
+        slot.copy(currentSkill = chain.skill, cooldownEndsAt = 0L, chainWindowEndsAt = currentTime + chain.windowMs)
+      case None =>
+        slot.copy(currentSkill = slot.baseSkill, cooldownEndsAt = currentTime + slot.baseSkill.cooldownMs, chainWindowEndsAt = 0L)
+    c = c.copy(skillSlots = c.skillSlots.updated(slotIndex, newSlot))
+    
+    // No events yet - they fire when the skill lands
+    (c, Vector.empty)
+
+  /** Apply all skill effects when the projectile lands */
+  private def applySkillEffectsOnLanding(
+    combat: CombatState,
+    slotIndex: Int,
+    skill: CombatSkill,
+    currentTime: Long,
+    damageBuffPercent: Option[Double]
+  ): (CombatState, Vector[CombatEventDetail]) =
+    var c = combat
     var events = Vector.empty[CombatEventDetail]
     var totalDamage = 0
-    var pendingSkillDamage = 0 // Track damage that will be queued
 
-    // Calculate base damage (queue as pending, don't apply yet)
+    // Apply base damage with captured buff
     if skill.damage > 0 then
-      val buffedDamage = applyDamageBuff(skill.damage, c.playerDamageBuff)
-      c = c.copy(playerDamageBuff = None) // Consume the buff
-      pendingSkillDamage += buffedDamage
+      val buffedDamage = damageBuffPercent match
+        case Some(percent) => (skill.damage * (1.0 + percent)).toInt
+        case None => skill.damage
+      c = c.copy(enemyCurrentHp = (c.enemyCurrentHp - buffedDamage).max(0))
       totalDamage = buffedDamage
 
-    // Apply effects
+    // Apply all effects
     skill.effects.foreach {
       case SkillEffect.Damage(amount) =>
-        pendingSkillDamage += amount
+        c = c.copy(enemyCurrentHp = (c.enemyCurrentHp - amount).max(0))
         totalDamage += amount
       case SkillEffect.DamageOverTime(dpt, ticks, interval) =>
         c = c.copy(enemyDoTs = c.enemyDoTs :+ ActiveDoT(skill.name, dpt, ticks, interval, currentTime))
@@ -574,8 +619,10 @@ object AdventureCombat:
         c.enemyFreeze match
           case Some(freeze) if freeze.endsAt > currentTime =>
             val bonusDamage = (skill.damage * bonusDamagePercent).toInt
-            pendingSkillDamage += bonusDamage
-            c = c.copy(enemyFreeze = None)
+            c = c.copy(
+              enemyCurrentHp = (c.enemyCurrentHp - bonusDamage).max(0),
+              enemyFreeze = None
+            )
             totalDamage += bonusDamage
             events :+= CombatEventDetail.FreezeConsumed(bonusDamage)
           case _ =>
@@ -584,8 +631,6 @@ object AdventureCombat:
         c = c.copy(playerCurrentHp = c.playerCurrentHp + healed)
         events :+= CombatEventDetail.PlayerHealed(healed)
       case SkillEffect.LifeDrain(percent) =>
-        // LifeDrain heals based on damage that WILL be dealt (when projectile lands)
-        // For simplicity, apply heal immediately based on calculated damage
         val heal = (totalDamage * percent).toInt.min(c.playerMaxHp - c.playerCurrentHp)
         c = c.copy(playerCurrentHp = c.playerCurrentHp + heal)
         if heal > 0 then events :+= CombatEventDetail.PlayerHealed(heal)
@@ -597,22 +642,8 @@ object AdventureCombat:
         events :+= CombatEventDetail.DamageBuffApplied(percent)
     }
 
-    // Queue the skill damage as pending (will land after projectile flight time)
-    if pendingSkillDamage > 0 then
-      val pending = PendingDamage(pendingSkillDamage, targetIsPlayer = false, currentTime + ProjectileFlightTimeMs, s"skill:${skill.name}")
-      c = c.copy(pendingDamage = c.pendingDamage :+ pending)
-
     events :+= CombatEventDetail.PlayerSkillUsed(skill.name, totalDamage)
 
-    // Update skill slot - cooldown only when chain ends
-    val slot = c.skillSlots(slotIndex)
-    val newSlot = skill.chainInto match
-      case Some(chain) =>
-        slot.copy(currentSkill = chain.skill, cooldownEndsAt = 0L, chainWindowEndsAt = currentTime + chain.windowMs)
-      case None =>
-        slot.copy(currentSkill = slot.baseSkill, cooldownEndsAt = currentTime + slot.baseSkill.cooldownMs, chainWindowEndsAt = 0L)
-
-    c = c.copy(skillSlots = c.skillSlots.updated(slotIndex, newSlot))
 
     (c, events)
 
