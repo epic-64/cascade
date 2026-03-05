@@ -65,7 +65,7 @@ object DevPanel:
     VelorIdleState.update(result.game.copy(lastTickTime = currentTime))
     
     // Show detailed modal
-    OfflineProgressModal.show(hours, result)
+    OfflineProgressModal.show(result)
 
   // Removed showTimeSkipSummary and formatNumber - now handled by OfflineProgressModal
 

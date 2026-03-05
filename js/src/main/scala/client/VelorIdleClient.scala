@@ -534,10 +534,7 @@ object VelorIdleClient:
           
           // Show offline progress modal if any significant progress was made
           if offlineResult.secondsProcessed >= OfflineProgress.ChunkDurationSeconds then
-            val hours = (offlineResult.secondsProcessed / 3600).toInt
-            val minutes = ((offlineResult.secondsProcessed % 3600) / 60).toInt
-            // Use hours if >= 1h, otherwise show as 0h (will display minutes in modal)
-            OfflineProgressModal.show(if hours > 0 then hours else 0, offlineResult)
+            OfflineProgressModal.show(offlineResult)
           
           println("[VelorIdle] Game loaded")
         }

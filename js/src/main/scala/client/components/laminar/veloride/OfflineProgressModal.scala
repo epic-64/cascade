@@ -8,17 +8,23 @@ object OfflineProgressModal:
 
   private val isOpenVar: Var[Boolean] = Var(false)
   private val resultVar: Var[Option[OfflineProgress.OfflineResult]] = Var(None)
-  private val hoursSkippedVar: Var[Int] = Var(0)
 
   /** Show the modal with offline progress results */
-  def show(hours: Int, result: OfflineProgress.OfflineResult): Unit =
-    hoursSkippedVar.set(hours)
+  def show(result: OfflineProgress.OfflineResult): Unit =
     resultVar.set(Some(result))
     isOpenVar.set(true)
 
   /** Hide the modal */
   def hide(): Unit =
     isOpenVar.set(false)
+
+  /** Format elapsed time as a human-readable string */
+  private def formatElapsedTime(seconds: Long): String =
+    val hours = seconds / 3600
+    val minutes = (seconds % 3600) / 60
+    if hours > 0 then s"${hours}h ${minutes}m"
+    else if minutes > 0 then s"${minutes}m"
+    else s"${seconds}s"
 
   /** The modal element - should be rendered once at the app level */
   def apply(): HtmlElement =
@@ -31,7 +37,10 @@ object OfflineProgressModal:
         cls := "velor-modal velor-offline-modal",
         div(
           cls := "velor-modal-header",
-          child.text <-- hoursSkippedVar.signal.map(h => s"⏰ Offline Progress (${h}h)"),
+          child.text <-- resultVar.signal.map:
+            case Some(result) => s"⏰ Offline Progress (${formatElapsedTime(result.secondsProcessed)})"
+            case None => "⏰ Offline Progress"
+          ,
           button(
             cls := "velor-modal-close",
             "✕",
