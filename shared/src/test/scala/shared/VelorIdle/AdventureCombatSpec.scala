@@ -68,8 +68,8 @@ class AdventureCombatSpec extends AnyFunSpec with Matchers:
         // Enemy HP should be unchanged (damage is pending)
         combat.enemyCurrentHp shouldBe initialEnemyHp
 
-        // There should be a pending attack
-        combat.pendingAttacks should not be empty
+        // There should be a pending skill (auto-attack)
+        combat.pendingSkills.exists(_.pendingType == PendingType.PlayerAutoAttack) shouldBe true
 
       it("should apply damage after projectile flight time"):
         val game = gameInCombat(enemyHp = 50, currentTime = 10000L)
@@ -84,15 +84,15 @@ class AdventureCombatSpec extends AnyFunSpec with Matchers:
         // First tick - queues the player attack
         val (afterFirstTick, _) = AdventureCombat.tick(gameNoEnemy, 10000L, fixedRandom(1))
         val combatAfterFirst = afterFirstTick.adventureState.combatState.get
-        val playerAttacks = combatAfterFirst.pendingAttacks.filter(!_.targetIsPlayer)
+        val playerAttacks = combatAfterFirst.pendingSkills.filter(_.pendingType == PendingType.PlayerAutoAttack)
         playerAttacks should have size 1
-        val pendingDamage = playerAttacks.head.damage
+        val pendingDamage = playerAttacks.head.skill.damage
 
         // Second tick - before flight time expires (at 10100ms, flight time is 200ms)
         val (afterSecondTick, _) = AdventureCombat.tick(afterFirstTick.copy(lastTickTime = 10000L), 10100L, fixedRandom(2))
         val combatAfterSecond = afterSecondTick.adventureState.combatState.get
         // Damage still pending
-        val playerAttacksAfterSecond = combatAfterSecond.pendingAttacks.filter(!_.targetIsPlayer)
+        val playerAttacksAfterSecond = combatAfterSecond.pendingSkills.filter(_.pendingType == PendingType.PlayerAutoAttack)
         playerAttacksAfterSecond should have size 1
         combatAfterSecond.enemyCurrentHp shouldBe 50
 
@@ -109,8 +109,8 @@ class AdventureCombatSpec extends AnyFunSpec with Matchers:
         val (afterTick, _) = AdventureCombat.tick(game, 10000L, fixedRandom(100))
         val combat = afterTick.adventureState.combatState.get
 
-        // Should have pending attacks (could be player and/or enemy)
-        val enemyAttacks = combat.pendingAttacks.filter(_.targetIsPlayer)
+        // Should have pending skills (could be player and/or enemy auto-attacks)
+        val enemyAttacks = combat.pendingSkills.filter(_.pendingType == PendingType.EnemyAutoAttack)
         // Enemy might have attacked depending on timing
         // At minimum, player HP should be unchanged since damage is pending
         combat.playerCurrentHp shouldBe 100
@@ -223,8 +223,8 @@ class AdventureCombatSpec extends AnyFunSpec with Matchers:
           val (afterTick, _) = AdventureCombat.tick(game, 10000L, fixedRandom(evadeSeed))
           val combat = afterTick.adventureState.combatState.get
 
-          // Check if there's a pending attack with 0 damage (evade)
-          val evadedAttacks = combat.pendingAttacks.filter(_.damage == 0)
+          // Check if there's a pending skill marked as evaded
+          val evadedAttacks = combat.pendingSkills.filter(_.evaded)
           evadedAttacks should not be empty
 
     describe("Feature: Cooldowns and chain windows update immediately"):
