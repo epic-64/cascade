@@ -42,6 +42,7 @@ object OfflineProgress:
     xpGained: Map[Skill, Long],
     actionXpGained: Map[String, Long],
     itemsGained: Map[Item, Long],
+    itemsConsumed: Map[Item, Long],
     goldGained: Long,
     skillLevelUps: Map[Skill, Int],
     actionLevelUps: Map[String, Int],
@@ -66,11 +67,11 @@ object OfflineProgress:
 
     if elapsedSeconds < ChunkDurationSeconds then
       // Not enough time passed for offline processing
-      return OfflineResult(game, 0, 0, Map.empty, Map.empty, Map.empty, 0, Map.empty, Map.empty, Vector.empty)
+      return OfflineResult(game, 0, 0, Map.empty, Map.empty, Map.empty, Map.empty, 0, Map.empty, Map.empty, Vector.empty)
 
     game.activeAction match
       case ActiveAction.Idle =>
-        OfflineResult(game, elapsedSeconds, 0, Map.empty, Map.empty, Map.empty, 0, Map.empty, Map.empty, Vector.empty)
+        OfflineResult(game, elapsedSeconds, 0, Map.empty, Map.empty, Map.empty, Map.empty, 0, Map.empty, Map.empty, Vector.empty)
 
       case ActiveAction.Gathering(skill, action) =>
         processGatheringOffline(game, skill, action, elapsedSeconds, random)
@@ -113,7 +114,7 @@ object OfflineProgress:
     val chunksProcessed = (elapsedSeconds / ChunkDurationSeconds).toInt
 
     if actionsCompleted <= 0 then
-      return OfflineResult(game, elapsedSeconds, 0, Map.empty, Map.empty, Map.empty, 0, Map.empty, Map.empty, Vector.empty)
+      return OfflineResult(game, elapsedSeconds, 0, Map.empty, Map.empty, Map.empty, Map.empty, 0, Map.empty, Map.empty, Vector.empty)
 
     // Calculate XP gained
     val skillXpGained = actionsCompleted * action.xpGain
@@ -183,6 +184,7 @@ object OfflineProgress:
       xpGained = Map(skill -> skillXpGained),
       actionXpGained = Map(action.id -> actionXpGained),
       itemsGained = itemsGained,
+      itemsConsumed = Map.empty, // Gathering doesn't consume items
       goldGained = 0,
       skillLevelUps = skillLevelUps,
       actionLevelUps = actionLevelUps,
@@ -219,7 +221,7 @@ object OfflineProgress:
     val chunksProcessed = (elapsedSeconds / ChunkDurationSeconds).toInt
 
     if actionsCompleted <= 0 then
-      return OfflineResult(game, elapsedSeconds, 0, Map.empty, Map.empty, Map.empty, 0, Map.empty, Map.empty, Vector.empty)
+      return OfflineResult(game, elapsedSeconds, 0, Map.empty, Map.empty, Map.empty, Map.empty, 0, Map.empty, Map.empty, Vector.empty)
 
     // Calculate XP gained
     val skillXpGained = actionsCompleted * action.xpGain
@@ -228,12 +230,14 @@ object OfflineProgress:
     // Consume inputs and produce outputs
     var updatedGame = game
 
-    // Remove input items (accounting for recycle chance)
+    // Remove input items (accounting for recycle chance) and track consumption
     val recycleChance = VelorIdleLogic.calculateRecycleChance(skillState.level)
+    var itemsConsumed = Map.empty[Item, Long]
     action.inputs.foreach { case (item, countPerAction) =>
       val totalNeeded = actionsCompleted * countPerAction
       val recycled = (totalNeeded * recycleChance).toLong
       val actualConsumed = totalNeeded - recycled
+      itemsConsumed = itemsConsumed.updated(item, actualConsumed)
       val (newInv, _) = updatedGame.inventory.removeItem(item, actualConsumed)
       updatedGame = updatedGame.copy(inventory = newInv)
     }
@@ -285,6 +289,7 @@ object OfflineProgress:
       xpGained = Map(skill -> skillXpGained),
       actionXpGained = Map(action.id -> actionXpGained),
       itemsGained = itemsGained,
+      itemsConsumed = itemsConsumed,
       goldGained = 0,
       skillLevelUps = skillLevelUps,
       actionLevelUps = actionLevelUps,
@@ -312,7 +317,7 @@ object OfflineProgress:
     val chunksProcessed = (elapsedSeconds / ChunkDurationSeconds).toInt
 
     if attemptsCompleted <= 0 then
-      return OfflineResult(game, elapsedSeconds, 0, Map.empty, Map.empty, Map.empty, 0, Map.empty, Map.empty, Vector.empty)
+      return OfflineResult(game, elapsedSeconds, 0, Map.empty, Map.empty, Map.empty, Map.empty, 0, Map.empty, Map.empty, Vector.empty)
 
     // Calculate success rate
     val levelBonus = (skillState.level - action.levelRequired) * 0.005
@@ -380,6 +385,7 @@ object OfflineProgress:
       xpGained = Map(Skill.Thieving -> skillXpGained),
       actionXpGained = Map(action.id -> actionXpGained),
       itemsGained = itemsGained,
+      itemsConsumed = Map.empty, // Thieving doesn't consume items
       goldGained = goldGained,
       skillLevelUps = skillLevelUps,
       actionLevelUps = actionLevelUps,
@@ -415,7 +421,7 @@ object OfflineProgress:
     val chunksProcessed = (elapsedSeconds / ChunkDurationSeconds).toInt
 
     if actionsCompleted <= 0 then
-      return OfflineResult(game, elapsedSeconds, 0, Map.empty, Map.empty, Map.empty, 0, Map.empty, Map.empty, Vector.empty)
+      return OfflineResult(game, elapsedSeconds, 0, Map.empty, Map.empty, Map.empty, Map.empty, 0, Map.empty, Map.empty, Vector.empty)
 
     // Calculate XP gained
     val skillXpGained = actionsCompleted * action.xpGain
@@ -424,12 +430,14 @@ object OfflineProgress:
     var updatedGame = game
     var events = Vector.empty[GameEvent]
 
-    // Consume inputs
+    // Consume inputs and track consumption
     val recycleChance = VelorIdleLogic.calculateRecycleChance(skillState.level)
+    var itemsConsumed = Map.empty[Item, Long]
     action.inputs.foreach { case (item, countPerAction) =>
       val totalNeeded = actionsCompleted * countPerAction
       val recycled = (totalNeeded * recycleChance).toLong
       val actualConsumed = totalNeeded - recycled
+      itemsConsumed = itemsConsumed.updated(item, actualConsumed)
       val (newInv, _) = updatedGame.inventory.removeItem(item, actualConsumed)
       updatedGame = updatedGame.copy(inventory = newInv)
     }
@@ -478,6 +486,7 @@ object OfflineProgress:
       xpGained = Map(Skill.Smithing -> skillXpGained),
       actionXpGained = Map(action.id -> actionXpGained),
       itemsGained = Map.empty, // Equipment goes to equipment inventory
+      itemsConsumed = itemsConsumed,
       goldGained = 0,
       skillLevelUps = skillLevelUps,
       actionLevelUps = actionLevelUps,
@@ -565,6 +574,7 @@ object OfflineProgress:
       xpGained = if totalXpGained > 0 then Map(Skill.Adventure -> totalXpGained) else Map.empty,
       actionXpGained = Map.empty,
       itemsGained = itemsGained,
+      itemsConsumed = Map.empty, // Combat doesn't consume items
       goldGained = totalGoldGained,
       skillLevelUps = skillLevelUps,
       actionLevelUps = Map.empty,
@@ -597,6 +607,7 @@ object OfflineProgress:
       xpGained = Map.empty,
       actionXpGained = Map.empty,
       itemsGained = Map.empty,
+      itemsConsumed = Map.empty,
       goldGained = 0,
       skillLevelUps = Map.empty,
       actionLevelUps = Map.empty,
