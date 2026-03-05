@@ -21,7 +21,7 @@ case class TreeSkill(
   name: String,
   icon: String,
   description: String,
-  manaCost: Int,
+  manaCost: Int,                 // Base mana cost at level 1
   cooldownMs: Long,
   baseDamage: Int,               // Base damage at level 1
   damagePerLevel: Int,           // Additional damage per level
@@ -29,7 +29,8 @@ case class TreeSkill(
   effects: Vector[SkillEffect] = Vector.empty,
   chainSkills: Vector[TreeChainSkill] = Vector.empty,  // Built-in chain skills
   maxLevel: Int = 10,            // Maximum level for this skill
-  unlockRequirement: Option[TreeSkillRequirement] = None  // Required skill level to unlock
+  unlockRequirement: Option[TreeSkillRequirement] = None,  // Required skill level to unlock
+  isSpell: Boolean = false       // True for spells (higher mana scaling), false for melee attacks
 ) derives ReadWriter:
   /** Calculate damage at a given level using triangular growth.
     * Level 1: baseDamage
@@ -41,6 +42,17 @@ case class TreeSkill(
   def damageAtLevel(level: Int): Int =
     if level <= 0 then 0
     else baseDamage + (AdventureState.triangular(level - 1) * damagePerLevel)
+
+  /** Calculate mana cost at a given level.
+    * Spells: +0.5 mana per level
+    * Attacks: +0.5 mana per 5 levels (i.e., +0.1 per level)
+    */
+  def manaCostAtLevel(level: Int): Int =
+    if level <= 1 then manaCost
+    else
+      val extraLevels = level - 1
+      val extraMana = if isSpell then extraLevels * 0.5 else extraLevels * 0.1
+      (manaCost + extraMana).toInt
 
 /** A chain skill that automatically becomes available after using the parent skill */
 case class TreeChainSkill(
@@ -106,7 +118,7 @@ object SkillTrees:
         name = "Slash",
         icon = "⚔️",
         description = "A quick slash that can chain into a devastating combo",
-        manaCost = 10,
+        manaCost = 1,
         cooldownMs = 10000,  // Long cooldown - has 3-skill chain
         baseDamage = 3,
         damagePerLevel = 1,
@@ -117,7 +129,7 @@ object SkillTrees:
               name = "Double Slash",
               icon = "⚔️⚔️",
               description = "Follow-up slash dealing heavy damage",
-              manaCost = 15,
+              manaCost = 1,
               cooldownMs = 0,  // Chain skills don't need cooldown
               baseDamage = 5,
               damagePerLevel = 1,
@@ -128,7 +140,7 @@ object SkillTrees:
                     name = "Triple Slash",
                     icon = "⚔️⚔️⚔️",
                     description = "Final devastating slash",
-                    manaCost = 20,
+                    manaCost = 2,
                     cooldownMs = 0,
                     baseDamage = 8,
                     damagePerLevel = 2
@@ -148,7 +160,7 @@ object SkillTrees:
         name = "Cleave",
         icon = "🪓",
         description = "A wide cleaving attack that can execute wounded foes",
-        manaCost = 12,
+        manaCost = 1,
         cooldownMs = 8000,  // Medium cooldown - has 2-skill chain
         baseDamage = 4,
         damagePerLevel = 1,
@@ -159,7 +171,7 @@ object SkillTrees:
               name = "Execute",
               icon = "☠️",
               description = "Finish off wounded enemies",
-              manaCost = 20,
+              manaCost = 2,
               cooldownMs = 0,
               baseDamage = 7,
               damagePerLevel = 2
@@ -174,7 +186,7 @@ object SkillTrees:
         name = "Shield Bash",
         icon = "🛡️",
         description = "Bash the enemy with your shield, stunning them",
-        manaCost = 15,
+        manaCost = 2,
         cooldownMs = 2000,  // Short cooldown - no chain, utility skill
         baseDamage = 2,
         damagePerLevel = 1,
@@ -185,7 +197,7 @@ object SkillTrees:
         name = "Battle Cry",
         icon = "📢",
         description = "Boost your next attack's damage",
-        manaCost = 8,
+        manaCost = 1,
         cooldownMs = 1500,  // Short cooldown - buff skill
         baseDamage = 0,
         damagePerLevel = 0,
@@ -208,11 +220,12 @@ object SkillTrees:
         name = "Fireball",
         icon = "🔥",
         description = "Hurl a ball of fire that ignites into a devastating combo",
-        manaCost = 15,
+        manaCost = 3,
         cooldownMs = 12000,  // Long cooldown - has 3-skill chain
         baseDamage = 5,
         damagePerLevel = 1,
         castTimeMs = 1000,
+        isSpell = true,
         chainSkills = Vector(
           TreeChainSkill(
             skill = TreeSkill(
@@ -220,11 +233,12 @@ object SkillTrees:
               name = "Flame Burst",
               icon = "🔥💥",
               description = "Ignite the flames for additional damage",
-              manaCost = 20,
+              manaCost = 4,
               cooldownMs = 0,
               baseDamage = 7,
               damagePerLevel = 1,
               castTimeMs = 1200,
+              isSpell = true,
               chainSkills = Vector(
                 TreeChainSkill(
                   skill = TreeSkill(
@@ -232,11 +246,12 @@ object SkillTrees:
                     name = "Pyroblast",
                     icon = "☀️",
                     description = "A massive explosion of concentrated fire",
-                    manaCost = 30,
+                    manaCost = 5,
                     cooldownMs = 0,
                     baseDamage = 12,
                     damagePerLevel = 2,
-                    castTimeMs = 2000  // Very powerful finisher - long cast
+                    castTimeMs = 2000,  // Very powerful finisher - long cast
+                    isSpell = true
                   ),
                   windowMs = 3000,
                   requiredLevel = 6
@@ -253,11 +268,12 @@ object SkillTrees:
         name = "Frost Nova",
         icon = "💠",
         description = "Unleash a frozen explosion with a high chance to freeze the enemy",
-        manaCost = 12,
+        manaCost = 3,
         cooldownMs = 10000,  // Long cooldown - has 3-skill chain
         baseDamage = 3,
         damagePerLevel = 1,
         castTimeMs = 1000,
+        isSpell = true,
         effects = Vector(SkillEffect.Freeze(75, 5000)),  // 75% chance to freeze for 5s
         chainSkills = Vector(
           TreeChainSkill(
@@ -266,11 +282,12 @@ object SkillTrees:
               name = "Ice Shard",
               icon = "❄️",
               description = "Launch a piercing shard of ice at the frozen target",
-              manaCost = 15,
+              manaCost = 3,
               cooldownMs = 0,
               baseDamage = 5,
               damagePerLevel = 1,
               castTimeMs = 1200,
+              isSpell = true,
               chainSkills = Vector(
                 TreeChainSkill(
                   skill = TreeSkill(
@@ -278,11 +295,12 @@ object SkillTrees:
                     name = "Frost Lance",
                     icon = "🧊",
                     description = "Shatter the frozen enemy for massive bonus damage",
-                    manaCost = 20,
+                    manaCost = 4,
                     cooldownMs = 0,
                     baseDamage = 6,
                     damagePerLevel = 1,
                     castTimeMs = 1500,
+                    isSpell = true,
                     effects = Vector(SkillEffect.ConsumeFreeze(2.0))  // 200% bonus damage if frozen
                   ),
                   windowMs = 3000,
@@ -300,11 +318,12 @@ object SkillTrees:
         name = "Lightning Bolt",
         icon = "⚡",
         description = "Strike with crackling lightning that arcs into a storm",
-        manaCost = 18,
+        manaCost = 4,
         cooldownMs = 12000,  // Long cooldown - has 3-skill chain
         baseDamage = 6,
         damagePerLevel = 1,
         castTimeMs = 1000,
+        isSpell = true,
         chainSkills = Vector(
           TreeChainSkill(
             skill = TreeSkill(
@@ -312,11 +331,12 @@ object SkillTrees:
               name = "Thunder Strike",
               icon = "⚡⚡",
               description = "Call down a powerful thunderbolt",
-              manaCost = 24,
+              manaCost = 4,
               cooldownMs = 0,
               baseDamage = 8,
               damagePerLevel = 2,
               castTimeMs = 1200,
+              isSpell = true,
               chainSkills = Vector(
                 TreeChainSkill(
                   skill = TreeSkill(
@@ -324,11 +344,12 @@ object SkillTrees:
                     name = "Chain Lightning",
                     icon = "⚡⚡⚡",
                     description = "Lightning that arcs to multiple targets",
-                    manaCost = 30,
+                    manaCost = 5,
                     cooldownMs = 0,
                     baseDamage = 11,
                     damagePerLevel = 2,
-                    castTimeMs = 1800
+                    castTimeMs = 1800,
+                    isSpell = true
                   ),
                   windowMs = 2500,
                   requiredLevel = 6
@@ -345,11 +366,12 @@ object SkillTrees:
         name = "Arcane Missiles",
         icon = "✨",
         description = "Channel a stream of arcane energy that builds power",
-        manaCost = 14,
+        manaCost = 3,
         cooldownMs = 10000,  // Long cooldown - has 3-skill chain
         baseDamage = 4,
         damagePerLevel = 1,
         castTimeMs = 2000,  // Long channel time
+        isSpell = true,
         chainSkills = Vector(
           TreeChainSkill(
             skill = TreeSkill(
@@ -357,11 +379,12 @@ object SkillTrees:
               name = "Arcane Barrage",
               icon = "✨✨",
               description = "Unleash stored arcane power",
-              manaCost = 22,
+              manaCost = 4,
               cooldownMs = 0,
               baseDamage = 8,
               damagePerLevel = 2,
               castTimeMs = 1000,
+              isSpell = true,
               chainSkills = Vector(
                 TreeChainSkill(
                   skill = TreeSkill(
@@ -369,11 +392,12 @@ object SkillTrees:
                     name = "Arcane Explosion",
                     icon = "💫",
                     description = "Detonate all arcane energy in a devastating blast",
-                    manaCost = 28,
+                    manaCost = 5,
                     cooldownMs = 0,
                     baseDamage = 10,
                     damagePerLevel = 2,
-                    castTimeMs = 1500
+                    castTimeMs = 1500,
+                    isSpell = true
                   ),
                   windowMs = 3000,
                   requiredLevel = 6
@@ -390,11 +414,12 @@ object SkillTrees:
         name = "Arcane Shield",
         icon = "🔷",
         description = "Conjure a magical barrier",
-        manaCost = 20,
+        manaCost = 4,
         cooldownMs = 2000,  // Short cooldown - defensive utility, no chain
         baseDamage = 0,
         damagePerLevel = 0,
         castTimeMs = 1000,
+        isSpell = true,
         effects = Vector(SkillEffect.Shield(30, 10000))  // 30 absorb, 10s duration
       )
     )
@@ -414,7 +439,7 @@ object SkillTrees:
         name = "Backstab",
         icon = "🔪",
         description = "A quick stab from the shadows that sets up a finishing move",
-        manaCost = 8,
+        manaCost = 1,
         cooldownMs = 8000,  // Medium cooldown - has 2-skill chain
         baseDamage = 4,
         damagePerLevel = 1,
@@ -425,7 +450,7 @@ object SkillTrees:
               name = "Eviscerate",
               icon = "💀",
               description = "A vicious finishing move",
-              manaCost = 15,
+              manaCost = 2,
               cooldownMs = 0,
               baseDamage = 6,
               damagePerLevel = 1
@@ -440,7 +465,7 @@ object SkillTrees:
         name = "Poison Blade",
         icon = "☠️",
         description = "Coat your blade in deadly poison",
-        manaCost = 12,
+        manaCost = 2,
         cooldownMs = 2000,  // Short cooldown - no chain, DoT utility
         baseDamage = 2,
         damagePerLevel = 1,
@@ -451,7 +476,7 @@ object SkillTrees:
         name = "Smoke Bomb",
         icon = "💨",
         description = "Blind the enemy temporarily",
-        manaCost = 15,
+        manaCost = 2,
         cooldownMs = 2000,  // Short cooldown - CC utility
         baseDamage = 2,
         damagePerLevel = 1,
@@ -462,7 +487,7 @@ object SkillTrees:
         name = "Life Drain",
         icon = "🩸",
         description = "Steal health from your enemy",
-        manaCost = 18,
+        manaCost = 2,
         cooldownMs = 2000,  // Short cooldown - sustain utility
         baseDamage = 4,
         damagePerLevel = 1,
@@ -485,11 +510,12 @@ object SkillTrees:
         name = "Smite",
         icon = "✨",
         description = "Strike with holy light that can unleash divine wrath",
-        manaCost = 10,
+        manaCost = 3,
         cooldownMs = 8000,  // Medium cooldown - has 2-skill chain
         baseDamage = 4,
         damagePerLevel = 1,
         castTimeMs = 1000,
+        isSpell = true,
         chainSkills = Vector(
           TreeChainSkill(
             skill = TreeSkill(
@@ -497,11 +523,12 @@ object SkillTrees:
               name = "Divine Wrath",
               icon = "💫",
               description = "Unleash the fury of the heavens",
-              manaCost = 20,
+              manaCost = 4,
               cooldownMs = 0,
               baseDamage = 7,
               damagePerLevel = 2,
-              castTimeMs = 1500
+              castTimeMs = 1500,
+              isSpell = true
             ),
             windowMs = 2500,
             requiredLevel = 4
@@ -513,11 +540,12 @@ object SkillTrees:
         name = "Heal",
         icon = "💚",
         description = "Restore your health with divine energy",
-        manaCost = 20,
+        manaCost = 4,
         cooldownMs = 2000,  // Short cooldown - core healing utility
         baseDamage = 0,
         damagePerLevel = 0,
         castTimeMs = 1500,  // Significant heal needs cast time
+        isSpell = true,
         effects = Vector(SkillEffect.Heal(10))
       ),
       TreeSkill(
@@ -525,11 +553,12 @@ object SkillTrees:
         name = "Holy Shield",
         icon = "🛡️✨",
         description = "Surround yourself with divine protection",
-        manaCost = 18,
+        manaCost = 4,
         cooldownMs = 2000,  // Short cooldown - defensive utility
         baseDamage = 0,
         damagePerLevel = 0,
         castTimeMs = 1000,
+        isSpell = true,
         effects = Vector(SkillEffect.Shield(15, 12000))
       ),
       TreeSkill(
@@ -537,11 +566,12 @@ object SkillTrees:
         name = "Purify",
         icon = "🌟",
         description = "Cleanse and heal over time",
-        manaCost = 15,
+        manaCost = 3,
         cooldownMs = 2000,  // Short cooldown - utility
         baseDamage = 2,
         damagePerLevel = 1,
         castTimeMs = 1000,
+        isSpell = true,
         effects = Vector(SkillEffect.Heal(5))  // Instant heal component
       )
     )
@@ -587,7 +617,7 @@ object CombatSkillHelpers:
       name = treeSkill.name,
       icon = treeSkill.icon,
       description = treeSkill.description,
-      manaCost = treeSkill.manaCost,
+      manaCost = treeSkill.manaCostAtLevel(level),
       cooldownMs = treeSkill.cooldownMs,
       damage = treeSkill.damageAtLevel(level),
       castTimeMs = treeSkill.castTimeMs,
