@@ -1,6 +1,7 @@
 package client.components.laminar.veloride
 
 import com.raquo.laminar.api.L.*
+import org.scalajs.dom
 import shared.VelorIdle.*
 
 /** Unified action list component for both gathering and processing skills.
@@ -275,6 +276,11 @@ object ActionList:
     val isLockedSignal = skillStateSignal.map(_.level < action.levelRequired)
     val isActiveSignal = activeActionSignal.map(action.isActive(_, skill))
 
+    // Tooltip state for this action item
+    val showTooltip = Var(false)
+    val tooltipMessage = Var("")
+    var tooltipTimeoutHandle: Option[Int] = None
+
     // Only show "locked" for level requirements, not for missing items
     val itemClsSignal = isLockedSignal.combineWith(isActiveSignal).map:
       case (true, _) => "velor-action-item locked"
@@ -283,19 +289,34 @@ object ActionList:
 
     div(
       cls <-- itemClsSignal,
+      position.relative,
       onClick --> { _ =>
         val game = VelorIdleState.current
         val levelOk = game.skills.getOrElse(skill, SkillState.initial).level >= action.levelRequired
         if !levelOk then
           () // Level locked - do nothing
         else if !action.hasRequiredItems(game.inventory) then
-          // Items missing - show toast explaining why
-          action.getMissingItemsMessage(game.inventory).foreach(msg =>
-            ToastSystem.show(s"⚠️ $msg")
-          )
+          // Items missing - show tooltip explaining why
+          action.getMissingItemsMessage(game.inventory).foreach { msg =>
+            // Clear any existing timeout
+            tooltipTimeoutHandle.foreach(dom.window.clearTimeout)
+            tooltipMessage.set(msg)
+            showTooltip.set(true)
+            // Auto-close tooltip after 2.5 seconds
+            tooltipTimeoutHandle = Some(dom.window.setTimeout(() => showTooltip.set(false), 2500))
+          }
         else
           onStart(action.id)
       },
+      // Tooltip element
+      div(
+        cls := "velor-action-tooltip",
+        cls <-- showTooltip.signal.map(show => if show then "show" else ""),
+        child.text <-- tooltipMessage.signal,
+        onClick.stopPropagation --> { _ =>
+          showTooltip.set(false)
+        }
+      ),
       div(
         cls := "velor-action-item-left",
         div(cls := "velor-action-item-icon", action.icon),
