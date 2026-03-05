@@ -1030,6 +1030,37 @@ object VelorIdleLogic:
               gold = game.gold + sellValue
             ))
 
+  /** Sell all non-magical equipment of a specific type and quality */
+  def sellEquipmentBulk(game: VelorIdleGame, defId: String, quality: EquipmentQuality): Either[String, (VelorIdleGame, Int, Long)] =
+    // Find all matching non-magical equipment
+    val toSell = game.equipmentInventory.filter { eq =>
+      eq.defId == defId && eq.quality == quality && eq.rarity == EquipmentRarity.Normal
+    }
+    
+    if toSell.isEmpty then
+      Left("No matching equipment to sell")
+    else
+      EquipmentDefs.byId.get(defId) match
+        case None => Left("Invalid equipment type")
+        case Some(def_) =>
+          // Calculate sell value per item
+          val baseValue = def_.tier * 50
+          val qualityMultiplier = quality match
+            case EquipmentQuality.Normal => 1.0
+            case EquipmentQuality.Superior => 1.5
+          val sellValuePer = (baseValue * qualityMultiplier).toInt
+          val totalValue = sellValuePer.toLong * toSell.size
+          val count = toSell.size
+          
+          // Remove all matching items
+          val idsToRemove = toSell.map(_.instanceId).toSet
+          val newEquipInv = game.equipmentInventory.filterNot(eq => idsToRemove.contains(eq.instanceId))
+          
+          Right((game.copy(
+            equipmentInventory = newEquipInv,
+            gold = game.gold + totalValue
+          ), count, totalValue))
+
   // ============================================================================
   // Shop
   // ============================================================================

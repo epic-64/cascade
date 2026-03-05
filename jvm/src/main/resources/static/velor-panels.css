@@ -1010,7 +1010,8 @@
 }
 
 .velor-equipment-equip-btn,
-.velor-equipment-sell-btn {
+.velor-equipment-sell-btn,
+.velor-equipment-sell-all-btn {
   padding: var(--velor-spacing-xs) var(--velor-spacing-sm);
   border-radius: var(--velor-radius-sm);
   border: none;
@@ -1032,6 +1033,21 @@
 .velor-equipment-sell-btn {
   background: var(--velor-danger);
   color: white;
+}
+
+.velor-equipment-sell-all-btn {
+  background: var(--velor-hp);
+  color: white;
+}
+
+.velor-equipment-sell-all-btn:hover {
+  filter: brightness(1.1);
+}
+
+.velor-equipment-count {
+  font-size: 0.85em;
+  color: var(--text-muted);
+  font-weight: 600;
 }
 
 /* Equipment rarity colors */

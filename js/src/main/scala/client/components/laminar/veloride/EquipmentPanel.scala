@@ -6,12 +6,23 @@ import shared.VelorIdle.*
 /** Equipment panel for equipping/unequipping weapons and armor */
 object EquipmentPanel:
 
+  /** Grouped non-magical equipment: (defId, quality) -> list of instances */
+  case class EquipmentGroup(
+    defId: String,
+    quality: EquipmentQuality,
+    items: Vector[EquipmentInstance]
+  ):
+    def count: Int = items.size
+    def first: EquipmentInstance = items.head
+    def definition: Option[EquipmentDef] = EquipmentDefs.byId.get(defId)
+
   def apply(
     onEquipWeapon: Long => Unit,
     onUnequipWeapon: () => Unit,
     onEquipArmor: Long => Unit,
     onUnequipArmor: () => Unit,
-    onSellEquipment: Long => Unit
+    onSellEquipment: Long => Unit,
+    onSellEquipmentBulk: (String, EquipmentQuality) => Unit
   ): HtmlElement =
     div(
       cls := "velor-equipment-panel",
@@ -20,7 +31,7 @@ object EquipmentPanel:
       equippedSection(onUnequipWeapon, onUnequipArmor),
 
       // Equipment inventory section
-      inventorySection(onEquipWeapon, onEquipArmor, onSellEquipment)
+      inventorySection(onEquipWeapon, onEquipArmor, onSellEquipment, onSellEquipmentBulk)
     )
 
   private def equippedSection(
@@ -100,7 +111,8 @@ object EquipmentPanel:
   private def inventorySection(
     onEquipWeapon: Long => Unit,
     onEquipArmor: Long => Unit,
-    onSellEquipment: Long => Unit
+    onSellEquipment: Long => Unit,
+    onSellEquipmentBulk: (String, EquipmentQuality) => Unit
   ): HtmlElement =
     val equipmentInvSignal = VelorIdleState.gameSignal.map(_.equipmentInventory).distinct
 
@@ -111,16 +123,82 @@ object EquipmentPanel:
         if items.isEmpty then
           div(cls := "velor-no-equipment", "No equipment. Craft some in Smithing!")
         else
+          // Separate magical items (shown individually) from non-magical (grouped)
+          val (magical, nonMagical) = items.partition(_.rarity == EquipmentRarity.Magical)
+          
+          // Group non-magical by (defId, quality)
+          val grouped = nonMagical
+            .groupBy(eq => (eq.defId, eq.quality))
+            .map { case ((defId, quality), eqs) => EquipmentGroup(defId, quality, eqs) }
+            .toVector
+            .sortBy(g => (g.definition.map(_.tier).getOrElse(0), g.quality.ordinal))
+          
           div(
             cls := "velor-equipment-inventory-list",
-            items.map { eq =>
-              equipmentItem(eq, onEquipWeapon, onEquipArmor, onSellEquipment)
+            // Render grouped non-magical items
+            grouped.map { group =>
+              groupedEquipmentItem(group, onEquipWeapon, onEquipArmor, onSellEquipmentBulk)
+            },
+            // Render magical items individually
+            magical.map { eq =>
+              magicalEquipmentItem(eq, onEquipWeapon, onEquipArmor, onSellEquipment)
             }
           )
       }
     )
 
-  private def equipmentItem(
+  /** Render a group of identical non-magical items with count and Sell All button */
+  private def groupedEquipmentItem(
+    group: EquipmentGroup,
+    onEquipWeapon: Long => Unit,
+    onEquipArmor: Long => Unit,
+    onSellEquipmentBulk: (String, EquipmentQuality) => Unit
+  ): HtmlElement =
+    val eq = group.first
+    val def_ = group.definition
+    val slotType = def_.map(_.slot).getOrElse(EquipmentSlot.Weapon)
+    val levelReq = def_.map(_.levelRequired).getOrElse(1)
+    val adventureLevel = VelorIdleState.current.skills.getOrElse(Skill.Adventure, SkillState.initial).level
+    val canEquip = adventureLevel >= levelReq
+
+    div(
+      cls := s"velor-equipment-item ${eq.cssClass}",
+      div(cls := "velor-equipment-item-icon", def_.map(_.icon).getOrElse("❓")),
+      div(
+        cls := "velor-equipment-item-info",
+        div(
+          cls := "velor-equipment-item-name",
+          eq.displayName,
+          span(cls := "velor-equipment-count", s" ×${group.count}")
+        ),
+        div(cls := "velor-equipment-item-stats", formatStats(eq)),
+        if !canEquip then
+          div(cls := "velor-equipment-level-req", s"Requires Adventure Lv.$levelReq")
+        else
+          emptyMod
+      ),
+      div(
+        cls := "velor-equipment-item-actions",
+        button(
+          cls := "velor-equipment-equip-btn",
+          disabled := !canEquip,
+          "Equip",
+          onClick --> { _ =>
+            slotType match
+              case EquipmentSlot.Weapon => onEquipWeapon(eq.instanceId)
+              case EquipmentSlot.Armor => onEquipArmor(eq.instanceId)
+          }
+        ),
+        button(
+          cls := "velor-equipment-sell-all-btn",
+          s"Sell All (${group.count})",
+          onClick --> { _ => onSellEquipmentBulk(group.defId, group.quality) }
+        )
+      )
+    )
+
+  /** Render a magical item individually (has unique affixes) */
+  private def magicalEquipmentItem(
     eq: EquipmentInstance,
     onEquipWeapon: Long => Unit,
     onEquipArmor: Long => Unit,
@@ -139,13 +217,11 @@ object EquipmentPanel:
         cls := "velor-equipment-item-info",
         div(cls := "velor-equipment-item-name", eq.displayName),
         div(cls := "velor-equipment-item-stats", formatStats(eq)),
-        // Show affixes if magical
-        eq.affixes.headOption.map { _ =>
-          div(
-            cls := "velor-equipment-item-affixes",
-            eq.affixes.map(aff => div(MagicalAffix.description(aff))).toSeq
-          )
-        }.getOrElse(emptyMod),
+        // Show affixes
+        div(
+          cls := "velor-equipment-item-affixes",
+          eq.affixes.map(aff => div(MagicalAffix.description(aff))).toSeq
+        ),
         if !canEquip then
           div(cls := "velor-equipment-level-req", s"Requires Adventure Lv.$levelReq")
         else
