@@ -149,20 +149,29 @@ object SkillSlotState:
   def fromSkill(skill: CombatSkill): SkillSlotState =
     SkillSlotState(skill, skill)
 
-/** Auto-attack projectile in flight */
-case class PendingAttack(
-  damage: Int,
-  targetIsPlayer: Boolean,
-  landsAt: Long
-) derives ReadWriter
+/** Type of pending attack/skill in flight */
+enum PendingType derives ReadWriter:
+  case PlayerSkill(slotIndex: Int)
+  case PlayerAutoAttack
+  case EnemyAutoAttack
 
-/** Skill projectile in flight - skill effects apply when it lands */
+/** Skill/attack projectile in flight - effects apply when it lands */
 case class PendingSkill(
-  slotIndex: Int,
+  pendingType: PendingType,
   skill: CombatSkill,
   landsAt: Long,
-  damageBuffPercent: Option[Double] = None  // Captured at cast time if buff was active
-) derives ReadWriter
+  damageBuffPercent: Option[Double] = None,  // Captured at cast time if buff was active
+  evaded: Boolean = false                     // True if attack was evaded (damage = 0)
+) derives ReadWriter:
+  def slotIndex: Int = pendingType match
+    case PendingType.PlayerSkill(idx) => idx
+    case _ => -1
+  def isPlayerAttack: Boolean = pendingType match
+    case PendingType.PlayerSkill(_) | PendingType.PlayerAutoAttack => true
+    case PendingType.EnemyAutoAttack => false
+  def isAutoAttack: Boolean = pendingType match
+    case PendingType.PlayerAutoAttack | PendingType.EnemyAutoAttack => true
+    case PendingType.PlayerSkill(_) => false
 
 /** Explicit combat phase for clear state machine transitions */
 enum CombatPhase derives ReadWriter:
@@ -199,8 +208,7 @@ case class CombatState(
   playerShield: Option[ActiveShield] = None,
   playerDamageBuff: Option[ActiveDamageBuff] = None,
   
-  // Projectiles in flight
-  pendingAttacks: Vector[PendingAttack] = Vector.empty,
+  // Projectiles in flight (includes auto-attacks and skills)
   pendingSkills: Vector[PendingSkill] = Vector.empty,
   
   // Timing
@@ -234,7 +242,7 @@ case class CombatState(
   def isLoadingNextEnemy: Boolean = isVictory // For UI compatibility
   def isCombatOver: Boolean = isDefeat // True combat end (player died)
   
-  def hasPendingDamage: Boolean = pendingAttacks.nonEmpty || pendingSkills.nonEmpty
+  def hasPendingDamage: Boolean = pendingSkills.nonEmpty
   
   def isOnGlobalCooldown(now: Long): Boolean = now < globalCooldownEndsAt
   def globalCooldownRemainingMs(now: Long): Long = (globalCooldownEndsAt - now).max(0)
