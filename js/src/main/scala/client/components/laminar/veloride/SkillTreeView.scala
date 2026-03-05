@@ -10,6 +10,18 @@ object SkillTreeView:
   private val selectedTreeVar: Var[Option[String]] = Var(None)
   val selectedTreeSignal: Signal[Option[String]] = selectedTreeVar.signal
 
+  /** Get effective skill level including equipment bonuses */
+  private def getEffectiveLevel(state: CombatSkillState, equipment: EquipmentSlots, skillId: String): Int =
+    val baseLevel = state.getSkillLevel(skillId)
+    // Find which tree this skill belongs to
+    val treeId = SkillTrees.all.find(_.skills.exists(_.id == skillId)).map(_.id)
+    val equipBonus = treeId.map(equipment.allSkillBonuses.getOrElse(_, 0)).getOrElse(0)
+    baseLevel + equipBonus
+
+  /** Get equipment bonus for a skill tree */
+  private def getEquipmentBonus(equipment: EquipmentSlots, treeId: String): Int =
+    equipment.allSkillBonuses.getOrElse(treeId, 0)
+
   def apply(
     onAllocatePoint: String => Unit,
     onDeallocatePoint: String => Unit,
@@ -159,7 +171,19 @@ object SkillTreeView:
     onDeallocatePoint: String => Unit,
     onBindSkill: (String, Int) => Unit
   ): HtmlElement =
+    val gameSignal = VelorIdleState.gameSignal
     val levelSignal = combatSkillStateSignal.map(_.getSkillLevel(skill.id)).distinct
+    val equipmentSignal = gameSignal.map(_.adventureState.equipment)
+    
+    // Find which tree this skill belongs to for equipment bonuses
+    val treeId = SkillTrees.all.find(_.skills.exists(_.id == skill.id)).map(_.id).getOrElse("")
+    
+    // Effective level = base level + equipment bonus
+    val effectiveLevelSignal = levelSignal.combineWith(equipmentSignal).map { case (base, equip) =>
+      val bonus = equip.allSkillBonuses.getOrElse(treeId, 0)
+      (base, base + bonus, bonus)  // (baseLevel, effectiveLevel, bonus)
+    }.distinct
+    
     val canAllocateSignal = combatSkillStateSignal.map { state =>
       state.availablePoints > 0 && state.getSkillLevel(skill.id) < skill.maxLevel
     }.distinct
@@ -182,7 +206,12 @@ object SkillTreeView:
         span(cls := "velor-skill-node-name", skill.name),
         span(
           cls := "velor-skill-node-level",
-          child.text <-- levelSignal.map(level => s"$level / ${skill.maxLevel}")
+          child.text <-- effectiveLevelSignal.map { case (base, effective, bonus) =>
+            if bonus > 0 then
+              s"$effective ($base+$bonus) / ${skill.maxLevel}"
+            else
+              s"$base / ${skill.maxLevel}"
+          }
         ),
         button(
           cls := "btn btn-secondary velor-skill-deallocate-btn",
@@ -203,18 +232,18 @@ object SkillTreeView:
       // Description
       div(cls := "velor-skill-node-desc", skill.description),
 
-      // Stats at current level
+      // Stats at current level (use effective level for damage calculation)
       div(
         cls := "velor-skill-node-stats",
-        child <-- levelSignal.map { level =>
-          val damage = skill.damageAtLevel(level.max(1))
-          val nextDamage = if level < skill.maxLevel then skill.damageAtLevel(level + 1) else damage
+        child <-- effectiveLevelSignal.map { case (baseLevel, effective, bonus) =>
+          val damage = skill.damageAtLevel(effective.max(1))
+          val nextDamage = if baseLevel < skill.maxLevel then skill.damageAtLevel(effective + 1) else damage
           div(
             span(s"💥 $damage"),
             span(s"💧 ${skill.manaCost}"),
             if skill.castTimeMs > 0 then span(s"🎯 ${skill.castTimeMs / 1000.0}s") else emptyNode,
             span(s"⏱️ ${skill.cooldownMs / 1000.0}s"),
-            if level > 0 && level < skill.maxLevel then
+            if baseLevel > 0 && baseLevel < skill.maxLevel then
               span(cls := "velor-skill-next-level", s"→ 💥 $nextDamage")
             else
               emptyNode
@@ -225,9 +254,10 @@ object SkillTreeView:
       // Chain skills detailed section
       // Chain skills detailed section (recursive for 3-level chains)
       if skill.chainSkills.nonEmpty then
+        val effectiveOnlySignal = effectiveLevelSignal.map(_._2) // Just the effective level
         div(
           cls := "velor-chain-skills-section",
-          skill.chainSkills.flatMap(chain => renderChainSkill(chain, levelSignal))
+          skill.chainSkills.flatMap(chain => renderChainSkill(chain, effectiveOnlySignal))
         )
       else emptyNode,
 
