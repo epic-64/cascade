@@ -529,6 +529,8 @@ case class AdventureState(
   // Persistent player stats (persists between combats)
   currentHp: Int = AdventureState.BaseMaxHp,
   currentMana: Int = AdventureState.BaseMaxMana,
+  // Fractional mana regen accumulator for rest (to avoid rounding to 0)
+  restManaRegenAccumulator: Double = 0.0,
   // Counter for generating unique combat instance IDs
   nextCombatInstanceId: Long = 1L,
   // Counter for generating unique equipment instance IDs
@@ -562,7 +564,7 @@ object AdventureState:
   val BaseAutoAttackDamageMin: Int = 1   // Min auto-attack damage (naked)
   val BaseAutoAttackDamageMax: Int = 2   // Max auto-attack damage (naked)
   val BaseManaRegenPercent: Double = 0.01  // 1% of max mana per second during combat
-  val RestManaRegenPercent: Double = 0.05  // 5% of max mana per second while resting
+  val RestManaRegenPercent: Double = 0.20  // 20% of max mana per second while resting (full in ~5s)
   val HpRegenPerSecond: Double = 5.0     // HP regen while resting
 
   /** Calculate triangular number: 1 + 2 + 3 + ... + n = n*(n+1)/2 */

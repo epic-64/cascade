@@ -51,13 +51,21 @@ object VelorIdleLogic:
 
     // Use round to avoid losing small increments due to truncation
     val hpRegen = (AdventureState.HpRegenPerSecond * elapsedSeconds).round.toInt
-    // Resting uses higher mana regen rate (5% vs 1% in combat)
-    val manaRegen = (maxMana * AdventureState.RestManaRegenPercent * elapsedSeconds).round.toInt
+    
+    // Mana regen uses accumulator to prevent rounding small values to 0
+    val manaRegenRate = maxMana * AdventureState.RestManaRegenPercent
+    val manaRegenRaw = advState.restManaRegenAccumulator + (manaRegenRate * elapsedSeconds)
+    val manaRegenWhole = manaRegenRaw.toInt
+    val manaRegenFractional = if advState.currentMana + manaRegenWhole >= maxMana then 0.0 else manaRegenRaw - manaRegenWhole
 
     val newHp = (advState.currentHp + hpRegen).min(maxHp)
-    val newMana = (advState.currentMana + manaRegen).min(maxMana)
+    val newMana = (advState.currentMana + manaRegenWhole).min(maxMana)
 
-    val newAdvState = advState.copy(currentHp = newHp, currentMana = newMana)
+    val newAdvState = advState.copy(
+      currentHp = newHp, 
+      currentMana = newMana,
+      restManaRegenAccumulator = manaRegenFractional
+    )
 
     // Auto-switch to IDLE when fully recovered
     val isFullyRecovered = newHp >= maxHp && newMana >= maxMana
