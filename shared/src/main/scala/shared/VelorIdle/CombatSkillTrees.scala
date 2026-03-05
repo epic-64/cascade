@@ -638,12 +638,16 @@ object CombatSkillHelpers:
     }
 
   /** Build combat skill slots from bound skills and their levels */
-  def buildSkillSlots(combatSkillState: CombatSkillState): Vector[SkillSlotState] =
+  def buildSkillSlots(combatSkillState: CombatSkillState, equipmentSkillBonuses: Map[String, Int] = Map.empty): Vector[SkillSlotState] =
     combatSkillState.boundSkills.map { maybeSkillId =>
       maybeSkillId.flatMap(SkillTrees.getSkillById) match
         case Some(treeSkill) =>
-          val level = combatSkillState.getSkillLevel(treeSkill.id).max(1)
-          val combatSkill = toCombatSkill(treeSkill, level)
+          val baseLevel = combatSkillState.getSkillLevel(treeSkill.id).max(1)
+          // Find which tree this skill belongs to for equipment bonuses
+          val treeId = SkillTrees.all.find(_.skills.exists(_.id == treeSkill.id)).map(_.id).getOrElse("")
+          val equipBonus = equipmentSkillBonuses.getOrElse(treeId, 0)
+          val effectiveLevel = baseLevel + equipBonus
+          val combatSkill = toCombatSkill(treeSkill, effectiveLevel)
           SkillSlotState.fromSkill(combatSkill)
         case None =>
           SkillSlotState.fromSkill(CombatSkill.empty)

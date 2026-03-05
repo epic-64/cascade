@@ -78,7 +78,8 @@ object AdventureCombat:
         val currentMana = advState.currentMana.min(maxMana)
 
         // Build 4 skill slots from combat skill state (skill tree system)
-        val skillSlots = CombatSkillHelpers.buildSkillSlots(advState.combatSkillState)
+        // Include equipment bonuses for effective skill levels
+        val skillSlots = CombatSkillHelpers.buildSkillSlots(advState.combatSkillState, advState.equipmentSkillBonuses)
 
         // Each combat instance gets a unique ID - UI uses this to detect new combats
         val instanceId = advState.nextCombatInstanceId
