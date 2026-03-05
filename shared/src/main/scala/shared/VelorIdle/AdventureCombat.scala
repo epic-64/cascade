@@ -206,6 +206,9 @@ object AdventureCombat:
 
     finalizeEvents(c, details)
 
+  // Duration to wait after killing enemy before showing "loading" (allows kill animation to play)
+  private val VictoryDelayMs: Long = 500L
+  
   // Duration to wait between enemy kills before next enemy spawns
   private val LoadingNextEnemyMs: Long = 1500L
 
@@ -252,8 +255,9 @@ object AdventureCombat:
     events :+= GameEvent.AdventureEnemyDefeated(enemy.id)
 
     // Set loading state - next enemy will spawn after delay
+    // VictoryDelayMs allows killing blow animation to play before showing "loading"
     val loadingCombat = combat.copy(
-      loadingNextEnemyUntil = Some(currentTime + LoadingNextEnemyMs)
+      loadingNextEnemyUntil = Some(currentTime + VictoryDelayMs + LoadingNextEnemyMs)
     )
     val newAdvState = g.adventureState.copy(
       combatState = Some(loadingCombat),
@@ -467,9 +471,9 @@ object AdventureCombat:
         executed.copy(lastPlayerAutoAttack = currentTime)
 
       // If skill killed the enemy, immediately transition to loading state
-      // This prevents further actions before the next tick processes victory
+      // VictoryDelayMs allows killing blow animation to play before showing "loading"
       val finalCombat = if newCombat.isEnemyDead && !newCombat.isLoadingNextEnemy then
-        newCombat.copy(loadingNextEnemyUntil = Some(currentTime + LoadingNextEnemyMs))
+        newCombat.copy(loadingNextEnemyUntil = Some(currentTime + VictoryDelayMs + LoadingNextEnemyMs))
       else
         newCombat
 

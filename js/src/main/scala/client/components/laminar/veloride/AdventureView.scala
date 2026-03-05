@@ -56,13 +56,9 @@ object AdventureView:
     val floatingNumbersVar = Var(Vector.empty[FloatingNumber])
     var nextFloatingId = 0
 
-    // Projectile state - scoped to this instance
+    // Projectile state - purely visual, doesn't affect game state
     val projectilesVar = Var(Vector.empty[Projectile])
     var nextProjectileId = 0
-
-    // Visual HP state - shows delayed HP that updates when projectiles land
-    val visualEnemyHpVar = Var(0)
-    val visualPlayerHpVar = Var(0)
 
     def showDamageNumber(damage: Int, isPlayer: Boolean, isHeal: Boolean = false): Unit =
       val text = if isHeal then s"+$damage" else s"-$damage"
@@ -81,23 +77,18 @@ object AdventureView:
       floatingNumbersVar.update(_ :+ num)
       dom.window.setTimeout(() => floatingNumbersVar.update(_.filterNot(_.id == num.id)), 1000)
 
+    // When projectile lands, just show visual effect - HP is already updated in game state
     def onProjectileLanded(effect: ProjectileEffect): Unit =
       effect match
         case ProjectileEffect.Damage(amount, targetIsPlayer) =>
           showDamageNumber(amount, targetIsPlayer, isHeal = false)
-          // Update visual HP
-          if targetIsPlayer then
-            visualPlayerHpVar.update(hp => (hp - amount).max(0))
-          else
-            visualEnemyHpVar.update(hp => (hp - amount).max(0))
         case ProjectileEffect.Evade(targetIsPlayer) =>
           showEvadedText(targetIsPlayer)
         case ProjectileEffect.SkillDamage(amount) =>
           if amount > 0 then
             showDamageNumber(amount, isPlayer = false, isHeal = false)
-            visualEnemyHpVar.update(hp => (hp - amount).max(0))
 
-    def fireProjectileWithEffect(
+    def fireProjectile(
       icon: String,
       sourceSelector: String,
       targetSelector: String,
@@ -121,7 +112,7 @@ object AdventureView:
         nextProjectileId += 1
         projectilesVar.update(_ :+ projectile)
 
-        // When projectile lands, trigger effect and remove projectile
+        // When projectile lands, show damage number (HP already updated)
         dom.window.setTimeout(() => {
           projectilesVar.update(_.filterNot(_.id == projectile.id))
           onProjectileLanded(effect)
@@ -131,12 +122,12 @@ object AdventureView:
       val sourceSelector = if isPlayer then ".velor-combat-player .velor-entity-icon" else ".velor-combat-enemy .velor-entity-icon"
       val targetSelector = if isPlayer then ".velor-combat-enemy .velor-hp-bar-container" else ".velor-combat-player .velor-hp-bar-container"
       val icon = if isPlayer then "⚔️" else "💥"
-      fireProjectileWithEffect(icon, sourceSelector, targetSelector, effect)
+      fireProjectile(icon, sourceSelector, targetSelector, effect)
 
     def fireSkillProjectile(icon: String, slotIndex: Int, effect: ProjectileEffect): Unit =
       val sourceSelector = s".velor-skill-slots .velor-skill-slot:nth-child(${slotIndex + 1})"
       val targetSelector = ".velor-combat-enemy .velor-hp-bar-container"
-      fireProjectileWithEffect(icon, sourceSelector, targetSelector, effect)
+      fireProjectile(icon, sourceSelector, targetSelector, effect)
 
     div(
       cls := "velor-view velor-view-fill velor-adventure-view",
@@ -204,8 +195,6 @@ object AdventureView:
         inCombatSignal,
         floatingNumbersVar,
         projectilesVar,
-        visualEnemyHpVar,
-        visualPlayerHpVar,
         fireAutoAttackProjectile,
         fireSkillProjectile,
         showDamageNumber,
@@ -410,8 +399,6 @@ object AdventureView:
     inCombatSignal: Signal[Boolean],
     floatingNumbersVar: Var[Vector[FloatingNumber]],
     projectilesVar: Var[Vector[Projectile]],
-    visualEnemyHpVar: Var[Int],
-    visualPlayerHpVar: Var[Int],
     fireAutoAttackProjectile: (Boolean, ProjectileEffect) => Unit,
     fireSkillProjectile: (String, Int, ProjectileEffect) => Unit,
     showDamageNumber: (Int, Boolean, Boolean) => Unit,
@@ -424,54 +411,13 @@ object AdventureView:
     val combatEndedVar = Var(false)
     val isVictoryVar = Var(false)
 
-    // Event tracking state - using event IDs for reliable deduplication
+    // Event tracking - using event IDs for reliable deduplication
     var lastSeenInstanceId = -1L
     var lastProcessedEventId = -1L
-
-    // Current combat state for reconciliation (updated by signal observer)
-    var currentCombatState: Option[CombatState] = None
-
-    // Reconciliation: periodically sync visual HP toward authoritative HP
-    val ReconciliationIntervalMs = 500
-    var reconciliationTimerId: Option[Int] = None
-
-    def startReconciliation(): Unit =
-      reconciliationTimerId.foreach(dom.window.clearInterval(_))
-      reconciliationTimerId = Some(dom.window.setInterval(() => {
-        currentCombatState.foreach { c =>
-          // Smoothly move visual HP toward authoritative HP
-          val currentVisualEnemy = visualEnemyHpVar.now()
-          val currentVisualPlayer = visualPlayerHpVar.now()
-
-          // If visual HP differs significantly from authoritative, snap toward it
-          if math.abs(currentVisualEnemy - c.enemyCurrentHp) > 1 then
-            val newVisual = currentVisualEnemy + ((c.enemyCurrentHp - currentVisualEnemy) * 0.3).toInt
-            visualEnemyHpVar.set(newVisual.max(0).min(c.enemy.maxHp))
-
-          if math.abs(currentVisualPlayer - c.playerCurrentHp) > 1 then
-            val newVisual = currentVisualPlayer + ((c.playerCurrentHp - currentVisualPlayer) * 0.3).toInt
-            visualPlayerHpVar.set(newVisual.max(0).min(c.playerMaxHp))
-        }
-      }, ReconciliationIntervalMs))
-
-    def stopReconciliation(): Unit =
-      reconciliationTimerId.foreach(dom.window.clearInterval(_))
-      reconciliationTimerId = None
 
     div(
       cls := "velor-combat-view",
       display <-- inCombatSignal.map(if _ then "flex" else "none"),
-      
-      // Initialize visual HP when combat starts
-      onMountBind { _ =>
-        combatSignal --> {
-          case Some(combat) if combat.instanceId != lastSeenInstanceId =>
-            // New combat - sync visual HP to actual HP
-            visualEnemyHpVar.set(combat.enemyCurrentHp)
-            visualPlayerHpVar.set(combat.playerCurrentHp)
-          case _ => ()
-        }
-      },
       
       // Projectiles layer
       div(
@@ -485,29 +431,22 @@ object AdventureView:
         })
       ),
 
-      // Event processing - using ID-based deduplication
+      // Event processing - fires projectiles/animations when events happen
       onMountBind { _ =>
         combatSignal --> { 
           case Some(combat) if combat.isPlayerDead && !combatEndedVar.now() =>
-            // Only show modal on player death - victory auto-restarts
             combatEndedVar.set(true)
             isVictoryVar.set(false)
-            currentCombatState = None
-            stopReconciliation()
 
           case Some(combat) if !combat.isCombatOver =>
             combatEndedVar.set(false)
-            currentCombatState = Some(combat)
 
-            // New combat instance? Reset our tracking and sync visual HP
+            // New combat instance? Reset tracking
             if combat.instanceId != lastSeenInstanceId then
               lastSeenInstanceId = combat.instanceId
               lastProcessedEventId = -1L
-              visualEnemyHpVar.set(combat.enemyCurrentHp)
-              visualPlayerHpVar.set(combat.playerCurrentHp)
-              startReconciliation()
 
-            // Process new events using ID-based deduplication
+            // Process new events - fire projectiles for visual effects
             val newEvents = combat.recentEvents.filter(_.id > lastProcessedEventId)
             if newEvents.nonEmpty then
               lastProcessedEventId = newEvents.map(_.id).max
@@ -515,18 +454,14 @@ object AdventureView:
               newEvents.foreach { event =>
                 event.detail match
                   case CombatEventDetail.PlayerAutoAttack(dmg) =>
-                    // Fire projectile with damage effect - damage number shows when it lands
                     fireAutoAttackProjectile(true, ProjectileEffect.Damage(dmg, targetIsPlayer = false))
                   case CombatEventDetail.EnemyAutoAttack(dmg) =>
                     fireAutoAttackProjectile(false, ProjectileEffect.Damage(dmg, targetIsPlayer = true))
                   case CombatEventDetail.PlayerEvaded =>
-                    // Enemy attacked but player evaded - show enemy's projectile, then "Evaded" on player
                     fireAutoAttackProjectile(false, ProjectileEffect.Evade(targetIsPlayer = true))
                   case CombatEventDetail.EnemyEvaded =>
-                    // Player attacked but enemy evaded - show player's projectile, then "Evaded" on enemy
                     fireAutoAttackProjectile(true, ProjectileEffect.Evade(targetIsPlayer = false))
                   case CombatEventDetail.PlayerSkillUsed(skillName, dmg) =>
-                    // Find the skill slot - check current, base, chain skills, and nested chains
                     val slotIndex = combat.skillSlots.indexWhere { slot =>
                       slot.currentSkill.name == skillName ||
                       slot.baseSkill.name == skillName ||
@@ -534,7 +469,6 @@ object AdventureView:
                       slot.baseSkill.chainInto.flatMap(_.skill.chainInto).exists(_.skill.name == skillName)
                     }
                     if slotIndex >= 0 then
-                      // Find the actual skill icon (could be base, chain, or nested chain)
                       val slot = combat.skillSlots(slotIndex)
                       val icon = if slot.baseSkill.name == skillName then
                         slot.baseSkill.icon
@@ -545,37 +479,28 @@ object AdventureView:
                       else
                         slot.currentSkill.icon
                       fireSkillProjectile(icon, slotIndex, ProjectileEffect.SkillDamage(dmg))
-                  // These effects are instant (no projectile) - also update visual HP
                   case CombatEventDetail.PlayerHealed(amt) =>
                     showDamageNumber(amt, true, true)
-                    visualPlayerHpVar.update(hp => (hp + amt).min(combat.playerMaxHp))
                   case CombatEventDetail.EnemyDotTick(dmg, _) =>
                     showDamageNumber(dmg, false, false)
-                    visualEnemyHpVar.update(hp => (hp - dmg).max(0))
                   case CombatEventDetail.PlayerDotTick(dmg, _) =>
                     showDamageNumber(dmg, true, false)
-                    visualPlayerHpVar.update(hp => (hp - dmg).max(0))
                   case _ => ()
               }
-              
+
           case None =>
             lastSeenInstanceId = -1L
             lastProcessedEventId = -1L
-            currentCombatState = None
-            stopReconciliation()
 
           case _ => ()
         }
       },
 
-      // Cleanup reconciliation timer on unmount
-      onUnmountCallback(_ => stopReconciliation()),
+      // Enemy section - uses real game state HP
+      enemyDisplayReactive(combatSignal, floatingNumbersVar, onStopCombat),
 
-      // Enemy section - reactive (uses visual HP)
-      enemyDisplayReactive(combatSignal, floatingNumbersVar, visualEnemyHpVar.signal, onStopCombat),
-
-      // Player section - reactive (uses visual HP)
-      playerDisplayReactive(combatSignal, floatingNumbersVar, visualPlayerHpVar.signal),
+      // Player section - uses real game state HP
+      playerDisplayReactive(combatSignal, floatingNumbersVar),
 
       // Skill bar - reactive
       skillBarReactive(combatSignal, onUseSkill),
@@ -587,7 +512,6 @@ object AdventureView:
   private def enemyDisplayReactive(
     combatSignal: Signal[Option[CombatState]],
     floatingNumbersVar: Var[Vector[FloatingNumber]],
-    visualHpSignal: Signal[Int],
     onStopCombat: () => Unit
   ): HtmlElement =
     val isLoadingSignal = combatSignal.map(_.exists(_.isLoadingNextEnemy)).distinct
@@ -656,9 +580,9 @@ object AdventureView:
         )
       ),
 
-      // HP bar - uses visual HP that updates when projectiles land
+      // HP bar - uses real game state HP (ghost bar provides the delayed chunk effect)
       HpBar(
-        hpSignal = visualHpSignal,
+        hpSignal = combatSignal.map(_.map(_.enemyCurrentHp).getOrElse(0)),
         maxHpSignal = combatSignal.map(_.map(_.enemy.maxHp).getOrElse(1)),
         isPlayer = false
       ),
@@ -700,8 +624,7 @@ object AdventureView:
 
   private def playerDisplayReactive(
     combatSignal: Signal[Option[CombatState]],
-    floatingNumbersVar: Var[Vector[FloatingNumber]],
-    visualHpSignal: Signal[Int]
+    floatingNumbersVar: Var[Vector[FloatingNumber]]
   ): HtmlElement =
     div(
       cls := "velor-combat-entity velor-combat-player",
@@ -744,9 +667,9 @@ object AdventureView:
         )
       ),
 
-      // HP bar - uses visual HP that updates when projectiles land
+      // HP bar - uses real game state HP (ghost bar provides the delayed chunk effect)
       HpBar(
-        hpSignal = visualHpSignal,
+        hpSignal = combatSignal.map(_.map(_.playerCurrentHp).getOrElse(0)),
         maxHpSignal = combatSignal.map(_.map(_.playerMaxHp).getOrElse(1)),
         isPlayer = true,
         showLabel = Some("❤️")
