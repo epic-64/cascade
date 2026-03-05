@@ -158,7 +158,7 @@ object ActionState:
 
 enum Item derives ReadWriter:
   // Woodcutting outputs
-  case NormalLogs, OakLogs, WillowLogs, MapleLogs, YewLogs, MagicLogs
+  case NormalLogs, OakLogs, WillowLogs, MapleLogs, YewLogs, MagicLogs, ElderLogs, AncientLogs
   // Mining outputs
   case CopperOre, TinOre, IronOre, Coal, GoldOre, MithrilOre
   // Fishing outputs
@@ -197,6 +197,8 @@ object Item:
     Item.MapleLogs -> ItemData("🍁", "Maple Logs", 20),
     Item.YewLogs -> ItemData("🌲", "Yew Logs", 40),
     Item.MagicLogs -> ItemData("✨", "Magic Logs", 80),
+    Item.ElderLogs -> ItemData("🌳", "Elder Logs", 150),
+    Item.AncientLogs -> ItemData("🏛️", "Ancient Logs", 300),
     // Ores
     Item.CopperOre -> ItemData("🟤", "Copper Ore", 3),
     Item.TinOre -> ItemData("⚪", "Tin Ore", 3),
@@ -295,7 +297,9 @@ object GatheringActions:
     GatheringAction("willow_tree", "Willow Tree", "🌳", 25, 45, 5.0, Item.WillowLogs, Some((Item.BirdNest, 0.02))),
     GatheringAction("maple_tree", "Maple Tree", "🍁", 40, 80, 6.0, Item.MapleLogs, Some((Item.BirdNest, 0.03))),
     GatheringAction("yew_tree", "Yew Tree", "🌲", 55, 140, 7.0, Item.YewLogs, Some((Item.BirdNest, 0.03))),
-    GatheringAction("magic_tree", "Magic Tree", "✨", 70, 250, 8.0, Item.MagicLogs, Some((Item.BirdNest, 0.05)))
+    GatheringAction("magic_tree", "Magic Tree", "✨", 70, 250, 8.0, Item.MagicLogs, Some((Item.BirdNest, 0.05))),
+    GatheringAction("elder_tree", "Elder Tree", "🌳", 80, 400, 9.0, Item.ElderLogs, Some((Item.BirdNest, 0.06))),
+    GatheringAction("ancient_tree", "Ancient Tree", "🏛️", 90, 650, 10.0, Item.AncientLogs, Some((Item.BirdNest, 0.08)))
   )
 
   // Mining
