@@ -409,13 +409,20 @@ object Enemies:
   /** Calculate enemy HP using triangular growth: baseHp + triangular(level) * factor */
   def calculateHp(level: Int): Int = BaseEnemyHp + AdventureState.triangular(level) * HpPerLevelFactor
 
+  /** Base damage for enemies - scaled linearly with level */
+  private val BaseEnemyDamage: Int = 1
+  private val DamagePerLevel: Double = 0.5
+  
+  /** Calculate enemy damage using linear scaling: baseDamage + level * damagePerLevel */
+  def calculateDamage(level: Int): Int = BaseEnemyDamage + (level * DamagePerLevel).toInt
+
   val goblin: Enemy = Enemy(
     id = "goblin",
     name = "Goblin",
     icon = "👺",
     levelRequired = 1,
     maxHp = calculateHp(1),  // 10 + 1*2 = 12
-    attackDamage = 2,
+    attackDamage = calculateDamage(1),  // 1 + 0 = 1
     attackSpeedMs = 2500,
     attackRating = 2,
     defenseRating = 1,
@@ -430,7 +437,7 @@ object Enemies:
     icon = "💀",
     levelRequired = 5,
     maxHp = calculateHp(5),  // 10 + 15*2 = 40
-    attackDamage = 3,
+    attackDamage = calculateDamage(5),  // 1 + 2 = 3
     attackSpeedMs = 2000,
     attackRating = 5,
     defenseRating = 3,
@@ -446,7 +453,7 @@ object Enemies:
     icon = "👹",
     levelRequired = 10,
     maxHp = calculateHp(10),  // 10 + 55*2 = 120
-    attackDamage = 5,
+    attackDamage = calculateDamage(10),  // 1 + 5 = 6
     attackSpeedMs = 2200,
     attackRating = 10,
     defenseRating = 8,
@@ -462,7 +469,7 @@ object Enemies:
     icon = "🖤",
     levelRequired = 20,
     maxHp = calculateHp(20),  // 10 + 210*2 = 430
-    attackDamage = 8,
+    attackDamage = calculateDamage(20),  // 1 + 10 = 11
     attackSpeedMs = 1800,
     attackRating = 18,
     defenseRating = 20,
@@ -478,7 +485,7 @@ object Enemies:
     icon = "🐉",
     levelRequired = 35,
     maxHp = calculateHp(35),  // 10 + 630*2 = 1270
-    attackDamage = 15,
+    attackDamage = calculateDamage(35),  // 1 + 17 = 18
     attackSpeedMs = 2500,
     attackRating = 30,
     defenseRating = 25,
