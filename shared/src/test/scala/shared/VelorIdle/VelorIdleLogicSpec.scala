@@ -17,32 +17,38 @@ class VelorIdleLogicSpec extends AnyFunSpec with Matchers:
 
     describe("Feature: XP calculations"):
 
-      it("should require N*100 XP to go from level N to N+1"):
-        SkillState.xpForLevel(1) shouldBe 100L
-        SkillState.xpForLevel(2) shouldBe 200L
-        SkillState.xpForLevel(10) shouldBe 1000L
-        SkillState.xpForLevel(50) shouldBe 5000L
+      it("should use cubic scaling formula for XP requirements"):
+        // Formula: 100*level + 10*level² + 0.5*level³
+        // Level 1→2: 100 + 10 + 0 = 110
+        SkillState.xpForLevel(1) shouldBe 110L
+        // Level 2→3: 200 + 40 + 4 = 244
+        SkillState.xpForLevel(2) shouldBe 244L
+        // Level 10: 1000 + 1000 + 500 = 2500
+        SkillState.xpForLevel(10) shouldBe 2500L
+        // Level 50: 5000 + 25000 + 62500 = 92500
+        SkillState.xpForLevel(50) shouldBe 92500L
 
       it("should calculate total XP to reach a level"):
         SkillState.totalXpForLevel(1) shouldBe 0L
-        SkillState.totalXpForLevel(2) shouldBe 100L    // 1*100
-        SkillState.totalXpForLevel(3) shouldBe 300L   // 1*100 + 2*100
-        SkillState.totalXpForLevel(4) shouldBe 600L   // 1*100 + 2*100 + 3*100
+        SkillState.totalXpForLevel(2) shouldBe 110L    // xpForLevel(1)
+        SkillState.totalXpForLevel(3) shouldBe 354L    // 110 + 244
 
       it("should derive level from total XP"):
         SkillState.levelFromXp(0L) shouldBe 1
-        SkillState.levelFromXp(99L) shouldBe 1
-        SkillState.levelFromXp(100L) shouldBe 2
-        SkillState.levelFromXp(299L) shouldBe 2
-        SkillState.levelFromXp(300L) shouldBe 3
+        SkillState.levelFromXp(109L) shouldBe 1
+        SkillState.levelFromXp(110L) shouldBe 2
+        SkillState.levelFromXp(353L) shouldBe 2
+        SkillState.levelFromXp(354L) shouldBe 3
 
       it("should cap level at 99"):
         val massiveXp = 100_000_000L
         SkillState.levelFromXp(massiveXp) shouldBe 99
 
       it("should calculate XP progress within current level"):
-        val state = SkillState(level = 2, xp = 150L) // 50 XP into level 2
-        // Level 2 needs 200 XP to reach level 3, we have 50 XP into level 2
+        // Level 2 starts at 110 XP, level 3 at 354 XP, so need 244 XP to level up
+        // With 171 total XP, we have 61 XP into level 2 (171 - 110 = 61)
+        // Progress = 61 / 244 = 0.25
+        val state = SkillState(level = 2, xp = 171L)
         val progress = SkillState.xpProgress(state)
         progress shouldBe 0.25 +- 0.01
 
@@ -267,8 +273,8 @@ class VelorIdleLogicSpec extends AnyFunSpec with Matchers:
 
       it("should trigger level up event when crossing threshold"):
         val action = GatheringActions.woodcutting.head // 10 XP per action
-        // Set XP to 95, so next action (10 XP) pushes to 105, crossing level 2 at 100
-        val skillState = SkillState(level = 1, xp = 95L)
+        // Level 2 requires 110 XP. Set XP to 105, so next action (10 XP) pushes to 115
+        val skillState = SkillState(level = 1, xp = 105L)
         val game = VelorIdleGame.newGame(1000L)
           .copy(
             currentSkill = Some(Skill.Woodcutting),
