@@ -302,8 +302,7 @@ object ActionList:
             tooltipTimeoutHandle.foreach(dom.window.clearTimeout)
             tooltipMessage.set(msg)
             showTooltip.set(true)
-            // Auto-close tooltip after 2.5 seconds
-            tooltipTimeoutHandle = Some(dom.window.setTimeout(() => showTooltip.set(false), 2500))
+            tooltipTimeoutHandle = Some(dom.window.setTimeout(() => showTooltip.set(false), 2000))
           }
         else
           onStart(action.id)
