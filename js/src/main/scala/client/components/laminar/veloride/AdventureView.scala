@@ -266,7 +266,7 @@ object AdventureView:
           div(
             cls := "velor-enemy-card",
             cls <-- adventureLevel.map(s =>
-              if s.level >= enemy.levelRequired then "unlocked" else "locked"
+              if s.level + AdventureCombat.MaxLevelsAbovePlayer >= enemy.levelRequired then "unlocked" else "locked"
             ).distinct,
             div(cls := "velor-enemy-icon", enemy.icon),
             div(
@@ -288,14 +288,19 @@ object AdventureView:
               else emptyNode,
               div(cls := "velor-enemy-level-req",
                 child.text <-- adventureLevel.map { s =>
-                  if s.level >= enemy.levelRequired then s"XP: ${enemy.xpReward} | 💰 ${enemy.goldReward._1}-${enemy.goldReward._2}"
-                  else s"Requires Lv.${enemy.levelRequired}"
+                  val levelsAbove = enemy.levelRequired - s.level
+                  if levelsAbove <= 0 then 
+                    s"XP: ${enemy.xpReward} | 💰 ${enemy.goldReward._1}-${enemy.goldReward._2}"
+                  else if levelsAbove <= AdventureCombat.MaxLevelsAbovePlayer then 
+                    s"⚠️ +$levelsAbove levels | XP: ${enemy.xpReward} | 💰 ${enemy.goldReward._1}-${enemy.goldReward._2}"
+                  else 
+                    s"Requires Lv.${enemy.levelRequired - AdventureCombat.MaxLevelsAbovePlayer}"
                 }.distinct
               )
             ),
             onClick --> { _ =>
               val level = VelorIdleState.current.skills.getOrElse(Skill.Adventure, SkillState.initial).level
-              if level >= enemy.levelRequired then
+              if level + AdventureCombat.MaxLevelsAbovePlayer >= enemy.levelRequired then
                 onStartCombat(enemy.id)
             }
           )

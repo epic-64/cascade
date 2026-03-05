@@ -50,6 +50,9 @@ object AdventureCombat:
   // Combat Initialization
   // ============================================================================
 
+  /** Maximum levels above player level that an enemy can be fought */
+  val MaxLevelsAbovePlayer: Int = 10
+
   /** Start combat with an enemy */
   def startCombat(
     game: VelorIdleGame,
@@ -60,8 +63,8 @@ object AdventureCombat:
 
     Enemies.all.find(_.id == enemyId) match
       case None => Left(s"Unknown enemy: $enemyId")
-      case Some(enemy) if enemy.levelRequired > adventureLevel =>
-        Left(s"Requires Adventure level ${enemy.levelRequired}")
+      case Some(enemy) if enemy.levelRequired > adventureLevel + MaxLevelsAbovePlayer =>
+        Left(s"Requires Adventure level ${enemy.levelRequired - MaxLevelsAbovePlayer}")
       case Some(enemy) =>
         val advState = game.adventureState
 
