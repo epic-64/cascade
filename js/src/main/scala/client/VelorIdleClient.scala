@@ -121,7 +121,8 @@ object VelorIdleClient:
       onEquipArmor = handleEquipArmor,
       onUnequipArmor = handleUnequipArmor,
       onSellEquipment = handleSellEquipment,
-      onSellEquipmentBulk = handleSellEquipmentBulk
+      onSellEquipmentBulk = handleSellEquipmentBulk,
+      onSellEquipmentBulkMagical = handleSellEquipmentBulkMagical
     )
 
   private def shopView(): HtmlElement =
@@ -303,6 +304,16 @@ object VelorIdleClient:
         VelorIdleState.update(currentGame)
         isDirty = true
         ToastSystem.show(s"💰 Sold $count items for $totalGold gold!")
+      case Left(error) =>
+        ToastSystem.show(s"❌ $error")
+
+  private def handleSellEquipmentBulkMagical(defId: String): Unit =
+    VelorIdleLogic.sellEquipmentBulkMagical(currentGame, defId) match
+      case Right((newGame, count, totalGold)) =>
+        currentGame = newGame
+        VelorIdleState.update(currentGame)
+        isDirty = true
+        ToastSystem.show(s"💰 Sold $count magical items for $totalGold gold!")
       case Left(error) =>
         ToastSystem.show(s"❌ $error")
 

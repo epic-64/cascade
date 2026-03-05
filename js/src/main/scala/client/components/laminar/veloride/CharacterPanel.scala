@@ -16,7 +16,8 @@ object CharacterPanel:
     onEquipArmor: Long => Unit,
     onUnequipArmor: () => Unit,
     onSellEquipment: Long => Unit,
-    onSellEquipmentBulk: (String, EquipmentQuality) => Unit
+    onSellEquipmentBulk: (String, EquipmentQuality) => Unit,
+    onSellEquipmentBulkMagical: String => Unit
   ): HtmlElement =
     div(
       cls := "velor-view velor-view-fill velor-character-panel",
@@ -31,7 +32,7 @@ object CharacterPanel:
         case VelorIdleState.CharacterTab.Tablets =>
           TabletPanel(onEquipTablet, onUnequipTablet)
         case VelorIdleState.CharacterTab.Equipment =>
-          EquipmentPanel(onEquipWeapon, onUnequipWeapon, onEquipArmor, onUnequipArmor, onSellEquipment, onSellEquipmentBulk)
+          EquipmentPanel(onEquipWeapon, onUnequipWeapon, onEquipArmor, onUnequipArmor, onSellEquipment, onSellEquipmentBulk, onSellEquipmentBulkMagical)
     )
 
   private def tabNavigation(): HtmlElement =
