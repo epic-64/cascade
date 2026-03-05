@@ -920,6 +920,16 @@
   color: var(--text-secondary);
 }
 
+.velor-equipment-slot-affixes {
+  margin-top: 0.25rem;
+}
+
+.velor-equipment-slot-affixes .velor-equipment-affix {
+  font-size: 0.7rem;
+  color: #a855f7;
+  font-style: italic;
+}
+
 .velor-equipment-unequip-btn {
   width: 1.5rem;
   height: 1.5rem;

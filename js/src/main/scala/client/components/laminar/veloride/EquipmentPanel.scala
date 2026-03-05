@@ -88,7 +88,15 @@ object EquipmentPanel:
           div(
             cls := "velor-equipment-slot-info",
             div(cls := "velor-equipment-slot-name", eq.displayName),
-            div(cls := "velor-equipment-slot-stats", formatStats(eq))
+            div(cls := "velor-equipment-slot-stats", formatStats(eq)),
+            // Show all affixes
+            if eq.affixes.nonEmpty then
+              div(
+                cls := "velor-equipment-slot-affixes",
+                eq.affixes.map(aff => div(cls := "velor-equipment-affix", MagicalAffix.description(aff))).toSeq
+              )
+            else
+              emptyMod
           ),
           button(
             cls := "velor-equipment-unequip-btn",
