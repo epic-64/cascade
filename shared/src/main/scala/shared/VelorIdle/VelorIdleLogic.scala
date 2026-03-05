@@ -156,7 +156,7 @@ object VelorIdleLogic:
     val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
     val result = GameUpdate(game, Vector.empty)
       .pipe(grantXp(skill, skillState, action.xpGain))
-      .pipe(grantActionXp(action.id, actionState, action.xpGain))
+      .pipe(grantActionXp(action.id, actionState, action.xpGain, action.levelRequired))
       .pipe(grantGatheredItems(action, skill, skillState, actionState, random))
       .pipe(checkRareDrop(action.rareOutput, skillState.level, random))
 
@@ -189,10 +189,10 @@ object VelorIdleLogic:
       else withLevelUp
     else withXp
 
-  private def grantActionXp(actionId: String, actionState: ActionState, xpGain: Int)(update: GameUpdate): GameUpdate =
+  private def grantActionXp(actionId: String, actionState: ActionState, xpGain: Int, actionUnlockLevel: Int)(update: GameUpdate): GameUpdate =
     val newXp = actionState.xp + xpGain
     val oldLevel = actionState.level
-    val newLevel = ActionState.levelFromXp(newXp)
+    val newLevel = ActionState.levelFromXp(newXp, actionUnlockLevel)
     val newActionState = actionState.copy(xp = newXp, level = newLevel)
 
     val withXp = update
@@ -324,7 +324,7 @@ object VelorIdleLogic:
       val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
       val result = GameUpdate(gameAfterConsume, Vector.empty)
         .pipe(grantXp(skill, skillState, action.xpGain))
-        .pipe(grantActionXp(action.id, actionState, action.xpGain))
+        .pipe(grantActionXp(action.id, actionState, action.xpGain, action.levelRequired))
         .pipe(processOutput(action, skill, skillState, random))
 
       (result.game, result.events)
@@ -446,7 +446,7 @@ object VelorIdleLogic:
       // Success!
       val result = GameUpdate(game, Vector.empty)
         .pipe(grantXp(Skill.Thieving, skillState, action.xpGain))
-        .pipe(grantActionXp(action.id, actionState, action.xpGain))
+        .pipe(grantActionXp(action.id, actionState, action.xpGain, action.levelRequired))
         .pipe(grantThievingLoot(action, random))
       (result.game, result.events)
     else
@@ -538,7 +538,7 @@ object VelorIdleLogic:
       // Grant XP to both skill and action
       val result = GameUpdate(gameAfterConsume, Vector.empty)
         .pipe(grantXp(Skill.Smithing, skillState, action.xpGain))
-        .pipe(grantActionXp(action.id, actionState, action.xpGain))
+        .pipe(grantActionXp(action.id, actionState, action.xpGain, action.levelRequired))
 
       // Create the equipment with rolled rarity and affixes
       val advState = result.game.adventureState

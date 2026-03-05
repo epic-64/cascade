@@ -66,8 +66,14 @@ case class SkillState(
 object SkillState:
   val initial: SkillState = SkillState()
 
-  /** XP required to go from level N to level N+1 (linear: N * 100) */
-  def xpForLevel(level: Int): Long = level * 100L
+  /** XP required to go from level N to level N+1.
+    * Formula: 100*level + 5*level² (quadratic scaling)
+    * - Level 1→2: 105 XP
+    * - Level 50→51: 17,500 XP  
+    * - Level 98→99: 57,820 XP
+    * Total to 99: ~2.9M XP
+    */
+  def xpForLevel(level: Int): Long = (100L * level) + (5L * level * level)
 
   /** Total XP required to reach a given level from level 1 */
   def totalXpForLevel(level: Int): Long =
@@ -106,29 +112,36 @@ case class ActionState(
 object ActionState:
   val initial: ActionState = ActionState()
 
-  /** XP required to go from level N to level N+1 (slower progression than skills) */
-  def xpForLevel(level: Int): Long = level * 50L
+  /** XP required to go from level N to level N+1, scaled by action tier.
+    * Base formula: 50*level + 2*level²
+    * Tier multiplier: 1 + (actionUnlockLevel / 20)
+    * This makes higher-tier actions require more XP per level.
+    */
+  def xpForLevel(level: Int, actionUnlockLevel: Int = 1): Long =
+    val base = (50L * level) + (2L * level * level)
+    val tierMultiplier = 1.0 + (actionUnlockLevel / 20.0)
+    (base * tierMultiplier).toLong
 
   /** Total XP required to reach a given level from level 1 */
-  def totalXpForLevel(level: Int): Long =
+  def totalXpForLevel(level: Int, actionUnlockLevel: Int = 1): Long =
     if level <= 1 then 0L
-    else (1 until level).map(l => xpForLevel(l)).sum
+    else (1 until level).map(l => xpForLevel(l, actionUnlockLevel)).sum
 
   /** Calculate level from total XP */
-  def levelFromXp(totalXp: Long): Int =
+  def levelFromXp(totalXp: Long, actionUnlockLevel: Int = 1): Int =
     var level = 1
     var xpNeeded = 0L
-    while level < 99 && totalXp >= xpNeeded + xpForLevel(level) do
-      xpNeeded += xpForLevel(level)
+    while level < 99 && totalXp >= xpNeeded + xpForLevel(level, actionUnlockLevel) do
+      xpNeeded += xpForLevel(level, actionUnlockLevel)
       level += 1
     level
 
   /** XP progress within current level (0.0 to 1.0) */
-  def xpProgress(state: ActionState): Double =
+  def xpProgress(state: ActionState, actionUnlockLevel: Int = 1): Double =
     if state.level >= 99 then 1.0
     else
-      val currentLevelXp = totalXpForLevel(state.level)
-      val nextLevelXp = totalXpForLevel(state.level + 1)
+      val currentLevelXp = totalXpForLevel(state.level, actionUnlockLevel)
+      val nextLevelXp = totalXpForLevel(state.level + 1, actionUnlockLevel)
       val xpInLevel = state.xp - currentLevelXp
       val xpNeeded = nextLevelXp - currentLevelXp
       if xpNeeded <= 0 then 1.0

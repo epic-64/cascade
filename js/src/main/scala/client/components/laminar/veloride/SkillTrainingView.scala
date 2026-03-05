@@ -322,11 +322,12 @@ object SkillTrainingView:
     targetLevel: Int,
     xpPerAction: Double,
     effectiveTime: Double,
-    currentProgress: Double
+    currentProgress: Double,
+    actionUnlockLevel: Int
   ): Long =
     if xpPerAction <= 0 then Long.MaxValue
     else
-      val xpNeeded = ActionState.totalXpForLevel(targetLevel) - currentXp
+      val xpNeeded = ActionState.totalXpForLevel(targetLevel, actionUnlockLevel) - currentXp
       if xpNeeded <= 0 then 0L
       else
         val actionsNeeded = Math.ceil(xpNeeded / xpPerAction)
@@ -349,15 +350,16 @@ object SkillTrainingView:
       case _ => false
 
     // Get action details when active (including action id for yield calculation)
+    // Tuple: (actionId, icon, name, timeSeconds, xpGain, output, hasRareOutput, levelRequired)
     val actionDetailsSignal = activeSignal.map:
       case ActiveAction.Gathering(skill, action) if skill == viewingSkill =>
-        Some((action.id, action.icon, action.name, action.timeSeconds, action.xpGain, action.output, true))
+        Some((action.id, action.icon, action.name, action.timeSeconds, action.xpGain, action.output, true, action.levelRequired))
       case ActiveAction.Processing(skill, action) if skill == viewingSkill =>
-        Some((action.id, action.icon, action.name, action.timeSeconds, action.xpGain, action.output, false))
+        Some((action.id, action.icon, action.name, action.timeSeconds, action.xpGain, action.output, false, action.levelRequired))
       case ActiveAction.EquipmentCrafting(action) if viewingSkill == Skill.Smithing =>
-        Some((action.id, action.icon, action.name, action.timeSeconds, action.xpGain, Item.BronzeBar, false)) // Placeholder output
+        Some((action.id, action.icon, action.name, action.timeSeconds, action.xpGain, Item.BronzeBar, false, action.levelRequired))
       case ActiveAction.Thieving(action) if viewingSkill == Skill.Thieving =>
-        Some((action.id, action.icon, action.name, action.timeSeconds, action.xpGain, Item.Gem, false)) // Gem is placeholder
+        Some((action.id, action.icon, action.name, action.timeSeconds, action.xpGain, Item.Gem, false, action.levelRequired))
       case _ => None
 
     div(
@@ -369,19 +371,19 @@ object SkillTrainingView:
         div(
           cls := "velor-training-title",
           child <-- actionDetailsSignal.map:
-            case Some((_, icon, name, _, _, _, _)) =>
+            case Some((_, icon, _, _, _, _, _, _)) =>
               span(cls := "velor-training-icon", icon)
             case None =>
               span(cls := "velor-training-icon", Skill.icon(viewingSkill))
           ,
           child.text <-- actionDetailsSignal.map:
-            case Some((_, _, name, _, _, _, _)) => name
+            case Some((_, _, name, _, _, _, _, _)) => name
             case None => "Idle"
           ,
           span(
             cls := "velor-training-level",
             child.text <-- actionDetailsSignal.combineWith(VelorIdleState.gameSignal).map:
-              case (Some((actionId, _, _, _, _, _, _)), game) =>
+              case (Some((actionId, _, _, _, _, _, _, _)), game) =>
                 val actionState = game.actionLevels.getOrElse(actionId, ActionState.initial)
                 s"Lv.${actionState.level}"
               case _ => ""
@@ -429,7 +431,7 @@ object SkillTrainingView:
           div(
             cls := "velor-action-time",
             child.text <-- isActiveSignal.combineWith(actionDetailsSignal, progressSignal, VelorIdleState.gameSignal).map:
-              case (true, Some((actionId, _, _, baseTime, _, _, _)), p, game) =>
+              case (true, Some((actionId, _, _, baseTime, _, _, _, _)), p, game) =>
                 val actionState = game.actionLevels.getOrElse(actionId, ActionState.initial)
                 val efficiency = VelorIdleLogic.calculateEfficiencyBonus(actionState.level)
                 val effectiveTime = baseTime * (1.0 - efficiency)
@@ -457,35 +459,40 @@ object SkillTrainingView:
       )
     )
 
-  private def actionXpProgressBar(actionDetailsSignal: Signal[Option[(String, String, String, Double, Int, Item, Boolean)]]): HtmlElement =
+  private def actionXpProgressBar(actionDetailsSignal: Signal[Option[(String, String, String, Double, Int, Item, Boolean, Int)]]): HtmlElement =
     // Action state signal
     val actionStateSignal = actionDetailsSignal.combineWith(VelorIdleState.gameSignal).map:
-      case (Some((actionId, _, _, _, _, _, _)), game) => 
+      case (Some((actionId, _, _, _, _, _, _, _)), game) =>
         Some(game.actionLevels.getOrElse(actionId, ActionState.initial))
       case _ => None
-    
+
+    // Action unlock level signal (for XP calculations)
+    val actionUnlockLevelSignal = actionDetailsSignal.map:
+      case Some((_, _, _, _, _, _, _, levelRequired)) => levelRequired
+      case _ => 1
+
     // ETA signal for action level up - uses progressSignal for real-time updates
     val etaSignal = actionDetailsSignal.combineWith(VelorIdleState.gameSignal, VelorIdleState.actionProgressSignal).map:
-      case (Some((actionId, _, _, timeSeconds, actionXpGain, _, _)), game, currentProgress) =>
+      case (Some((actionId, _, _, timeSeconds, actionXpGain, _, _, levelRequired)), game, currentProgress) =>
         val actionState = game.actionLevels.getOrElse(actionId, ActionState.initial)
         if actionState.level >= 99 then "MAX"
         else
           val efficiency = VelorIdleLogic.calculateEfficiencyBonus(actionState.level)
           val effectiveTime = timeSeconds * (1.0 - efficiency)
-          val seconds = calculateSecondsToActionLevel(actionState.xp, actionState.level + 1, actionXpGain.toDouble, effectiveTime, currentProgress)
+          val seconds = calculateSecondsToActionLevel(actionState.xp, actionState.level + 1, actionXpGain.toDouble, effectiveTime, currentProgress, levelRequired)
           if seconds == Long.MaxValue then "—" else formatEta(seconds)
       case _ => "—"
     .distinct
 
     // ETA signal for action level 99
     val eta99Signal = actionDetailsSignal.combineWith(VelorIdleState.gameSignal, VelorIdleState.actionProgressSignal).map:
-      case (Some((actionId, _, _, timeSeconds, actionXpGain, _, _)), game, currentProgress) =>
+      case (Some((actionId, _, _, timeSeconds, actionXpGain, _, _, levelRequired)), game, currentProgress) =>
         val actionState = game.actionLevels.getOrElse(actionId, ActionState.initial)
         if actionState.level >= 99 then "MAX"
         else
           val efficiency = VelorIdleLogic.calculateEfficiencyBonus(actionState.level)
           val effectiveTime = timeSeconds * (1.0 - efficiency)
-          val seconds = calculateSecondsToActionLevel(actionState.xp, 99, actionXpGain.toDouble, effectiveTime, currentProgress)
+          val seconds = calculateSecondsToActionLevel(actionState.xp, 99, actionXpGain.toDouble, effectiveTime, currentProgress, levelRequired)
           if seconds == Long.MaxValue then "—" else formatEta(seconds)
       case _ => "—"
     .distinct
@@ -498,21 +505,21 @@ object SkillTrainingView:
           case Some(s) => s"XP: ${s.xp}"
           case None => "—"
         ),
-        span(cls := "velor-xp-eta", child.text <-- etaSignal.map(e => s"⏱$e")),
-        span(cls := "velor-xp-eta velor-xp-eta-99", child.text <-- eta99Signal.map(e => s"→99: $e")),
-        span(child.text <-- actionStateSignal.map:
-          case Some(s) if s.level >= 99 => "MAX"
-          case Some(s) => s"Next: ${ActionState.totalXpForLevel(s.level + 1)}"
-          case None => ""
+        span(cls := "velor-xp-eta", child.text <-- etaSignal.map(e => s"$e")),
+        span(cls := "velor-xp-eta velor-xp-eta-99", child.text <-- eta99Signal.map(e => s"$e")),
+        span(child.text <-- actionStateSignal.combineWith(actionUnlockLevelSignal).map:
+          case (Some(s), _) if s.level >= 99 => "MAX"
+          case (Some(s), unlockLevel) => s"Next: ${ActionState.totalXpForLevel(s.level + 1, unlockLevel)}"
+          case _ => ""
         )
       ),
       div(
         cls := "velor-xp-bar",
         div(
           cls := "velor-xp-bar-fill",
-          styleAttr <-- actionStateSignal.map:
-            case Some(s) => s"width: ${(ActionState.xpProgress(s) * 100).toInt}%"
-            case None => "width: 0%"
+          styleAttr <-- actionStateSignal.combineWith(actionUnlockLevelSignal).map:
+            case (Some(s), unlockLevel) => s"width: ${(ActionState.xpProgress(s, unlockLevel) * 100).toInt}%"
+            case _ => "width: 0%"
         )
       )
     )
