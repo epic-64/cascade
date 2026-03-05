@@ -459,3 +459,255 @@ class AdventureCombatSpec extends AnyFunSpec with Matchers:
 
         // Mage skill should be at base level 2 (no bonus)
         slots(1).baseSkill.damage shouldBe mageSkill.damageAtLevel(2)
+
+    describe("Feature: Skill execution ordering - instant skills"):
+
+      it("should emit PlayerSkillUsed event immediately when instant skill is used"):
+        val game = gameInCombat(enemyHp = 100, currentTime = 10000L)
+        val skill = testSkill("slash", "Slash", damage = 20)
+        val combatWithSkill = game.adventureState.combatState.get.copy(
+          skillSlots = Vector(SkillSlotState.fromSkill(skill)),
+          lastPlayerAutoAttack = 10000L,
+          lastEnemyAutoAttack = 10000L
+        )
+        val gameWithSkill = game.copy(
+          adventureState = game.adventureState.copy(combatState = Some(combatWithSkill))
+        )
+
+        // Use the skill
+        val afterSkill = AdventureCombat.useSkill(gameWithSkill, 0, 10000L).toOption.get
+        val combat = afterSkill.adventureState.combatState.get
+
+        // Event should be emitted immediately (for UI to fire projectile)
+        val skillEvents = combat.recentEvents.filter(_.detail match
+          case CombatEventDetail.PlayerSkillUsed(_, _) => true
+          case _ => false
+        )
+        skillEvents should have size 1
+        skillEvents.head.detail shouldBe CombatEventDetail.PlayerSkillUsed("Slash", 20)
+
+        // But damage is NOT applied yet (pending)
+        combat.enemyCurrentHp shouldBe 100
+        combat.pendingSkills should have size 1
+
+      it("should apply damage only after projectile flight time for instant skill"):
+        val game = gameInCombat(enemyHp = 100, currentTime = 10000L)
+        val skill = testSkill("slash", "Slash", damage = 20)
+        val combatWithSkill = game.adventureState.combatState.get.copy(
+          skillSlots = Vector(SkillSlotState.fromSkill(skill)),
+          lastPlayerAutoAttack = 10000L,
+          lastEnemyAutoAttack = 10000L
+        )
+        val gameWithSkill = game.copy(
+          adventureState = game.adventureState.copy(combatState = Some(combatWithSkill))
+        )
+
+        // Step 1: Use skill at t=10000
+        val afterSkill = AdventureCombat.useSkill(gameWithSkill, 0, 10000L).toOption.get
+
+        // Step 2: Tick at t=10100 (before 200ms flight time)
+        val (beforeLanding, _) = AdventureCombat.tick(afterSkill.copy(lastTickTime = 10000L), 10100L, fixedRandom())
+        beforeLanding.adventureState.combatState.get.enemyCurrentHp shouldBe 100
+        beforeLanding.adventureState.combatState.get.pendingSkills should have size 1
+
+        // Step 3: Tick at t=10250 (after 200ms flight time)
+        val (afterLanding, _) = AdventureCombat.tick(beforeLanding.copy(lastTickTime = 10100L), 10250L, fixedRandom())
+        afterLanding.adventureState.combatState.get.enemyCurrentHp shouldBe 80 // 100 - 20
+        afterLanding.adventureState.combatState.get.pendingSkills shouldBe empty
+
+      it("should follow exact sequence: use skill -> event emitted -> pending created -> damage on landing"):
+        val game = gameInCombat(enemyHp = 100, currentTime = 10000L)
+        val stunSkill = testSkill("bash", "Bash", damage = 15, effects = Vector(SkillEffect.Stun(2000L)))
+        val combatWithSkill = game.adventureState.combatState.get.copy(
+          skillSlots = Vector(SkillSlotState.fromSkill(stunSkill)),
+          lastPlayerAutoAttack = 10000L,
+          lastEnemyAutoAttack = 10000L
+        )
+        val gameWithSkill = game.copy(
+          adventureState = game.adventureState.copy(combatState = Some(combatWithSkill))
+        )
+
+        // Step 1: Use skill
+        val afterSkill = AdventureCombat.useSkill(gameWithSkill, 0, 10000L).toOption.get
+        val combatAfterUse = afterSkill.adventureState.combatState.get
+
+        // Verify: Event emitted, pending created, NO damage yet, NO stun yet
+        combatAfterUse.recentEvents.exists(_.detail match
+          case CombatEventDetail.PlayerSkillUsed("Bash", 15) => true
+          case _ => false
+        ) shouldBe true
+        combatAfterUse.pendingSkills should have size 1
+        combatAfterUse.enemyCurrentHp shouldBe 100
+        combatAfterUse.enemyStun shouldBe None
+
+        // Step 2: After projectile lands
+        val (afterLanding, _) = AdventureCombat.tick(afterSkill.copy(lastTickTime = 10000L), 10250L, fixedRandom())
+        val combatAfterLanding = afterLanding.adventureState.combatState.get
+
+        // Verify: Damage applied, stun applied, pending cleared
+        combatAfterLanding.enemyCurrentHp shouldBe 85 // 100 - 15
+        combatAfterLanding.enemyStun shouldBe defined
+        combatAfterLanding.pendingSkills shouldBe empty
+
+    describe("Feature: Skill execution ordering - cast-time spells"):
+
+      it("should not emit event or create pending during cast time"):
+        val game = gameInCombat(enemyHp = 100, currentTime = 10000L)
+        val spell = CombatSkill(
+          id = "fireball",
+          name = "Fireball",
+          icon = "🔥",
+          description = "A fiery projectile",
+          manaCost = 10,
+          cooldownMs = 3000L,
+          damage = 30,
+          castTimeMs = 1000L // 1 second cast time
+        )
+        val combatWithSkill = game.adventureState.combatState.get.copy(
+          skillSlots = Vector(SkillSlotState.fromSkill(spell)),
+          lastPlayerAutoAttack = 10000L,
+          lastEnemyAutoAttack = 10000L
+        )
+        val gameWithSkill = game.copy(
+          adventureState = game.adventureState.copy(combatState = Some(combatWithSkill))
+        )
+
+        // Step 1: Start casting at t=10000
+        val afterCast = AdventureCombat.useSkill(gameWithSkill, 0, 10000L).toOption.get
+        val combatCasting = afterCast.adventureState.combatState.get
+
+        // Verify: Casting started, NO event yet, NO pending yet
+        combatCasting.isCasting shouldBe true
+        combatCasting.castingSkill.get.skill.name shouldBe "Fireball"
+        combatCasting.pendingSkills shouldBe empty
+        combatCasting.recentEvents.exists(_.detail match
+          case CombatEventDetail.PlayerSkillUsed(_, _) => true
+          case _ => false
+        ) shouldBe false
+        combatCasting.enemyCurrentHp shouldBe 100
+
+      it("should emit event and create pending when cast completes"):
+        val game = gameInCombat(enemyHp = 100, currentTime = 10000L)
+        val spell = CombatSkill(
+          id = "fireball",
+          name = "Fireball",
+          icon = "🔥",
+          description = "A fiery projectile",
+          manaCost = 10,
+          cooldownMs = 3000L,
+          damage = 30,
+          castTimeMs = 1000L
+        )
+        val combatWithSkill = game.adventureState.combatState.get.copy(
+          skillSlots = Vector(SkillSlotState.fromSkill(spell)),
+          lastPlayerAutoAttack = 10000L,
+          lastEnemyAutoAttack = 10000L
+        )
+        val gameWithSkill = game.copy(
+          adventureState = game.adventureState.copy(combatState = Some(combatWithSkill))
+        )
+
+        // Step 1: Start casting at t=10000
+        val afterCast = AdventureCombat.useSkill(gameWithSkill, 0, 10000L).toOption.get
+
+        // Step 2: Tick during cast (t=10500, cast completes at t=11000)
+        val (duringCast, _) = AdventureCombat.tick(afterCast.copy(lastTickTime = 10000L), 10500L, fixedRandom())
+        duringCast.adventureState.combatState.get.isCasting shouldBe true
+        duringCast.adventureState.combatState.get.pendingSkills shouldBe empty
+
+        // Step 3: Tick when cast completes (t=11000)
+        val (castComplete, _) = AdventureCombat.tick(duringCast.copy(lastTickTime = 10500L), 11000L, fixedRandom())
+        val combatCastComplete = castComplete.adventureState.combatState.get
+
+        // Verify: Cast done, event emitted, pending created, NO damage yet
+        combatCastComplete.isCasting shouldBe false
+        combatCastComplete.recentEvents.exists(_.detail match
+          case CombatEventDetail.PlayerSkillUsed("Fireball", 30) => true
+          case _ => false
+        ) shouldBe true
+        combatCastComplete.pendingSkills should have size 1
+        combatCastComplete.enemyCurrentHp shouldBe 100
+
+      it("should follow exact sequence: start cast -> cast time -> event/pending -> flight time -> damage"):
+        val game = gameInCombat(enemyHp = 100, currentTime = 10000L)
+        val spell = CombatSkill(
+          id = "fireball",
+          name = "Fireball",
+          icon = "🔥",
+          description = "A fiery projectile",
+          manaCost = 10,
+          cooldownMs = 3000L,
+          damage = 30,
+          castTimeMs = 1000L // Cast completes at t=11000
+        )
+        val combatWithSkill = game.adventureState.combatState.get.copy(
+          skillSlots = Vector(SkillSlotState.fromSkill(spell)),
+          lastPlayerAutoAttack = 10000L,
+          lastEnemyAutoAttack = 10000L
+        )
+        val gameWithSkill = game.copy(
+          adventureState = game.adventureState.copy(combatState = Some(combatWithSkill))
+        )
+
+        // t=10000: Start casting
+        val afterCast = AdventureCombat.useSkill(gameWithSkill, 0, 10000L).toOption.get
+        afterCast.adventureState.combatState.get.isCasting shouldBe true
+        afterCast.adventureState.combatState.get.enemyCurrentHp shouldBe 100
+
+        // t=10500: Still casting
+        val (t10500, _) = AdventureCombat.tick(afterCast.copy(lastTickTime = 10000L), 10500L, fixedRandom())
+        t10500.adventureState.combatState.get.isCasting shouldBe true
+        t10500.adventureState.combatState.get.pendingSkills shouldBe empty
+        t10500.adventureState.combatState.get.enemyCurrentHp shouldBe 100
+
+        // t=11000: Cast completes, projectile fires
+        val (t11000, _) = AdventureCombat.tick(t10500.copy(lastTickTime = 10500L), 11000L, fixedRandom())
+        t11000.adventureState.combatState.get.isCasting shouldBe false
+        t11000.adventureState.combatState.get.pendingSkills should have size 1
+        t11000.adventureState.combatState.get.enemyCurrentHp shouldBe 100
+
+        // t=11100: Projectile in flight (200ms flight time)
+        val (t11100, _) = AdventureCombat.tick(t11000.copy(lastTickTime = 11000L), 11100L, fixedRandom())
+        t11100.adventureState.combatState.get.pendingSkills should have size 1
+        t11100.adventureState.combatState.get.enemyCurrentHp shouldBe 100
+
+        // t=11250: Projectile lands, damage applied
+        val (t11250, _) = AdventureCombat.tick(t11100.copy(lastTickTime = 11100L), 11250L, fixedRandom())
+        t11250.adventureState.combatState.get.pendingSkills shouldBe empty
+        t11250.adventureState.combatState.get.enemyCurrentHp shouldBe 70 // 100 - 30
+
+      it("should deduct mana immediately when cast starts, not when it completes"):
+        val game = gameInCombat(enemyHp = 100, currentTime = 10000L)
+        val spell = CombatSkill(
+          id = "fireball",
+          name = "Fireball",
+          icon = "🔥",
+          description = "A fiery projectile",
+          manaCost = 20,
+          cooldownMs = 3000L,
+          damage = 30,
+          castTimeMs = 1000L
+        )
+        val combatWithSkill = game.adventureState.combatState.get.copy(
+          skillSlots = Vector(SkillSlotState.fromSkill(spell)),
+          playerMana = 50,
+          lastPlayerAutoAttack = 10000L,
+          lastEnemyAutoAttack = 10000L
+        )
+        val gameWithSkill = game.copy(
+          adventureState = game.adventureState.copy(combatState = Some(combatWithSkill))
+        )
+
+        // Start casting - mana should be deducted immediately
+        val afterCast = AdventureCombat.useSkill(gameWithSkill, 0, 10000L).toOption.get
+        afterCast.adventureState.combatState.get.playerMana shouldBe 30 // 50 - 20
+
+        // During cast - mana stays the same
+        val (duringCast, _) = AdventureCombat.tick(afterCast.copy(lastTickTime = 10000L), 10500L, fixedRandom())
+        duringCast.adventureState.combatState.get.playerMana shouldBe 30
+
+        // After cast completes - mana still the same (not deducted again)
+        val (castComplete, _) = AdventureCombat.tick(duringCast.copy(lastTickTime = 10500L), 11000L, fixedRandom())
+        // Mana may have regenerated slightly, but should not have been deducted again
+        castComplete.adventureState.combatState.get.playerMana should be >= 30
+
