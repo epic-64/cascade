@@ -442,8 +442,9 @@ object OfflineProgress:
       updatedGame = updatedGame.copy(inventory = newInv)
     }
 
-    // Create equipment items
+    // Create equipment items and collect crafted events
     var advState = updatedGame.adventureState
+    var craftedEvents = Vector.empty[GameEvent]
     (0L until actionsCompleted).foreach { _ =>
       val instanceId = advState.nextEquipmentInstanceId
       EquipmentCrafting.createEquipment(action.outputDefId, instanceId, random).foreach { equipment =>
@@ -451,9 +452,11 @@ object OfflineProgress:
           equipmentInventory = updatedGame.equipmentInventory :+ equipment
         )
         advState = advState.copy(nextEquipmentInstanceId = instanceId + 1)
+        craftedEvents = craftedEvents :+ GameEvent.EquipmentCrafted(equipment.defId, equipment.quality, equipment.rarity, equipment.affixes)
       }
     }
     updatedGame = updatedGame.copy(adventureState = advState)
+    events = events ++ craftedEvents
 
     // Apply skill XP
     val oldSkillLevel = skillState.level
