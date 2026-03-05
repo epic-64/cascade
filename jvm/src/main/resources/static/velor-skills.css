@@ -462,6 +462,42 @@
   font-weight: 600;
 }
 
+/* Action tooltip - shown when clicking action with missing items */
+.velor-action-tooltip {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--velor-card);
+  border: 1px solid var(--velor-danger);
+  border-radius: var(--velor-radius-sm);
+  padding: var(--velor-spacing-xs) var(--velor-spacing-sm);
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  margin-top: 4px;
+}
+
+.velor-action-tooltip.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.velor-action-tooltip::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-bottom-color: var(--velor-danger);
+}
+
 .velor-action-item-right {
   text-align: right;
   font-size: 0.7rem;
