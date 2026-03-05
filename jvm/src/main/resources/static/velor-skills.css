@@ -457,6 +457,11 @@
   color: var(--text-muted);
 }
 
+.velor-ingredient-missing {
+  color: var(--velor-danger, #e74c3c);
+  font-weight: 600;
+}
+
 .velor-action-item-right {
   text-align: right;
   font-size: 0.7rem;
