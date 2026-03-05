@@ -508,14 +508,10 @@ object AdventureCombat:
         // Reset auto-attack timer for instant skills too
         executed.copy(lastPlayerAutoAttack = currentTime)
 
-      // If skill killed the enemy, immediately transition to loading state
-      // VictoryDelayMs allows killing blow animation to play before showing "loading"
-      val finalCombat = if newCombat.isEnemyDead && !newCombat.isLoadingNextEnemy then
-        newCombat.copy(loadingNextEnemyUntil = Some(currentTime + VictoryDelayMs + LoadingNextEnemyMs))
-      else
-        newCombat
+      // Note: We don't check isEnemyDead here because damage is pending (projectile in flight)
+      // The next tick will process pending damage and handle victory if the enemy dies
 
-      Right(game.copy(adventureState = game.adventureState.copy(combatState = Some(finalCombat))))
+      Right(game.copy(adventureState = game.adventureState.copy(combatState = Some(newCombat))))
 
   private def executeSkill(
     combat: CombatState,
@@ -550,17 +546,19 @@ object AdventureCombat:
     var c = combat
     var events = Vector.empty[CombatEventDetail]
     var totalDamage = 0
+    var pendingSkillDamage = 0 // Track damage that will be queued
 
-    // Apply base damage
+    // Calculate base damage (queue as pending, don't apply yet)
     if skill.damage > 0 then
       val buffedDamage = applyDamageBuff(skill.damage, c.playerDamageBuff)
-      c = c.copy(enemyCurrentHp = (c.enemyCurrentHp - buffedDamage).max(0), playerDamageBuff = None)
+      c = c.copy(playerDamageBuff = None) // Consume the buff
+      pendingSkillDamage += buffedDamage
       totalDamage = buffedDamage
 
     // Apply effects
     skill.effects.foreach {
       case SkillEffect.Damage(amount) =>
-        c = c.copy(enemyCurrentHp = (c.enemyCurrentHp - amount).max(0))
+        pendingSkillDamage += amount
         totalDamage += amount
       case SkillEffect.DamageOverTime(dpt, ticks, interval) =>
         c = c.copy(enemyDoTs = c.enemyDoTs :+ ActiveDoT(skill.name, dpt, ticks, interval, currentTime))
@@ -576,10 +574,8 @@ object AdventureCombat:
         c.enemyFreeze match
           case Some(freeze) if freeze.endsAt > currentTime =>
             val bonusDamage = (skill.damage * bonusDamagePercent).toInt
-            c = c.copy(
-              enemyCurrentHp = (c.enemyCurrentHp - bonusDamage).max(0),
-              enemyFreeze = None
-            )
+            pendingSkillDamage += bonusDamage
+            c = c.copy(enemyFreeze = None)
             totalDamage += bonusDamage
             events :+= CombatEventDetail.FreezeConsumed(bonusDamage)
           case _ =>
@@ -588,6 +584,8 @@ object AdventureCombat:
         c = c.copy(playerCurrentHp = c.playerCurrentHp + healed)
         events :+= CombatEventDetail.PlayerHealed(healed)
       case SkillEffect.LifeDrain(percent) =>
+        // LifeDrain heals based on damage that WILL be dealt (when projectile lands)
+        // For simplicity, apply heal immediately based on calculated damage
         val heal = (totalDamage * percent).toInt.min(c.playerMaxHp - c.playerCurrentHp)
         c = c.copy(playerCurrentHp = c.playerCurrentHp + heal)
         if heal > 0 then events :+= CombatEventDetail.PlayerHealed(heal)
@@ -598,6 +596,11 @@ object AdventureCombat:
         c = c.copy(playerDamageBuff = Some(ActiveDamageBuff(percent)))
         events :+= CombatEventDetail.DamageBuffApplied(percent)
     }
+
+    // Queue the skill damage as pending (will land after projectile flight time)
+    if pendingSkillDamage > 0 then
+      val pending = PendingDamage(pendingSkillDamage, targetIsPlayer = false, currentTime + ProjectileFlightTimeMs, s"skill:${skill.name}")
+      c = c.copy(pendingDamage = c.pendingDamage :+ pending)
 
     events :+= CombatEventDetail.PlayerSkillUsed(skill.name, totalDamage)
 
