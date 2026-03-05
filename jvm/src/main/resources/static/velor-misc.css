@@ -291,3 +291,16 @@
 .velor-offline-row.death .row-value {
   color: var(--velor-hp);
 }
+
+.velor-offline-row.equipment .row-value {
+  color: var(--text-secondary);
+}
+
+.velor-offline-row.equipment.rarity-magical .row-name {
+  color: #a78bfa; /* Purple for magical items */
+}
+
+.velor-offline-row.equipment.rarity-magical .row-icon {
+  filter: drop-shadow(0 0 3px #a78bfa);
+}
+

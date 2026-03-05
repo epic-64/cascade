@@ -63,6 +63,9 @@ object OfflineProgressModal:
       // Items Gained
       if result.itemsGained.nonEmpty then renderItemsSection("📦 Items Gained", result.itemsGained, "gained") else emptyNode,
 
+      // Equipment Crafted
+      renderEquipmentCraftedSection(result),
+
       // Items Consumed
       if result.itemsConsumed.nonEmpty then renderItemsSection("🔥 Items Consumed", result.itemsConsumed, "consumed") else emptyNode,
 
@@ -173,6 +176,44 @@ object OfflineProgressModal:
         span(cls := "row-icon", "💰"),
         span(cls := "row-name", "Gold earned"),
         span(cls := "row-value", s"+${formatNumber(gold)}")
+      )
+    )
+
+  private def renderEquipmentCraftedSection(result: OfflineProgress.OfflineResult): HtmlElement =
+    // Extract equipment crafted events
+    val craftedEquipment = result.events.collect:
+      case GameEvent.EquipmentCrafted(defId, quality, rarity, _) => (defId, quality, rarity)
+    
+    if craftedEquipment.isEmpty then return div()
+    
+    // Group by (defId, quality, rarity) and count
+    val grouped = craftedEquipment.groupBy(identity).view.mapValues(_.size).toSeq
+      .sortBy { case ((defId, _, _), count) => -count }
+    
+    div(
+      cls := "velor-offline-section",
+      h4("⚔️ Equipment Crafted"),
+      div(
+        cls := "velor-offline-list",
+        grouped.map { case ((defId, quality, rarity), count) =>
+          val equipDef = EquipmentDefs.byId.get(defId)
+          val name = equipDef.map(_.name).getOrElse(defId)
+          val icon = equipDef.map(_.icon).getOrElse("⚔️")
+          val qualityStr = quality match
+            case EquipmentQuality.Normal => ""
+            case EquipmentQuality.Superior => "Superior "
+          val rarityStr = rarity match
+            case EquipmentRarity.Normal => ""
+            case EquipmentRarity.Magical => "Magical "
+          val displayName = s"$qualityStr$rarityStr$name"
+          
+          div(
+            cls := s"velor-offline-row equipment rarity-${rarity.toString.toLowerCase}",
+            span(cls := "row-icon", icon),
+            span(cls := "row-name", displayName),
+            span(cls := "row-value", s"×$count")
+          )
+        }
       )
     )
 
