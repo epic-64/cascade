@@ -104,3 +104,7 @@
 - In Zen mode, I want to hide all contents from the tiles, including the progress bars and the emojis. Also, I want to hide most of the UI, except the Zen mode button itself.
 
 ## Todos
+- velor: give enemies way more hp and/or reduce player damage a lot. Otherwise there is no point in having skill chains.
+- velor: add champion and elite variants of enemies:
+  - champion: 2x hp, 1.2x damage
+  - elite: 4x hp, 1.4x damage
