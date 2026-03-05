@@ -164,11 +164,25 @@ case class PendingSkill(
   damageBuffPercent: Option[Double] = None  // Captured at cast time if buff was active
 ) derives ReadWriter
 
+/** Explicit combat phase for clear state machine transitions */
+enum CombatPhase derives ReadWriter:
+  /** Active combat - attacks and skills can be used */
+  case Fighting
+  /** A killing blow was dealt, waiting for projectiles to land before showing result */
+  case WaitingForProjectiles(victorIsPlayer: Boolean)
+  /** Player won, showing victory and waiting to spawn next enemy */
+  case Victory(spawnNextEnemyAt: Long)
+  /** Player died */
+  case Defeat
+
 /** Current state of combat */
 case class CombatState(
   // Unique identifier for this combat instance - increments on each new combat
   // Used by UI to detect combat restarts and reset event tracking
   instanceId: Long,
+
+  // Explicit state machine phase
+  phase: CombatPhase = CombatPhase.Fighting,
 
   enemy: Enemy,
   enemyCurrentHp: Int,
@@ -199,9 +213,6 @@ case class CombatState(
   // Casting state - when casting a skill with cast time
   castingSkill: Option[CastingState] = None,
   
-  // Loading next enemy - when set, we're waiting for next enemy to spawn
-  loadingNextEnemyUntil: Option[Long] = None,
-  
   // Skill slots (weapon skills in slots 0-3, armor skills in slots 4-7)
   skillSlots: Vector[SkillSlotState] = Vector.empty,
   
@@ -212,10 +223,19 @@ case class CombatState(
   // Monotonically increasing event ID - used by UI for reliable event deduplication
   nextEventId: Long = 0L
 ) derives ReadWriter:
+  // Derived state helpers based on phase
   def isEnemyDead: Boolean = enemyCurrentHp <= 0
   def isPlayerDead: Boolean = playerCurrentHp <= 0
-  def isCombatOver: Boolean = isEnemyDead || isPlayerDead
-  def isLoadingNextEnemy: Boolean = loadingNextEnemyUntil.isDefined
+  
+  def isFighting: Boolean = phase == CombatPhase.Fighting
+  def isWaitingForProjectiles: Boolean = phase.isInstanceOf[CombatPhase.WaitingForProjectiles]
+  def isVictory: Boolean = phase.isInstanceOf[CombatPhase.Victory]
+  def isDefeat: Boolean = phase == CombatPhase.Defeat
+  def isLoadingNextEnemy: Boolean = isVictory // For UI compatibility
+  def isCombatOver: Boolean = isDefeat // True combat end (player died)
+  
+  def hasPendingDamage: Boolean = pendingAttacks.nonEmpty || pendingSkills.nonEmpty
+  
   def isOnGlobalCooldown(now: Long): Boolean = now < globalCooldownEndsAt
   def globalCooldownRemainingMs(now: Long): Long = (globalCooldownEndsAt - now).max(0)
   def isCasting: Boolean = castingSkill.isDefined

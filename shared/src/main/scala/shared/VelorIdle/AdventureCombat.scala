@@ -115,38 +115,43 @@ object AdventureCombat:
   // Combat Tick - Single entry point for all combat processing
   // ============================================================================
 
-  /** Process one tick of combat. Returns updated game and events. */
+  /** Process one tick of combat. Returns updated game and events.
+    * 
+    * State machine transitions:
+    * - Fighting: Process combat (attacks, skills, damage). If killing blow dealt -> WaitingForProjectiles
+    * - WaitingForProjectiles: Only process pending damage. When all projectiles land -> Victory/Defeat
+    * - Victory: Wait for timer, then spawn next enemy -> Fighting
+    * - Defeat: Combat ends, no more processing
+    */
   def tick(
     game: VelorIdleGame,
     currentTime: Long,
     random: Random = Random
   ): (VelorIdleGame, Vector[GameEvent]) =
-    game.adventureState.combatState match
+    val (updatedGame, events) = game.adventureState.combatState match
       case None =>
-        (game.copy(lastTickTime = currentTime), Vector.empty)
-      case Some(combat) if combat.isPlayerDead =>
-        (game.copy(lastTickTime = currentTime), Vector.empty)
-      case Some(combat) if combat.isLoadingNextEnemy =>
-        // Check if loading timer has expired
-        combat.loadingNextEnemyUntil match
-          case Some(until) if currentTime >= until =>
-            // Timer expired - spawn next enemy
-            restartCombat(game, currentTime) match
-              case Right(restarted) => (restarted.copy(lastTickTime = currentTime), Vector.empty)
-              case Left(_) =>
-                // Fallback: clear combat (shouldn't happen)
-                val clearedState = game.adventureState.copy(inCombat = false, combatState = None)
-                (game.copy(adventureState = clearedState, lastTickTime = currentTime), Vector.empty)
-          case _ =>
-            // Still loading - just update tick time
-            (game.copy(lastTickTime = currentTime), Vector.empty)
+        (game, Vector.empty)
+        
       case Some(combat) =>
-        // Process combat and handle any resulting state changes
-        val (updatedGame, events) = processCombatTick(game, combat, currentTime, random)
-        (updatedGame.copy(lastTickTime = currentTime), events)
+        combat.phase match
+          case CombatPhase.Fighting =>
+            processFightingPhase(game, combat, currentTime, random)
+            
+          case CombatPhase.WaitingForProjectiles(victorIsPlayer) =>
+            processWaitingPhase(game, combat, currentTime, victorIsPlayer, random)
+            
+          case CombatPhase.Victory(spawnNextEnemyAt) =>
+            processVictoryPhase(game, combat, currentTime, spawnNextEnemyAt)
+            
+          case CombatPhase.Defeat =>
+            // Combat ended - no more processing
+            (game, Vector.empty)
+    
+    // Always update lastTickTime
+    (updatedGame.copy(lastTickTime = currentTime), events)
 
-  /** Core combat processing - runs all combat systems and handles outcomes */
-  private def processCombatTick(
+  /** Fighting phase: full combat processing */
+  private def processFightingPhase(
     game: VelorIdleGame,
     combat: CombatState,
     currentTime: Long,
@@ -154,18 +159,74 @@ object AdventureCombat:
   ): (VelorIdleGame, Vector[GameEvent]) =
     val elapsedSeconds = (currentTime - game.lastTickTime).max(0) / 1000.0
 
-    // Run all combat systems in order
+    // Run all combat systems
     val (processedCombat, combatEvents) = runCombatSystems(combat, currentTime, elapsedSeconds, game.adventureState, random)
 
-    // Check outcomes and handle state transitions
-    if processedCombat.isEnemyDead then
-      handleVictory(processedCombat, game, currentTime, random)
-    else if processedCombat.isPlayerDead then
-      handleDefeat(processedCombat, game, combatEvents)
+    // Check if a killing blow was just dealt (but projectiles may still be in flight)
+    val killingBlowToEnemy = processedCombat.isEnemyDead
+    val killingBlowToPlayer = processedCombat.isPlayerDead
+    
+    if killingBlowToEnemy || killingBlowToPlayer then
+      // Transition to WaitingForProjectiles if there are pending projectiles
+      if processedCombat.hasPendingDamage then
+        val newPhase = CombatPhase.WaitingForProjectiles(victorIsPlayer = killingBlowToEnemy)
+        val updatedCombat = processedCombat.copy(phase = newPhase)
+        finalizeCombatState(updatedCombat, game, combatEvents)
+      else
+        // No pending projectiles - go directly to Victory/Defeat
+        if killingBlowToEnemy then
+          handleVictory(processedCombat, game, currentTime, random)
+        else
+          handleDefeat(processedCombat, game, combatEvents)
     else
       finalizeCombatState(processedCombat, game, combatEvents)
 
-  /** Run all combat systems: casting, DoTs, auto-attacks, regen, etc. */
+  /** WaitingForProjectiles phase: only process pending damage, no new actions */
+  private def processWaitingPhase(
+    game: VelorIdleGame,
+    combat: CombatState,
+    currentTime: Long,
+    victorIsPlayer: Boolean,
+    random: Random
+  ): (VelorIdleGame, Vector[GameEvent]) =
+    // Only process pending damage - no new attacks or skills
+    val (afterPending, pendingDetails) = processPendingDamage(combat, currentTime)
+    val (withEvents, combatEvents) = finalizeEvents(afterPending, pendingDetails)
+    
+    // Check if all projectiles have landed
+    if !withEvents.hasPendingDamage then
+      // All projectiles landed - transition to Victory or Defeat
+      if victorIsPlayer then
+        handleVictory(withEvents, game, currentTime, random)
+      else
+        handleDefeat(withEvents, game, combatEvents)
+    else
+      // Still waiting for projectiles
+      finalizeCombatState(withEvents, game, combatEvents)
+
+  /** Victory phase: wait for timer, then spawn next enemy */
+  private def processVictoryPhase(
+    game: VelorIdleGame,
+    combat: CombatState,
+    currentTime: Long,
+    spawnNextEnemyAt: Long
+  ): (VelorIdleGame, Vector[GameEvent]) =
+    if currentTime >= spawnNextEnemyAt then
+      // Timer expired - spawn next enemy
+      restartCombat(game, currentTime) match
+        case Right(restarted) => 
+          (restarted, Vector.empty)
+        case Left(_) =>
+          // Fallback: clear combat (shouldn't happen)
+          val clearedState = game.adventureState.copy(inCombat = false, combatState = None)
+          (game.copy(adventureState = clearedState), Vector.empty)
+    else
+      // Still waiting
+      (game, Vector.empty)
+
+  /** Run all combat systems: casting, DoTs, auto-attacks, regen, etc. 
+    * Only called during Fighting phase.
+    */
   private def runCombatSystems(
     combat: CombatState,
     currentTime: Long,
@@ -189,13 +250,14 @@ object AdventureCombat:
     c = afterPending
     details ++= pendingDetails
 
-    // 3. Process DoTs
-    val (afterDoTs, dotDetails) = processDoTs(c, currentTime)
-    c = afterDoTs
-    details ++= dotDetails
+    // 3. Process DoTs (only if both combatants still alive)
+    if !c.isEnemyDead && !c.isPlayerDead then
+      val (afterDoTs, dotDetails) = processDoTs(c, currentTime)
+      c = afterDoTs
+      details ++= dotDetails
 
-    // 4. Process auto-attacks (only if enemy not already dead)
-    if !c.isEnemyDead then
+    // 4. Process auto-attacks (only if both combatants still alive)
+    if !c.isEnemyDead && !c.isPlayerDead then
       val (afterAutos, autoDetails) = processAutoAttacks(c, currentTime, advState, random)
       c = afterAutos
       details ++= autoDetails
@@ -215,13 +277,10 @@ object AdventureCombat:
 
     finalizeEvents(c, details)
 
-  // Duration to wait after killing enemy before showing "loading" (allows kill animation to play)
-  private val VictoryDelayMs: Long = 500L
-  
-  // Duration to wait between enemy kills before next enemy spawns
-  private val LoadingNextEnemyMs: Long = 1500L
+  // Duration to show victory state before spawning next enemy
+  private val VictoryDisplayMs: Long = 1500L
 
-  /** Handle victory: grant rewards and set loading state for next enemy */
+  /** Handle victory: grant rewards and transition to Victory phase */
   private def handleVictory(
     combat: CombatState,
     game: VelorIdleGame,
@@ -263,30 +322,30 @@ object AdventureCombat:
 
     events :+= GameEvent.AdventureEnemyDefeated(enemy.id)
 
-    // Set loading state - next enemy will spawn after delay
-    // VictoryDelayMs allows killing blow animation to play before showing "loading"
-    val loadingCombat = combat.copy(
-      loadingNextEnemyUntil = Some(currentTime + VictoryDelayMs + LoadingNextEnemyMs)
+    // Transition to Victory phase - next enemy spawns after delay
+    val victoryCombat = combat.copy(
+      phase = CombatPhase.Victory(spawnNextEnemyAt = currentTime + VictoryDisplayMs)
     )
     val newAdvState = g.adventureState.copy(
-      combatState = Some(loadingCombat),
+      combatState = Some(victoryCombat),
       currentHp = combat.playerCurrentHp,
       currentMana = combat.playerMana
     )
     (g.copy(adventureState = newAdvState), events)
 
-  /** Handle defeat: update combat state with death event */
+  /** Handle defeat: transition to Defeat phase */
   private def handleDefeat(
     combat: CombatState,
     game: VelorIdleGame,
     combatEvents: Vector[CombatEvent]
   ): (VelorIdleGame, Vector[GameEvent]) =
     val withCombatEvents = appendEvents(combat, combatEvents)
-    val (updatedCombat, _) = finalizeEvents(withCombatEvents, Vector(CombatEventDetail.PlayerDied))
+    val (withDeathEvent, _) = finalizeEvents(withCombatEvents, Vector(CombatEventDetail.PlayerDied))
+    val defeatCombat = withDeathEvent.copy(phase = CombatPhase.Defeat)
     val newAdvState = game.adventureState.copy(
-      combatState = Some(updatedCombat),
+      combatState = Some(defeatCombat),
       currentHp = 0,
-      currentMana = updatedCombat.playerMana
+      currentMana = defeatCombat.playerMana
     )
     (game.copy(adventureState = newAdvState), Vector(GameEvent.AdventurePlayerDied))
 
@@ -484,7 +543,7 @@ object AdventureCombat:
   ): Either[String, VelorIdleGame] =
     game.adventureState.combatState match
       case None => Left("Not in combat")
-      case Some(combat) if combat.isCombatOver => Left("Combat is over")
+      case Some(combat) if !combat.isFighting => Left("Cannot use skills now")
       case Some(combat) =>
         validateAndExecuteSkill(game, combat, slotIndex, currentTime)
 
@@ -560,10 +619,21 @@ object AdventureCombat:
     currentTime: Long
   ): (CombatState, Vector[CombatEventDetail]) =
     var c = combat
+    var events = Vector.empty[CombatEventDetail]
     
     // Capture and consume damage buff at cast time
     val damageBuffPercent = c.playerDamageBuff.map(_.percent)
     c = c.copy(playerDamageBuff = None)
+    
+    // Calculate expected damage for the event (same calculation as landing)
+    val expectedDamage = if skill.damage > 0 then
+      damageBuffPercent match
+        case Some(percent) => (skill.damage * (1.0 + percent)).toInt
+        case None => skill.damage
+    else 0
+    
+    // Emit event NOW so UI fires the projectile immediately
+    events :+= CombatEventDetail.PlayerSkillUsed(skill.name, expectedDamage)
     
     // Queue skill to land after flight time
     val pending = PendingSkill(slotIndex, skill, currentTime + ProjectileFlightTimeMs, damageBuffPercent)
@@ -578,8 +648,7 @@ object AdventureCombat:
         slot.copy(currentSkill = slot.baseSkill, cooldownEndsAt = currentTime + slot.baseSkill.cooldownMs, chainWindowEndsAt = 0L)
     c = c.copy(skillSlots = c.skillSlots.updated(slotIndex, newSlot))
     
-    // No events yet - they fire when the skill lands
-    (c, Vector.empty)
+    (c, events)
 
   /** Apply all skill effects when the projectile lands */
   private def applySkillEffectsOnLanding(
@@ -643,8 +712,8 @@ object AdventureCombat:
         events :+= CombatEventDetail.DamageBuffApplied(percent)
     }
 
-    events :+= CombatEventDetail.PlayerSkillUsed(skill.name, totalDamage)
-
+    // Note: PlayerSkillUsed event was already emitted when skill was fired (in applySkillEffects)
+    // This allows the UI to fire the projectile animation immediately
 
     (c, events)
 
