@@ -23,6 +23,20 @@ object ActionList:
     def isActive(activeAction: ActiveAction, skill: Skill): Boolean
     def canStart(game: VelorIdleGame, skill: Skill): Boolean
     def hasRequiredItems(inventory: Inventory): Boolean
+    /** Get the list of required inputs for this action (empty for gathering/thieving) */
+    def getInputs: Vector[(Item, Int)] = Vector.empty
+    /** Get a message describing which items are missing */
+    def getMissingItemsMessage(inventory: Inventory): Option[String] =
+      val missing = getInputs.filter { case (item, count) =>
+        inventory.getCount(item) < count
+      }
+      if missing.isEmpty then None
+      else
+        val missingText = missing.map { case (item, count) =>
+          val have = inventory.getCount(item)
+          s"${Item.displayName(item)} ($have/$count)"
+        }.mkString(", ")
+        Some(s"Missing materials: $missingText")
 
   /** Wrapper for gathering actions */
   private class GatheringActionInfo(action: GatheringAction) extends ActionInfo:
@@ -84,6 +98,8 @@ object ActionList:
         inventory.getCount(item) >= count
       }
 
+    override def getInputs: Vector[(Item, Int)] = action.inputs
+
   /** Wrapper for thieving actions */
   private class ThievingActionInfo(action: ThievingAction) extends ActionInfo:
     def id: String = action.id
@@ -144,6 +160,8 @@ object ActionList:
       action.inputs.forall { case (item, count) =>
         inventory.getCount(item) >= count
       }
+
+    override def getInputs: Vector[(Item, Int)] = action.inputs
 
   /** Create action list for a gathering skill */
   def forGathering(skill: Skill, onStartAction: String => Unit): HtmlElement =
@@ -256,13 +274,9 @@ object ActionList:
 
     val isLockedSignal = skillStateSignal.map(_.level < action.levelRequired)
     val isActiveSignal = activeActionSignal.map(action.isActive(_, skill))
-    
-    // Check both level and items (items check is no-op for gathering)
-    val isDisabledSignal = isLockedSignal.combineWith(inventorySignal).map { case (locked, inv) =>
-      locked || !action.hasRequiredItems(inv)
-    }
 
-    val itemClsSignal = isDisabledSignal.combineWith(isActiveSignal).map:
+    // Only show "locked" for level requirements, not for missing items
+    val itemClsSignal = isLockedSignal.combineWith(isActiveSignal).map:
       case (true, _) => "velor-action-item locked"
       case (_, true) => "velor-action-item active"
       case _ => "velor-action-item"
@@ -270,7 +284,17 @@ object ActionList:
     div(
       cls <-- itemClsSignal,
       onClick --> { _ =>
-        if action.canStart(VelorIdleState.current, skill) then onStart(action.id)
+        val game = VelorIdleState.current
+        val levelOk = game.skills.getOrElse(skill, SkillState.initial).level >= action.levelRequired
+        if !levelOk then
+          () // Level locked - do nothing
+        else if !action.hasRequiredItems(game.inventory) then
+          // Items missing - show toast explaining why
+          action.getMissingItemsMessage(game.inventory).foreach(msg =>
+            ToastSystem.show(s"⚠️ $msg")
+          )
+        else
+          onStart(action.id)
       },
       div(
         cls := "velor-action-item-left",
@@ -286,12 +310,15 @@ object ActionList:
           ),
           div(
             cls := "velor-action-item-level",
-            child.text <-- isLockedSignal.combineWith(inventorySignal).map { case (locked, inv) =>
-              if locked then action.subtitle(inv, locked)
+            children <-- isLockedSignal.combineWith(inventorySignal).map { case (locked, inv) =>
+              if locked then
+                Vector(span(action.subtitle(inv, locked)))
               else if action.isGathering then
                 val count = inv.getCount(action.outputItem)
-                s"${Item.icon(action.outputItem)} ${Item.displayName(action.outputItem)} [$count]"
-              else action.subtitle(inv, locked)
+                Vector(span(s"${Item.icon(action.outputItem)} ${Item.displayName(action.outputItem)} [$count]"))
+              else
+                // Render each ingredient with color based on availability
+                renderIngredients(action.getInputs, inv)
             }
           )
         )
@@ -308,5 +335,22 @@ object ActionList:
         )
       )
     )
+
+  /** Render ingredients list with color coding for availability */
+  private def renderIngredients(inputs: Vector[(Item, Int)], inventory: Inventory): Vector[HtmlElement] =
+    if inputs.isEmpty then
+      Vector(span(""))
+    else
+      inputs.zipWithIndex.flatMap { case ((item, count), idx) =>
+        val have = inventory.getCount(item)
+        val isMissing = have < count
+        val ingredientSpan = span(
+          cls := (if isMissing then "velor-ingredient-missing" else ""),
+          s"${Item.icon(item)} $have/$count"
+        )
+        // Add separator between ingredients
+        if idx > 0 then Vector(span(" "), ingredientSpan)
+        else Vector(ingredientSpan)
+      }
 
 

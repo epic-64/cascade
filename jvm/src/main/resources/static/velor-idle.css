@@ -20,6 +20,7 @@
   --velor-xp-dark: #f59e0b;
   --velor-warning: #f59e0b;         /* Orange for warnings */
   --velor-warning-bg: rgba(245, 158, 11, 0.15);
+  --velor-danger: #e74c3c;          /* Red for missing/unavailable */
 
   /* Skill colors */
   --velor-skill-wood: #8b5a2b;
