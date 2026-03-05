@@ -516,15 +516,65 @@ object VelorIdleClient:
       Option(dom.window.localStorage.getItem(StorageKey))
         .filter(_.nonEmpty)
         .foreach { json =>
-          currentGame = upickle.default.read[VelorIdleGame](json)
-          // Update lastTickTime to now to avoid processing all offline time
-          currentGame = currentGame.copy(lastTickTime = System.currentTimeMillis())
+          val loadedGame = upickle.default.read[VelorIdleGame](json)
+          val currentTime = System.currentTimeMillis()
+          
+          // Calculate offline progress
+          val offlineResult = OfflineProgress.calculateOfflineProgress(
+            loadedGame, 
+            loadedGame.lastTickTime, 
+            currentTime
+          )
+          
+          // Apply the result and update lastTickTime
+          currentGame = offlineResult.game.copy(lastTickTime = currentTime)
+          
+          // Show offline progress summary if any progress was made
+          if offlineResult.secondsProcessed >= OfflineProgress.ChunkDurationSeconds then
+            showOfflineProgressSummary(offlineResult)
+          
           println("[VelorIdle] Game loaded")
         }
     .failed.foreach { e =>
       println(s"[VelorIdle] Load failed: ${e.getMessage}, starting fresh")
       currentGame = VelorIdleGame.newGame(System.currentTimeMillis())
     }
+
+  private def showOfflineProgressSummary(result: OfflineProgress.OfflineResult): Unit =
+    val hours = result.secondsProcessed / 3600
+    val minutes = (result.secondsProcessed % 3600) / 60
+    
+    val timeStr = if hours > 0 then s"${hours}h ${minutes}m" else s"${minutes}m"
+    
+    val parts = scala.collection.mutable.ArrayBuffer[String]()
+    parts += s"⏰ Offline for $timeStr"
+    
+    // XP gains
+    result.xpGained.foreach { case (skill, xp) =>
+      parts += s"${Skill.icon(skill)} +${formatNumber(xp)} XP"
+    }
+    
+    // Level ups
+    result.skillLevelUps.foreach { case (skill, levels) =>
+      parts += s"${Skill.icon(skill)} +$levels levels!"
+    }
+    
+    // Items
+    val totalItems = result.itemsGained.values.sum
+    if totalItems > 0 then
+      parts += s"📦 +${formatNumber(totalItems)} items"
+    
+    // Gold
+    if result.goldGained > 0 then
+      parts += s"💰 +${formatNumber(result.goldGained)} gold"
+    
+    // Show a single consolidated toast
+    ToastSystem.show(parts.mkString(" | "), durationMs = 8000)
+
+  private def formatNumber(n: Long): String =
+    if n >= 1_000_000 then f"${n / 1_000_000.0}%.1fM"
+    else if n >= 1_000 then f"${n / 1_000.0}%.1fK"
+    else n.toString
 
   private def registerLifecycleHooks(): Unit =
     dom.window.addEventListener("beforeunload", (_: Event) => saveIfDirty())
