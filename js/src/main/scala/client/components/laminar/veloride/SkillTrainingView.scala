@@ -207,57 +207,52 @@ object SkillTrainingView:
     )
 
   private def xpProgressBar(stateSignal: Signal[SkillState]): HtmlElement =
-    // Calculate ETA based on active action's XP rate - uses progressSignal for real-time updates
+    // Helper to get action XP rate info
+    def getXpRateInfo(game: VelorIdleGame, currentProgress: Double): Option[(Double, Double)] =
+      game.activeAction match
+        case ActiveAction.Gathering(_, action) =>
+          val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
+          val efficiency = VelorIdleLogic.calculateEfficiencyBonus(actionState.level)
+          val effectiveTime = action.timeSeconds * (1.0 - efficiency)
+          Some((action.xpGain.toDouble, effectiveTime))
+        case ActiveAction.Processing(_, action) =>
+          val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
+          val efficiency = VelorIdleLogic.calculateEfficiencyBonus(actionState.level)
+          val effectiveTime = action.timeSeconds * (1.0 - efficiency)
+          Some((action.xpGain.toDouble, effectiveTime))
+        case ActiveAction.Thieving(action) =>
+          val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
+          val efficiency = VelorIdleLogic.calculateEfficiencyBonus(actionState.level)
+          val effectiveTime = action.timeSeconds * (1.0 - efficiency)
+          Some((action.xpGain.toDouble, effectiveTime))
+        case ActiveAction.EquipmentCrafting(action) =>
+          val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
+          val efficiency = VelorIdleLogic.calculateEfficiencyBonus(actionState.level)
+          val effectiveTime = action.timeSeconds * (1.0 - efficiency)
+          Some((action.xpGain.toDouble, effectiveTime))
+        case _ => None
+
+    // ETA to next level
     val etaSignal = stateSignal.combineWith(VelorIdleState.gameSignal, VelorIdleState.actionProgressSignal).map:
       case (skillState, game, currentProgress) =>
         if skillState.level >= 99 then "MAX"
         else
-          val xpNeeded = SkillState.totalXpForLevel(skillState.level + 1) - skillState.xp
-          game.activeAction match
-            case ActiveAction.Gathering(_, action) =>
-              val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
-              val efficiency = VelorIdleLogic.calculateEfficiencyBonus(actionState.level)
-              val effectiveTime = action.timeSeconds * (1.0 - efficiency)
-              val xpPerAction = action.xpGain.toDouble
-              if xpPerAction <= 0 then "—"
-              else
-                val actionsNeeded = Math.ceil(xpNeeded / xpPerAction)
-                val remainingInCurrentAction = effectiveTime * (1.0 - currentProgress)
-                val secondsRemaining = remainingInCurrentAction + (actionsNeeded - 1) * effectiveTime
-                formatEta(secondsRemaining.toLong)
-            case ActiveAction.Processing(_, action) =>
-              val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
-              val efficiency = VelorIdleLogic.calculateEfficiencyBonus(actionState.level)
-              val effectiveTime = action.timeSeconds * (1.0 - efficiency)
-              val xpPerAction = action.xpGain.toDouble
-              if xpPerAction <= 0 then "—"
-              else
-                val actionsNeeded = Math.ceil(xpNeeded / xpPerAction)
-                val remainingInCurrentAction = effectiveTime * (1.0 - currentProgress)
-                val secondsRemaining = remainingInCurrentAction + (actionsNeeded - 1) * effectiveTime
-                formatEta(secondsRemaining.toLong)
-            case ActiveAction.Thieving(action) =>
-              val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
-              val efficiency = VelorIdleLogic.calculateEfficiencyBonus(actionState.level)
-              val effectiveTime = action.timeSeconds * (1.0 - efficiency)
-              val xpPerAction = action.xpGain.toDouble
-              if xpPerAction <= 0 then "—"
-              else
-                val actionsNeeded = Math.ceil(xpNeeded / xpPerAction)
-                val remainingInCurrentAction = effectiveTime * (1.0 - currentProgress)
-                val secondsRemaining = remainingInCurrentAction + (actionsNeeded - 1) * effectiveTime
-                formatEta(secondsRemaining.toLong)
-            case ActiveAction.EquipmentCrafting(action) =>
-              val actionState = game.actionLevels.getOrElse(action.id, ActionState.initial)
-              val efficiency = VelorIdleLogic.calculateEfficiencyBonus(actionState.level)
-              val effectiveTime = action.timeSeconds * (1.0 - efficiency)
-              val xpPerAction = action.xpGain.toDouble
-              if xpPerAction <= 0 then "—"
-              else
-                val actionsNeeded = Math.ceil(xpNeeded / xpPerAction)
-                val remainingInCurrentAction = effectiveTime * (1.0 - currentProgress)
-                val secondsRemaining = remainingInCurrentAction + (actionsNeeded - 1) * effectiveTime
-                formatEta(secondsRemaining.toLong)
+          getXpRateInfo(game, currentProgress) match
+            case Some((xpPerAction, effectiveTime)) if xpPerAction > 0 =>
+              val seconds = calculateSecondsToSkillLevel(skillState.xp, skillState.level + 1, xpPerAction, effectiveTime, currentProgress)
+              formatEta(seconds)
+            case _ => "—"
+    .map(formatEtaString).distinct
+
+    // ETA to level 99
+    val eta99Signal = stateSignal.combineWith(VelorIdleState.gameSignal, VelorIdleState.actionProgressSignal).map:
+      case (skillState, game, currentProgress) =>
+        if skillState.level >= 99 then "MAX"
+        else
+          getXpRateInfo(game, currentProgress) match
+            case Some((xpPerAction, effectiveTime)) if xpPerAction > 0 =>
+              val seconds = calculateSecondsToSkillLevel(skillState.xp, 99, xpPerAction, effectiveTime, currentProgress)
+              formatEta(seconds)
             case _ => "—"
     .map(formatEtaString).distinct
 
@@ -266,7 +261,8 @@ object SkillTrainingView:
       div(
         cls := "velor-xp-bar-label",
         span(child.text <-- stateSignal.map(s => s"XP: ${s.xp}")),
-        span(cls := "velor-xp-eta", child.text <-- etaSignal),
+        span(cls := "velor-xp-eta", child.text <-- etaSignal.map(e => s"$e")),
+        span(cls := "velor-xp-eta velor-xp-eta-99", child.text <-- eta99Signal.map(e => s"$e")),
         span(child.text <-- stateSignal.map { s =>
           if s.level >= 99 then "MAX"
           else
@@ -293,10 +289,50 @@ object SkillTrainingView:
       val m = seconds / 60
       val s = seconds % 60
       f"${m}m ${s}s"
-    else
+    else if seconds < 86400 then
       val h = seconds / 3600
       val m = (seconds % 3600) / 60
       f"${h}h ${m}m"
+    else
+      val d = seconds / 86400
+      val h = (seconds % 86400) / 3600
+      f"${d}d ${h}h"
+
+  /** Calculate seconds to reach a target level for a skill */
+  private def calculateSecondsToSkillLevel(
+    currentXp: Long,
+    targetLevel: Int,
+    xpPerAction: Double,
+    effectiveTime: Double,
+    currentProgress: Double
+  ): Long =
+    if xpPerAction <= 0 then Long.MaxValue
+    else
+      val xpNeeded = SkillState.totalXpForLevel(targetLevel) - currentXp
+      if xpNeeded <= 0 then 0L
+      else
+        val actionsNeeded = Math.ceil(xpNeeded / xpPerAction)
+        val remainingInCurrentAction = effectiveTime * (1.0 - currentProgress)
+        val secondsRemaining = remainingInCurrentAction + (actionsNeeded - 1) * effectiveTime
+        secondsRemaining.toLong
+
+  /** Calculate seconds to reach a target level for an action */
+  private def calculateSecondsToActionLevel(
+    currentXp: Long,
+    targetLevel: Int,
+    xpPerAction: Double,
+    effectiveTime: Double,
+    currentProgress: Double
+  ): Long =
+    if xpPerAction <= 0 then Long.MaxValue
+    else
+      val xpNeeded = ActionState.totalXpForLevel(targetLevel) - currentXp
+      if xpNeeded <= 0 then 0L
+      else
+        val actionsNeeded = Math.ceil(xpNeeded / xpPerAction)
+        val remainingInCurrentAction = effectiveTime * (1.0 - currentProgress)
+        val secondsRemaining = remainingInCurrentAction + (actionsNeeded - 1) * effectiveTime
+        secondsRemaining.toLong
 
   private def actionProgress(viewingSkill: Skill, onStopAction: () => Unit): HtmlElement =
     val activeSignal = VelorIdleState.activeActionSignal
@@ -434,17 +470,23 @@ object SkillTrainingView:
         val actionState = game.actionLevels.getOrElse(actionId, ActionState.initial)
         if actionState.level >= 99 then "MAX"
         else
-          val xpNeeded = ActionState.totalXpForLevel(actionState.level + 1) - actionState.xp
           val efficiency = VelorIdleLogic.calculateEfficiencyBonus(actionState.level)
           val effectiveTime = timeSeconds * (1.0 - efficiency)
-          val xpPerAction = actionXpGain.toDouble
-          
-          if xpPerAction <= 0 then "—"
-          else
-            val actionsNeeded = Math.ceil(xpNeeded / xpPerAction)
-            val remainingInCurrentAction = effectiveTime * (1.0 - currentProgress)
-            val secondsRemaining = remainingInCurrentAction + (actionsNeeded - 1) * effectiveTime
-            formatEta(secondsRemaining.toLong)
+          val seconds = calculateSecondsToActionLevel(actionState.xp, actionState.level + 1, actionXpGain.toDouble, effectiveTime, currentProgress)
+          if seconds == Long.MaxValue then "—" else formatEta(seconds)
+      case _ => "—"
+    .distinct
+
+    // ETA signal for action level 99
+    val eta99Signal = actionDetailsSignal.combineWith(VelorIdleState.gameSignal, VelorIdleState.actionProgressSignal).map:
+      case (Some((actionId, _, _, timeSeconds, actionXpGain, _, _)), game, currentProgress) =>
+        val actionState = game.actionLevels.getOrElse(actionId, ActionState.initial)
+        if actionState.level >= 99 then "MAX"
+        else
+          val efficiency = VelorIdleLogic.calculateEfficiencyBonus(actionState.level)
+          val effectiveTime = timeSeconds * (1.0 - efficiency)
+          val seconds = calculateSecondsToActionLevel(actionState.xp, 99, actionXpGain.toDouble, effectiveTime, currentProgress)
+          if seconds == Long.MaxValue then "—" else formatEta(seconds)
       case _ => "—"
     .distinct
 
@@ -456,7 +498,8 @@ object SkillTrainingView:
           case Some(s) => s"XP: ${s.xp}"
           case None => "—"
         ),
-        span(cls := "velor-xp-eta", child.text <-- etaSignal),
+        span(cls := "velor-xp-eta", child.text <-- etaSignal.map(e => s"⏱$e")),
+        span(cls := "velor-xp-eta velor-xp-eta-99", child.text <-- eta99Signal.map(e => s"→99: $e")),
         span(child.text <-- actionStateSignal.map:
           case Some(s) if s.level >= 99 => "MAX"
           case Some(s) => s"Next: ${ActionState.totalXpForLevel(s.level + 1)}"
