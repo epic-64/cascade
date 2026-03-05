@@ -188,8 +188,12 @@ object AdventureCombat:
       c = afterAutos
       details ++= autoDetails
 
-    // 4. Mana regen
-    c = c.copy(playerMana = (c.playerMana + (AdventureState.ManaRegenPerSecond * elapsedSeconds).toInt).min(c.playerMaxMana))
+    // 4. Mana regen (use floating point accumulator for precision)
+    val manaRegen = advState.manaRegenPerSecond * elapsedSeconds
+    val newMana = (c.playerMana.toDouble + c.manaRegenAccumulator + manaRegen)
+    val wholeMana = newMana.toInt.min(c.playerMaxMana)
+    val fractionalMana = if wholeMana >= c.playerMaxMana then 0.0 else newMana - wholeMana
+    c = c.copy(playerMana = wholeMana, manaRegenAccumulator = fractionalMana)
 
     // 5. Process chain windows
     c = processChainWindows(c, currentTime)
@@ -351,7 +355,9 @@ object AdventureCombat:
       if evaded then
         events :+= CombatEventDetail.EnemyEvaded
       else
-        val damage = applyDamageBuff(advState.attackDamage, combat.playerDamageBuff)
+        // Roll damage in range [min, max] inclusive
+        val baseDamage = advState.attackDamageMin + random.nextInt((advState.attackDamageMax - advState.attackDamageMin + 1).max(1))
+        val damage = applyDamageBuff(baseDamage, combat.playerDamageBuff)
         c = c.copy(enemyCurrentHp = (c.enemyCurrentHp - damage).max(0))
         events :+= CombatEventDetail.PlayerAutoAttack(damage)
 
