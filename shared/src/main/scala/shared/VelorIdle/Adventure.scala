@@ -165,6 +165,7 @@ case class CombatState(
   playerMaxHp: Int,
   playerMana: Int,
   playerMaxMana: Int,
+  manaRegenAccumulator: Double = 0.0,  // Fractional mana regen accumulator for precision
   playerDoTs: Vector[ActiveDoT] = Vector.empty,
   playerShield: Option[ActiveShield] = None,
   playerDamageBuff: Option[ActiveDamageBuff] = None,
@@ -401,13 +402,20 @@ object Weapons:
   val all: Vector[Weapon] = Vector(starterSword, ironSword)
 
 object Enemies:
+  /** Base HP for enemies - scaled by triangular growth based on level */
+  private val BaseEnemyHp: Int = 10
+  private val HpPerLevelFactor: Int = 2
+  
+  /** Calculate enemy HP using triangular growth: baseHp + triangular(level) * factor */
+  def calculateHp(level: Int): Int = BaseEnemyHp + AdventureState.triangular(level) * HpPerLevelFactor
+
   val goblin: Enemy = Enemy(
     id = "goblin",
     name = "Goblin",
     icon = "👺",
     levelRequired = 1,
-    maxHp = 30,
-    attackDamage = 3,
+    maxHp = calculateHp(1),  // 10 + 1*2 = 12
+    attackDamage = 2,
     attackSpeedMs = 2500,
     attackRating = 2,
     defenseRating = 1,
@@ -421,8 +429,8 @@ object Enemies:
     name = "Skeleton",
     icon = "💀",
     levelRequired = 5,
-    maxHp = 50,
-    attackDamage = 5,
+    maxHp = calculateHp(5),  // 10 + 15*2 = 40
+    attackDamage = 3,
     attackSpeedMs = 2000,
     attackRating = 5,
     defenseRating = 3,
@@ -437,8 +445,8 @@ object Enemies:
     name = "Orc",
     icon = "👹",
     levelRequired = 10,
-    maxHp = 80,
-    attackDamage = 8,
+    maxHp = calculateHp(10),  // 10 + 55*2 = 120
+    attackDamage = 5,
     attackSpeedMs = 2200,
     attackRating = 10,
     defenseRating = 8,
@@ -453,8 +461,8 @@ object Enemies:
     name = "Dark Knight",
     icon = "🖤",
     levelRequired = 20,
-    maxHp = 150,
-    attackDamage = 12,
+    maxHp = calculateHp(20),  // 10 + 210*2 = 430
+    attackDamage = 8,
     attackSpeedMs = 1800,
     attackRating = 18,
     defenseRating = 20,
@@ -469,8 +477,8 @@ object Enemies:
     name = "Dragon",
     icon = "🐉",
     levelRequired = 35,
-    maxHp = 300,
-    attackDamage = 20,
+    maxHp = calculateHp(35),  // 10 + 630*2 = 1270
+    attackDamage = 15,
     attackSpeedMs = 2500,
     attackRating = 30,
     defenseRating = 25,
@@ -485,7 +493,7 @@ object Enemies:
     name = "Training Dummy",
     icon = "🎯",
     levelRequired = 1,
-    maxHp = 1000,
+    maxHp = 1000,  // Fixed high HP for testing
     attackDamage = 1,
     attackSpeedMs = 3000,
     attackRating = 1,
@@ -523,8 +531,15 @@ case class AdventureState(
   def maxMana: Int = AdventureState.BaseMaxMana + equipment.totalMaxManaBonus
   def attackRating: Int = AdventureState.BaseAttackRating
   def defenseRating: Int = AdventureState.BaseDefenseRating + equipment.totalDefense
-  def attackDamage: Int = AdventureState.BaseAutoAttackDamage + equipment.totalAttackDamage
+  def attackDamageMin: Int = AdventureState.BaseAutoAttackDamageMin + equipment.totalAttackDamage
+  def attackDamageMax: Int = AdventureState.BaseAutoAttackDamageMax + equipment.totalAttackDamage
   def resistances: Resistances = Resistances.none // TODO: Add from equipment
+  
+  /** Calculate mana regen rate per second (floating point for precision) */
+  def manaRegenPerSecond: Double =
+    val baseManaRegen = maxMana * AdventureState.BaseManaRegenPercent
+    val regenBonus = 1.0 + (equipment.totalManaRegenPercent / 100.0)
+    baseManaRegen * regenBonus
   
   /** Get skill level bonuses from equipment */
   def equipmentSkillBonuses: Map[String, Int] = equipment.allSkillBonuses
@@ -537,7 +552,12 @@ object AdventureState:
   val BaseMaxMana: Int = 50
   val BaseAttackRating: Int = 5
   val BaseDefenseRating: Int = 5
-  val BaseAutoAttackDamage: Int = 5
-  val ManaRegenPerSecond: Double = 10.0  // Mana regen while resting
+  val BaseAutoAttackDamageMin: Int = 1   // Min auto-attack damage (naked)
+  val BaseAutoAttackDamageMax: Int = 2   // Max auto-attack damage (naked)
+  val BaseManaRegenPercent: Double = 0.01  // 1% of max mana per second during combat
+  val RestManaRegenPercent: Double = 0.05  // 5% of max mana per second while resting
   val HpRegenPerSecond: Double = 5.0     // HP regen while resting
+
+  /** Calculate triangular number: 1 + 2 + 3 + ... + n = n*(n+1)/2 */
+  def triangular(n: Int): Int = n * (n + 1) / 2
 

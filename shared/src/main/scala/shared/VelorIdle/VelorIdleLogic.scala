@@ -51,7 +51,8 @@ object VelorIdleLogic:
 
     // Use round to avoid losing small increments due to truncation
     val hpRegen = (AdventureState.HpRegenPerSecond * elapsedSeconds).round.toInt
-    val manaRegen = (AdventureState.ManaRegenPerSecond * elapsedSeconds).round.toInt
+    // Resting uses higher mana regen rate (5% vs 1% in combat)
+    val manaRegen = (maxMana * AdventureState.RestManaRegenPercent * elapsedSeconds).round.toInt
 
     val newHp = (advState.currentHp + hpRegen).min(maxHp)
     val newMana = (advState.currentMana + manaRegen).min(maxMana)

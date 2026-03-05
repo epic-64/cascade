@@ -49,6 +49,7 @@ enum MagicalAffix derives ReadWriter:
   case DefenseBonus(amount: Int)        // +X defense
   case MaxHpBonus(amount: Int)          // +X max HP
   case MaxManaBonus(amount: Int)        // +X max mana
+  case ManaRegenBonus(percent: Int)     // +X% mana regeneration
 
 object MagicalAffix:
   /** Human-readable description of an affix */
@@ -60,6 +61,7 @@ object MagicalAffix:
     case DefenseBonus(amt)       => s"+$amt Defense"
     case MaxHpBonus(amt)         => s"+$amt Max HP"
     case MaxManaBonus(amt)       => s"+$amt Max Mana"
+    case ManaRegenBonus(pct)     => s"+$pct% Mana Regen"
 
 /** Base stats for equipment */
 case class EquipmentBaseStats(
@@ -117,6 +119,9 @@ case class EquipmentInstance(
 
   /** Calculate max mana bonus from affixes */
   def maxManaBonus: Int = affixes.collect { case MagicalAffix.MaxManaBonus(amt) => amt }.sum
+
+  /** Calculate mana regeneration percentage bonus from affixes */
+  def manaRegenBonus: Int = affixes.collect { case MagicalAffix.ManaRegenBonus(pct) => pct }.sum
 
   /** Get skill level bonuses from affixes */
   def skillBonuses: Map[String, Int] =
@@ -305,6 +310,10 @@ case class EquipmentSlots(
   /** Total max mana bonus from equipment */
   def totalMaxManaBonus: Int =
     weapon.map(_.maxManaBonus).getOrElse(0) + armor.map(_.maxManaBonus).getOrElse(0)
+
+  /** Total mana regeneration percentage bonus from equipment */
+  def totalManaRegenPercent: Int =
+    weapon.map(_.manaRegenBonus).getOrElse(0) + armor.map(_.manaRegenBonus).getOrElse(0)
 
   /** Combined skill bonuses from all equipment */
   def allSkillBonuses: Map[String, Int] =
