@@ -64,41 +64,11 @@ object DevPanel:
     // Apply the result
     VelorIdleState.update(result.game.copy(lastTickTime = currentTime))
     
-    // Show summary
-    showTimeSkipSummary(hours, result)
+    // Show detailed modal
+    OfflineProgressModal.show(hours, result)
 
-  private def showTimeSkipSummary(hours: Int, result: OfflineProgress.OfflineResult): Unit =
-    val parts = scala.collection.mutable.ArrayBuffer[String]()
-    parts += s"⏰ Simulated ${hours}h skip"
-    
-    result.xpGained.foreach { case (skill, xp) =>
-      parts += s"${Skill.icon(skill)} +${formatNumber(xp)} XP"
-    }
-    
-    result.skillLevelUps.foreach { case (skill, levels) =>
-      parts += s"${Skill.icon(skill)} +$levels lvls"
-    }
-    
-    val totalItems = result.itemsGained.values.sum
-    if totalItems > 0 then
-      parts += s"📦 +${formatNumber(totalItems)} items"
-    
-    if result.goldGained > 0 then
-      parts += s"💰 +${formatNumber(result.goldGained)} gold"
-    
-    val enemiesDefeated = result.events.count {
-      case GameEvent.AdventureEnemyDefeated(_) => true
-      case _ => false
-    }
-    if enemiesDefeated > 0 then
-      parts += s"⚔️ $enemiesDefeated kills"
-    
-    ToastSystem.show(parts.mkString(" | "), durationMs = 8000)
+  // Removed showTimeSkipSummary and formatNumber - now handled by OfflineProgressModal
 
-  private def formatNumber(n: Long): String =
-    if n >= 1_000_000 then f"${n / 1_000_000.0}%.1fM"
-    else if n >= 1_000 then f"${n / 1_000.0}%.1fK"
-    else n.toString
 
   private def resetCombat(): Unit =
     VelorIdleState.modify { game =>

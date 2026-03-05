@@ -169,5 +169,125 @@
   transform: scale(0.95);
 }
 
+/* ============================================================================
+   Offline Progress Modal
+   ============================================================================ */
 
+.velor-offline-modal {
+  max-width: 500px;
+  max-height: 80vh;
+}
 
+.velor-offline-modal .velor-modal-body {
+  overflow-y: auto;
+  max-height: 60vh;
+}
+
+.velor-offline-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-md);
+}
+
+.velor-offline-section {
+  background: var(--velor-bg);
+  border-radius: var(--velor-radius-sm);
+  padding: var(--velor-spacing-md);
+}
+
+.velor-offline-section h4 {
+  margin: 0 0 var(--velor-spacing-sm) 0;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--velor-border);
+  padding-bottom: var(--velor-spacing-xs);
+}
+
+.velor-offline-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--velor-spacing-sm);
+}
+
+.velor-offline-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.velor-offline-stat .stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.velor-offline-stat .stat-value {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.velor-offline-stat .stat-value.xp {
+  color: var(--velor-xp);
+}
+
+.velor-offline-stat .stat-value.gained {
+  color: var(--velor-accent);
+}
+
+.velor-offline-stat .stat-value.consumed {
+  color: var(--velor-hp);
+}
+
+.velor-offline-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--velor-spacing-xs);
+}
+
+.velor-offline-row {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-sm);
+  padding: var(--velor-spacing-xs) var(--velor-spacing-sm);
+  background: var(--velor-card);
+  border-radius: var(--velor-radius-sm);
+}
+
+.velor-offline-row .row-icon {
+  font-size: 1.1rem;
+  min-width: 1.5rem;
+  text-align: center;
+}
+
+.velor-offline-row .row-name {
+  flex: 1;
+  font-size: 0.9rem;
+}
+
+.velor-offline-row .row-value {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.velor-offline-row.level-up .row-value {
+  color: var(--velor-xp);
+}
+
+.velor-offline-row.gained .row-value {
+  color: var(--velor-accent);
+}
+
+.velor-offline-row.consumed .row-value {
+  color: var(--velor-hp);
+}
+
+.velor-offline-row.gold .row-value {
+  color: gold;
+}
+
+.velor-offline-row.combat .row-value {
+  color: var(--velor-accent);
+}
+
+.velor-offline-row.death .row-value {
+  color: var(--velor-hp);
+}
