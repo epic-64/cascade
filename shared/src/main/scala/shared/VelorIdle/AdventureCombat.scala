@@ -351,8 +351,11 @@ object AdventureCombat:
     var c = combat
     var events = Vector.empty[CombatEventDetail]
 
-    // Player auto-attack
-    if currentTime >= c.lastPlayerAutoAttack + BaseAutoAttackSpeedMs then
+    // Player auto-attack (disabled while casting)
+    val canPlayerAutoAttack = !c.isCasting && 
+                              currentTime >= c.lastPlayerAutoAttack + BaseAutoAttackSpeedMs
+    
+    if canPlayerAutoAttack then
       val evaded = rollEvade(advState.attackRating, c.enemy.defenseRating, random)
       c = c.copy(lastPlayerAutoAttack = currentTime, playerDamageBuff = None)
       if evaded then
@@ -452,13 +455,16 @@ object AdventureCombat:
     else
       // Execute skill
       val newCombat = if skill.castTimeMs > 0 then
+        // Start casting - reset auto-attack timer (will be disabled during cast anyway)
         combat.copy(
           playerMana = combat.playerMana - skill.manaCost,
-          castingSkill = Some(CastingState(slotIndex, skill, currentTime, currentTime + skill.castTimeMs))
+          castingSkill = Some(CastingState(slotIndex, skill, currentTime, currentTime + skill.castTimeMs)),
+          lastPlayerAutoAttack = currentTime // Reset auto-attack progress
         )
       else
         val (executed, _) = executeSkill(combat, slotIndex, skill, currentTime)
-        executed
+        // Reset auto-attack timer for instant skills too
+        executed.copy(lastPlayerAutoAttack = currentTime)
 
       // If skill killed the enemy, immediately transition to loading state
       // This prevents further actions before the next tick processes victory

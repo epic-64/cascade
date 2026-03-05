@@ -90,7 +90,6 @@ object VelorIdleClient:
   private def skillSelectView(): HtmlElement =
     div(
       cls := "velor-view",
-      h2(styleAttr := "margin-bottom: 1rem; text-align: center;", "Choose a Skill"),
       SkillSelector(VelorIdleState.selectSkill)
     )
 
@@ -543,21 +542,21 @@ object VelorIdleClient:
         .foreach { json =>
           val loadedGame = upickle.default.read[VelorIdleGame](json)
           val currentTime = System.currentTimeMillis()
-          
+
           // Calculate offline progress
           val offlineResult = OfflineProgress.calculateOfflineProgress(
-            loadedGame, 
-            loadedGame.lastTickTime, 
+            loadedGame,
+            loadedGame.lastTickTime,
             currentTime
           )
-          
+
           // Apply the result and update lastTickTime
           currentGame = offlineResult.game.copy(lastTickTime = currentTime)
-          
+
           // Show offline progress modal if any significant progress was made
           if offlineResult.secondsProcessed >= OfflineProgress.ChunkDurationSeconds then
             OfflineProgressModal.show(offlineResult)
-          
+
           println("[VelorIdle] Game loaded")
         }
     .failed.foreach { e =>
