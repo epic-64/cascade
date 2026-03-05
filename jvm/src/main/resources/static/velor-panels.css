@@ -1050,6 +1050,60 @@
   font-weight: 600;
 }
 
+/* Magical equipment group */
+.velor-equipment-group {
+  background: var(--velor-bg-secondary);
+  border-radius: var(--velor-radius-md);
+  border: 1px solid var(--velor-border);
+  overflow: hidden;
+}
+
+.velor-equipment-group.magical {
+  border-color: #a855f7;
+}
+
+.velor-equipment-group-header {
+  display: flex;
+  align-items: center;
+  gap: var(--velor-spacing-sm);
+  padding: var(--velor-spacing-sm) var(--velor-spacing-md);
+  background: rgba(168, 85, 247, 0.15);
+  border-bottom: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.velor-equipment-group-icon {
+  font-size: 1.2rem;
+}
+
+.velor-equipment-group-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #a855f7;
+  flex: 1;
+}
+
+.velor-equipment-group-count {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.velor-equipment-group-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.velor-equipment-group-items .velor-equipment-item {
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid var(--velor-border);
+  background: transparent;
+}
+
+.velor-equipment-group-items .velor-equipment-item:last-child {
+  border-bottom: none;
+}
+
 /* Equipment rarity colors */
 .rarity-normal {
   /* No special styling */
