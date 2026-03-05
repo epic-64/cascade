@@ -298,6 +298,28 @@
 .velor-hp-bar {
   height: 100%;
   transition: width 0.15s ease;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* Ghost HP bar - shows damage chunks with delayed transition */
+.velor-hp-bar-ghost {
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0.5;
+  transition: width 0.15s ease;
+  transition-delay: 0.4s;
+}
+
+.velor-hp-bar-ghost.enemy {
+  background: linear-gradient(90deg, #dc2626, #ef4444);
+}
+
+.velor-hp-bar-ghost.player {
+  background: linear-gradient(90deg, #16a34a, #22c55e);
 }
 
 .velor-hp-bar.enemy {
