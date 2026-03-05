@@ -335,26 +335,10 @@ object AdventureView:
         div(
           cls := "velor-player-stat-row",
           span(cls := "velor-player-stat-label", "HP"),
-          div(
-            cls := "velor-hp-bar-container",
-            // Ghost bar (delayed, shows damage chunks)
-            div(
-              cls := "velor-hp-bar-ghost player",
-              width <-- adventureStateSignal.map { state =>
-                s"${(state.currentHp.toDouble / state.maxHp * 100).max(0)}%"
-              }.distinct
-            ),
-            // Main HP bar
-            div(
-              cls := "velor-hp-bar player",
-              width <-- adventureStateSignal.map { state =>
-                s"${(state.currentHp.toDouble / state.maxHp * 100).max(0)}%"
-              }.distinct
-            ),
-            div(
-              cls := "velor-hp-text",
-              child.text <-- adventureStateSignal.map(s => s"${s.currentHp} / ${s.maxHp}").distinct
-            )
+          HpBar(
+            hpSignal = adventureStateSignal.map(_.currentHp),
+            maxHpSignal = adventureStateSignal.map(_.maxHp),
+            isPlayer = true
           )
         ),
         // Mana bar
@@ -673,28 +657,10 @@ object AdventureView:
       ),
 
       // HP bar - uses visual HP that updates when projectiles land
-      div(
-        cls := "velor-hp-bar-container",
-        // Ghost bar (delayed, shows damage chunks)
-        div(
-          cls := "velor-hp-bar-ghost enemy",
-          width <-- visualHpSignal.combineWith(combatSignal).map { case (visualHp, c) =>
-            c.map(combat => s"${(visualHp.toDouble / combat.enemy.maxHp * 100).max(0)}%").getOrElse("0%")
-          }
-        ),
-        // Main HP bar
-        div(
-          cls := "velor-hp-bar enemy",
-          width <-- visualHpSignal.combineWith(combatSignal).map { case (visualHp, c) =>
-            c.map(combat => s"${(visualHp.toDouble / combat.enemy.maxHp * 100).max(0)}%").getOrElse("0%")
-          }
-        ),
-        div(
-          cls := "velor-hp-text",
-          child.text <-- visualHpSignal.combineWith(combatSignal).map { case (visualHp, c) =>
-            c.map(combat => s"$visualHp / ${combat.enemy.maxHp}").getOrElse("")
-          }
-        )
+      HpBar(
+        hpSignal = visualHpSignal,
+        maxHpSignal = combatSignal.map(_.map(_.enemy.maxHp).getOrElse(1)),
+        isPlayer = false
       ),
 
       // Combat stats row
@@ -779,28 +745,11 @@ object AdventureView:
       ),
 
       // HP bar - uses visual HP that updates when projectiles land
-      div(
-        cls := "velor-hp-bar-container",
-        // Ghost bar (delayed, shows damage chunks)
-        div(
-          cls := "velor-hp-bar-ghost player",
-          width <-- visualHpSignal.combineWith(combatSignal).map { case (visualHp, c) =>
-            c.map(combat => s"${(visualHp.toDouble / combat.playerMaxHp * 100).max(0)}%").getOrElse("0%")
-          }
-        ),
-        // Main HP bar
-        div(
-          cls := "velor-hp-bar player",
-          width <-- visualHpSignal.combineWith(combatSignal).map { case (visualHp, c) =>
-            c.map(combat => s"${(visualHp.toDouble / combat.playerMaxHp * 100).max(0)}%").getOrElse("0%")
-          }
-        ),
-        div(
-          cls := "velor-hp-text",
-          child.text <-- visualHpSignal.combineWith(combatSignal).map { case (visualHp, c) =>
-            c.map(combat => s"❤️ $visualHp / ${combat.playerMaxHp}").getOrElse("")
-          }
-        )
+      HpBar(
+        hpSignal = visualHpSignal,
+        maxHpSignal = combatSignal.map(_.map(_.playerMaxHp).getOrElse(1)),
+        isPlayer = true,
+        showLabel = Some("❤️")
       ),
 
       // Mana bar
