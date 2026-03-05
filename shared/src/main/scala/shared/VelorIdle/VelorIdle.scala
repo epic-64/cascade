@@ -67,13 +67,13 @@ object SkillState:
   val initial: SkillState = SkillState()
 
   /** XP required to go from level N to level N+1.
-    * Formula: 100*level + 5*level² (quadratic scaling)
-    * - Level 1→2: 105 XP
-    * - Level 50→51: 17,500 XP  
-    * - Level 98→99: 57,820 XP
-    * Total to 99: ~2.9M XP
+    * Formula: 100*level + 10*level² (strong quadratic scaling)
+    * - Level 1→2: 110 XP
+    * - Level 50→51: 30,000 XP
+    * - Level 98→99: 105,840 XP
+    * Total to 99: ~5.6M XP
     */
-  def xpForLevel(level: Int): Long = (100L * level) + (5L * level * level)
+  def xpForLevel(level: Int): Long = (100L * level) + (10L * level * level)
 
   /** Total XP required to reach a given level from level 1 */
   def totalXpForLevel(level: Int): Long =
@@ -113,13 +113,15 @@ object ActionState:
   val initial: ActionState = ActionState()
 
   /** XP required to go from level N to level N+1, scaled by action tier.
-    * Base formula: 50*level + 2*level²
-    * Tier multiplier: 1 + (actionUnlockLevel / 20)
-    * This makes higher-tier actions require more XP per level.
+    * Base formula: 25*level (linear, fast progression)
+    * Tier multiplier: 1 + (actionUnlockLevel / 25)
+    * This keeps action leveling fast but higher tier actions need slightly more.
+    * - Level 1→2: 25 XP (tier 1) to 100 XP (tier 70)
+    * - Level 98→99: 2,450 XP (tier 1) to 9,800 XP (tier 70)
     */
   def xpForLevel(level: Int, actionUnlockLevel: Int = 1): Long =
-    val base = (50L * level) + (2L * level * level)
-    val tierMultiplier = 1.0 + (actionUnlockLevel / 20.0)
+    val base = 50L * level
+    val tierMultiplier = 1.0 + (actionUnlockLevel / 15.0)
     (base * tierMultiplier).toLong
 
   /** Total XP required to reach a given level from level 1 */
