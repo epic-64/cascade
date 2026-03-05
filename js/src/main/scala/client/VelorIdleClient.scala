@@ -568,6 +568,14 @@ object VelorIdleClient:
     if result.goldGained > 0 then
       parts += s"💰 +${formatNumber(result.goldGained)} gold"
     
+    // Count enemies defeated from events
+    val enemiesDefeated = result.events.count {
+      case GameEvent.AdventureEnemyDefeated(_) => true
+      case _ => false
+    }
+    if enemiesDefeated > 0 then
+      parts += s"⚔️ $enemiesDefeated enemies defeated"
+    
     // Show a single consolidated toast
     ToastSystem.show(parts.mkString(" | "), durationMs = 8000)
 

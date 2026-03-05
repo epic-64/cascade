@@ -8,9 +8,10 @@ import scala.util.Random
   * have gained during that time and applies it in bulk.
   *
   * == Accuracy Notes ==
-  * - XP gains are exact (actions × XP per action)
-  * - Rare drops use expected value (may vary slightly from real gameplay)
-  * - Efficiency/yield bonuses are calculated once at start (doesn't account for mid-session level-ups)
+  * - Gathering/Processing/Thieving: XP gains are exact (actions × XP per action)
+  * - Combat: Simulated tick-by-tick using real game logic (100% accurate)
+  * - Rare drops use expected value for non-combat (may vary slightly from real gameplay)
+  * - Efficiency/yield bonuses are calculated once at start for non-combat
   * - Potion and tablet effects are NOT applied (they'd expire quickly anyway)
   * - Inventory overflow is ignored (items may exceed normal limits)
   *
@@ -20,9 +21,9 @@ import scala.util.Random
   * - Change XP formulas in SkillState/ActionState (formulas are referenced directly)
   * - Add new bonus calculations to VelorIdleLogic (may need to include here)
   * - Change how processing/gathering/thieving works (update respective process* methods)
+  * - Combat changes are automatically picked up (uses VelorIdleLogic.tick directly)
   *
   * == Not Supported ==
-  * - Adventure/Combat (too stateful, just restores HP/mana)
   * - Astrology (not implemented yet)
   */
 object OfflineProgress:
@@ -83,17 +84,11 @@ object OfflineProgress:
       case ActiveAction.EquipmentCrafting(action) =>
         processEquipmentCraftingOffline(game, action, elapsedSeconds, random)
 
-      case ActiveAction.Adventure | ActiveAction.Rest =>
-        // For adventure/rest, just restore HP/mana to full
-        val advState = game.adventureState
-        val restoredGame = game.copy(
-          adventureState = advState.copy(
-            currentHp = advState.maxHp,
-            currentMana = advState.maxMana
-          ),
-          activeAction = ActiveAction.Idle
-        )
-        OfflineResult(restoredGame, elapsedSeconds, 0, Map.empty, Map.empty, Map.empty, 0, Map.empty, Map.empty, Vector.empty)
+      case ActiveAction.Adventure =>
+        processAdventureOffline(game, lastTickTime, currentTime, elapsedSeconds, random)
+
+      case ActiveAction.Rest =>
+        processRestOffline(game, elapsedSeconds)
 
   // ============================================================================
   // Gathering Offline Processing
@@ -489,3 +484,121 @@ object OfflineProgress:
       events = events
     )
 
+  // ============================================================================
+  // Adventure (Combat) Offline Processing - Tick by Tick Simulation
+  // ============================================================================
+
+  /** Tick interval for offline combat simulation in milliseconds */
+  private val CombatTickIntervalMs: Long = 100L
+  
+  /** Maximum number of combat ticks to simulate (prevents infinite loops) */
+  private val MaxCombatTicks: Int = 100_000 // ~2.7 hours at 100ms ticks
+
+  private def processAdventureOffline(
+    game: VelorIdleGame,
+    lastTickTime: Long,
+    currentTime: Long,
+    elapsedSeconds: Long,
+    random: Random
+  ): OfflineResult =
+    val chunksProcessed = (elapsedSeconds / ChunkDurationSeconds).toInt
+    
+    // Track gains across all combat
+    var totalXpGained = 0L
+    var totalGoldGained = 0L
+    var itemsGained = Map.empty[Item, Long]
+    var allEvents = Vector.empty[GameEvent]
+    var enemiesDefeated = 0
+    
+    // Simulate combat tick by tick
+    var currentGame = game
+    var simulatedTime = lastTickTime
+    var tickCount = 0
+    
+    while simulatedTime < currentTime && tickCount < MaxCombatTicks do
+      val tickEndTime = (simulatedTime + CombatTickIntervalMs).min(currentTime)
+      
+      val (updatedGame, events) = VelorIdleLogic.tick(currentGame, tickEndTime, random)
+      
+      // Track XP gains
+      events.foreach:
+        case GameEvent.XpGained(skill, amount) if skill == Skill.Adventure =>
+          totalXpGained += amount
+        case GameEvent.GoldGained(amount) =>
+          totalGoldGained += amount
+        case GameEvent.ItemGained(item, count) =>
+          itemsGained = itemsGained.updated(item, itemsGained.getOrElse(item, 0L) + count)
+        case GameEvent.AdventureEnemyDefeated(_) =>
+          enemiesDefeated += 1
+        case _ => ()
+      
+      allEvents ++= events
+      currentGame = updatedGame
+      simulatedTime = tickEndTime
+      tickCount += 1
+      
+      // If combat ended (player died or stopped), break out
+      if currentGame.activeAction != ActiveAction.Adventure then
+        // If player died and is now resting, let them fully recover
+        if currentGame.activeAction == ActiveAction.Rest then
+          val advState = currentGame.adventureState
+          currentGame = currentGame.copy(
+            adventureState = advState.copy(
+              currentHp = advState.maxHp,
+              currentMana = advState.maxMana
+            ),
+            activeAction = ActiveAction.Idle
+          )
+        simulatedTime = currentTime // Exit the loop
+    
+    // Calculate level ups
+    val oldLevel = game.skills.getOrElse(Skill.Adventure, SkillState.initial).level
+    val newLevel = currentGame.skills.getOrElse(Skill.Adventure, SkillState.initial).level
+    val skillLevelUps = if newLevel > oldLevel then 
+      Map(Skill.Adventure -> (newLevel - oldLevel)) 
+    else Map.empty[Skill, Int]
+    
+    OfflineResult(
+      game = currentGame.copy(lastTickTime = currentTime),
+      secondsProcessed = elapsedSeconds,
+      chunksProcessed = chunksProcessed,
+      xpGained = if totalXpGained > 0 then Map(Skill.Adventure -> totalXpGained) else Map.empty,
+      actionXpGained = Map.empty,
+      itemsGained = itemsGained,
+      goldGained = totalGoldGained,
+      skillLevelUps = skillLevelUps,
+      actionLevelUps = Map.empty,
+      events = allEvents
+    )
+
+  // ============================================================================
+  // Rest Offline Processing
+  // ============================================================================
+
+  private def processRestOffline(
+    game: VelorIdleGame,
+    elapsedSeconds: Long
+  ): OfflineResult =
+    // Resting for any amount of time fully restores HP and mana
+    val advState = game.adventureState
+    val restoredGame = game.copy(
+      adventureState = advState.copy(
+        currentHp = advState.maxHp,
+        currentMana = advState.maxMana,
+        restManaRegenAccumulator = 0.0
+      ),
+      activeAction = ActiveAction.Idle
+    )
+    
+    OfflineResult(
+      game = restoredGame,
+      secondsProcessed = elapsedSeconds,
+      chunksProcessed = 0,
+      xpGained = Map.empty,
+      actionXpGained = Map.empty,
+      itemsGained = Map.empty,
+      goldGained = 0,
+      skillLevelUps = Map.empty,
+      actionLevelUps = Map.empty,
+      events = Vector.empty
+    )

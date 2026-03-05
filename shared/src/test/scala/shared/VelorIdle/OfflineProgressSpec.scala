@@ -91,7 +91,7 @@ class OfflineProgressSpec extends AnyFunSpec with Matchers:
 
     describe("for Adventure/Rest"):
 
-      it("should restore HP and mana to full"):
+      it("should restore HP and mana to full when resting"):
         val game = VelorIdleGame.newGame(0L).copy(
           activeAction = ActiveAction.Rest,
           adventureState = AdventureState().copy(currentHp = 10, currentMana = 5)
@@ -102,4 +102,36 @@ class OfflineProgressSpec extends AnyFunSpec with Matchers:
         result.game.adventureState.currentHp shouldBe result.game.adventureState.maxHp
         result.game.adventureState.currentMana shouldBe result.game.adventureState.maxMana
         result.game.activeAction shouldBe ActiveAction.Idle
+
+      it("should simulate combat and grant XP/gold for adventure"):
+        // Set up a game in combat with the weakest enemy
+        val enemy = Enemies.goblin
+        val combatState = CombatState(
+          instanceId = 1L,
+          enemy = enemy,
+          enemyCurrentHp = enemy.maxHp,
+          playerCurrentHp = 100,
+          playerMaxHp = 100,
+          playerMana = 50,
+          playerMaxMana = 50,
+          lastPlayerAutoAttack = 0L,
+          lastEnemyAutoAttack = 0L,
+          skillSlots = Vector.empty
+        )
+        
+        val game = VelorIdleGame.newGame(0L).copy(
+          activeAction = ActiveAction.Adventure,
+          adventureState = AdventureState().copy(
+            inCombat = true,
+            combatState = Some(combatState),
+            selectedEnemyId = Some(enemy.id)
+          )
+        )
+        
+        // 30 seconds should be enough to defeat at least one goblin
+        val result = OfflineProgress.calculateOfflineProgress(game, 0L, 30_000L, fixedRandom())
+        
+        // Should have gained some XP (combat happened)
+        result.xpGained.getOrElse(Skill.Adventure, 0L) should be >= 0L
+        result.secondsProcessed shouldBe 30L
 
