@@ -10,11 +10,36 @@ object DevPanel:
     div(
       cls := "velor-dev-panel",
       div(cls := "velor-dev-panel-title", "🛠️ Dev Panel"),
+      // Dev actions
+      div(
+        cls := "velor-dev-actions",
+        button(
+          cls := "btn btn-secondary",
+          "🔄 Reset Combat",
+          onClick --> { _ => resetCombat() }
+        )
+      ),
       div(
         cls := "velor-dev-skill-list",
         Skill.values.toSeq.map(skillRow)
       )
     )
+
+  private def resetCombat(): Unit =
+    VelorIdleState.modify { game =>
+      val clearedAdvState = game.adventureState.copy(
+        inCombat = false,
+        combatState = None,
+        currentHp = game.adventureState.maxHp,
+        currentMana = game.adventureState.maxMana,
+        restManaRegenAccumulator = 0.0
+      )
+      game.copy(
+        adventureState = clearedAdvState,
+        activeAction = ActiveAction.Idle
+      )
+    }
+    ToastSystem.show("Combat state reset!")
 
   private def skillRow(skill: Skill): HtmlElement =
     val levelSignal = VelorIdleState.skillStateSignal(skill).map(_.level)
