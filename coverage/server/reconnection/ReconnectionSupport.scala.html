@@ -1,0 +1,1215 @@
+<html>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title id="title">
+          server/reconnection/ReconnectionSupport.scala.html
+        </title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/css/theme.default.min.css" type="text/css"/><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/js/jquery.tablesorter.min.js"></script><link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" type="text/css"/><script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script><script type="text/javascript">
+        $(document).ready(function() {$(".tablesorter").tablesorter();});
+      </script>
+        <style>
+          table.codegrid { font-family: monospace; font-size: 12px; width: auto!important; }table.statementlist { width: auto!important; font-size: 13px; } table.codegrid td { padding: 0!important; border: 0!important } table td.linenumber { width: 40px!important; } 
+        </style>
+      </head>
+      <body style="font-family: monospace;">
+        <ul class="nav nav-tabs">
+          <li>
+            <a href="#codegrid" data-toggle="tab">Codegrid</a>
+          </li>
+          <li>
+            <a href="#statementlist" data-toggle="tab">Statement List</a>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active" id="codegrid">
+            <pre style='font-size: 12pt; font-family: courier, monospace;'>1 <span style=''>package server.reconnection
+</span>2 <span style=''>
+</span>3 <span style=''>import org.slf4j.Logger
+</span>4 <span style=''>import shared.session.{PlayerConnection, PlayerConnectionOps}
+</span>5 <span style=''>
+</span>6 <span style=''>/** Mixin trait providing standardized reconnection handling for game servers.
+</span>7 <span style=''>  *
+</span>8 <span style=''>  * Games implement the abstract methods to provide game-specific behavior, and get the reconnection logic for free.
+</span>9 <span style=''>  *
+</span>10 <span style=''>  * @tparam Player
+</span>11 <span style=''>  *   The player type (must extend PlayerConnection)
+</span>12 <span style=''>  * @tparam Game
+</span>13 <span style=''>  *   The game/lobby state type
+</span>14 <span style=''>  */
+</span>15 <span style=''>trait ReconnectionSupport[Player &lt;: PlayerConnection, Game]:
+</span>16 <span style=''>
+</span>17 <span style=''>  /** Logger for reconnection events */
+</span>18 <span style=''>  protected def logger: Logger
+</span>19 <span style=''>
+</span>20 <span style=''>  /** Get a game by ID */
+</span>21 <span style=''>  protected def getGame(gameId: String): Option[Game]
+</span>22 <span style=''>
+</span>23 <span style=''>  /** Get the players map from a game */
+</span>24 <span style=''>  protected def getPlayers(game: Game): Map[String, Player]
+</span>25 <span style=''>
+</span>26 <span style=''>  /** Create a reconnected player (set connected=true, disconnectedAt=None) */
+</span>27 <span style=''>  protected def reconnectPlayer(player: Player): Player
+</span>28 <span style=''>
+</span>29 <span style=''>  /** Create a disconnected player (set connected=false, disconnectedAt=Some(now)) */
+</span>30 <span style=''>  protected def disconnectPlayer(player: Player): Player
+</span>31 <span style=''>
+</span>32 <span style=''>  /** Update a player in the game and return the updated game */
+</span>33 <span style=''>  protected def withUpdatedPlayer(game: Game, playerId: String, player: Player): Game
+</span>34 <span style=''>
+</span>35 <span style=''>  /** Persist the updated game state */
+</span>36 <span style=''>  protected def saveGame(gameId: String, game: Game): Unit
+</span>37 <span style=''>
+</span>38 <span style=''>  /** Register the channel-to-player mapping */
+</span>39 <span style=''>  protected def registerPlayerChannel(channel: cask.WsChannelActor, gameId: String, playerId: String): Unit
+</span>40 <span style=''>
+</span>41 <span style=''>  /** Send rejoin success message to client */
+</span>42 <span style=''>  protected def sendRejoinSuccess(channel: cask.WsChannelActor, playerId: String, gameId: String): Unit
+</span>43 <span style=''>
+</span>44 <span style=''>  /** Send rejoin failure message to client */
+</span>45 <span style=''>  protected def sendRejoinFailure(channel: cask.WsChannelActor, reason: String): Unit
+</span>46 <span style=''>
+</span>47 <span style=''>  /** Broadcast updated game state to all connected players */
+</span>48 <span style=''>  protected def broadcastGameState(gameId: String): Unit
+</span>49 <span style=''>
+</span>50 <span style=''>  /** Grace period for reconnection (default 60 seconds) */
+</span>51 <span style=''>  </span><span style='background: #AEF1AE'>protected def gracePeriodMs</span><span style=''>: Long = PlayerConnectionOps.DefaultGracePeriodMs
+</span>52 <span style=''>
+</span>53 <span style=''>  /** Handle a rejoin request from a client.
+</span>54 <span style=''>    *
+</span>55 <span style=''>    * This is the main entry point that games call when receiving a rejoin message.
+</span>56 <span style=''>    *
+</span>57 <span style=''>    * @param channel
+</span>58 <span style=''>    *   The WebSocket channel
+</span>59 <span style=''>    * @param gameId
+</span>60 <span style=''>    *   The game to rejoin
+</span>61 <span style=''>    * @param playerId
+</span>62 <span style=''>    *   The player attempting to rejoin
+</span>63 <span style=''>    */
+</span>64 <span style=''>  </span><span style='background: #F0ADAD'>final def handleRejoinRequest</span><span style=''>(
+</span>65 <span style=''>      channel: cask.WsChannelActor,
+</span>66 <span style=''>      gameId: String,
+</span>67 <span style=''>      playerId: String
+</span>68 <span style=''>  ): Unit =
+</span>69 <span style=''>    </span><span style='background: #F0ADAD'>getGame(gameId)</span><span style=''> match
+</span>70 <span style=''>      case Some(game) </span><span style='background: #F0ADAD'>=&gt;
+</span>71 <span style=''></span><span style='background: #F0ADAD'>        getPlayers(game).get(playerId) match
+</span>72 <span style=''></span><span style='background: #F0ADAD'>          case Some(player) if PlayerConnectionOps.canRejoin(player, gracePeriodMs) =&gt;
+</span>73 <span style=''></span><span style='background: #F0ADAD'>            performRejoin(channel, gameId, playerId, player, game)
+</span>74 <span style=''></span><span style='background: #F0ADAD'>          case Some(_) =&gt;
+</span>75 <span style=''></span><span style='background: #F0ADAD'>            logger.info(s&quot;Player $playerId cannot rejoin game $gameId - grace period expired&quot;)
+</span>76 <span style=''></span><span style='background: #F0ADAD'>            sendRejoinFailure(channel, &quot;Session expired&quot;)
+</span>77 <span style=''></span><span style='background: #F0ADAD'>          case None =&gt;
+</span>78 <span style=''></span><span style='background: #F0ADAD'>            logger.info(s&quot;Player $playerId not found in game $gameId&quot;)
+</span>79 <span style=''></span><span style='background: #F0ADAD'>            sendRejoinFailure(channel, &quot;Player not found&quot;)</span><span style=''>
+</span>80 <span style=''>      case None =&gt;
+</span>81 <span style=''>        </span><span style='background: #F0ADAD'>logger.info(s&quot;Game $gameId not found for rejoin request from $playerId&quot;)
+</span>82 <span style=''></span><span style='background: #F0ADAD'>        sendRejoinFailure(channel, &quot;Game not found&quot;)</span><span style=''>
+</span>83 <span style=''>
+</span>84 <span style=''>  /** Perform the actual rejoin operation.
+</span>85 <span style=''>    */
+</span>86 <span style=''>  </span><span style='background: #F0ADAD'>private def performRejoin</span><span style=''>(
+</span>87 <span style=''>      channel: cask.WsChannelActor,
+</span>88 <span style=''>      gameId: String,
+</span>89 <span style=''>      playerId: String,
+</span>90 <span style=''>      player: Player,
+</span>91 <span style=''>      game: Game
+</span>92 <span style=''>  ): Unit =
+</span>93 <span style=''>    val reconnectedPlayer = </span><span style='background: #F0ADAD'>reconnectPlayer(player)</span><span style=''>
+</span>94 <span style=''>    val updatedGame = </span><span style='background: #F0ADAD'>withUpdatedPlayer(game, playerId, reconnectedPlayer)</span><span style=''>
+</span>95 <span style=''>
+</span>96 <span style=''>    </span><span style='background: #F0ADAD'>registerPlayerChannel(channel, gameId, playerId)</span><span style=''>
+</span>97 <span style=''>    </span><span style='background: #F0ADAD'>saveGame(gameId, updatedGame)</span><span style=''>
+</span>98 <span style=''>
+</span>99 <span style=''>    </span><span style='background: #F0ADAD'>logger.info(s&quot;Player $playerId rejoined game $gameId&quot;)</span><span style=''>
+</span>100 <span style=''>
+</span>101 <span style=''>    </span><span style='background: #F0ADAD'>sendRejoinSuccess(channel, playerId, gameId)</span><span style=''>
+</span>102 <span style=''>    </span><span style='background: #F0ADAD'>broadcastGameState(gameId)</span><span style=''>
+</span>103 <span style=''>
+</span>104 <span style=''>  /** Handle a player disconnection.
+</span>105 <span style=''>    *
+</span>106 <span style=''>    * Marks the player as disconnected rather than removing them, allowing them to rejoin within the grace period.
+</span>107 <span style=''>    *
+</span>108 <span style=''>    * @param gameId
+</span>109 <span style=''>    *   The game the player disconnected from
+</span>110 <span style=''>    * @param playerId
+</span>111 <span style=''>    *   The player who disconnected
+</span>112 <span style=''>    */
+</span>113 <span style=''>  </span><span style='background: #AEF1AE'>final def handleDisconnection</span><span style=''>(gameId: String, playerId: String): Unit =
+</span>114 <span style=''>    </span><span style='background: #AEF1AE'>getGame(gameId).foreach: game =&gt;
+</span>115 <span style=''></span><span style='background: #AEF1AE'>      getPlayers(game).get(playerId).foreach: player =&gt;
+</span>116 <span style=''></span><span style='background: #AEF1AE'>        val disconnectedPlayer = disconnectPlayer(player)
+</span>117 <span style=''></span><span style='background: #AEF1AE'>        val updatedGame = withUpdatedPlayer(game, playerId, disconnectedPlayer)
+</span>118 <span style=''></span><span style='background: #AEF1AE'>        saveGame(gameId, updatedGame)
+</span>119 <span style=''></span><span style='background: #AEF1AE'>        logger.info(s&quot;Player $playerId disconnected from game $gameId (can rejoin within ${gracePeriodMs}ms)&quot;)
+</span>120 <span style=''></span><span style='background: #AEF1AE'>        broadcastGameState(gameId)</span><span style=''>
+</span>121 <span style=''>
+</span>122 <span style=''>  /** Clean up players who have exceeded the grace period.
+</span>123 <span style=''>    *
+</span>124 <span style=''>    * @param game
+</span>125 <span style=''>    *   The game to clean up
+</span>126 <span style=''>    * @param removePlayer
+</span>127 <span style=''>    *   Function to remove a player from the game
+</span>128 <span style=''>    * @return
+</span>129 <span style=''>    *   Updated game with expired players removed
+</span>130 <span style=''>    */
+</span>131 <span style=''>  </span><span style='background: #F0ADAD'>final def cleanupExpiredPlayers</span><span style=''>(
+</span>132 <span style=''>      game: Game,
+</span>133 <span style=''>      removePlayer: (Game, String) =&gt; Game
+</span>134 <span style=''>  ): Game =
+</span>135 <span style=''>    val expiredPlayerIds = </span><span style='background: #F0ADAD'>getPlayers(game).collect:
+</span>136 <span style=''></span><span style='background: #F0ADAD'>      case (playerId, player) if PlayerConnectionOps.isGracePeriodExpired(player, gracePeriodMs) =&gt;
+</span>137 <span style=''></span><span style='background: #F0ADAD'>        playerId</span><span style=''>
+</span>138 <span style=''>
+</span>139 <span style=''>    </span><span style='background: #F0ADAD'>expiredPlayerIds.foldLeft(game): (g, playerId) =&gt;
+</span>140 <span style=''></span><span style='background: #F0ADAD'>      logger.info(s&quot;Removing expired player $playerId&quot;)
+</span>141 <span style=''></span><span style='background: #F0ADAD'>      removePlayer(g, playerId)</span><span style=''>
+</span></pre>
+          </div>
+          <div class="tab-pane" id="statementlist">
+            <table cellspacing="0" cellpadding="0" class="table statementlist">
+      <tr>
+        <th>Line</th>
+        <th>Stmt Id</th>
+        <th>Pos</th>
+        <th>Tree</th>
+        <th>Symbol</th>
+        <th>Tests</th>
+        <th>Code</th>
+      </tr><tr>
+        <td>
+          51
+        </td>
+        <td>
+          2416
+        </td>
+        <td>
+          1921
+          -
+          1948
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          gracePeriodMs
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          protected def gracePeriodMs
+        </td>
+      </tr><tr>
+        <td>
+          64
+        </td>
+        <td>
+          2433
+        </td>
+        <td>
+          2309
+          -
+          2338
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          handleRejoinRequest
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          final def handleRejoinRequest
+        </td>
+      </tr><tr>
+        <td>
+          69
+        </td>
+        <td>
+          2417
+        </td>
+        <td>
+          2437
+          -
+          2452
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          getGame(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          70
+        </td>
+        <td>
+          2429
+        </td>
+        <td>
+          2481
+          -
+          3014
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt;\n        getPlayers(game).get(playerId) match\n          case Some(player) if PlayerConnectionOps.canRejoin(player, gracePeriodMs) =&gt;\n            performRejoin(channel, gameId, playerId, player, game)\n          case Some(_) =&gt;\n            logger.info(s&quot;Player $playerId cannot rejoin game $gameId - grace period expired&quot;)\n            sendRejoinFailure(channel, &quot;Session expired&quot;)\n          case None =&gt;\n            logger.info(s&quot;Player $playerId not found in game $gameId&quot;)\n            sendRejoinFailure(channel, &quot;Player not found&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          71
+        </td>
+        <td>
+          2418
+        </td>
+        <td>
+          2492
+          -
+          2522
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          get
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          getPlayers(game).get(playerId)
+        </td>
+      </tr><tr>
+        <td>
+          72
+        </td>
+        <td>
+          2419
+        </td>
+        <td>
+          2560
+          -
+          2612
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          canRejoin
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          PlayerConnectionOps.canRejoin(player, gracePeriodMs)
+        </td>
+      </tr><tr>
+        <td>
+          72
+        </td>
+        <td>
+          2420
+        </td>
+        <td>
+          2598
+          -
+          2611
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          gracePeriodMs
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          gracePeriodMs
+        </td>
+      </tr><tr>
+        <td>
+          72
+        </td>
+        <td>
+          2422
+        </td>
+        <td>
+          2613
+          -
+          2682
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt;\n            performRejoin(channel, gameId, playerId, player, game)
+        </td>
+      </tr><tr>
+        <td>
+          73
+        </td>
+        <td>
+          2421
+        </td>
+        <td>
+          2628
+          -
+          2682
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          performRejoin
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          performRejoin(channel, gameId, playerId, player, game)
+        </td>
+      </tr><tr>
+        <td>
+          75
+        </td>
+        <td>
+          2425
+        </td>
+        <td>
+          2721
+          -
+          2861
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.info(s&quot;Player $playerId cannot rejoin game $gameId - grace period expired&quot;)\n            sendRejoinFailure(channel, &quot;Session expired&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          75
+        </td>
+        <td>
+          2423
+        </td>
+        <td>
+          2721
+          -
+          2803
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.info(s&quot;Player $playerId cannot rejoin game $gameId - grace period expired&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          76
+        </td>
+        <td>
+          2424
+        </td>
+        <td>
+          2816
+          -
+          2861
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          sendRejoinFailure
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          sendRejoinFailure(channel, &quot;Session expired&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          78
+        </td>
+        <td>
+          2428
+        </td>
+        <td>
+          2897
+          -
+          3014
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.info(s&quot;Player $playerId not found in game $gameId&quot;)\n            sendRejoinFailure(channel, &quot;Player not found&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          78
+        </td>
+        <td>
+          2426
+        </td>
+        <td>
+          2897
+          -
+          2955
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.info(s&quot;Player $playerId not found in game $gameId&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          79
+        </td>
+        <td>
+          2427
+        </td>
+        <td>
+          2968
+          -
+          3014
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          sendRejoinFailure
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          sendRejoinFailure(channel, &quot;Player not found&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          81
+        </td>
+        <td>
+          2430
+        </td>
+        <td>
+          3042
+          -
+          3114
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.info(s&quot;Game $gameId not found for rejoin request from $playerId&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          81
+        </td>
+        <td>
+          2432
+        </td>
+        <td>
+          3042
+          -
+          3167
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.info(s&quot;Game $gameId not found for rejoin request from $playerId&quot;)\n        sendRejoinFailure(channel, &quot;Game not found&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          82
+        </td>
+        <td>
+          2431
+        </td>
+        <td>
+          3123
+          -
+          3167
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          sendRejoinFailure
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          sendRejoinFailure(channel, &quot;Game not found&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          86
+        </td>
+        <td>
+          2441
+        </td>
+        <td>
+          3221
+          -
+          3246
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          performRejoin
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          private def performRejoin
+        </td>
+      </tr><tr>
+        <td>
+          93
+        </td>
+        <td>
+          2434
+        </td>
+        <td>
+          3409
+          -
+          3432
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          reconnectPlayer
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          reconnectPlayer(player)
+        </td>
+      </tr><tr>
+        <td>
+          94
+        </td>
+        <td>
+          2435
+        </td>
+        <td>
+          3455
+          -
+          3507
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          withUpdatedPlayer
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          withUpdatedPlayer(game, playerId, reconnectedPlayer)
+        </td>
+      </tr><tr>
+        <td>
+          96
+        </td>
+        <td>
+          2436
+        </td>
+        <td>
+          3513
+          -
+          3561
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          registerPlayerChannel
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          registerPlayerChannel(channel, gameId, playerId)
+        </td>
+      </tr><tr>
+        <td>
+          97
+        </td>
+        <td>
+          2437
+        </td>
+        <td>
+          3566
+          -
+          3595
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          saveGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          saveGame(gameId, updatedGame)
+        </td>
+      </tr><tr>
+        <td>
+          99
+        </td>
+        <td>
+          2438
+        </td>
+        <td>
+          3601
+          -
+          3655
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.info(s&quot;Player $playerId rejoined game $gameId&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          101
+        </td>
+        <td>
+          2439
+        </td>
+        <td>
+          3661
+          -
+          3705
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          sendRejoinSuccess
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          sendRejoinSuccess(channel, playerId, gameId)
+        </td>
+      </tr><tr>
+        <td>
+          102
+        </td>
+        <td>
+          2440
+        </td>
+        <td>
+          3710
+          -
+          3736
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          broadcastGameState
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          broadcastGameState(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          113
+        </td>
+        <td>
+          2450
+        </td>
+        <td>
+          4035
+          -
+          4064
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          handleDisconnection
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          final def handleDisconnection
+        </td>
+      </tr><tr>
+        <td>
+          114
+        </td>
+        <td>
+          2442
+        </td>
+        <td>
+          4111
+          -
+          4521
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foreach
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          getGame(gameId).foreach: game =&gt;\n      getPlayers(game).get(playerId).foreach: player =&gt;\n        val disconnectedPlayer = disconnectPlayer(player)\n        val updatedGame = withUpdatedPlayer(game, playerId, disconnectedPlayer)\n        saveGame(gameId, updatedGame)\n        logger.info(s&quot;Player $playerId disconnected from game $gameId (can rejoin within ${gracePeriodMs}ms)&quot;)\n        broadcastGameState(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          115
+        </td>
+        <td>
+          2443
+        </td>
+        <td>
+          4150
+          -
+          4521
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foreach
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          getPlayers(game).get(playerId).foreach: player =&gt;\n        val disconnectedPlayer = disconnectPlayer(player)\n        val updatedGame = withUpdatedPlayer(game, playerId, disconnectedPlayer)\n        saveGame(gameId, updatedGame)\n        logger.info(s&quot;Player $playerId disconnected from game $gameId (can rejoin within ${gracePeriodMs}ms)&quot;)\n        broadcastGameState(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          116
+        </td>
+        <td>
+          2444
+        </td>
+        <td>
+          4233
+          -
+          4257
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          disconnectPlayer
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          disconnectPlayer(player)
+        </td>
+      </tr><tr>
+        <td>
+          117
+        </td>
+        <td>
+          2445
+        </td>
+        <td>
+          4284
+          -
+          4337
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          withUpdatedPlayer
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          withUpdatedPlayer(game, playerId, disconnectedPlayer)
+        </td>
+      </tr><tr>
+        <td>
+          118
+        </td>
+        <td>
+          2446
+        </td>
+        <td>
+          4346
+          -
+          4375
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          saveGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          saveGame(gameId, updatedGame)
+        </td>
+      </tr><tr>
+        <td>
+          119
+        </td>
+        <td>
+          2448
+        </td>
+        <td>
+          4467
+          -
+          4480
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          gracePeriodMs
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gracePeriodMs
+        </td>
+      </tr><tr>
+        <td>
+          119
+        </td>
+        <td>
+          2447
+        </td>
+        <td>
+          4384
+          -
+          4486
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(s&quot;Player $playerId disconnected from game $gameId (can rejoin within ${gracePeriodMs}ms)&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          120
+        </td>
+        <td>
+          2449
+        </td>
+        <td>
+          4495
+          -
+          4521
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          broadcastGameState
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          broadcastGameState(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          131
+        </td>
+        <td>
+          2458
+        </td>
+        <td>
+          4784
+          -
+          4815
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          cleanupExpiredPlayers
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          final def cleanupExpiredPlayers
+        </td>
+      </tr><tr>
+        <td>
+          136
+        </td>
+        <td>
+          2452
+        </td>
+        <td>
+          4976
+          -
+          5039
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          isGracePeriodExpired
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          PlayerConnectionOps.isGracePeriodExpired(player, gracePeriodMs)
+        </td>
+      </tr><tr>
+        <td>
+          136
+        </td>
+        <td>
+          2451
+        </td>
+        <td>
+          4917
+          -
+          5059
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          collect
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          getPlayers(game).collect:\n      case (playerId, player) if PlayerConnectionOps.isGracePeriodExpired(player, gracePeriodMs) =&gt;\n        playerId
+        </td>
+      </tr><tr>
+        <td>
+          136
+        </td>
+        <td>
+          2454
+        </td>
+        <td>
+          5040
+          -
+          5059
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt;\n        playerId
+        </td>
+      </tr><tr>
+        <td>
+          136
+        </td>
+        <td>
+          2453
+        </td>
+        <td>
+          5025
+          -
+          5038
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          gracePeriodMs
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          gracePeriodMs
+        </td>
+      </tr><tr>
+        <td>
+          139
+        </td>
+        <td>
+          2455
+        </td>
+        <td>
+          5065
+          -
+          5202
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foldLeft
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          expiredPlayerIds.foldLeft(game): (g, playerId) =&gt;\n      logger.info(s&quot;Removing expired player $playerId&quot;)\n      removePlayer(g, playerId)
+        </td>
+      </tr><tr>
+        <td>
+          140
+        </td>
+        <td>
+          2456
+        </td>
+        <td>
+          5121
+          -
+          5170
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.info(s&quot;Removing expired player $playerId&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          141
+        </td>
+        <td>
+          2457
+        </td>
+        <td>
+          5177
+          -
+          5202
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          removePlayer(g, playerId)
+        </td>
+      </tr>
+    </table>
+          </div>
+        </div>
+      </body>
+    </html>

@@ -1,0 +1,5221 @@
+<html>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title id="title">
+          server/ColorRushHandler.scala.html
+        </title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/css/theme.default.min.css" type="text/css"/><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/js/jquery.tablesorter.min.js"></script><link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" type="text/css"/><script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script><script type="text/javascript">
+        $(document).ready(function() {$(".tablesorter").tablesorter();});
+      </script>
+        <style>
+          table.codegrid { font-family: monospace; font-size: 12px; width: auto!important; }table.statementlist { width: auto!important; font-size: 13px; } table.codegrid td { padding: 0!important; border: 0!important } table td.linenumber { width: 40px!important; } 
+        </style>
+      </head>
+      <body style="font-family: monospace;">
+        <ul class="nav nav-tabs">
+          <li>
+            <a href="#codegrid" data-toggle="tab">Codegrid</a>
+          </li>
+          <li>
+            <a href="#statementlist" data-toggle="tab">Statement List</a>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active" id="codegrid">
+            <pre style='font-size: 12pt; font-family: courier, monospace;'>1 <span style=''>package server
+</span>2 <span style=''>
+</span>3 <span style=''>import org.slf4j.{Logger, LoggerFactory}
+</span>4 <span style=''>import scala.util.Try
+</span>5 <span style=''>import castor.Context.Simple.global
+</span>6 <span style=''>import server.reconnection.ReconnectionSupport
+</span>7 <span style=''>import shared.ColorRush.{ColorRushGame, PlayerState}
+</span>8 <span style=''>
+</span>9 <span style=''>object ColorRushHandler extends ReconnectionSupport[PlayerState, ColorRushGame]:
+</span>10 <span style=''>  protected val logger: Logger = </span><span style='background: #AEF1AE'>LoggerFactory.getLogger(getClass)</span><span style=''>
+</span>11 <span style=''>
+</span>12 <span style=''>  // Castor context for WebSocket operations
+</span>13 <span style=''>  given castor.Context = global
+</span>14 <span style=''>
+</span>15 <span style=''>  // Cask logger for WebSocket operations
+</span>16 <span style=''>  given cask.util.Logger = cask.util.Logger.Console.globalLogger
+</span>17 <span style=''>
+</span>18 <span style=''>  // Game state management - delegates to GameStateManager
+</span>19 <span style=''>  private val gameManager = </span><span style='background: #AEF1AE'>ColorRushStateManager()</span><span style=''>
+</span>20 <span style=''>
+</span>21 <span style=''>  // ============================================================================
+</span>22 <span style=''>  // ReconnectionSupport implementation
+</span>23 <span style=''>  // ============================================================================
+</span>24 <span style=''>
+</span>25 <span style=''>  </span><span style='background: #AEF1AE'>protected def getGame</span><span style=''>(gameId: String): Option[ColorRushGame] =
+</span>26 <span style=''>    </span><span style='background: #AEF1AE'>gameManager.getGame(gameId)</span><span style=''>
+</span>27 <span style=''>
+</span>28 <span style=''>  </span><span style='background: #AEF1AE'>protected def getPlayers</span><span style=''>(game: ColorRushGame): Map[String, PlayerState] =
+</span>29 <span style=''>    game.players
+</span>30 <span style=''>
+</span>31 <span style=''>  </span><span style='background: #F0ADAD'>protected def reconnectPlayer</span><span style=''>(player: PlayerState): PlayerState =
+</span>32 <span style=''>    </span><span style='background: #F0ADAD'>player.copy(connected = true, disconnectedAt = None)</span><span style=''>
+</span>33 <span style=''>
+</span>34 <span style=''>  </span><span style='background: #AEF1AE'>protected def disconnectPlayer</span><span style=''>(player: PlayerState): PlayerState =
+</span>35 <span style=''>    </span><span style='background: #AEF1AE'>player.copy(connected = false, disconnectedAt = Some(System.currentTimeMillis()))</span><span style=''>
+</span>36 <span style=''>
+</span>37 <span style=''>  </span><span style='background: #AEF1AE'>protected def withUpdatedPlayer</span><span style=''>(game: ColorRushGame, playerId: String, player: PlayerState): ColorRushGame =
+</span>38 <span style=''>    </span><span style='background: #AEF1AE'>game.copy(players = game.players + (playerId -&gt; player))</span><span style=''>
+</span>39 <span style=''>
+</span>40 <span style=''>  </span><span style='background: #AEF1AE'>protected def saveGame</span><span style=''>(gameId: String, game: ColorRushGame): Unit =
+</span>41 <span style=''>    </span><span style='background: #AEF1AE'>gameManager.updateGame(gameId, game)</span><span style=''>
+</span>42 <span style=''>
+</span>43 <span style=''>  </span><span style='background: #F0ADAD'>protected def registerPlayerChannel</span><span style=''>(channel: cask.WsChannelActor, gameId: String, playerId: String): Unit =
+</span>44 <span style=''>    </span><span style='background: #F0ADAD'>gameManager.registerPlayer(channel, gameId, playerId)</span><span style=''>
+</span>45 <span style=''>
+</span>46 <span style=''>  </span><span style='background: #F0ADAD'>protected def sendRejoinSuccess</span><span style=''>(channel: cask.WsChannelActor, playerId: String, gameId: String): Unit =
+</span>47 <span style=''>    </span><span style='background: #F0ADAD'>sendToChannel(channel, shared.ColorRush.JoinedMessage(playerId, gameId))</span><span style=''>
+</span>48 <span style=''>
+</span>49 <span style=''>  </span><span style='background: #F0ADAD'>protected def sendRejoinFailure</span><span style=''>(channel: cask.WsChannelActor, reason: String): Unit =
+</span>50 <span style=''>    </span><span style='background: #F0ADAD'>sendToChannel(channel, shared.ColorRush.RejoinFailedMessage(reason))</span><span style=''>
+</span>51 <span style=''>
+</span>52 <span style=''>  </span><span style='background: #AEF1AE'>protected def broadcastGameState</span><span style=''>(gameId: String): Unit =
+</span>53 <span style=''>    import scala.jdk.CollectionConverters.*
+</span>54 <span style=''>    import upickle.default.*
+</span>55 <span style=''>
+</span>56 <span style=''>    </span><span style='background: #AEF1AE'>gameManager.getGame(gameId).foreach: game =&gt;
+</span>57 <span style=''></span><span style='background: #AEF1AE'>      val message = shared.ColorRush.GameUpdateMessage(game)
+</span>58 <span style=''></span><span style='background: #AEF1AE'>      val messageJson = write(message)
+</span>59 <span style=''></span><span style='background: #AEF1AE'>
+</span>60 <span style=''></span><span style='background: #AEF1AE'>      Option(gameManager.getConnections(gameId)).foreach: connections =&gt;
+</span>61 <span style=''></span><span style='background: #AEF1AE'>        connections.asScala.foreach: channel =&gt;
+</span>62 <span style=''></span><span style='background: #AEF1AE'>          Try(channel.send(cask.Ws.Text(messageJson))).recover:
+</span>63 <span style=''></span><span style='background: #AEF1AE'>            case ex </span><span style='background: #F0ADAD'>=&gt; logger.warn(s&quot;Failed to broadcast game state: ${ex.getMessage}&quot;)</span><span style=''>
+</span>64 <span style=''>
+</span>65 <span style=''>  </span><span style='background: #AEF1AE'>def handleWebSocket</span><span style=''>(gameId: String): cask.WebsocketResult =
+</span>66 <span style=''>    </span><span style='background: #AEF1AE'>cask.WsHandler: channel =&gt;
+</span>67 <span style=''></span><span style='background: #AEF1AE'>      // Don't create game yet - wait for JoinMessage with totalRounds
+</span>68 <span style=''></span><span style='background: #AEF1AE'>      // Just add the connection tracking
+</span>69 <span style=''></span><span style='background: #AEF1AE'>      gameManager.addConnection(gameId, channel)
+</span>70 <span style=''></span><span style='background: #AEF1AE'>
+</span>71 <span style=''></span><span style='background: #AEF1AE'>      logger.info(s&quot;Player connected to game $gameId&quot;)
+</span>72 <span style=''></span><span style='background: #AEF1AE'>
+</span>73 <span style=''></span><span style='background: #AEF1AE'>      cask.WsActor:
+</span>74 <span style=''></span><span style='background: #AEF1AE'>        case cask.Ws.Text(msg) =&gt;
+</span>75 <span style=''></span><span style='background: #AEF1AE'>          logger.info(s&quot;Received WebSocket message: $msg&quot;)
+</span>76 <span style=''></span><span style='background: #AEF1AE'>          Try:
+</span>77 <span style=''></span><span style='background: #AEF1AE'>            import upickle.default.*
+</span>78 <span style=''></span><span style='background: #AEF1AE'>            val clientMsg = read[shared.ColorRush.ClientMessage](msg)
+</span>79 <span style=''></span><span style='background: #AEF1AE'>
+</span>80 <span style=''></span><span style='background: #AEF1AE'>            clientMsg match
+</span>81 <span style=''></span><span style='background: #AEF1AE'>              case shared.ColorRush.JoinMessage(playerName, totalRounds) =&gt;
+</span>82 <span style=''></span><span style='background: #AEF1AE'>                handleJoin(channel, gameId, playerName, totalRounds)
+</span>83 <span style=''></span><span style='background: #AEF1AE'>
+</span>84 <span style=''></span><span style='background: #AEF1AE'>              case shared.ColorRush.RejoinMessage(playerId, rejoinGameId) </span><span style='background: #F0ADAD'>=&gt;
+</span>85 <span style=''></span><span style='background: #F0ADAD'>                handleRejoinRequest(channel, gameId, playerId)</span><span style='background: #AEF1AE'>
+</span>86 <span style=''></span><span style='background: #AEF1AE'>
+</span>87 <span style=''></span><span style='background: #AEF1AE'>              case shared.ColorRush.StartMessage() =&gt;
+</span>88 <span style=''></span><span style='background: #AEF1AE'>                handleStart(gameId)
+</span>89 <span style=''></span><span style='background: #AEF1AE'>
+</span>90 <span style=''></span><span style='background: #AEF1AE'>              case shared.ColorRush.ClickMessage(color, clickTime) =&gt;
+</span>91 <span style=''></span><span style='background: #AEF1AE'>                handleClick(channel, gameId, color, clickTime)
+</span>92 <span style=''></span><span style='background: #AEF1AE'>
+</span>93 <span style=''></span><span style='background: #AEF1AE'>              case shared.ColorRush.NextRoundMessage() =&gt;
+</span>94 <span style=''></span><span style='background: #AEF1AE'>                handleNextRound(gameId)
+</span>95 <span style=''></span><span style='background: #AEF1AE'>
+</span>96 <span style=''></span><span style='background: #AEF1AE'>              case shared.ColorRush.PingMessage() </span><span style='background: #F0ADAD'>=&gt;
+</span>97 <span style=''></span><span style='background: #F0ADAD'>                // Keepalive ping - no action needed, just keeps the connection alive
+</span>98 <span style=''></span><span style='background: #F0ADAD'>                logger.debug(s&quot;Received keepalive ping for game $gameId&quot;)</span><span style='background: #AEF1AE'>
+</span>99 <span style=''></span><span style='background: #AEF1AE'>          .recover:
+</span>100 <span style=''></span><span style='background: #AEF1AE'>            case ex </span><span style='background: #F0ADAD'>=&gt;
+</span>101 <span style=''></span><span style='background: #F0ADAD'>              logger.error(s&quot;Error processing game message: ${ex.getMessage}&quot;, ex)</span><span style='background: #AEF1AE'>
+</span>102 <span style=''></span><span style='background: #AEF1AE'>
+</span>103 <span style=''></span><span style='background: #AEF1AE'>        case cask.Ws.Close(_, _) =&gt;
+</span>104 <span style=''></span><span style='background: #AEF1AE'>          handlePlayerDisconnect(channel, gameId)
+</span>105 <span style=''></span><span style='background: #AEF1AE'>
+</span>106 <span style=''></span><span style='background: #AEF1AE'>        case cask.Ws.Error(ex) =&gt;
+</span>107 <span style=''></span><span style='background: #AEF1AE'>          </span><span style='background: #F0ADAD'>logger.error(s&quot;WebSocket error in game $gameId: ${ex.getMessage}&quot;, ex)
+</span>108 <span style=''></span><span style='background: #F0ADAD'>          handlePlayerDisconnect(channel, gameId)</span><span style=''>
+</span>109 <span style=''>
+</span>110 <span style=''>  </span><span style='background: #AEF1AE'>private def handleJoin</span><span style=''>(channel: cask.WsChannelActor, gameId: String, playerName: String, totalRounds: Int): Unit =
+</span>111 <span style=''>    val playerId = </span><span style='background: #AEF1AE'>java.util.UUID.randomUUID().toString</span><span style=''>
+</span>112 <span style=''>
+</span>113 <span style=''>    </span><span style='background: #AEF1AE'>gameManager.registerPlayer(channel, gameId, playerId)</span><span style=''>
+</span>114 <span style=''>
+</span>115 <span style=''>    // Create game if it doesn't exist, using the totalRounds from the first player
+</span>116 <span style=''>    val game = </span><span style='background: #AEF1AE'>gameManager.getGame(gameId).getOrElse(gameManager.createGame(gameId, totalRounds))</span><span style=''>
+</span>117 <span style=''>    val updatedGame = </span><span style='background: #AEF1AE'>shared.ColorRush.ColorRush.addPlayer(game, playerId, playerName)</span><span style=''>
+</span>118 <span style=''>    </span><span style='background: #AEF1AE'>gameManager.updateGame(gameId, updatedGame)</span><span style=''>
+</span>119 <span style=''>
+</span>120 <span style=''>    </span><span style='background: #AEF1AE'>logger.info(s&quot;Player $playerName ($playerId) joined game $gameId with totalRounds=$totalRounds&quot;)</span><span style=''>
+</span>121 <span style=''>
+</span>122 <span style=''>    // Send JoinedMessage to the player so they can store their playerId
+</span>123 <span style=''>    </span><span style='background: #AEF1AE'>sendToChannel(channel, shared.ColorRush.JoinedMessage(playerId, gameId))</span><span style=''>
+</span>124 <span style=''>
+</span>125 <span style=''>    // Broadcast game state to all players
+</span>126 <span style=''>    </span><span style='background: #AEF1AE'>broadcastGameState(gameId)</span><span style=''>
+</span>127 <span style=''>
+</span>128 <span style=''>  </span><span style='background: #AEF1AE'>private def handleStart</span><span style=''>(gameId: String): Unit =
+</span>129 <span style=''>    </span><span style='background: #AEF1AE'>gameManager.getGame(gameId).foreach: game =&gt;
+</span>130 <span style=''></span><span style='background: #AEF1AE'>      if game.players.nonEmpty then
+</span>131 <span style=''></span><span style='background: #AEF1AE'>        val gameWithRound = shared.ColorRush.ColorRush.startNewRound(game)
+</span>132 <span style=''></span><span style='background: #AEF1AE'>        gameManager.updateGame(gameId, gameWithRound)
+</span>133 <span style=''></span><span style='background: #AEF1AE'>        logger.info(s&quot;Game $gameId started - Round ${gameWithRound.roundNumber}&quot;)
+</span>134 <span style=''></span><span style='background: #AEF1AE'>        broadcastGameState(gameId)</span><span style=''>
+</span>135 <span style=''>
+</span>136 <span style=''>  </span><span style='background: #AEF1AE'>private def handleClick</span><span style=''>(channel: cask.WsChannelActor, gameId: String, color: String, clickTime: Long): Unit =
+</span>137 <span style=''>    </span><span style='background: #AEF1AE'>gameManager.getPlayerInfo(channel)</span><span style=''> match
+</span>138 <span style=''>      case Some((gId, pId)) if </span><span style='background: #AEF1AE'>gId == gameId</span><span style=''> </span><span style='background: #AEF1AE'>=&gt;
+</span>139 <span style=''></span><span style='background: #AEF1AE'>        gameManager.getGame(gameId).foreach: game =&gt;
+</span>140 <span style=''></span><span style='background: #AEF1AE'>          val (updatedGame, winner) = shared.ColorRush.ColorRush.handleColorClick(game, pId, color, clickTime)
+</span>141 <span style=''></span><span style='background: #AEF1AE'>          gameManager.updateGame(gameId, updatedGame)
+</span>142 <span style=''></span><span style='background: #AEF1AE'>
+</span>143 <span style=''></span><span style='background: #AEF1AE'>          winner.foreach: (playerId, playerName, points) =&gt;
+</span>144 <span style=''></span><span style='background: #AEF1AE'>            logger.info(s&quot;Round winner: $playerName with $points points&quot;)
+</span>145 <span style=''></span><span style='background: #AEF1AE'>            broadcastRoundWinner(gameId, playerId, playerName, points)
+</span>146 <span style=''></span><span style='background: #AEF1AE'>
+</span>147 <span style=''></span><span style='background: #AEF1AE'>          broadcastGameState(gameId)</span><span style=''>
+</span>148 <span style=''>
+</span>149 <span style=''>      case _ </span><span style='background: #F0ADAD'>=&gt;
+</span>150 <span style=''></span><span style='background: #F0ADAD'>        logger.warn(s&quot;Click from unregistered player&quot;)</span><span style=''>
+</span>151 <span style=''>
+</span>152 <span style=''>  </span><span style='background: #AEF1AE'>private def handleNextRound</span><span style=''>(gameId: String): Unit =
+</span>153 <span style=''>    // Client confirms they've seen the winner announcement, advance to next round
+</span>154 <span style=''>    </span><span style='background: #AEF1AE'>gameManager.getGame(gameId).foreach: game =&gt;
+</span>155 <span style=''></span><span style='background: #AEF1AE'>      if game.status == shared.ColorRush.GameStatus.RoundEnd then
+</span>156 <span style=''></span><span style='background: #AEF1AE'>        val nextGame = shared.ColorRush.ColorRush.advanceFromRoundEnd(game)
+</span>157 <span style=''></span><span style='background: #AEF1AE'>        gameManager.updateGame(gameId, nextGame)
+</span>158 <span style=''></span><span style='background: #AEF1AE'>        logger.info(s&quot;Game $gameId advancing from roundEnd to ${nextGame.status}&quot;)
+</span>159 <span style=''></span><span style='background: #AEF1AE'>
+</span>160 <span style=''></span><span style='background: #AEF1AE'>        if nextGame.status == shared.ColorRush.GameStatus.GameOver then
+</span>161 <span style=''></span><span style='background: #AEF1AE'>          </span><span style='background: #F0ADAD'>val winner = shared.ColorRush.ColorRush.getWinner(nextGame)
+</span>162 <span style=''></span><span style='background: #F0ADAD'>          broadcastGameEnd(gameId, winner)</span><span style='background: #AEF1AE'>
+</span>163 <span style=''></span><span style='background: #AEF1AE'>
+</span>164 <span style=''></span><span style='background: #AEF1AE'>        broadcastGameState(gameId)</span><span style=''>
+</span>165 <span style=''>
+</span>166 <span style=''>  </span><span style='background: #AEF1AE'>private def sendToChannel</span><span style=''>(channel: cask.WsChannelActor, message: shared.ColorRush.ServerMessage): Unit =
+</span>167 <span style=''>    import upickle.default.*
+</span>168 <span style=''>    </span><span style='background: #AEF1AE'>Try:
+</span>169 <span style=''></span><span style='background: #AEF1AE'>      val messageJson = write(message)
+</span>170 <span style=''></span><span style='background: #AEF1AE'>      channel.send(cask.Ws.Text(messageJson))
+</span>171 <span style=''></span><span style='background: #AEF1AE'>    .recover:
+</span>172 <span style=''></span><span style='background: #AEF1AE'>      case ex </span><span style='background: #F0ADAD'>=&gt; logger.warn(s&quot;Failed to send message to channel: ${ex.getMessage}&quot;)</span><span style=''>
+</span>173 <span style=''>
+</span>174 <span style=''>  </span><span style='background: #AEF1AE'>private def broadcastRoundWinner</span><span style=''>(gameId: String, playerId: String, playerName: String, points: Int): Unit =
+</span>175 <span style=''>    import scala.jdk.CollectionConverters.*
+</span>176 <span style=''>    import upickle.default.*
+</span>177 <span style=''>
+</span>178 <span style=''>    val message = </span><span style='background: #AEF1AE'>shared.ColorRush.RoundWinnerMessage(playerName, points)</span><span style=''>
+</span>179 <span style=''>    val messageJson = </span><span style='background: #AEF1AE'>write(message)</span><span style=''>
+</span>180 <span style=''>
+</span>181 <span style=''>    </span><span style='background: #AEF1AE'>Option(gameManager.getConnections(gameId)).foreach: connections =&gt;
+</span>182 <span style=''></span><span style='background: #AEF1AE'>      connections.asScala.foreach: channel =&gt;
+</span>183 <span style=''></span><span style='background: #AEF1AE'>        Try(channel.send(cask.Ws.Text(messageJson))).recover:
+</span>184 <span style=''></span><span style='background: #AEF1AE'>          case ex </span><span style='background: #F0ADAD'>=&gt; logger.warn(s&quot;Failed to broadcast round winner: ${ex.getMessage}&quot;)</span><span style=''>
+</span>185 <span style=''>
+</span>186 <span style=''>  </span><span style='background: #F0ADAD'>private def broadcastGameEnd</span><span style=''>(gameId: String, winner: Option[shared.ColorRush.PlayerState]): Unit =
+</span>187 <span style=''>    import scala.jdk.CollectionConverters.*
+</span>188 <span style=''>    import upickle.default.*
+</span>189 <span style=''>
+</span>190 <span style=''>    val message = </span><span style='background: #F0ADAD'>shared.ColorRush.GameEndMessage(winner)</span><span style=''>
+</span>191 <span style=''>    val messageJson = </span><span style='background: #F0ADAD'>write(message)</span><span style=''>
+</span>192 <span style=''>
+</span>193 <span style=''>    </span><span style='background: #F0ADAD'>Option(gameManager.getConnections(gameId)).foreach: connections =&gt;
+</span>194 <span style=''></span><span style='background: #F0ADAD'>      connections.asScala.foreach: channel =&gt;
+</span>195 <span style=''></span><span style='background: #F0ADAD'>        Try(channel.send(cask.Ws.Text(messageJson))).recover:
+</span>196 <span style=''></span><span style='background: #F0ADAD'>          case ex =&gt; logger.warn(s&quot;Failed to broadcast game end: ${ex.getMessage}&quot;)</span><span style=''>
+</span>197 <span style=''>
+</span>198 <span style=''>  </span><span style='background: #AEF1AE'>private def handlePlayerDisconnect</span><span style=''>(
+</span>199 <span style=''>      channel: cask.WsChannelActor,
+</span>200 <span style=''>      gameId: String
+</span>201 <span style=''>  ): Unit =
+</span>202 <span style=''>    </span><span style='background: #AEF1AE'>gameManager.removeConnection(gameId, channel)</span><span style=''>
+</span>203 <span style=''>
+</span>204 <span style=''>    </span><span style='background: #AEF1AE'>gameManager.getPlayerInfo(channel)</span><span style=''> match
+</span>205 <span style=''>      case Some((gId, pId)) if </span><span style='background: #AEF1AE'>gId == gameId</span><span style=''> =&gt;
+</span>206 <span style=''>        </span><span style='background: #AEF1AE'>gameManager.unregisterPlayer(channel)
+</span>207 <span style=''></span><span style='background: #AEF1AE'>        // Use trait's handleDisconnection for the actual disconnect logic
+</span>208 <span style=''></span><span style='background: #AEF1AE'>        handleDisconnection(gameId, pId)
+</span>209 <span style=''></span><span style='background: #AEF1AE'>
+</span>210 <span style=''></span><span style='background: #AEF1AE'>        // Clean up game if it has no more connections
+</span>211 <span style=''></span><span style='background: #AEF1AE'>        val connectionCount = gameManager.getGameConnectionCount(gameId)
+</span>212 <span style=''></span><span style='background: #AEF1AE'>        if connectionCount == 0 then
+</span>213 <span style=''></span><span style='background: #AEF1AE'>          logger.info(s&quot;Game $gameId has no active connections - will be cleaned up by periodic task&quot;)</span><span style=''>
+</span>214 <span style=''>      case _ </span><span style='background: #F0ADAD'>=&gt;</span><span style=''>
+</span>215 <span style=''>
+</span>216 <span style=''>    val remainingConnections = </span><span style='background: #AEF1AE'>gameManager.getGameConnectionCount(gameId)</span><span style=''>
+</span>217 <span style=''>    </span><span style='background: #AEF1AE'>logger.info(s&quot;Connection closed for game $gameId. Remaining connections: $remainingConnections&quot;)</span><span style=''>
+</span>218 <span style=''>
+</span>219 <span style=''>  </span><span style='background: #F0ADAD'>private[server] def cleanupGame</span><span style=''>(gameId: String): Unit =
+</span>220 <span style=''>    </span><span style='background: #F0ADAD'>gameManager.cleanupGame(gameId)</span><span style=''>
+</span>221 <span style=''>
+</span>222 <span style=''>  </span><span style='background: #F0ADAD'>private[server] def cleanupEmptyGames</span><span style=''>(): Int =
+</span>223 <span style=''>    </span><span style='background: #F0ADAD'>gameManager.cleanupEmptyGames()</span><span style=''>
+</span>224 <span style=''>
+</span>225 <span style=''>  // Test helpers - package-private for testing
+</span>226 <span style=''>  </span><span style='background: #F0ADAD'>private[server] def getGameForTest</span><span style=''>(gameId: String): Option[shared.ColorRush.ColorRushGame] =
+</span>227 <span style=''>    </span><span style='background: #F0ADAD'>gameManager.getGame(gameId)</span><span style=''>
+</span>228 <span style=''>
+</span>229 <span style=''>  </span><span style='background: #F0ADAD'>private[server] def getGameConnectionCount</span><span style=''>(gameId: String): Int =
+</span>230 <span style=''>    </span><span style='background: #F0ADAD'>gameManager.getGameConnectionCount(gameId)</span><span style=''>
+</span>231 <span style=''>
+</span>232 <span style=''>  </span><span style='background: #F0ADAD'>private[server] def createTestGame</span><span style=''>(gameId: String, game: shared.ColorRush.ColorRushGame): Unit =
+</span>233 <span style=''>    </span><span style='background: #F0ADAD'>gameManager.updateGame(gameId, game)</span><span style=''>
+</span>234 <span style=''>    </span><span style='background: #F0ADAD'>gameManager.addConnection(gameId, null)</span><span style=''> // Ensure connections set exists
+</span>235 <span style=''>    </span><span style='background: #F0ADAD'>gameManager.removeConnection(gameId, null)</span><span style=''> // Remove the null connection
+</span></pre>
+          </div>
+          <div class="tab-pane" id="statementlist">
+            <table cellspacing="0" cellpadding="0" class="table statementlist">
+      <tr>
+        <th>Line</th>
+        <th>Stmt Id</th>
+        <th>Pos</th>
+        <th>Tree</th>
+        <th>Symbol</th>
+        <th>Tests</th>
+        <th>Code</th>
+      </tr><tr>
+        <td>
+          10
+        </td>
+        <td>
+          376
+        </td>
+        <td>
+          354
+          -
+          362
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getClass
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          getClass
+        </td>
+      </tr><tr>
+        <td>
+          10
+        </td>
+        <td>
+          375
+        </td>
+        <td>
+          330
+          -
+          363
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getLogger
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          LoggerFactory.getLogger(getClass)
+        </td>
+      </tr><tr>
+        <td>
+          19
+        </td>
+        <td>
+          377
+        </td>
+        <td>
+          638
+          -
+          661
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;init&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          ColorRushStateManager()
+        </td>
+      </tr><tr>
+        <td>
+          25
+        </td>
+        <td>
+          379
+        </td>
+        <td>
+          870
+          -
+          891
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          getGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          protected def getGame
+        </td>
+      </tr><tr>
+        <td>
+          26
+        </td>
+        <td>
+          378
+        </td>
+        <td>
+          937
+          -
+          964
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.getGame(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          28
+        </td>
+        <td>
+          380
+        </td>
+        <td>
+          968
+          -
+          992
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          getPlayers
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          protected def getPlayers
+        </td>
+      </tr><tr>
+        <td>
+          31
+        </td>
+        <td>
+          387
+        </td>
+        <td>
+          1062
+          -
+          1091
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          reconnectPlayer
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          protected def reconnectPlayer
+        </td>
+      </tr><tr>
+        <td>
+          32
+        </td>
+        <td>
+          382
+        </td>
+        <td>
+          1132
+          -
+          1143
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          player.copy
+        </td>
+      </tr><tr>
+        <td>
+          32
+        </td>
+        <td>
+          385
+        </td>
+        <td>
+          1132
+          -
+          1143
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          player.copy
+        </td>
+      </tr><tr>
+        <td>
+          32
+        </td>
+        <td>
+          381
+        </td>
+        <td>
+          1132
+          -
+          1184
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          player.copy(connected = true, disconnectedAt = None)
+        </td>
+      </tr><tr>
+        <td>
+          32
+        </td>
+        <td>
+          384
+        </td>
+        <td>
+          1132
+          -
+          1143
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          player.copy
+        </td>
+      </tr><tr>
+        <td>
+          32
+        </td>
+        <td>
+          383
+        </td>
+        <td>
+          1132
+          -
+          1143
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          player.copy
+        </td>
+      </tr><tr>
+        <td>
+          32
+        </td>
+        <td>
+          386
+        </td>
+        <td>
+          1156
+          -
+          1160
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          true
+        </td>
+      </tr><tr>
+        <td>
+          34
+        </td>
+        <td>
+          396
+        </td>
+        <td>
+          1188
+          -
+          1218
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          disconnectPlayer
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          protected def disconnectPlayer
+        </td>
+      </tr><tr>
+        <td>
+          35
+        </td>
+        <td>
+          391
+        </td>
+        <td>
+          1259
+          -
+          1270
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          player.copy
+        </td>
+      </tr><tr>
+        <td>
+          35
+        </td>
+        <td>
+          394
+        </td>
+        <td>
+          1259
+          -
+          1340
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          player.copy(connected = false, disconnectedAt = Some(System.currentTimeMillis()))
+        </td>
+      </tr><tr>
+        <td>
+          35
+        </td>
+        <td>
+          388
+        </td>
+        <td>
+          1307
+          -
+          1339
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Some(System.currentTimeMillis())
+        </td>
+      </tr><tr>
+        <td>
+          35
+        </td>
+        <td>
+          390
+        </td>
+        <td>
+          1259
+          -
+          1270
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          player.copy
+        </td>
+      </tr><tr>
+        <td>
+          35
+        </td>
+        <td>
+          393
+        </td>
+        <td>
+          1259
+          -
+          1270
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          player.copy
+        </td>
+      </tr><tr>
+        <td>
+          35
+        </td>
+        <td>
+          392
+        </td>
+        <td>
+          1259
+          -
+          1270
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          player.copy
+        </td>
+      </tr><tr>
+        <td>
+          35
+        </td>
+        <td>
+          395
+        </td>
+        <td>
+          1283
+          -
+          1288
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          false
+        </td>
+      </tr><tr>
+        <td>
+          35
+        </td>
+        <td>
+          389
+        </td>
+        <td>
+          1312
+          -
+          1338
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          currentTimeMillis
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          System.currentTimeMillis()
+        </td>
+      </tr><tr>
+        <td>
+          37
+        </td>
+        <td>
+          405
+        </td>
+        <td>
+          1344
+          -
+          1375
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          withUpdatedPlayer
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          protected def withUpdatedPlayer
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          400
+        </td>
+        <td>
+          1457
+          -
+          1466
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          403
+        </td>
+        <td>
+          1457
+          -
+          1466
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$6
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          397
+        </td>
+        <td>
+          1477
+          -
+          1511
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          +
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.players + (playerId -&gt; player
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          399
+        </td>
+        <td>
+          1457
+          -
+          1466
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          402
+        </td>
+        <td>
+          1457
+          -
+          1466
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$5
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          401
+        </td>
+        <td>
+          1457
+          -
+          1466
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          404
+        </td>
+        <td>
+          1457
+          -
+          1513
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy(players = game.players + (playerId -&gt; player))
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          398
+        </td>
+        <td>
+          1493
+          -
+          1511
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          playerId -&gt; player
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          407
+        </td>
+        <td>
+          1517
+          -
+          1539
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          saveGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          protected def saveGame
+        </td>
+      </tr><tr>
+        <td>
+          41
+        </td>
+        <td>
+          406
+        </td>
+        <td>
+          1589
+          -
+          1625
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          updateGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.updateGame(gameId, game)
+        </td>
+      </tr><tr>
+        <td>
+          43
+        </td>
+        <td>
+          409
+        </td>
+        <td>
+          1629
+          -
+          1664
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          registerPlayerChannel
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          protected def registerPlayerChannel
+        </td>
+      </tr><tr>
+        <td>
+          44
+        </td>
+        <td>
+          408
+        </td>
+        <td>
+          1741
+          -
+          1794
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          registerPlayer
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          gameManager.registerPlayer(channel, gameId, playerId)
+        </td>
+      </tr><tr>
+        <td>
+          46
+        </td>
+        <td>
+          412
+        </td>
+        <td>
+          1798
+          -
+          1829
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          sendRejoinSuccess
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          protected def sendRejoinSuccess
+        </td>
+      </tr><tr>
+        <td>
+          47
+        </td>
+        <td>
+          411
+        </td>
+        <td>
+          1929
+          -
+          1977
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          shared.ColorRush.JoinedMessage(playerId, gameId)
+        </td>
+      </tr><tr>
+        <td>
+          47
+        </td>
+        <td>
+          410
+        </td>
+        <td>
+          1906
+          -
+          1978
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          sendToChannel
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          sendToChannel(channel, shared.ColorRush.JoinedMessage(playerId, gameId))
+        </td>
+      </tr><tr>
+        <td>
+          49
+        </td>
+        <td>
+          415
+        </td>
+        <td>
+          1982
+          -
+          2013
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          sendRejoinFailure
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          protected def sendRejoinFailure
+        </td>
+      </tr><tr>
+        <td>
+          50
+        </td>
+        <td>
+          414
+        </td>
+        <td>
+          2095
+          -
+          2139
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          shared.ColorRush.RejoinFailedMessage(reason)
+        </td>
+      </tr><tr>
+        <td>
+          50
+        </td>
+        <td>
+          413
+        </td>
+        <td>
+          2072
+          -
+          2140
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          sendToChannel
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          sendToChannel(channel, shared.ColorRush.RejoinFailedMessage(reason))
+        </td>
+      </tr><tr>
+        <td>
+          52
+        </td>
+        <td>
+          431
+        </td>
+        <td>
+          2144
+          -
+          2176
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          broadcastGameState
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          protected def broadcastGameState
+        </td>
+      </tr><tr>
+        <td>
+          56
+        </td>
+        <td>
+          416
+        </td>
+        <td>
+          2279
+          -
+          2697
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foreach
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.getGame(gameId).foreach: game =&gt;\n      val message = shared.ColorRush.GameUpdateMessage(game)\n      val messageJson = write(message)\n\n      Option(gameManager.getConnections(gameId)).foreach: connections =&gt;\n        connections.asScala.foreach: channel =&gt;\n          Try(channel.send(cask.Ws.Text(messageJson))).recover:\n            case ex =&gt; logger.warn(s&quot;Failed to broadcast game state: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          57
+        </td>
+        <td>
+          417
+        </td>
+        <td>
+          2344
+          -
+          2384
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          shared.ColorRush.GameUpdateMessage(game)
+        </td>
+      </tr><tr>
+        <td>
+          58
+        </td>
+        <td>
+          418
+        </td>
+        <td>
+          2409
+          -
+          2423
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          write
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          write(message)
+        </td>
+      </tr><tr>
+        <td>
+          58
+        </td>
+        <td>
+          421
+        </td>
+        <td>
+          2409
+          -
+          2414
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          write$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          write
+        </td>
+      </tr><tr>
+        <td>
+          58
+        </td>
+        <td>
+          420
+        </td>
+        <td>
+          2409
+          -
+          2414
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          write$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          write
+        </td>
+      </tr><tr>
+        <td>
+          58
+        </td>
+        <td>
+          419
+        </td>
+        <td>
+          2409
+          -
+          2414
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          write$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          write
+        </td>
+      </tr><tr>
+        <td>
+          60
+        </td>
+        <td>
+          423
+        </td>
+        <td>
+          2438
+          -
+          2472
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getConnections
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.getConnections(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          60
+        </td>
+        <td>
+          422
+        </td>
+        <td>
+          2431
+          -
+          2697
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foreach
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Option(gameManager.getConnections(gameId)).foreach: connections =&gt;\n        connections.asScala.foreach: channel =&gt;\n          Try(channel.send(cask.Ws.Text(messageJson))).recover:\n            case ex =&gt; logger.warn(s&quot;Failed to broadcast game state: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          61
+        </td>
+        <td>
+          424
+        </td>
+        <td>
+          2506
+          -
+          2697
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foreach
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          connections.asScala.foreach: channel =&gt;\n          Try(channel.send(cask.Ws.Text(messageJson))).recover:\n            case ex =&gt; logger.warn(s&quot;Failed to broadcast game state: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          62
+        </td>
+        <td>
+          427
+        </td>
+        <td>
+          2573
+          -
+          2598
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          cask.Ws.Text(messageJson)
+        </td>
+      </tr><tr>
+        <td>
+          62
+        </td>
+        <td>
+          426
+        </td>
+        <td>
+          2560
+          -
+          2599
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          send
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          channel.send(cask.Ws.Text(messageJson))
+        </td>
+      </tr><tr>
+        <td>
+          63
+        </td>
+        <td>
+          430
+        </td>
+        <td>
+          2630
+          -
+          2697
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; logger.warn(s&quot;Failed to broadcast game state: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          63
+        </td>
+        <td>
+          429
+        </td>
+        <td>
+          2681
+          -
+          2694
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getMessage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ex.getMessage
+        </td>
+      </tr><tr>
+        <td>
+          63
+        </td>
+        <td>
+          428
+        </td>
+        <td>
+          2633
+          -
+          2697
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          warn
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.warn(s&quot;Failed to broadcast game state: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          63
+        </td>
+        <td>
+          425
+        </td>
+        <td>
+          2556
+          -
+          2697
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          recover
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Try(channel.send(cask.Ws.Text(messageJson))).recover:\n            case ex =&gt; logger.warn(s&quot;Failed to broadcast game state: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          65
+        </td>
+        <td>
+          463
+        </td>
+        <td>
+          2701
+          -
+          2720
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          handleWebSocket
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def handleWebSocket
+        </td>
+      </tr><tr>
+        <td>
+          66
+        </td>
+        <td>
+          432
+        </td>
+        <td>
+          2765
+          -
+          4477
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          cask.WsHandler: channel =&gt;\n      // Don't create game yet - wait for JoinMessage with totalRounds\n      // Just add the connection tracking\n      gameManager.addConnection(gameId, channel)\n\n      logger.info(s&quot;Player connected to game $gameId&quot;)\n\n      cask.WsActor:\n        case cask.Ws.Text(msg) =&gt;\n          logger.info(s&quot;Received WebSocket message: $msg&quot;)\n          Try:\n            import upickle.default.*\n            val clientMsg = read[shared.ColorRush.ClientMessage](msg)\n\n            clientMsg match\n              case shared.ColorRush.JoinMessage(playerName, totalRounds) =&gt;\n                handleJoin(channel, gameId, playerName, totalRounds)\n\n              case shared.ColorRush.RejoinMessage(playerId, rejoinGameId) =&gt;\n                handleRejoinRequest(channel, gameId, playerId)\n\n              case shared.ColorRush.StartMessage() =&gt;\n                handleStart(gameId)\n\n              case shared.ColorRush.ClickMessage(color, clickTime) =&gt;\n                handleClick(channel, gameId, color, clickTime)\n\n              case shared.ColorRush.NextRoundMessage() =&gt;\n                handleNextRound(gameId)\n\n              case shared.ColorRush.PingMessage() =&gt;\n                // Keepalive ping - no action needed, just keeps the connection alive\n                logger.debug(s&quot;Received keepalive ping for game $gameId&quot;)\n          .recover:\n            case ex =&gt;\n              logger.error(s&quot;Error processing game message: ${ex.getMessage}&quot;, ex)\n\n        case cask.Ws.Close(_, _) =&gt;\n          handlePlayerDisconnect(channel, gameId)\n\n        case cask.Ws.Error(ex) =&gt;\n          logger.error(s&quot;WebSocket error in game $gameId: ${ex.getMessage}&quot;, ex)\n          handlePlayerDisconnect(channel, gameId)
+        </td>
+      </tr><tr>
+        <td>
+          69
+        </td>
+        <td>
+          433
+        </td>
+        <td>
+          2911
+          -
+          2953
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          addConnection
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.addConnection(gameId, channel)
+        </td>
+      </tr><tr>
+        <td>
+          71
+        </td>
+        <td>
+          434
+        </td>
+        <td>
+          2961
+          -
+          3009
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(s&quot;Player connected to game $gameId&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          73
+        </td>
+        <td>
+          435
+        </td>
+        <td>
+          3017
+          -
+          4477
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          cask.WsActor:\n        case cask.Ws.Text(msg) =&gt;\n          logger.info(s&quot;Received WebSocket message: $msg&quot;)\n          Try:\n            import upickle.default.*\n            val clientMsg = read[shared.ColorRush.ClientMessage](msg)\n\n            clientMsg match\n              case shared.ColorRush.JoinMessage(playerName, totalRounds) =&gt;\n                handleJoin(channel, gameId, playerName, totalRounds)\n\n              case shared.ColorRush.RejoinMessage(playerId, rejoinGameId) =&gt;\n                handleRejoinRequest(channel, gameId, playerId)\n\n              case shared.ColorRush.StartMessage() =&gt;\n                handleStart(gameId)\n\n              case shared.ColorRush.ClickMessage(color, clickTime) =&gt;\n                handleClick(channel, gameId, color, clickTime)\n\n              case shared.ColorRush.NextRoundMessage() =&gt;\n                handleNextRound(gameId)\n\n              case shared.ColorRush.PingMessage() =&gt;\n                // Keepalive ping - no action needed, just keeps the connection alive\n                logger.debug(s&quot;Received keepalive ping for game $gameId&quot;)\n          .recover:\n            case ex =&gt;\n              logger.error(s&quot;Error processing game message: ${ex.getMessage}&quot;, ex)\n\n        case cask.Ws.Close(_, _) =&gt;\n          handlePlayerDisconnect(channel, gameId)\n\n        case cask.Ws.Error(ex) =&gt;\n          logger.error(s&quot;WebSocket error in game $gameId: ${ex.getMessage}&quot;, ex)\n          handlePlayerDisconnect(channel, gameId)
+        </td>
+      </tr><tr>
+        <td>
+          75
+        </td>
+        <td>
+          436
+        </td>
+        <td>
+          3075
+          -
+          3123
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(s&quot;Received WebSocket message: $msg&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          75
+        </td>
+        <td>
+          456
+        </td>
+        <td>
+          3075
+          -
+          4224
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(s&quot;Received WebSocket message: $msg&quot;)\n          Try:\n            import upickle.default.*\n            val clientMsg = read[shared.ColorRush.ClientMessage](msg)\n\n            clientMsg match\n              case shared.ColorRush.JoinMessage(playerName, totalRounds) =&gt;\n                handleJoin(channel, gameId, playerName, totalRounds)\n\n              case shared.ColorRush.RejoinMessage(playerId, rejoinGameId) =&gt;\n                handleRejoinRequest(channel, gameId, playerId)\n\n              case shared.ColorRush.StartMessage() =&gt;\n                handleStart(gameId)\n\n              case shared.ColorRush.ClickMessage(color, clickTime) =&gt;\n                handleClick(channel, gameId, color, clickTime)\n\n              case shared.ColorRush.NextRoundMessage() =&gt;\n                handleNextRound(gameId)\n\n              case shared.ColorRush.PingMessage() =&gt;\n                // Keepalive ping - no action needed, just keeps the connection alive\n                logger.debug(s&quot;Received keepalive ping for game $gameId&quot;)\n          .recover:\n            case ex =&gt;\n              logger.error(s&quot;Error processing game message: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          78
+        </td>
+        <td>
+          439
+        </td>
+        <td>
+          3241
+          -
+          3244
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          fromString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          msg
+        </td>
+      </tr><tr>
+        <td>
+          78
+        </td>
+        <td>
+          438
+        </td>
+        <td>
+          3204
+          -
+          3245
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          read
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          read[shared.ColorRush.ClientMessage](msg)
+        </td>
+      </tr><tr>
+        <td>
+          78
+        </td>
+        <td>
+          440
+        </td>
+        <td>
+          3204
+          -
+          3240
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          read$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          read[shared.ColorRush.ClientMessage]
+        </td>
+      </tr><tr>
+        <td>
+          81
+        </td>
+        <td>
+          442
+        </td>
+        <td>
+          3348
+          -
+          3419
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt;\n                handleJoin(channel, gameId, playerName, totalRounds)
+        </td>
+      </tr><tr>
+        <td>
+          82
+        </td>
+        <td>
+          441
+        </td>
+        <td>
+          3367
+          -
+          3419
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          handleJoin
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          handleJoin(channel, gameId, playerName, totalRounds)
+        </td>
+      </tr><tr>
+        <td>
+          84
+        </td>
+        <td>
+          444
+        </td>
+        <td>
+          3495
+          -
+          3560
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt;\n                handleRejoinRequest(channel, gameId, playerId)
+        </td>
+      </tr><tr>
+        <td>
+          85
+        </td>
+        <td>
+          443
+        </td>
+        <td>
+          3514
+          -
+          3560
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          handleRejoinRequest
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          handleRejoinRequest(channel, gameId, playerId)
+        </td>
+      </tr><tr>
+        <td>
+          87
+        </td>
+        <td>
+          446
+        </td>
+        <td>
+          3613
+          -
+          3651
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt;\n                handleStart(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          88
+        </td>
+        <td>
+          445
+        </td>
+        <td>
+          3632
+          -
+          3651
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          handleStart
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          handleStart(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          90
+        </td>
+        <td>
+          448
+        </td>
+        <td>
+          3720
+          -
+          3785
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt;\n                handleClick(channel, gameId, color, clickTime)
+        </td>
+      </tr><tr>
+        <td>
+          91
+        </td>
+        <td>
+          447
+        </td>
+        <td>
+          3739
+          -
+          3785
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          handleClick
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          handleClick(channel, gameId, color, clickTime)
+        </td>
+      </tr><tr>
+        <td>
+          93
+        </td>
+        <td>
+          450
+        </td>
+        <td>
+          3842
+          -
+          3884
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt;\n                handleNextRound(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          94
+        </td>
+        <td>
+          449
+        </td>
+        <td>
+          3861
+          -
+          3884
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          handleNextRound
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          handleNextRound(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          96
+        </td>
+        <td>
+          452
+        </td>
+        <td>
+          3936
+          -
+          4098
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt;\n                // Keepalive ping - no action needed, just keeps the connection alive\n                logger.debug(s&quot;Received keepalive ping for game $gameId&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          98
+        </td>
+        <td>
+          451
+        </td>
+        <td>
+          4041
+          -
+          4098
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          debug
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.debug(s&quot;Received keepalive ping for game $gameId&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          100
+        </td>
+        <td>
+          437
+        </td>
+        <td>
+          3134
+          -
+          4224
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          recover
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Try:\n            import upickle.default.*\n            val clientMsg = read[shared.ColorRush.ClientMessage](msg)\n\n            clientMsg match\n              case shared.ColorRush.JoinMessage(playerName, totalRounds) =&gt;\n                handleJoin(channel, gameId, playerName, totalRounds)\n\n              case shared.ColorRush.RejoinMessage(playerId, rejoinGameId) =&gt;\n                handleRejoinRequest(channel, gameId, playerId)\n\n              case shared.ColorRush.StartMessage() =&gt;\n                handleStart(gameId)\n\n              case shared.ColorRush.ClickMessage(color, clickTime) =&gt;\n                handleClick(channel, gameId, color, clickTime)\n\n              case shared.ColorRush.NextRoundMessage() =&gt;\n                handleNextRound(gameId)\n\n              case shared.ColorRush.PingMessage() =&gt;\n                // Keepalive ping - no action needed, just keeps the connection alive\n                logger.debug(s&quot;Received keepalive ping for game $gameId&quot;)\n          .recover:\n            case ex =&gt;\n              logger.error(s&quot;Error processing game message: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          100
+        </td>
+        <td>
+          455
+        </td>
+        <td>
+          4139
+          -
+          4224
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt;\n              logger.error(s&quot;Error processing game message: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          101
+        </td>
+        <td>
+          454
+        </td>
+        <td>
+          4204
+          -
+          4217
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getMessage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ex.getMessage
+        </td>
+      </tr><tr>
+        <td>
+          101
+        </td>
+        <td>
+          453
+        </td>
+        <td>
+          4156
+          -
+          4224
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          error
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.error(s&quot;Error processing game message: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          103
+        </td>
+        <td>
+          458
+        </td>
+        <td>
+          4259
+          -
+          4311
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt;\n          handlePlayerDisconnect(channel, gameId)
+        </td>
+      </tr><tr>
+        <td>
+          104
+        </td>
+        <td>
+          457
+        </td>
+        <td>
+          4272
+          -
+          4311
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          handlePlayerDisconnect
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          handlePlayerDisconnect(channel, gameId)
+        </td>
+      </tr><tr>
+        <td>
+          107
+        </td>
+        <td>
+          460
+        </td>
+        <td>
+          4407
+          -
+          4420
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getMessage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ex.getMessage
+        </td>
+      </tr><tr>
+        <td>
+          107
+        </td>
+        <td>
+          459
+        </td>
+        <td>
+          4357
+          -
+          4427
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          error
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.error(s&quot;WebSocket error in game $gameId: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          107
+        </td>
+        <td>
+          462
+        </td>
+        <td>
+          4357
+          -
+          4477
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.error(s&quot;WebSocket error in game $gameId: ${ex.getMessage}&quot;, ex)\n          handlePlayerDisconnect(channel, gameId)
+        </td>
+      </tr><tr>
+        <td>
+          108
+        </td>
+        <td>
+          461
+        </td>
+        <td>
+          4438
+          -
+          4477
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          handlePlayerDisconnect
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          handlePlayerDisconnect(channel, gameId)
+        </td>
+      </tr><tr>
+        <td>
+          110
+        </td>
+        <td>
+          474
+        </td>
+        <td>
+          4481
+          -
+          4503
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          handleJoin
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          private def handleJoin
+        </td>
+      </tr><tr>
+        <td>
+          111
+        </td>
+        <td>
+          464
+        </td>
+        <td>
+          4615
+          -
+          4651
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          toString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          java.util.UUID.randomUUID().toString
+        </td>
+      </tr><tr>
+        <td>
+          113
+        </td>
+        <td>
+          465
+        </td>
+        <td>
+          4657
+          -
+          4710
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          registerPlayer
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.registerPlayer(channel, gameId, playerId)
+        </td>
+      </tr><tr>
+        <td>
+          116
+        </td>
+        <td>
+          467
+        </td>
+        <td>
+          4849
+          -
+          4892
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          createGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.createGame(gameId, totalRounds)
+        </td>
+      </tr><tr>
+        <td>
+          116
+        </td>
+        <td>
+          466
+        </td>
+        <td>
+          4811
+          -
+          4893
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getOrElse
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.getGame(gameId).getOrElse(gameManager.createGame(gameId, totalRounds))
+        </td>
+      </tr><tr>
+        <td>
+          117
+        </td>
+        <td>
+          468
+        </td>
+        <td>
+          4916
+          -
+          4980
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          addPlayer
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          shared.ColorRush.ColorRush.addPlayer(game, playerId, playerName)
+        </td>
+      </tr><tr>
+        <td>
+          118
+        </td>
+        <td>
+          469
+        </td>
+        <td>
+          4985
+          -
+          5028
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          updateGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.updateGame(gameId, updatedGame)
+        </td>
+      </tr><tr>
+        <td>
+          120
+        </td>
+        <td>
+          470
+        </td>
+        <td>
+          5034
+          -
+          5130
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(s&quot;Player $playerName ($playerId) joined game $gameId with totalRounds=$totalRounds&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          123
+        </td>
+        <td>
+          472
+        </td>
+        <td>
+          5232
+          -
+          5280
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          shared.ColorRush.JoinedMessage(playerId, gameId)
+        </td>
+      </tr><tr>
+        <td>
+          123
+        </td>
+        <td>
+          471
+        </td>
+        <td>
+          5209
+          -
+          5281
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          sendToChannel
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          sendToChannel(channel, shared.ColorRush.JoinedMessage(playerId, gameId))
+        </td>
+      </tr><tr>
+        <td>
+          126
+        </td>
+        <td>
+          473
+        </td>
+        <td>
+          5330
+          -
+          5356
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          broadcastGameState
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          broadcastGameState(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          128
+        </td>
+        <td>
+          483
+        </td>
+        <td>
+          5360
+          -
+          5383
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          handleStart
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          private def handleStart
+        </td>
+      </tr><tr>
+        <td>
+          129
+        </td>
+        <td>
+          475
+        </td>
+        <td>
+          5412
+          -
+          5738
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foreach
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.getGame(gameId).foreach: game =&gt;\n      if game.players.nonEmpty then\n        val gameWithRound = shared.ColorRush.ColorRush.startNewRound(game)\n        gameManager.updateGame(gameId, gameWithRound)\n        logger.info(s&quot;Game $gameId started - Round ${gameWithRound.roundNumber}&quot;)\n        broadcastGameState(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          130
+        </td>
+        <td>
+          476
+        </td>
+        <td>
+          5466
+          -
+          5487
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          nonEmpty
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.players.nonEmpty
+        </td>
+      </tr><tr>
+        <td>
+          131
+        </td>
+        <td>
+          481
+        </td>
+        <td>
+          5501
+          -
+          5738
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          val gameWithRound = shared.ColorRush.ColorRush.startNewRound(game)\n        gameManager.updateGame(gameId, gameWithRound)\n        logger.info(s&quot;Game $gameId started - Round ${gameWithRound.roundNumber}&quot;)\n        broadcastGameState(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          131
+        </td>
+        <td>
+          477
+        </td>
+        <td>
+          5521
+          -
+          5567
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          startNewRound
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          shared.ColorRush.ColorRush.startNewRound(game)
+        </td>
+      </tr><tr>
+        <td>
+          132
+        </td>
+        <td>
+          478
+        </td>
+        <td>
+          5576
+          -
+          5621
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          updateGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.updateGame(gameId, gameWithRound)
+        </td>
+      </tr><tr>
+        <td>
+          133
+        </td>
+        <td>
+          479
+        </td>
+        <td>
+          5630
+          -
+          5703
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(s&quot;Game $gameId started - Round ${gameWithRound.roundNumber}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          134
+        </td>
+        <td>
+          480
+        </td>
+        <td>
+          5712
+          -
+          5738
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          broadcastGameState
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          broadcastGameState(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          134
+        </td>
+        <td>
+          482
+        </td>
+        <td>
+          5738
+          -
+          5738
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          
+        </td>
+      </tr><tr>
+        <td>
+          136
+        </td>
+        <td>
+          497
+        </td>
+        <td>
+          5742
+          -
+          5765
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          handleClick
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          private def handleClick
+        </td>
+      </tr><tr>
+        <td>
+          137
+        </td>
+        <td>
+          484
+        </td>
+        <td>
+          5856
+          -
+          5890
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getPlayerInfo
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.getPlayerInfo(channel)
+        </td>
+      </tr><tr>
+        <td>
+          138
+        </td>
+        <td>
+          485
+        </td>
+        <td>
+          5928
+          -
+          5941
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          ==
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gId == gameId
+        </td>
+      </tr><tr>
+        <td>
+          138
+        </td>
+        <td>
+          494
+        </td>
+        <td>
+          5942
+          -
+          6406
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt;\n        gameManager.getGame(gameId).foreach: game =&gt;\n          val (updatedGame, winner) = shared.ColorRush.ColorRush.handleColorClick(game, pId, color, clickTime)\n          gameManager.updateGame(gameId, updatedGame)\n\n          winner.foreach: (playerId, playerName, points) =&gt;\n            logger.info(s&quot;Round winner: $playerName with $points points&quot;)\n            broadcastRoundWinner(gameId, playerId, playerName, points)\n\n          broadcastGameState(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          139
+        </td>
+        <td>
+          486
+        </td>
+        <td>
+          5953
+          -
+          6406
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foreach
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.getGame(gameId).foreach: game =&gt;\n          val (updatedGame, winner) = shared.ColorRush.ColorRush.handleColorClick(game, pId, color, clickTime)\n          gameManager.updateGame(gameId, updatedGame)\n\n          winner.foreach: (playerId, playerName, points) =&gt;\n            logger.info(s&quot;Round winner: $playerName with $points points&quot;)\n            broadcastRoundWinner(gameId, playerId, playerName, points)\n\n          broadcastGameState(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          140
+        </td>
+        <td>
+          487
+        </td>
+        <td>
+          6036
+          -
+          6108
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          handleColorClick
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          shared.ColorRush.ColorRush.handleColorClick(game, pId, color, clickTime)
+        </td>
+      </tr><tr>
+        <td>
+          140
+        </td>
+        <td>
+          488
+        </td>
+        <td>
+          6033
+          -
+          6033
+        </td>
+        <td>
+          Typed
+        </td>
+        <td>
+          $1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          
+        </td>
+      </tr><tr>
+        <td>
+          141
+        </td>
+        <td>
+          489
+        </td>
+        <td>
+          6119
+          -
+          6162
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          updateGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.updateGame(gameId, updatedGame)
+        </td>
+      </tr><tr>
+        <td>
+          143
+        </td>
+        <td>
+          490
+        </td>
+        <td>
+          6174
+          -
+          6368
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foreach
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          winner.foreach: (playerId, playerName, points) =&gt;\n            logger.info(s&quot;Round winner: $playerName with $points points&quot;)\n            broadcastRoundWinner(gameId, playerId, playerName, points)
+        </td>
+      </tr><tr>
+        <td>
+          144
+        </td>
+        <td>
+          491
+        </td>
+        <td>
+          6236
+          -
+          6297
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(s&quot;Round winner: $playerName with $points points&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          145
+        </td>
+        <td>
+          492
+        </td>
+        <td>
+          6310
+          -
+          6368
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          broadcastRoundWinner
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          broadcastRoundWinner(gameId, playerId, playerName, points)
+        </td>
+      </tr><tr>
+        <td>
+          147
+        </td>
+        <td>
+          493
+        </td>
+        <td>
+          6380
+          -
+          6406
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          broadcastGameState
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          broadcastGameState(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          149
+        </td>
+        <td>
+          496
+        </td>
+        <td>
+          6421
+          -
+          6478
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt;\n        logger.warn(s&quot;Click from unregistered player&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          150
+        </td>
+        <td>
+          495
+        </td>
+        <td>
+          6432
+          -
+          6478
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          warn
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.warn(s&quot;Click from unregistered player&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          152
+        </td>
+        <td>
+          511
+        </td>
+        <td>
+          6482
+          -
+          6509
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          handleNextRound
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          private def handleNextRound
+        </td>
+      </tr><tr>
+        <td>
+          154
+        </td>
+        <td>
+          498
+        </td>
+        <td>
+          6621
+          -
+          7161
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foreach
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.getGame(gameId).foreach: game =&gt;\n      if game.status == shared.ColorRush.GameStatus.RoundEnd then\n        val nextGame = shared.ColorRush.ColorRush.advanceFromRoundEnd(game)\n        gameManager.updateGame(gameId, nextGame)\n        logger.info(s&quot;Game $gameId advancing from roundEnd to ${nextGame.status}&quot;)\n\n        if nextGame.status == shared.ColorRush.GameStatus.GameOver then\n          val winner = shared.ColorRush.ColorRush.getWinner(nextGame)\n          broadcastGameEnd(gameId, winner)\n\n        broadcastGameState(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          155
+        </td>
+        <td>
+          499
+        </td>
+        <td>
+          6675
+          -
+          6726
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          ==
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.status == shared.ColorRush.GameStatus.RoundEnd
+        </td>
+      </tr><tr>
+        <td>
+          156
+        </td>
+        <td>
+          509
+        </td>
+        <td>
+          6740
+          -
+          7161
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          val nextGame = shared.ColorRush.ColorRush.advanceFromRoundEnd(game)\n        gameManager.updateGame(gameId, nextGame)\n        logger.info(s&quot;Game $gameId advancing from roundEnd to ${nextGame.status}&quot;)\n\n        if nextGame.status == shared.ColorRush.GameStatus.GameOver then\n          val winner = shared.ColorRush.ColorRush.getWinner(nextGame)\n          broadcastGameEnd(gameId, winner)\n\n        broadcastGameState(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          156
+        </td>
+        <td>
+          500
+        </td>
+        <td>
+          6755
+          -
+          6807
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          advanceFromRoundEnd
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          shared.ColorRush.ColorRush.advanceFromRoundEnd(game)
+        </td>
+      </tr><tr>
+        <td>
+          157
+        </td>
+        <td>
+          501
+        </td>
+        <td>
+          6816
+          -
+          6856
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          updateGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.updateGame(gameId, nextGame)
+        </td>
+      </tr><tr>
+        <td>
+          158
+        </td>
+        <td>
+          502
+        </td>
+        <td>
+          6865
+          -
+          6939
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(s&quot;Game $gameId advancing from roundEnd to ${nextGame.status}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          160
+        </td>
+        <td>
+          503
+        </td>
+        <td>
+          6952
+          -
+          7007
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          ==
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          nextGame.status == shared.ColorRush.GameStatus.GameOver
+        </td>
+      </tr><tr>
+        <td>
+          161
+        </td>
+        <td>
+          504
+        </td>
+        <td>
+          7036
+          -
+          7082
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getWinner
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          shared.ColorRush.ColorRush.getWinner(nextGame)
+        </td>
+      </tr><tr>
+        <td>
+          161
+        </td>
+        <td>
+          506
+        </td>
+        <td>
+          7023
+          -
+          7125
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          val winner = shared.ColorRush.ColorRush.getWinner(nextGame)\n          broadcastGameEnd(gameId, winner)
+        </td>
+      </tr><tr>
+        <td>
+          162
+        </td>
+        <td>
+          505
+        </td>
+        <td>
+          7093
+          -
+          7125
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          broadcastGameEnd
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          broadcastGameEnd(gameId, winner)
+        </td>
+      </tr><tr>
+        <td>
+          162
+        </td>
+        <td>
+          507
+        </td>
+        <td>
+          7125
+          -
+          7125
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          
+        </td>
+      </tr><tr>
+        <td>
+          164
+        </td>
+        <td>
+          508
+        </td>
+        <td>
+          7135
+          -
+          7161
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          broadcastGameState
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          broadcastGameState(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          164
+        </td>
+        <td>
+          510
+        </td>
+        <td>
+          7161
+          -
+          7161
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          
+        </td>
+      </tr><tr>
+        <td>
+          166
+        </td>
+        <td>
+          522
+        </td>
+        <td>
+          7165
+          -
+          7190
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          sendToChannel
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          private def sendToChannel
+        </td>
+      </tr><tr>
+        <td>
+          169
+        </td>
+        <td>
+          514
+        </td>
+        <td>
+          7332
+          -
+          7337
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          write$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          write
+        </td>
+      </tr><tr>
+        <td>
+          169
+        </td>
+        <td>
+          516
+        </td>
+        <td>
+          7332
+          -
+          7337
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          write$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          write
+        </td>
+      </tr><tr>
+        <td>
+          169
+        </td>
+        <td>
+          513
+        </td>
+        <td>
+          7332
+          -
+          7346
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          write
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          write(message)
+        </td>
+      </tr><tr>
+        <td>
+          169
+        </td>
+        <td>
+          515
+        </td>
+        <td>
+          7332
+          -
+          7337
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          write$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          write
+        </td>
+      </tr><tr>
+        <td>
+          170
+        </td>
+        <td>
+          517
+        </td>
+        <td>
+          7353
+          -
+          7392
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          send
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          channel.send(cask.Ws.Text(messageJson))
+        </td>
+      </tr><tr>
+        <td>
+          170
+        </td>
+        <td>
+          518
+        </td>
+        <td>
+          7366
+          -
+          7391
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          cask.Ws.Text(messageJson)
+        </td>
+      </tr><tr>
+        <td>
+          172
+        </td>
+        <td>
+          519
+        </td>
+        <td>
+          7424
+          -
+          7491
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          warn
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.warn(s&quot;Failed to send message to channel: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          172
+        </td>
+        <td>
+          521
+        </td>
+        <td>
+          7421
+          -
+          7491
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; logger.warn(s&quot;Failed to send message to channel: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          172
+        </td>
+        <td>
+          512
+        </td>
+        <td>
+          7303
+          -
+          7491
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          recover
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Try:\n      val messageJson = write(message)\n      channel.send(cask.Ws.Text(messageJson))\n    .recover:\n      case ex =&gt; logger.warn(s&quot;Failed to send message to channel: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          172
+        </td>
+        <td>
+          520
+        </td>
+        <td>
+          7475
+          -
+          7488
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getMessage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ex.getMessage
+        </td>
+      </tr><tr>
+        <td>
+          174
+        </td>
+        <td>
+          537
+        </td>
+        <td>
+          7495
+          -
+          7527
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          broadcastRoundWinner
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          private def broadcastRoundWinner
+        </td>
+      </tr><tr>
+        <td>
+          178
+        </td>
+        <td>
+          523
+        </td>
+        <td>
+          7695
+          -
+          7750
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          shared.ColorRush.RoundWinnerMessage(playerName, points)
+        </td>
+      </tr><tr>
+        <td>
+          179
+        </td>
+        <td>
+          525
+        </td>
+        <td>
+          7773
+          -
+          7778
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          write$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          write
+        </td>
+      </tr><tr>
+        <td>
+          179
+        </td>
+        <td>
+          524
+        </td>
+        <td>
+          7773
+          -
+          7787
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          write
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          write(message)
+        </td>
+      </tr><tr>
+        <td>
+          179
+        </td>
+        <td>
+          527
+        </td>
+        <td>
+          7773
+          -
+          7778
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          write$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          write
+        </td>
+      </tr><tr>
+        <td>
+          179
+        </td>
+        <td>
+          526
+        </td>
+        <td>
+          7773
+          -
+          7778
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          write$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          write
+        </td>
+      </tr><tr>
+        <td>
+          181
+        </td>
+        <td>
+          528
+        </td>
+        <td>
+          7793
+          -
+          8055
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foreach
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Option(gameManager.getConnections(gameId)).foreach: connections =&gt;\n      connections.asScala.foreach: channel =&gt;\n        Try(channel.send(cask.Ws.Text(messageJson))).recover:\n          case ex =&gt; logger.warn(s&quot;Failed to broadcast round winner: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          181
+        </td>
+        <td>
+          529
+        </td>
+        <td>
+          7800
+          -
+          7834
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getConnections
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.getConnections(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          182
+        </td>
+        <td>
+          530
+        </td>
+        <td>
+          7866
+          -
+          8055
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foreach
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          connections.asScala.foreach: channel =&gt;\n        Try(channel.send(cask.Ws.Text(messageJson))).recover:\n          case ex =&gt; logger.warn(s&quot;Failed to broadcast round winner: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          183
+        </td>
+        <td>
+          532
+        </td>
+        <td>
+          7918
+          -
+          7957
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          send
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          channel.send(cask.Ws.Text(messageJson))
+        </td>
+      </tr><tr>
+        <td>
+          183
+        </td>
+        <td>
+          533
+        </td>
+        <td>
+          7931
+          -
+          7956
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          cask.Ws.Text(messageJson)
+        </td>
+      </tr><tr>
+        <td>
+          184
+        </td>
+        <td>
+          534
+        </td>
+        <td>
+          7989
+          -
+          8055
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          warn
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.warn(s&quot;Failed to broadcast round winner: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          184
+        </td>
+        <td>
+          531
+        </td>
+        <td>
+          7914
+          -
+          8055
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          recover
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Try(channel.send(cask.Ws.Text(messageJson))).recover:\n          case ex =&gt; logger.warn(s&quot;Failed to broadcast round winner: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          184
+        </td>
+        <td>
+          536
+        </td>
+        <td>
+          7986
+          -
+          8055
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; logger.warn(s&quot;Failed to broadcast round winner: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          184
+        </td>
+        <td>
+          535
+        </td>
+        <td>
+          8039
+          -
+          8052
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getMessage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ex.getMessage
+        </td>
+      </tr><tr>
+        <td>
+          186
+        </td>
+        <td>
+          552
+        </td>
+        <td>
+          8059
+          -
+          8087
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          broadcastGameEnd
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          private def broadcastGameEnd
+        </td>
+      </tr><tr>
+        <td>
+          190
+        </td>
+        <td>
+          538
+        </td>
+        <td>
+          8250
+          -
+          8289
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          shared.ColorRush.GameEndMessage(winner)
+        </td>
+      </tr><tr>
+        <td>
+          191
+        </td>
+        <td>
+          541
+        </td>
+        <td>
+          8312
+          -
+          8317
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          write$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          write
+        </td>
+      </tr><tr>
+        <td>
+          191
+        </td>
+        <td>
+          540
+        </td>
+        <td>
+          8312
+          -
+          8317
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          write$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          write
+        </td>
+      </tr><tr>
+        <td>
+          191
+        </td>
+        <td>
+          539
+        </td>
+        <td>
+          8312
+          -
+          8326
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          write
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          write(message)
+        </td>
+      </tr><tr>
+        <td>
+          191
+        </td>
+        <td>
+          542
+        </td>
+        <td>
+          8312
+          -
+          8317
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          write$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          write
+        </td>
+      </tr><tr>
+        <td>
+          193
+        </td>
+        <td>
+          543
+        </td>
+        <td>
+          8332
+          -
+          8590
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foreach
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Option(gameManager.getConnections(gameId)).foreach: connections =&gt;\n      connections.asScala.foreach: channel =&gt;\n        Try(channel.send(cask.Ws.Text(messageJson))).recover:\n          case ex =&gt; logger.warn(s&quot;Failed to broadcast game end: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          193
+        </td>
+        <td>
+          544
+        </td>
+        <td>
+          8339
+          -
+          8373
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getConnections
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          gameManager.getConnections(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          194
+        </td>
+        <td>
+          545
+        </td>
+        <td>
+          8405
+          -
+          8590
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foreach
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connections.asScala.foreach: channel =&gt;\n        Try(channel.send(cask.Ws.Text(messageJson))).recover:\n          case ex =&gt; logger.warn(s&quot;Failed to broadcast game end: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          195
+        </td>
+        <td>
+          548
+        </td>
+        <td>
+          8470
+          -
+          8495
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          cask.Ws.Text(messageJson)
+        </td>
+      </tr><tr>
+        <td>
+          195
+        </td>
+        <td>
+          547
+        </td>
+        <td>
+          8457
+          -
+          8496
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          send
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          channel.send(cask.Ws.Text(messageJson))
+        </td>
+      </tr><tr>
+        <td>
+          196
+        </td>
+        <td>
+          550
+        </td>
+        <td>
+          8574
+          -
+          8587
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getMessage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ex.getMessage
+        </td>
+      </tr><tr>
+        <td>
+          196
+        </td>
+        <td>
+          549
+        </td>
+        <td>
+          8528
+          -
+          8590
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          warn
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.warn(s&quot;Failed to broadcast game end: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          196
+        </td>
+        <td>
+          546
+        </td>
+        <td>
+          8453
+          -
+          8590
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          recover
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Try(channel.send(cask.Ws.Text(messageJson))).recover:\n          case ex =&gt; logger.warn(s&quot;Failed to broadcast game end: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          196
+        </td>
+        <td>
+          551
+        </td>
+        <td>
+          8525
+          -
+          8590
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; logger.warn(s&quot;Failed to broadcast game end: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          198
+        </td>
+        <td>
+          568
+        </td>
+        <td>
+          8594
+          -
+          8628
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          handlePlayerDisconnect
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          private def handlePlayerDisconnect
+        </td>
+      </tr><tr>
+        <td>
+          202
+        </td>
+        <td>
+          553
+        </td>
+        <td>
+          8703
+          -
+          8748
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          removeConnection
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.removeConnection(gameId, channel)
+        </td>
+      </tr><tr>
+        <td>
+          204
+        </td>
+        <td>
+          554
+        </td>
+        <td>
+          8754
+          -
+          8788
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getPlayerInfo
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.getPlayerInfo(channel)
+        </td>
+      </tr><tr>
+        <td>
+          205
+        </td>
+        <td>
+          555
+        </td>
+        <td>
+          8826
+          -
+          8839
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          ==
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gId == gameId
+        </td>
+      </tr><tr>
+        <td>
+          206
+        </td>
+        <td>
+          563
+        </td>
+        <td>
+          8851
+          -
+          9273
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.unregisterPlayer(channel)\n        // Use trait's handleDisconnection for the actual disconnect logic\n        handleDisconnection(gameId, pId)\n\n        // Clean up game if it has no more connections\n        val connectionCount = gameManager.getGameConnectionCount(gameId)\n        if connectionCount == 0 then\n          logger.info(s&quot;Game $gameId has no active connections - will be cleaned up by periodic task&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          206
+        </td>
+        <td>
+          556
+        </td>
+        <td>
+          8851
+          -
+          8888
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          unregisterPlayer
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.unregisterPlayer(channel)
+        </td>
+      </tr><tr>
+        <td>
+          208
+        </td>
+        <td>
+          557
+        </td>
+        <td>
+          8972
+          -
+          9004
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          handleDisconnection
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          handleDisconnection(gameId, pId)
+        </td>
+      </tr><tr>
+        <td>
+          211
+        </td>
+        <td>
+          558
+        </td>
+        <td>
+          9091
+          -
+          9133
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getGameConnectionCount
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.getGameConnectionCount(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          212
+        </td>
+        <td>
+          559
+        </td>
+        <td>
+          9145
+          -
+          9165
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          ==
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          connectionCount == 0
+        </td>
+      </tr><tr>
+        <td>
+          213
+        </td>
+        <td>
+          561
+        </td>
+        <td>
+          9181
+          -
+          9273
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(s&quot;Game $gameId has no active connections - will be cleaned up by periodic task&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          213
+        </td>
+        <td>
+          560
+        </td>
+        <td>
+          9181
+          -
+          9273
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(s&quot;Game $gameId has no active connections - will be cleaned up by periodic task&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          213
+        </td>
+        <td>
+          562
+        </td>
+        <td>
+          9273
+          -
+          9273
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          
+        </td>
+      </tr><tr>
+        <td>
+          214
+        </td>
+        <td>
+          564
+        </td>
+        <td>
+          9287
+          -
+          9289
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt;
+        </td>
+      </tr><tr>
+        <td>
+          214
+        </td>
+        <td>
+          565
+        </td>
+        <td>
+          9287
+          -
+          9289
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt;
+        </td>
+      </tr><tr>
+        <td>
+          216
+        </td>
+        <td>
+          566
+        </td>
+        <td>
+          9322
+          -
+          9364
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getGameConnectionCount
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameManager.getGameConnectionCount(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          217
+        </td>
+        <td>
+          567
+        </td>
+        <td>
+          9369
+          -
+          9465
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(s&quot;Connection closed for game $gameId. Remaining connections: $remainingConnections&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          219
+        </td>
+        <td>
+          570
+        </td>
+        <td>
+          9469
+          -
+          9500
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          cleanupGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          private[server] def cleanupGame
+        </td>
+      </tr><tr>
+        <td>
+          220
+        </td>
+        <td>
+          569
+        </td>
+        <td>
+          9529
+          -
+          9560
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          cleanupGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          gameManager.cleanupGame(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          222
+        </td>
+        <td>
+          572
+        </td>
+        <td>
+          9564
+          -
+          9601
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          cleanupEmptyGames
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          private[server] def cleanupEmptyGames
+        </td>
+      </tr><tr>
+        <td>
+          223
+        </td>
+        <td>
+          571
+        </td>
+        <td>
+          9615
+          -
+          9646
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          cleanupEmptyGames
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          gameManager.cleanupEmptyGames()
+        </td>
+      </tr><tr>
+        <td>
+          226
+        </td>
+        <td>
+          574
+        </td>
+        <td>
+          9698
+          -
+          9732
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          getGameForTest
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          private[server] def getGameForTest
+        </td>
+      </tr><tr>
+        <td>
+          227
+        </td>
+        <td>
+          573
+        </td>
+        <td>
+          9795
+          -
+          9822
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          gameManager.getGame(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          229
+        </td>
+        <td>
+          576
+        </td>
+        <td>
+          9826
+          -
+          9868
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          getGameConnectionCount
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          private[server] def getGameConnectionCount
+        </td>
+      </tr><tr>
+        <td>
+          230
+        </td>
+        <td>
+          575
+        </td>
+        <td>
+          9896
+          -
+          9938
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getGameConnectionCount
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          gameManager.getGameConnectionCount(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          232
+        </td>
+        <td>
+          580
+        </td>
+        <td>
+          9942
+          -
+          9976
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          createTestGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          private[server] def createTestGame
+        </td>
+      </tr><tr>
+        <td>
+          233
+        </td>
+        <td>
+          577
+        </td>
+        <td>
+          10043
+          -
+          10079
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          updateGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          gameManager.updateGame(gameId, game)
+        </td>
+      </tr><tr>
+        <td>
+          234
+        </td>
+        <td>
+          578
+        </td>
+        <td>
+          10084
+          -
+          10123
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          addConnection
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          gameManager.addConnection(gameId, null)
+        </td>
+      </tr><tr>
+        <td>
+          235
+        </td>
+        <td>
+          579
+        </td>
+        <td>
+          10161
+          -
+          10203
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          removeConnection
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          gameManager.removeConnection(gameId, null)
+        </td>
+      </tr>
+    </table>
+          </div>
+        </div>
+      </body>
+    </html>

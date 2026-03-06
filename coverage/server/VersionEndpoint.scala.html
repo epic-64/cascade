@@ -1,0 +1,197 @@
+<html>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title id="title">
+          server/VersionEndpoint.scala.html
+        </title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/css/theme.default.min.css" type="text/css"/><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/js/jquery.tablesorter.min.js"></script><link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" type="text/css"/><script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script><script type="text/javascript">
+        $(document).ready(function() {$(".tablesorter").tablesorter();});
+      </script>
+        <style>
+          table.codegrid { font-family: monospace; font-size: 12px; width: auto!important; }table.statementlist { width: auto!important; font-size: 13px; } table.codegrid td { padding: 0!important; border: 0!important } table td.linenumber { width: 40px!important; } 
+        </style>
+      </head>
+      <body style="font-family: monospace;">
+        <ul class="nav nav-tabs">
+          <li>
+            <a href="#codegrid" data-toggle="tab">Codegrid</a>
+          </li>
+          <li>
+            <a href="#statementlist" data-toggle="tab">Statement List</a>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active" id="codegrid">
+            <pre style='font-size: 12pt; font-family: courier, monospace;'>1 <span style=''>package server
+</span>2 <span style=''>
+</span>3 <span style=''>object VersionEndpoint:
+</span>4 <span style=''>  /** Returns the build version for cache busting. Uses server start time as the version - each deployment restarts the
+</span>5 <span style=''>    * server, so this effectively represents &quot;when this code was deployed&quot;.
+</span>6 <span style=''>    */
+</span>7 <span style=''>  </span><span style='background: #F0ADAD'>def version</span><span style=''>(startTime: Long): ujson.Value =
+</span>8 <span style=''>    </span><span style='background: #F0ADAD'>ujson.Obj(
+</span>9 <span style=''></span><span style='background: #F0ADAD'>      &quot;buildVersion&quot; -&gt; startTime,
+</span>10 <span style=''></span><span style='background: #F0ADAD'>      &quot;timestamp&quot; -&gt; System.currentTimeMillis()
+</span>11 <span style=''></span><span style='background: #F0ADAD'>    )</span><span style=''>
+</span></pre>
+          </div>
+          <div class="tab-pane" id="statementlist">
+            <table cellspacing="0" cellpadding="0" class="table statementlist">
+      <tr>
+        <th>Line</th>
+        <th>Stmt Id</th>
+        <th>Pos</th>
+        <th>Tree</th>
+        <th>Symbol</th>
+        <th>Tests</th>
+        <th>Code</th>
+      </tr><tr>
+        <td>
+          7
+        </td>
+        <td>
+          2162
+        </td>
+        <td>
+          245
+          -
+          256
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          version
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def version
+        </td>
+      </tr><tr>
+        <td>
+          8
+        </td>
+        <td>
+          2157
+        </td>
+        <td>
+          293
+          -
+          392
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.Obj(\n      &quot;buildVersion&quot; -&gt; startTime,\n      &quot;timestamp&quot; -&gt; System.currentTimeMillis()\n    )
+        </td>
+      </tr><tr>
+        <td>
+          9
+        </td>
+        <td>
+          2158
+        </td>
+        <td>
+          310
+          -
+          337
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;buildVersion&quot; -&gt; startTime
+        </td>
+      </tr><tr>
+        <td>
+          10
+        </td>
+        <td>
+          2161
+        </td>
+        <td>
+          360
+          -
+          386
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          currentTimeMillis
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          System.currentTimeMillis()
+        </td>
+      </tr><tr>
+        <td>
+          10
+        </td>
+        <td>
+          2160
+        </td>
+        <td>
+          360
+          -
+          386
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableLong
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          System.currentTimeMillis()
+        </td>
+      </tr><tr>
+        <td>
+          10
+        </td>
+        <td>
+          2159
+        </td>
+        <td>
+          345
+          -
+          386
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;timestamp&quot; -&gt; System.currentTimeMillis()
+        </td>
+      </tr>
+    </table>
+          </div>
+        </div>
+      </body>
+    </html>

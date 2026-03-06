@@ -1,0 +1,475 @@
+<html>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title id="title">
+          shared/AIChat/AIChat.scala.html
+        </title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/css/theme.default.min.css" type="text/css"/><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/js/jquery.tablesorter.min.js"></script><link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" type="text/css"/><script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script><script type="text/javascript">
+        $(document).ready(function() {$(".tablesorter").tablesorter();});
+      </script>
+        <style>
+          table.codegrid { font-family: monospace; font-size: 12px; width: auto!important; }table.statementlist { width: auto!important; font-size: 13px; } table.codegrid td { padding: 0!important; border: 0!important } table td.linenumber { width: 40px!important; } 
+        </style>
+      </head>
+      <body style="font-family: monospace;">
+        <ul class="nav nav-tabs">
+          <li>
+            <a href="#codegrid" data-toggle="tab">Codegrid</a>
+          </li>
+          <li>
+            <a href="#statementlist" data-toggle="tab">Statement List</a>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active" id="codegrid">
+            <pre style='font-size: 12pt; font-family: courier, monospace;'>1 <span style=''>package shared.AIChat
+</span>2 <span style=''>
+</span>3 <span style=''>import upickle.default.ReadWriter
+</span>4 <span style=''>
+</span>5 <span style=''>// AI Chat - Interactive chat with OpenAI models
+</span>6 <span style=''>
+</span>7 <span style=''>// Role for chat messages
+</span>8 <span style=''>enum MessageRole derives ReadWriter:
+</span>9 <span style=''>  case System
+</span>10 <span style=''>  case User
+</span>11 <span style=''>  case Assistant
+</span>12 <span style=''>
+</span>13 <span style=''>// A single chat message
+</span>14 <span style=''>case class ChatMessage(
+</span>15 <span style=''>    id: String, // Unique ID for editing
+</span>16 <span style=''>    role: MessageRole,
+</span>17 <span style=''>    content: String,
+</span>18 <span style=''>    images: Seq[String] = </span><span style='background: #F0ADAD'>Seq.empty </span><span style=''>// base64 encoded images
+</span>19 <span style=''>) derives ReadWriter
+</span>20 <span style=''>
+</span>21 <span style=''>// Client -&gt; Server messages
+</span>22 <span style=''>enum ClientMessage derives ReadWriter:
+</span>23 <span style=''>  case SendMessage(message: ChatMessage)
+</span>24 <span style=''>  case EditMessage(message: ChatMessage)
+</span>25 <span style=''>  case DeleteMessage(messageId: String)
+</span>26 <span style=''>  case RegenerateResponse(afterMessageId: String) // Regenerate response after a specific message
+</span>27 <span style=''>  case StopStreaming(messageId: String) // Abort an in-progress streaming response
+</span>28 <span style=''>  case ClearChat()
+</span>29 <span style=''>  case ListModels(apiKey: String)
+</span>30 <span style=''>  case SpeakMessage(messageId: String, text: String, apiKey: String, voice: String = </span><span style='background: #F0ADAD'>&quot;alloy&quot;</span><span style=''>, prompt: String = </span><span style='background: #F0ADAD'>&quot;&quot;) //</span><span style=''> TTS via OpenAI
+</span>31 <span style=''>
+</span>32 <span style=''>// Server -&gt; Client messages  
+</span>33 <span style=''>enum ServerMessage derives ReadWriter:
+</span>34 <span style=''>  case MessageAdded(message: ChatMessage)
+</span>35 <span style=''>  case MessageUpdated(message: ChatMessage)
+</span>36 <span style=''>  case MessageDeleted(messageId: String)
+</span>37 <span style=''>  case StreamingChunk(messageId: String, chunk: String) // For streaming responses
+</span>38 <span style=''>  case StreamingComplete(messageId: String, model: String = </span><span style='background: #F0ADAD'>&quot;&quot;, pr</span><span style=''>omptTokens: Int = </span><span style='background: #F0ADAD'>0, com</span><span style=''>pletionTokens: Int = </span><span style='background: #F0ADAD'>0)
+</span>39 <span style=''></span><span style='background: #F0ADAD'>  c</span><span style=''>ase ChatCleared()
+</span>40 <span style=''>  case ErrorMessage(message: String)
+</span>41 <span style=''>  case ModelsListed(models: Seq[String])
+</span>42 <span style=''>  case TTSAudio(messageId: String, audioBase64: String) // Base64-encoded mp3 audio
+</span>43 <span style=''>  case TTSError(messageId: String, error: String)
+</span>44 <span style=''>
+</span>45 <span style=''>object AIChat:
+</span>46 <span style=''>  val defaultSystemPrompt = </span><span style='background: #F0ADAD'>&quot;You are a helpful assistant.&quot;</span><span style=''>
+</span>47 <span style=''>  val defaultModel = </span><span style='background: #F0ADAD'>&quot;gpt-4o&quot;</span><span style=''>
+</span>48 <span style=''>  val maxImagesPerMessage = </span><span style='background: #F0ADAD'>4</span><span style=''>
+</span>49 <span style=''>  val maxImageSizeMB = </span><span style='background: #F0ADAD'>20</span><span style=''>
+</span></pre>
+          </div>
+          <div class="tab-pane" id="statementlist">
+            <table cellspacing="0" cellpadding="0" class="table statementlist">
+      <tr>
+        <th>Line</th>
+        <th>Stmt Id</th>
+        <th>Pos</th>
+        <th>Tree</th>
+        <th>Symbol</th>
+        <th>Tests</th>
+        <th>Code</th>
+      </tr><tr>
+        <td>
+          18
+        </td>
+        <td>
+          2460
+        </td>
+        <td>
+          375
+          -
+          385
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          $lessinit$greater$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Seq.empty 
+        </td>
+      </tr><tr>
+        <td>
+          18
+        </td>
+        <td>
+          2459
+        </td>
+        <td>
+          375
+          -
+          384
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          empty
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Seq.empty
+        </td>
+      </tr><tr>
+        <td>
+          30
+        </td>
+        <td>
+          2461
+        </td>
+        <td>
+          941
+          -
+          948
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;alloy&quot;
+        </td>
+      </tr><tr>
+        <td>
+          30
+        </td>
+        <td>
+          2463
+        </td>
+        <td>
+          967
+          -
+          969
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;&quot;
+        </td>
+      </tr><tr>
+        <td>
+          30
+        </td>
+        <td>
+          2462
+        </td>
+        <td>
+          941
+          -
+          947
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          $lessinit$greater$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;alloy
+        </td>
+      </tr><tr>
+        <td>
+          30
+        </td>
+        <td>
+          2464
+        </td>
+        <td>
+          967
+          -
+          973
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          $lessinit$greater$default$5
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;&quot;) //
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          2470
+        </td>
+        <td>
+          1381
+          -
+          1387
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          $lessinit$greater$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          0)\n  c
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          2469
+        </td>
+        <td>
+          1381
+          -
+          1382
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          0
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          2466
+        </td>
+        <td>
+          1330
+          -
+          1336
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          $lessinit$greater$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;&quot;, pr
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          2468
+        </td>
+        <td>
+          1354
+          -
+          1360
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          $lessinit$greater$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          0, com
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          2465
+        </td>
+        <td>
+          1330
+          -
+          1332
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;&quot;
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          2467
+        </td>
+        <td>
+          1354
+          -
+          1355
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          0
+        </td>
+      </tr><tr>
+        <td>
+          46
+        </td>
+        <td>
+          2471
+        </td>
+        <td>
+          1661
+          -
+          1691
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;You are a helpful assistant.&quot;
+        </td>
+      </tr><tr>
+        <td>
+          47
+        </td>
+        <td>
+          2472
+        </td>
+        <td>
+          1713
+          -
+          1721
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;gpt-4o&quot;
+        </td>
+      </tr><tr>
+        <td>
+          48
+        </td>
+        <td>
+          2473
+        </td>
+        <td>
+          1750
+          -
+          1751
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          4
+        </td>
+      </tr><tr>
+        <td>
+          49
+        </td>
+        <td>
+          2474
+        </td>
+        <td>
+          1775
+          -
+          1777
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          20
+        </td>
+      </tr>
+    </table>
+          </div>
+        </div>
+      </body>
+    </html>

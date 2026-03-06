@@ -1,0 +1,3049 @@
+<html>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title id="title">
+          server/WebServer.scala.html
+        </title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/css/theme.default.min.css" type="text/css"/><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/js/jquery.tablesorter.min.js"></script><link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" type="text/css"/><script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script><script type="text/javascript">
+        $(document).ready(function() {$(".tablesorter").tablesorter();});
+      </script>
+        <style>
+          table.codegrid { font-family: monospace; font-size: 12px; width: auto!important; }table.statementlist { width: auto!important; font-size: 13px; } table.codegrid td { padding: 0!important; border: 0!important } table td.linenumber { width: 40px!important; } 
+        </style>
+      </head>
+      <body style="font-family: monospace;">
+        <ul class="nav nav-tabs">
+          <li>
+            <a href="#codegrid" data-toggle="tab">Codegrid</a>
+          </li>
+          <li>
+            <a href="#statementlist" data-toggle="tab">Statement List</a>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active" id="codegrid">
+            <pre style='font-size: 12pt; font-family: courier, monospace;'>1 <span style=''>package server
+</span>2 <span style=''>
+</span>3 <span style=''>import cask.main.MainRoutes
+</span>4 <span style=''>import cask.model.Response
+</span>5 <span style=''>import scala.util.Try
+</span>6 <span style=''>import org.slf4j.LoggerFactory
+</span>7 <span style=''>import server.WeatherClient.given
+</span>8 <span style=''>
+</span>9 <span style=''>// Configuration object - can be overridden via environment variables
+</span>10 <span style=''>object Config:
+</span>11 <span style=''>  val port: Int = </span><span style='background: #AEF1AE'>sys.env.get(&quot;PORT&quot;).flatMap(</span><span style='background: #F0ADAD'>_.toIntOption</span><span style='background: #AEF1AE'>).getOrElse(8080)</span><span style=''>
+</span>12 <span style=''>  val staticFilesDir: String = </span><span style='background: #AEF1AE'>sys.env.getOrElse(&quot;STATIC_FILES_DIR&quot;, &quot;.&quot;)</span><span style=''>
+</span>13 <span style=''>  val cacheDuration: Int = </span><span style='background: #AEF1AE'>sys.env.get(&quot;CACHE_MAX_AGE&quot;).flatMap(</span><span style='background: #F0ADAD'>_.toIntOption</span><span style='background: #AEF1AE'>).getOrElse(3600)</span><span style=''>
+</span>14 <span style=''>  val isProd: Boolean = </span><span style='background: #AEF1AE'>sys.env.get(&quot;ENVIRONMENT&quot;).contains(&quot;production&quot;)</span><span style=''>
+</span>15 <span style=''>
+</span>16 <span style=''>object WebServer extends MainRoutes:
+</span>17 <span style=''>  private val logger = </span><span style='background: #AEF1AE'>LoggerFactory.getLogger(getClass)</span><span style=''>
+</span>18 <span style=''>  // Server start time for uptime calculation
+</span>19 <span style=''>  private val startTime = </span><span style='background: #AEF1AE'>System.currentTimeMillis()</span><span style=''>
+</span>20 <span style=''>
+</span>21 <span style=''>  // Scheduled executor for periodic cleanup tasks
+</span>22 <span style=''>  private val cleanupScheduler = </span><span style='background: #AEF1AE'>java.util.concurrent.Executors.newScheduledThreadPool(1)</span><span style=''>
+</span>23 <span style=''>
+</span>24 <span style=''>  </span><span style='background: #AEF1AE'>@cask.get(&quot;/hello&quot;)
+</span>25 <span style=''></span><span style='background: #AEF1AE'>  def hello</span><span style=''>(): String = </span><span style='background: #AEF1AE'>&quot;Hello, World!&quot;</span><span style=''>
+</span>26 <span style=''>
+</span>27 <span style=''>  </span><span style='background: #AEF1AE'>@cask.get(&quot;/health&quot;)
+</span>28 <span style=''></span><span style='background: #AEF1AE'>  def health</span><span style=''>(): ujson.Value =
+</span>29 <span style=''>    </span><span style='background: #AEF1AE'>HealthEndpoint.health(startTime)</span><span style=''>
+</span>30 <span style=''>
+</span>31 <span style=''>  </span><span style='background: #F0ADAD'>@cask.get(&quot;/api/version&quot;)
+</span>32 <span style=''></span><span style='background: #F0ADAD'>  def version</span><span style=''>(): ujson.Value =
+</span>33 <span style=''>    </span><span style='background: #F0ADAD'>VersionEndpoint.version(startTime)</span><span style=''>
+</span>34 <span style=''>
+</span>35 <span style=''>  </span><span style='background: #AEF1AE'>@cask.get(&quot;/api/weather/:city&quot;)
+</span>36 <span style=''></span><span style='background: #AEF1AE'>  def weather</span><span style=''>(city: String): ujson.Value =
+</span>37 <span style=''>    </span><span style='background: #AEF1AE'>WeatherEndpoint.getWeather(city)</span><span style=''>
+</span>38 <span style=''>
+</span>39 <span style=''>  </span><span style='background: #AEF1AE'>@cask.get(&quot;/api/counter&quot;)
+</span>40 <span style=''></span><span style='background: #AEF1AE'>  def counter</span><span style=''>(): Int = </span><span style='background: #AEF1AE'>CounterHandler.getCounter()</span><span style=''>
+</span>41 <span style=''>
+</span>42 <span style=''>  </span><span style='background: #AEF1AE'>@cask.post(&quot;/api/counter/increment&quot;)
+</span>43 <span style=''></span><span style='background: #AEF1AE'>  def incrementCounter</span><span style=''>(): Int = </span><span style='background: #AEF1AE'>CounterHandler.incrementCounter()</span><span style=''>
+</span>44 <span style=''>
+</span>45 <span style=''>  </span><span style='background: #AEF1AE'>@cask.post(&quot;/api/counter/decrement&quot;)
+</span>46 <span style=''></span><span style='background: #AEF1AE'>  def decrementCounter</span><span style=''>(): Int = </span><span style='background: #AEF1AE'>CounterHandler.decrementCounter()</span><span style=''>
+</span>47 <span style=''>
+</span>48 <span style=''>  </span><span style='background: #AEF1AE'>@cask.websocket(&quot;/ws/counter&quot;)
+</span>49 <span style=''></span><span style='background: #AEF1AE'>  def counterWebSocket</span><span style=''>(): cask.WebsocketResult = </span><span style='background: #AEF1AE'>CounterHandler.handleWebSocket()</span><span style=''>
+</span>50 <span style=''>
+</span>51 <span style=''>  // Color Rush game WebSocket endpoint
+</span>52 <span style=''>  </span><span style='background: #AEF1AE'>@cask.websocket(&quot;/ws/color-rush/:gameId&quot;)
+</span>53 <span style=''></span><span style='background: #AEF1AE'>  def colorRushWebSocket</span><span style=''>(gameId: String): cask.WebsocketResult =
+</span>54 <span style=''>    </span><span style='background: #AEF1AE'>ColorRushHandler.handleWebSocket(gameId)</span><span style=''>
+</span>55 <span style=''>
+</span>56 <span style=''>  // AI Drawing game WebSocket endpoint
+</span>57 <span style=''>  </span><span style='background: #AEF1AE'>@cask.websocket(&quot;/ws/drawing/:lobbyId&quot;)
+</span>58 <span style=''></span><span style='background: #AEF1AE'>  def drawingGameWebSocket</span><span style=''>(lobbyId: String): cask.WebsocketResult =
+</span>59 <span style=''>    </span><span style='background: #AEF1AE'>DrawingGameHandler.handleWebSocket(lobbyId)</span><span style=''>
+</span>60 <span style=''>
+</span>61 <span style=''>  // Tug of War game WebSocket endpoint
+</span>62 <span style=''>  </span><span style='background: #AEF1AE'>@cask.websocket(&quot;/ws/tug-of-war/:gameId&quot;)
+</span>63 <span style=''></span><span style='background: #AEF1AE'>  def tugOfWarWebSocket</span><span style=''>(gameId: String): cask.WebsocketResult =
+</span>64 <span style=''>    </span><span style='background: #AEF1AE'>TugOfWarHandler.handleWebSocket(gameId)</span><span style=''>
+</span>65 <span style=''>
+</span>66 <span style=''>  // AI Chat WebSocket endpoint
+</span>67 <span style=''>  </span><span style='background: #F0ADAD'>@cask.websocket(&quot;/ws/ai-chat&quot;)
+</span>68 <span style=''></span><span style='background: #F0ADAD'>  def aiChatWebSocket</span><span style=''>(): cask.WebsocketResult =
+</span>69 <span style=''>    </span><span style='background: #F0ADAD'>AIChatHandler.handleWebSocket()</span><span style=''>
+</span>70 <span style=''>
+</span>71 <span style=''>  // Start periodic cleanup task
+</span>72 <span style=''>  </span><span style='background: #AEF1AE'>private def startCleanupTask</span><span style=''>(): Unit =
+</span>73 <span style=''>    val cleanupTask = new Runnable:
+</span>74 <span style=''>      </span><span style='background: #F0ADAD'>def run</span><span style=''>(): Unit =
+</span>75 <span style=''>        </span><span style='background: #F0ADAD'>Try(ColorRushHandler.cleanupEmptyGames()).recover:
+</span>76 <span style=''></span><span style='background: #F0ADAD'>          case ex =&gt; logger.error(s&quot;Error during ColorRush cleanup: ${ex.getMessage}&quot;, ex)</span><span style=''>
+</span>77 <span style=''>        </span><span style='background: #F0ADAD'>Try(DrawingGameHandler.cleanupEmptyLobbies()).recover:
+</span>78 <span style=''></span><span style='background: #F0ADAD'>          case ex =&gt; logger.error(s&quot;Error during DrawingGame cleanup: ${ex.getMessage}&quot;, ex)</span><span style=''>
+</span>79 <span style=''>        </span><span style='background: #F0ADAD'>Try(TugOfWarHandler.cleanupEmptyGames()).recover:
+</span>80 <span style=''></span><span style='background: #F0ADAD'>          case ex =&gt; logger.error(s&quot;Error during TugOfWar cleanup: ${ex.getMessage}&quot;, ex)</span><span style=''>
+</span>81 <span style=''>
+</span>82 <span style=''>    // Run cleanup every 5 minutes
+</span>83 <span style=''>    </span><span style='background: #AEF1AE'>cleanupScheduler.scheduleAtFixedRate(
+</span>84 <span style=''></span><span style='background: #AEF1AE'>      cleanupTask,
+</span>85 <span style=''></span><span style='background: #AEF1AE'>      5, // initial delay in minutes
+</span>86 <span style=''></span><span style='background: #AEF1AE'>      5, // period in minutes
+</span>87 <span style=''></span><span style='background: #AEF1AE'>      java.util.concurrent.TimeUnit.MINUTES
+</span>88 <span style=''></span><span style='background: #AEF1AE'>    )</span><span style=''>
+</span>89 <span style=''>
+</span>90 <span style=''>    </span><span style='background: #AEF1AE'>logger.info(&quot;Started periodic game cleanup task (runs every 5 minutes)&quot;)</span><span style=''>
+</span>91 <span style=''>
+</span>92 <span style=''>  // Serve HTML pages directly at clean URLs
+</span>93 <span style=''>  </span><span style='background: #AEF1AE'>@cask.get(&quot;/&quot;)
+</span>94 <span style=''></span><span style='background: #AEF1AE'>  def index</span><span style=''>(): cask.Response[java.io.InputStream] =
+</span>95 <span style=''>    </span><span style='background: #AEF1AE'>cask.Response(
+</span>96 <span style=''></span><span style='background: #AEF1AE'>      data = getClass.getClassLoader.getResourceAsStream(&quot;static/index.html&quot;),
+</span>97 <span style=''></span><span style='background: #AEF1AE'>      statusCode = 200,
+</span>98 <span style=''></span><span style='background: #AEF1AE'>      headers = Seq(&quot;Content-Type&quot; -&gt; &quot;text/html&quot;)
+</span>99 <span style=''></span><span style='background: #AEF1AE'>    )</span><span style=''>
+</span>100 <span style=''>
+</span>101 <span style=''>  </span><span style='background: #AEF1AE'>@cask.get(&quot;/counter&quot;)
+</span>102 <span style=''></span><span style='background: #AEF1AE'>  def counterPage</span><span style=''>(): cask.Response[java.io.InputStream] =
+</span>103 <span style=''>    </span><span style='background: #AEF1AE'>cask.Response(
+</span>104 <span style=''></span><span style='background: #AEF1AE'>      data = getClass.getClassLoader.getResourceAsStream(&quot;static/counter.html&quot;),
+</span>105 <span style=''></span><span style='background: #AEF1AE'>      statusCode = 200,
+</span>106 <span style=''></span><span style='background: #AEF1AE'>      headers = Seq(&quot;Content-Type&quot; -&gt; &quot;text/html&quot;)
+</span>107 <span style=''></span><span style='background: #AEF1AE'>    )</span><span style=''>
+</span>108 <span style=''>
+</span>109 <span style=''>  </span><span style='background: #AEF1AE'>@cask.get(&quot;/color-rush&quot;)
+</span>110 <span style=''></span><span style='background: #AEF1AE'>  def colorRush</span><span style=''>(): cask.Response[java.io.InputStream] =
+</span>111 <span style=''>    </span><span style='background: #AEF1AE'>serveGamePage(&quot;color-rush.html&quot;)</span><span style=''>
+</span>112 <span style=''>
+</span>113 <span style=''>  </span><span style='background: #F0ADAD'>@cask.get(&quot;/color-rush/:lobbyId&quot;)
+</span>114 <span style=''></span><span style='background: #F0ADAD'>  def colorRushWithLobby</span><span style=''>(lobbyId: String): cask.Response[java.io.InputStream] =
+</span>115 <span style=''>    </span><span style='background: #F0ADAD'>serveGamePage(&quot;color-rush.html&quot;)</span><span style=''>
+</span>116 <span style=''>
+</span>117 <span style=''>  </span><span style='background: #F0ADAD'>@cask.get(&quot;/ai-drawing&quot;)
+</span>118 <span style=''></span><span style='background: #F0ADAD'>  def aiDrawing</span><span style=''>(): cask.Response[java.io.InputStream] =
+</span>119 <span style=''>    </span><span style='background: #F0ADAD'>serveGamePage(&quot;ai-drawing.html&quot;)</span><span style=''>
+</span>120 <span style=''>
+</span>121 <span style=''>  </span><span style='background: #F0ADAD'>@cask.get(&quot;/ai-drawing/:lobbyId&quot;)
+</span>122 <span style=''></span><span style='background: #F0ADAD'>  def aiDrawingWithLobby</span><span style=''>(lobbyId: String): cask.Response[java.io.InputStream] =
+</span>123 <span style=''>    </span><span style='background: #F0ADAD'>serveGamePage(&quot;ai-drawing.html&quot;)</span><span style=''>
+</span>124 <span style=''>
+</span>125 <span style=''>  </span><span style='background: #F0ADAD'>@cask.get(&quot;/tug-of-war&quot;)
+</span>126 <span style=''></span><span style='background: #F0ADAD'>  def tugOfWar</span><span style=''>(): cask.Response[java.io.InputStream] =
+</span>127 <span style=''>    </span><span style='background: #F0ADAD'>serveGamePage(&quot;tug-of-war.html&quot;)</span><span style=''>
+</span>128 <span style=''>
+</span>129 <span style=''>  </span><span style='background: #F0ADAD'>@cask.get(&quot;/tug-of-war/:lobbyId&quot;)
+</span>130 <span style=''></span><span style='background: #F0ADAD'>  def tugOfWarWithLobby</span><span style=''>(lobbyId: String): cask.Response[java.io.InputStream] =
+</span>131 <span style=''>    </span><span style='background: #F0ADAD'>serveGamePage(&quot;tug-of-war.html&quot;)</span><span style=''>
+</span>132 <span style=''>
+</span>133 <span style=''>  </span><span style='background: #F0ADAD'>@cask.get(&quot;/trader&quot;)
+</span>134 <span style=''></span><span style='background: #F0ADAD'>  def trader</span><span style=''>(): cask.Response[java.io.InputStream] =
+</span>135 <span style=''>    </span><span style='background: #F0ADAD'>serveGamePage(&quot;trader.html&quot;)</span><span style=''>
+</span>136 <span style=''>
+</span>137 <span style=''>  </span><span style='background: #F0ADAD'>@cask.get(&quot;/tile-kingdom&quot;)
+</span>138 <span style=''></span><span style='background: #F0ADAD'>  def tileKingdom</span><span style=''>(): cask.Response[java.io.InputStream] =
+</span>139 <span style=''>    </span><span style='background: #F0ADAD'>serveGamePage(&quot;tile-kingdom.html&quot;)</span><span style=''>
+</span>140 <span style=''>
+</span>141 <span style=''>  </span><span style='background: #F0ADAD'>@cask.get(&quot;/velor-idle&quot;)
+</span>142 <span style=''></span><span style='background: #F0ADAD'>  def velorIdle</span><span style=''>(): cask.Response[java.io.InputStream] =
+</span>143 <span style=''>    </span><span style='background: #F0ADAD'>serveGamePage(&quot;velor-idle.html&quot;)</span><span style=''>
+</span>144 <span style=''>
+</span>145 <span style=''>  </span><span style='background: #F0ADAD'>@cask.get(&quot;/ai-chat&quot;)
+</span>146 <span style=''></span><span style='background: #F0ADAD'>  def aiChat</span><span style=''>(): cask.Response[java.io.InputStream] =
+</span>147 <span style=''>    </span><span style='background: #F0ADAD'>serveGamePage(&quot;ai-chat.html&quot;)</span><span style=''>
+</span>148 <span style=''>
+</span>149 <span style=''>  </span><span style='background: #AEF1AE'>private def serveGamePage</span><span style=''>(htmlFile: String): cask.Response[java.io.InputStream] =
+</span>150 <span style=''>    </span><span style='background: #AEF1AE'>cask.Response(
+</span>151 <span style=''></span><span style='background: #AEF1AE'>      data = getClass.getClassLoader.getResourceAsStream(s&quot;static/$htmlFile&quot;),
+</span>152 <span style=''></span><span style='background: #AEF1AE'>      statusCode = 200,
+</span>153 <span style=''></span><span style='background: #AEF1AE'>      headers = Seq(&quot;Content-Type&quot; -&gt; &quot;text/html&quot;)
+</span>154 <span style=''></span><span style='background: #AEF1AE'>    )</span><span style=''>
+</span>155 <span style=''>
+</span>156 <span style=''>  // Serve static files (HTML, CSS, JS) from src/main/resources
+</span>157 <span style=''>  // Cask automatically handles content types, ETag, Last-Modified, and 304 Not Modified
+</span>158 <span style=''>  </span><span style='background: #F0ADAD'>@cask.staticResources(&quot;/static&quot;, headers = Seq(&quot;Cache-Control&quot; -&gt; s&quot;public, max-age=${Config.cacheDuration}&quot;))
+</span>159 <span style=''></span><span style='background: #F0ADAD'>  def staticResourceRoutes</span><span style=''>() = </span><span style='background: #F0ADAD'>&quot;static&quot;</span><span style=''>
+</span>160 <span style=''>
+</span>161 <span style=''>  </span><span style='background: #AEF1AE'>override def port</span><span style=''>: Int = Config.port
+</span>162 <span style=''>  </span><span style='background: #F0ADAD'>override def host</span><span style=''>: String = </span><span style='background: #F0ADAD'>&quot;0.0.0.0&quot;</span><span style=''>
+</span>163 <span style=''>
+</span>164 <span style=''>  // Log startup configuration
+</span>165 <span style=''>  </span><span style='background: #AEF1AE'>logger.info(&quot;=&quot; * 60)</span><span style=''>
+</span>166 <span style=''>  </span><span style='background: #AEF1AE'>logger.info(&quot;Starting Cascade Server&quot;)</span><span style=''>
+</span>167 <span style=''>  </span><span style='background: #AEF1AE'>logger.info(s&quot;Host: 0.0.0.0&quot;)</span><span style=''>
+</span>168 <span style=''>  </span><span style='background: #AEF1AE'>logger.info(s&quot;Port: ${Config.port}&quot;)</span><span style=''>
+</span>169 <span style=''>  </span><span style='background: #AEF1AE'>logger.info(s&quot;Static files directory: ${Config.staticFilesDir}&quot;)</span><span style=''>
+</span>170 <span style=''>  </span><span style='background: #AEF1AE'>logger.info(s&quot;Cache duration: ${Config.cacheDuration}s&quot;)</span><span style=''>
+</span>171 <span style=''>  </span><span style='background: #AEF1AE'>logger.info(s&quot;Environment: ${if Config.isProd then </span><span style='background: #F0ADAD'>&quot;production&quot;</span><span style='background: #AEF1AE'> else &quot;development&quot;}&quot;)</span><span style=''>
+</span>172 <span style=''>  </span><span style='background: #AEF1AE'>logger.info(&quot;=&quot; * 60)</span><span style=''>
+</span>173 <span style=''>
+</span>174 <span style=''>  </span><span style='background: #AEF1AE'>startCleanupTask()</span><span style=''>
+</span>175 <span style=''>  initialize()
+</span></pre>
+          </div>
+          <div class="tab-pane" id="statementlist">
+            <table cellspacing="0" cellpadding="0" class="table statementlist">
+      <tr>
+        <th>Line</th>
+        <th>Stmt Id</th>
+        <th>Pos</th>
+        <th>Tree</th>
+        <th>Symbol</th>
+        <th>Tests</th>
+        <th>Code</th>
+      </tr><tr>
+        <td>
+          11
+        </td>
+        <td>
+          2299
+        </td>
+        <td>
+          290
+          -
+          291
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          augmentString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          _
+        </td>
+      </tr><tr>
+        <td>
+          11
+        </td>
+        <td>
+          2298
+        </td>
+        <td>
+          262
+          -
+          320
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getOrElse
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          sys.env.get(&quot;PORT&quot;).flatMap(_.toIntOption).getOrElse(8080)
+        </td>
+      </tr><tr>
+        <td>
+          11
+        </td>
+        <td>
+          2300
+        </td>
+        <td>
+          290
+          -
+          303
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          toIntOption
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          _.toIntOption
+        </td>
+      </tr><tr>
+        <td>
+          12
+        </td>
+        <td>
+          2301
+        </td>
+        <td>
+          352
+          -
+          394
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getOrElse
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          sys.env.getOrElse(&quot;STATIC_FILES_DIR&quot;, &quot;.&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          13
+        </td>
+        <td>
+          2302
+        </td>
+        <td>
+          422
+          -
+          489
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getOrElse
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          sys.env.get(&quot;CACHE_MAX_AGE&quot;).flatMap(_.toIntOption).getOrElse(3600)
+        </td>
+      </tr><tr>
+        <td>
+          13
+        </td>
+        <td>
+          2304
+        </td>
+        <td>
+          459
+          -
+          472
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          toIntOption
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          _.toIntOption
+        </td>
+      </tr><tr>
+        <td>
+          13
+        </td>
+        <td>
+          2303
+        </td>
+        <td>
+          459
+          -
+          460
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          augmentString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          _
+        </td>
+      </tr><tr>
+        <td>
+          14
+        </td>
+        <td>
+          2305
+        </td>
+        <td>
+          514
+          -
+          563
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          contains
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          sys.env.get(&quot;ENVIRONMENT&quot;).contains(&quot;production&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          17
+        </td>
+        <td>
+          2307
+        </td>
+        <td>
+          649
+          -
+          657
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getClass
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          getClass
+        </td>
+      </tr><tr>
+        <td>
+          17
+        </td>
+        <td>
+          2306
+        </td>
+        <td>
+          625
+          -
+          658
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getLogger
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          LoggerFactory.getLogger(getClass)
+        </td>
+      </tr><tr>
+        <td>
+          19
+        </td>
+        <td>
+          2308
+        </td>
+        <td>
+          731
+          -
+          757
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          currentTimeMillis
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          System.currentTimeMillis()
+        </td>
+      </tr><tr>
+        <td>
+          22
+        </td>
+        <td>
+          2309
+        </td>
+        <td>
+          843
+          -
+          899
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          newScheduledThreadPool
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          java.util.concurrent.Executors.newScheduledThreadPool(1)
+        </td>
+      </tr><tr>
+        <td>
+          25
+        </td>
+        <td>
+          2311
+        </td>
+        <td>
+          903
+          -
+          934
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          hello
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          @cask.get(&quot;/hello&quot;)\n  def hello
+        </td>
+      </tr><tr>
+        <td>
+          25
+        </td>
+        <td>
+          2310
+        </td>
+        <td>
+          947
+          -
+          962
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;Hello, World!&quot;
+        </td>
+      </tr><tr>
+        <td>
+          28
+        </td>
+        <td>
+          2313
+        </td>
+        <td>
+          966
+          -
+          999
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          health
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          @cask.get(&quot;/health&quot;)\n  def health
+        </td>
+      </tr><tr>
+        <td>
+          29
+        </td>
+        <td>
+          2312
+        </td>
+        <td>
+          1021
+          -
+          1053
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          health
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          HealthEndpoint.health(startTime)
+        </td>
+      </tr><tr>
+        <td>
+          32
+        </td>
+        <td>
+          2315
+        </td>
+        <td>
+          1057
+          -
+          1096
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          version
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          @cask.get(&quot;/api/version&quot;)\n  def version
+        </td>
+      </tr><tr>
+        <td>
+          33
+        </td>
+        <td>
+          2314
+        </td>
+        <td>
+          1118
+          -
+          1152
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          version
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          VersionEndpoint.version(startTime)
+        </td>
+      </tr><tr>
+        <td>
+          36
+        </td>
+        <td>
+          2317
+        </td>
+        <td>
+          1156
+          -
+          1201
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          weather
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          @cask.get(&quot;/api/weather/:city&quot;)\n  def weather
+        </td>
+      </tr><tr>
+        <td>
+          37
+        </td>
+        <td>
+          2316
+        </td>
+        <td>
+          1235
+          -
+          1267
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getWeather
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          WeatherEndpoint.getWeather(city)
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2319
+        </td>
+        <td>
+          1271
+          -
+          1310
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          counter
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          @cask.get(&quot;/api/counter&quot;)\n  def counter
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2318
+        </td>
+        <td>
+          1320
+          -
+          1347
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getCounter
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          CounterHandler.getCounter()
+        </td>
+      </tr><tr>
+        <td>
+          43
+        </td>
+        <td>
+          2320
+        </td>
+        <td>
+          1420
+          -
+          1453
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          incrementCounter
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          CounterHandler.incrementCounter()
+        </td>
+      </tr><tr>
+        <td>
+          43
+        </td>
+        <td>
+          2321
+        </td>
+        <td>
+          1351
+          -
+          1410
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          incrementCounter
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          @cask.post(&quot;/api/counter/increment&quot;)\n  def incrementCounter
+        </td>
+      </tr><tr>
+        <td>
+          46
+        </td>
+        <td>
+          2323
+        </td>
+        <td>
+          1457
+          -
+          1516
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          decrementCounter
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          @cask.post(&quot;/api/counter/decrement&quot;)\n  def decrementCounter
+        </td>
+      </tr><tr>
+        <td>
+          46
+        </td>
+        <td>
+          2322
+        </td>
+        <td>
+          1526
+          -
+          1559
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          decrementCounter
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          CounterHandler.decrementCounter()
+        </td>
+      </tr><tr>
+        <td>
+          49
+        </td>
+        <td>
+          2325
+        </td>
+        <td>
+          1563
+          -
+          1616
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          counterWebSocket
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          @cask.websocket(&quot;/ws/counter&quot;)\n  def counterWebSocket
+        </td>
+      </tr><tr>
+        <td>
+          49
+        </td>
+        <td>
+          2324
+        </td>
+        <td>
+          1643
+          -
+          1675
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          handleWebSocket
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          CounterHandler.handleWebSocket()
+        </td>
+      </tr><tr>
+        <td>
+          53
+        </td>
+        <td>
+          2327
+        </td>
+        <td>
+          1719
+          -
+          1785
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          colorRushWebSocket
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          @cask.websocket(&quot;/ws/color-rush/:gameId&quot;)\n  def colorRushWebSocket
+        </td>
+      </tr><tr>
+        <td>
+          54
+        </td>
+        <td>
+          2326
+        </td>
+        <td>
+          1830
+          -
+          1870
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          handleWebSocket
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          ColorRushHandler.handleWebSocket(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          58
+        </td>
+        <td>
+          2329
+        </td>
+        <td>
+          1914
+          -
+          1980
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          drawingGameWebSocket
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          @cask.websocket(&quot;/ws/drawing/:lobbyId&quot;)\n  def drawingGameWebSocket
+        </td>
+      </tr><tr>
+        <td>
+          59
+        </td>
+        <td>
+          2328
+        </td>
+        <td>
+          2026
+          -
+          2069
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          handleWebSocket
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          DrawingGameHandler.handleWebSocket(lobbyId)
+        </td>
+      </tr><tr>
+        <td>
+          63
+        </td>
+        <td>
+          2331
+        </td>
+        <td>
+          2113
+          -
+          2178
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          tugOfWarWebSocket
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          @cask.websocket(&quot;/ws/tug-of-war/:gameId&quot;)\n  def tugOfWarWebSocket
+        </td>
+      </tr><tr>
+        <td>
+          64
+        </td>
+        <td>
+          2330
+        </td>
+        <td>
+          2223
+          -
+          2262
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          handleWebSocket
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          TugOfWarHandler.handleWebSocket(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          68
+        </td>
+        <td>
+          2333
+        </td>
+        <td>
+          2298
+          -
+          2350
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          aiChatWebSocket
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          @cask.websocket(&quot;/ws/ai-chat&quot;)\n  def aiChatWebSocket
+        </td>
+      </tr><tr>
+        <td>
+          69
+        </td>
+        <td>
+          2332
+        </td>
+        <td>
+          2381
+          -
+          2412
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          handleWebSocket
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          AIChatHandler.handleWebSocket()
+        </td>
+      </tr><tr>
+        <td>
+          72
+        </td>
+        <td>
+          2354
+        </td>
+        <td>
+          2449
+          -
+          2477
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          startCleanupTask
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          private def startCleanupTask
+        </td>
+      </tr><tr>
+        <td>
+          74
+        </td>
+        <td>
+          2349
+        </td>
+        <td>
+          2530
+          -
+          2537
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          run
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def run
+        </td>
+      </tr><tr>
+        <td>
+          75
+        </td>
+        <td>
+          2335
+        </td>
+        <td>
+          2560
+          -
+          2596
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          cleanupEmptyGames
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ColorRushHandler.cleanupEmptyGames()
+        </td>
+      </tr><tr>
+        <td>
+          76
+        </td>
+        <td>
+          2338
+        </td>
+        <td>
+          2625
+          -
+          2697
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; logger.error(s&quot;Error during ColorRush cleanup: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          76
+        </td>
+        <td>
+          2334
+        </td>
+        <td>
+          2556
+          -
+          2697
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          recover
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Try(ColorRushHandler.cleanupEmptyGames()).recover:\n          case ex =&gt; logger.error(s&quot;Error during ColorRush cleanup: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          76
+        </td>
+        <td>
+          2337
+        </td>
+        <td>
+          2677
+          -
+          2690
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getMessage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ex.getMessage
+        </td>
+      </tr><tr>
+        <td>
+          76
+        </td>
+        <td>
+          2336
+        </td>
+        <td>
+          2628
+          -
+          2697
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          error
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.error(s&quot;Error during ColorRush cleanup: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          77
+        </td>
+        <td>
+          2340
+        </td>
+        <td>
+          2710
+          -
+          2750
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          cleanupEmptyLobbies
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          DrawingGameHandler.cleanupEmptyLobbies()
+        </td>
+      </tr><tr>
+        <td>
+          78
+        </td>
+        <td>
+          2341
+        </td>
+        <td>
+          2782
+          -
+          2853
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          error
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.error(s&quot;Error during DrawingGame cleanup: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          78
+        </td>
+        <td>
+          2343
+        </td>
+        <td>
+          2779
+          -
+          2853
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; logger.error(s&quot;Error during DrawingGame cleanup: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          78
+        </td>
+        <td>
+          2339
+        </td>
+        <td>
+          2706
+          -
+          2853
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          recover
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Try(DrawingGameHandler.cleanupEmptyLobbies()).recover:\n          case ex =&gt; logger.error(s&quot;Error during DrawingGame cleanup: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          78
+        </td>
+        <td>
+          2342
+        </td>
+        <td>
+          2833
+          -
+          2846
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getMessage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ex.getMessage
+        </td>
+      </tr><tr>
+        <td>
+          79
+        </td>
+        <td>
+          2345
+        </td>
+        <td>
+          2866
+          -
+          2901
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          cleanupEmptyGames
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          TugOfWarHandler.cleanupEmptyGames()
+        </td>
+      </tr><tr>
+        <td>
+          80
+        </td>
+        <td>
+          2344
+        </td>
+        <td>
+          2862
+          -
+          3001
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          recover
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Try(TugOfWarHandler.cleanupEmptyGames()).recover:\n          case ex =&gt; logger.error(s&quot;Error during TugOfWar cleanup: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          80
+        </td>
+        <td>
+          2347
+        </td>
+        <td>
+          2981
+          -
+          2994
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getMessage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ex.getMessage
+        </td>
+      </tr><tr>
+        <td>
+          80
+        </td>
+        <td>
+          2346
+        </td>
+        <td>
+          2933
+          -
+          3001
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          error
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.error(s&quot;Error during TugOfWar cleanup: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          80
+        </td>
+        <td>
+          2348
+        </td>
+        <td>
+          2930
+          -
+          3001
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; logger.error(s&quot;Error during TugOfWar cleanup: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          83
+        </td>
+        <td>
+          2350
+        </td>
+        <td>
+          3042
+          -
+          3215
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          scheduleAtFixedRate
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          cleanupScheduler.scheduleAtFixedRate(\n      cleanupTask,\n      5, // initial delay in minutes\n      5, // period in minutes\n      java.util.concurrent.TimeUnit.MINUTES\n    )
+        </td>
+      </tr><tr>
+        <td>
+          85
+        </td>
+        <td>
+          2351
+        </td>
+        <td>
+          3105
+          -
+          3106
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          5
+        </td>
+      </tr><tr>
+        <td>
+          86
+        </td>
+        <td>
+          2352
+        </td>
+        <td>
+          3142
+          -
+          3143
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          5
+        </td>
+      </tr><tr>
+        <td>
+          90
+        </td>
+        <td>
+          2353
+        </td>
+        <td>
+          3221
+          -
+          3293
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(&quot;Started periodic game cleanup task (runs every 5 minutes)&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          94
+        </td>
+        <td>
+          2361
+        </td>
+        <td>
+          3342
+          -
+          3368
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          index
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          @cask.get(&quot;/&quot;)\n  def index
+        </td>
+      </tr><tr>
+        <td>
+          95
+        </td>
+        <td>
+          2355
+        </td>
+        <td>
+          3413
+          -
+          3587
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          cask.Response(\n      data = getClass.getClassLoader.getResourceAsStream(&quot;static/index.html&quot;),\n      statusCode = 200,\n      headers = Seq(&quot;Content-Type&quot; -&gt; &quot;text/html&quot;)\n    )
+        </td>
+      </tr><tr>
+        <td>
+          95
+        </td>
+        <td>
+          2360
+        </td>
+        <td>
+          3413
+          -
+          3426
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          apply$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          cask.Response
+        </td>
+      </tr><tr>
+        <td>
+          96
+        </td>
+        <td>
+          2356
+        </td>
+        <td>
+          3441
+          -
+          3505
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getResourceAsStream
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          getClass.getClassLoader.getResourceAsStream(&quot;static/index.html&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          97
+        </td>
+        <td>
+          2357
+        </td>
+        <td>
+          3526
+          -
+          3529
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          200
+        </td>
+      </tr><tr>
+        <td>
+          98
+        </td>
+        <td>
+          2359
+        </td>
+        <td>
+          3551
+          -
+          3580
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;Content-Type&quot; -&gt; &quot;text/html&quot;
+        </td>
+      </tr><tr>
+        <td>
+          98
+        </td>
+        <td>
+          2358
+        </td>
+        <td>
+          3547
+          -
+          3581
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Seq(&quot;Content-Type&quot; -&gt; &quot;text/html&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          102
+        </td>
+        <td>
+          2368
+        </td>
+        <td>
+          3591
+          -
+          3630
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          counterPage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          @cask.get(&quot;/counter&quot;)\n  def counterPage
+        </td>
+      </tr><tr>
+        <td>
+          103
+        </td>
+        <td>
+          2362
+        </td>
+        <td>
+          3675
+          -
+          3851
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          cask.Response(\n      data = getClass.getClassLoader.getResourceAsStream(&quot;static/counter.html&quot;),\n      statusCode = 200,\n      headers = Seq(&quot;Content-Type&quot; -&gt; &quot;text/html&quot;)\n    )
+        </td>
+      </tr><tr>
+        <td>
+          103
+        </td>
+        <td>
+          2367
+        </td>
+        <td>
+          3675
+          -
+          3688
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          apply$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          cask.Response
+        </td>
+      </tr><tr>
+        <td>
+          104
+        </td>
+        <td>
+          2363
+        </td>
+        <td>
+          3703
+          -
+          3769
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getResourceAsStream
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          getClass.getClassLoader.getResourceAsStream(&quot;static/counter.html&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          105
+        </td>
+        <td>
+          2364
+        </td>
+        <td>
+          3790
+          -
+          3793
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          200
+        </td>
+      </tr><tr>
+        <td>
+          106
+        </td>
+        <td>
+          2365
+        </td>
+        <td>
+          3811
+          -
+          3845
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Seq(&quot;Content-Type&quot; -&gt; &quot;text/html&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          106
+        </td>
+        <td>
+          2366
+        </td>
+        <td>
+          3815
+          -
+          3844
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;Content-Type&quot; -&gt; &quot;text/html&quot;
+        </td>
+      </tr><tr>
+        <td>
+          110
+        </td>
+        <td>
+          2370
+        </td>
+        <td>
+          3855
+          -
+          3895
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          colorRush
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          @cask.get(&quot;/color-rush&quot;)\n  def colorRush
+        </td>
+      </tr><tr>
+        <td>
+          111
+        </td>
+        <td>
+          2369
+        </td>
+        <td>
+          3940
+          -
+          3972
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          serveGamePage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          serveGamePage(&quot;color-rush.html&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          114
+        </td>
+        <td>
+          2372
+        </td>
+        <td>
+          3976
+          -
+          4034
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          colorRushWithLobby
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          @cask.get(&quot;/color-rush/:lobbyId&quot;)\n  def colorRushWithLobby
+        </td>
+      </tr><tr>
+        <td>
+          115
+        </td>
+        <td>
+          2371
+        </td>
+        <td>
+          4094
+          -
+          4126
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          serveGamePage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          serveGamePage(&quot;color-rush.html&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          118
+        </td>
+        <td>
+          2374
+        </td>
+        <td>
+          4130
+          -
+          4170
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          aiDrawing
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          @cask.get(&quot;/ai-drawing&quot;)\n  def aiDrawing
+        </td>
+      </tr><tr>
+        <td>
+          119
+        </td>
+        <td>
+          2373
+        </td>
+        <td>
+          4215
+          -
+          4247
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          serveGamePage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          serveGamePage(&quot;ai-drawing.html&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          122
+        </td>
+        <td>
+          2376
+        </td>
+        <td>
+          4251
+          -
+          4309
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          aiDrawingWithLobby
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          @cask.get(&quot;/ai-drawing/:lobbyId&quot;)\n  def aiDrawingWithLobby
+        </td>
+      </tr><tr>
+        <td>
+          123
+        </td>
+        <td>
+          2375
+        </td>
+        <td>
+          4369
+          -
+          4401
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          serveGamePage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          serveGamePage(&quot;ai-drawing.html&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          126
+        </td>
+        <td>
+          2378
+        </td>
+        <td>
+          4405
+          -
+          4444
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          tugOfWar
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          @cask.get(&quot;/tug-of-war&quot;)\n  def tugOfWar
+        </td>
+      </tr><tr>
+        <td>
+          127
+        </td>
+        <td>
+          2377
+        </td>
+        <td>
+          4489
+          -
+          4521
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          serveGamePage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          serveGamePage(&quot;tug-of-war.html&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          130
+        </td>
+        <td>
+          2380
+        </td>
+        <td>
+          4525
+          -
+          4582
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          tugOfWarWithLobby
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          @cask.get(&quot;/tug-of-war/:lobbyId&quot;)\n  def tugOfWarWithLobby
+        </td>
+      </tr><tr>
+        <td>
+          131
+        </td>
+        <td>
+          2379
+        </td>
+        <td>
+          4642
+          -
+          4674
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          serveGamePage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          serveGamePage(&quot;tug-of-war.html&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          134
+        </td>
+        <td>
+          2382
+        </td>
+        <td>
+          4678
+          -
+          4711
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          trader
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          @cask.get(&quot;/trader&quot;)\n  def trader
+        </td>
+      </tr><tr>
+        <td>
+          135
+        </td>
+        <td>
+          2381
+        </td>
+        <td>
+          4756
+          -
+          4784
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          serveGamePage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          serveGamePage(&quot;trader.html&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          138
+        </td>
+        <td>
+          2384
+        </td>
+        <td>
+          4788
+          -
+          4832
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          tileKingdom
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          @cask.get(&quot;/tile-kingdom&quot;)\n  def tileKingdom
+        </td>
+      </tr><tr>
+        <td>
+          139
+        </td>
+        <td>
+          2383
+        </td>
+        <td>
+          4877
+          -
+          4911
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          serveGamePage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          serveGamePage(&quot;tile-kingdom.html&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          142
+        </td>
+        <td>
+          2386
+        </td>
+        <td>
+          4915
+          -
+          4955
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          velorIdle
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          @cask.get(&quot;/velor-idle&quot;)\n  def velorIdle
+        </td>
+      </tr><tr>
+        <td>
+          143
+        </td>
+        <td>
+          2385
+        </td>
+        <td>
+          5000
+          -
+          5032
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          serveGamePage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          serveGamePage(&quot;velor-idle.html&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          146
+        </td>
+        <td>
+          2388
+        </td>
+        <td>
+          5036
+          -
+          5070
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          aiChat
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          @cask.get(&quot;/ai-chat&quot;)\n  def aiChat
+        </td>
+      </tr><tr>
+        <td>
+          147
+        </td>
+        <td>
+          2387
+        </td>
+        <td>
+          5115
+          -
+          5144
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          serveGamePage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          serveGamePage(&quot;ai-chat.html&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          149
+        </td>
+        <td>
+          2395
+        </td>
+        <td>
+          5148
+          -
+          5173
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          serveGamePage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          private def serveGamePage
+        </td>
+      </tr><tr>
+        <td>
+          150
+        </td>
+        <td>
+          2389
+        </td>
+        <td>
+          5234
+          -
+          5408
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          cask.Response(\n      data = getClass.getClassLoader.getResourceAsStream(s&quot;static/$htmlFile&quot;),\n      statusCode = 200,\n      headers = Seq(&quot;Content-Type&quot; -&gt; &quot;text/html&quot;)\n    )
+        </td>
+      </tr><tr>
+        <td>
+          150
+        </td>
+        <td>
+          2394
+        </td>
+        <td>
+          5234
+          -
+          5247
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          apply$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          cask.Response
+        </td>
+      </tr><tr>
+        <td>
+          151
+        </td>
+        <td>
+          2390
+        </td>
+        <td>
+          5262
+          -
+          5326
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getResourceAsStream
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          getClass.getClassLoader.getResourceAsStream(s&quot;static/$htmlFile&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          152
+        </td>
+        <td>
+          2391
+        </td>
+        <td>
+          5347
+          -
+          5350
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          200
+        </td>
+      </tr><tr>
+        <td>
+          153
+        </td>
+        <td>
+          2392
+        </td>
+        <td>
+          5368
+          -
+          5402
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Seq(&quot;Content-Type&quot; -&gt; &quot;text/html&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          153
+        </td>
+        <td>
+          2393
+        </td>
+        <td>
+          5372
+          -
+          5401
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;Content-Type&quot; -&gt; &quot;text/html&quot;
+        </td>
+      </tr><tr>
+        <td>
+          159
+        </td>
+        <td>
+          2397
+        </td>
+        <td>
+          5565
+          -
+          5702
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          staticResourceRoutes
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          @cask.staticResources(&quot;/static&quot;, headers = Seq(&quot;Cache-Control&quot; -&gt; s&quot;public, max-age=${Config.cacheDuration}&quot;))\n  def staticResourceRoutes
+        </td>
+      </tr><tr>
+        <td>
+          159
+        </td>
+        <td>
+          2396
+        </td>
+        <td>
+          5707
+          -
+          5715
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;static&quot;
+        </td>
+      </tr><tr>
+        <td>
+          161
+        </td>
+        <td>
+          2398
+        </td>
+        <td>
+          5719
+          -
+          5736
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          port
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          override def port
+        </td>
+      </tr><tr>
+        <td>
+          162
+        </td>
+        <td>
+          2400
+        </td>
+        <td>
+          5758
+          -
+          5775
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          host
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          override def host
+        </td>
+      </tr><tr>
+        <td>
+          162
+        </td>
+        <td>
+          2399
+        </td>
+        <td>
+          5786
+          -
+          5795
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;0.0.0.0&quot;
+        </td>
+      </tr><tr>
+        <td>
+          165
+        </td>
+        <td>
+          2401
+        </td>
+        <td>
+          5830
+          -
+          5851
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(&quot;=&quot; * 60)
+        </td>
+      </tr><tr>
+        <td>
+          165
+        </td>
+        <td>
+          2402
+        </td>
+        <td>
+          5842
+          -
+          5850
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          *
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;=&quot; * 60
+        </td>
+      </tr><tr>
+        <td>
+          166
+        </td>
+        <td>
+          2403
+        </td>
+        <td>
+          5854
+          -
+          5892
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(&quot;Starting Cascade Server&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          167
+        </td>
+        <td>
+          2404
+        </td>
+        <td>
+          5895
+          -
+          5924
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(s&quot;Host: 0.0.0.0&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          168
+        </td>
+        <td>
+          2405
+        </td>
+        <td>
+          5927
+          -
+          5963
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(s&quot;Port: ${Config.port}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          169
+        </td>
+        <td>
+          2406
+        </td>
+        <td>
+          5966
+          -
+          6030
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(s&quot;Static files directory: ${Config.staticFilesDir}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          170
+        </td>
+        <td>
+          2407
+        </td>
+        <td>
+          6033
+          -
+          6089
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(s&quot;Cache duration: ${Config.cacheDuration}s&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          171
+        </td>
+        <td>
+          2410
+        </td>
+        <td>
+          6143
+          -
+          6155
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;production&quot;
+        </td>
+      </tr><tr>
+        <td>
+          171
+        </td>
+        <td>
+          2409
+        </td>
+        <td>
+          6143
+          -
+          6155
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;production&quot;
+        </td>
+      </tr><tr>
+        <td>
+          171
+        </td>
+        <td>
+          2412
+        </td>
+        <td>
+          6161
+          -
+          6174
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;development&quot;
+        </td>
+      </tr><tr>
+        <td>
+          171
+        </td>
+        <td>
+          2408
+        </td>
+        <td>
+          6092
+          -
+          6177
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(s&quot;Environment: ${if Config.isProd then &quot;production&quot; else &quot;development&quot;}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          171
+        </td>
+        <td>
+          2411
+        </td>
+        <td>
+          6161
+          -
+          6174
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;development&quot;
+        </td>
+      </tr><tr>
+        <td>
+          172
+        </td>
+        <td>
+          2414
+        </td>
+        <td>
+          6192
+          -
+          6200
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          *
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;=&quot; * 60
+        </td>
+      </tr><tr>
+        <td>
+          172
+        </td>
+        <td>
+          2413
+        </td>
+        <td>
+          6180
+          -
+          6201
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(&quot;=&quot; * 60)
+        </td>
+      </tr><tr>
+        <td>
+          174
+        </td>
+        <td>
+          2415
+        </td>
+        <td>
+          6205
+          -
+          6223
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          startCleanupTask
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          startCleanupTask()
+        </td>
+      </tr>
+    </table>
+          </div>
+        </div>
+      </body>
+    </html>

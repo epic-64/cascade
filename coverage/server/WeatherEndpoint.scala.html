@@ -1,0 +1,1674 @@
+<html>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title id="title">
+          server/WeatherEndpoint.scala.html
+        </title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/css/theme.default.min.css" type="text/css"/><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/js/jquery.tablesorter.min.js"></script><link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" type="text/css"/><script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script><script type="text/javascript">
+        $(document).ready(function() {$(".tablesorter").tablesorter();});
+      </script>
+        <style>
+          table.codegrid { font-family: monospace; font-size: 12px; width: auto!important; }table.statementlist { width: auto!important; font-size: 13px; } table.codegrid td { padding: 0!important; border: 0!important } table td.linenumber { width: 40px!important; } 
+        </style>
+      </head>
+      <body style="font-family: monospace;">
+        <ul class="nav nav-tabs">
+          <li>
+            <a href="#codegrid" data-toggle="tab">Codegrid</a>
+          </li>
+          <li>
+            <a href="#statementlist" data-toggle="tab">Statement List</a>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active" id="codegrid">
+            <pre style='font-size: 12pt; font-family: courier, monospace;'>1 <span style=''>package server
+</span>2 <span style=''>
+</span>3 <span style=''>import org.slf4j.LoggerFactory
+</span>4 <span style=''>import scala.util.{Try, Success, Failure}
+</span>5 <span style=''>
+</span>6 <span style=''>object WeatherEndpoint:
+</span>7 <span style=''>  private val logger = </span><span style='background: #AEF1AE'>LoggerFactory.getLogger(getClass)</span><span style=''>
+</span>8 <span style=''>
+</span>9 <span style=''>  // WMO Weather interpretation codes (WW)
+</span>10 <span style=''>  // https://open-meteo.com/en/docs
+</span>11 <span style=''>  </span><span style='background: #AEF1AE'>private def weatherCodeToDescription</span><span style=''>(code: Int): String = code match
+</span>12 <span style=''>    case 0            </span><span style='background: #AEF1AE'>=&gt; &quot;Clear sky&quot;</span><span style=''>
+</span>13 <span style=''>    case 1 | 2 | 3    </span><span style='background: #AEF1AE'>=&gt; &quot;Partly cloudy&quot;</span><span style=''>
+</span>14 <span style=''>    case 45 | 48      </span><span style='background: #F0ADAD'>=&gt; &quot;Foggy&quot;</span><span style=''>
+</span>15 <span style=''>    case 51 | 53 | 55 </span><span style='background: #F0ADAD'>=&gt; &quot;Drizzle&quot;</span><span style=''>
+</span>16 <span style=''>    case 61 | 63 | 65 </span><span style='background: #F0ADAD'>=&gt; &quot;Rain&quot;</span><span style=''>
+</span>17 <span style=''>    case 71 | 73 | 75 </span><span style='background: #F0ADAD'>=&gt; &quot;Snow&quot;</span><span style=''>
+</span>18 <span style=''>    case 77           </span><span style='background: #F0ADAD'>=&gt; &quot;Snow grains&quot;</span><span style=''>
+</span>19 <span style=''>    case 80 | 81 | 82 </span><span style='background: #F0ADAD'>=&gt; &quot;Rain showers&quot;</span><span style=''>
+</span>20 <span style=''>    case 85 | 86      </span><span style='background: #F0ADAD'>=&gt; &quot;Snow showers&quot;</span><span style=''>
+</span>21 <span style=''>    case 95           </span><span style='background: #F0ADAD'>=&gt; &quot;Thunderstorm&quot;</span><span style=''>
+</span>22 <span style=''>    case 96 | 99      </span><span style='background: #F0ADAD'>=&gt; &quot;Thunderstorm with hail&quot;</span><span style=''>
+</span>23 <span style=''>    case _            </span><span style='background: #F0ADAD'>=&gt; &quot;Unknown&quot;</span><span style=''>
+</span>24 <span style=''>
+</span>25 <span style=''>  </span><span style='background: #AEF1AE'>def getWeather</span><span style=''>(city: String)(using client: WeatherClient): ujson.Value =
+</span>26 <span style=''>    </span><span style='background: #AEF1AE'>client.getWeather(city)</span><span style=''> match
+</span>27 <span style=''>      case Success(data) =&gt;
+</span>28 <span style=''>        // Extract relevant info from the Open-Meteo API response
+</span>29 <span style=''>        </span><span style='background: #AEF1AE'>val current = data(&quot;current&quot;)
+</span>30 <span style=''></span><span style='background: #AEF1AE'>        val weatherCode = current(&quot;weather_code&quot;).num.toInt
+</span>31 <span style=''></span><span style='background: #AEF1AE'>        val tempC = current(&quot;temperature_2m&quot;).num
+</span>32 <span style=''></span><span style='background: #AEF1AE'>        val tempF = (tempC * 9 / 5) + 32
+</span>33 <span style=''></span><span style='background: #AEF1AE'>
+</span>34 <span style=''></span><span style='background: #AEF1AE'>        ujson.Obj(
+</span>35 <span style=''></span><span style='background: #AEF1AE'>          &quot;city&quot; -&gt; city,
+</span>36 <span style=''></span><span style='background: #AEF1AE'>          &quot;temperature_c&quot; -&gt; tempC.toString,
+</span>37 <span style=''></span><span style='background: #AEF1AE'>          &quot;temperature_f&quot; -&gt; f&quot;$tempF%.1f&quot;,
+</span>38 <span style=''></span><span style='background: #AEF1AE'>          &quot;condition&quot; -&gt; weatherCodeToDescription(weatherCode),
+</span>39 <span style=''></span><span style='background: #AEF1AE'>          &quot;humidity&quot; -&gt; current(&quot;relative_humidity_2m&quot;).num.toString,
+</span>40 <span style=''></span><span style='background: #AEF1AE'>          &quot;feelsLike_c&quot; -&gt; current(&quot;apparent_temperature&quot;).num.toString
+</span>41 <span style=''></span><span style='background: #AEF1AE'>        )</span><span style=''>
+</span>42 <span style=''>
+</span>43 <span style=''>      case Failure(ex) =&gt;
+</span>44 <span style=''>        </span><span style='background: #AEF1AE'>logger.error(s&quot;Failed to fetch weather for $city: ${ex.getMessage}&quot;, ex)
+</span>45 <span style=''></span><span style='background: #AEF1AE'>        ujson.Obj(
+</span>46 <span style=''></span><span style='background: #AEF1AE'>          &quot;error&quot; -&gt; &quot;Failed to fetch weather data&quot;,
+</span>47 <span style=''></span><span style='background: #AEF1AE'>          &quot;message&quot; -&gt; ex.getMessage
+</span>48 <span style=''></span><span style='background: #AEF1AE'>        )</span><span style=''>
+</span></pre>
+          </div>
+          <div class="tab-pane" id="statementlist">
+            <table cellspacing="0" cellpadding="0" class="table statementlist">
+      <tr>
+        <th>Line</th>
+        <th>Stmt Id</th>
+        <th>Pos</th>
+        <th>Tree</th>
+        <th>Symbol</th>
+        <th>Tests</th>
+        <th>Code</th>
+      </tr><tr>
+        <td>
+          7
+        </td>
+        <td>
+          2233
+        </td>
+        <td>
+          161
+          -
+          169
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getClass
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          getClass
+        </td>
+      </tr><tr>
+        <td>
+          7
+        </td>
+        <td>
+          2232
+        </td>
+        <td>
+          137
+          -
+          170
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getLogger
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          LoggerFactory.getLogger(getClass)
+        </td>
+      </tr><tr>
+        <td>
+          11
+        </td>
+        <td>
+          2258
+        </td>
+        <td>
+          253
+          -
+          289
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          weatherCodeToDescription
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          private def weatherCodeToDescription
+        </td>
+      </tr><tr>
+        <td>
+          12
+        </td>
+        <td>
+          2235
+        </td>
+        <td>
+          344
+          -
+          358
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; &quot;Clear sky&quot;
+        </td>
+      </tr><tr>
+        <td>
+          12
+        </td>
+        <td>
+          2234
+        </td>
+        <td>
+          347
+          -
+          358
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;Clear sky&quot;
+        </td>
+      </tr><tr>
+        <td>
+          13
+        </td>
+        <td>
+          2236
+        </td>
+        <td>
+          384
+          -
+          399
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;Partly cloudy&quot;
+        </td>
+      </tr><tr>
+        <td>
+          13
+        </td>
+        <td>
+          2237
+        </td>
+        <td>
+          381
+          -
+          399
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; &quot;Partly cloudy&quot;
+        </td>
+      </tr><tr>
+        <td>
+          14
+        </td>
+        <td>
+          2239
+        </td>
+        <td>
+          422
+          -
+          432
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; &quot;Foggy&quot;
+        </td>
+      </tr><tr>
+        <td>
+          14
+        </td>
+        <td>
+          2238
+        </td>
+        <td>
+          425
+          -
+          432
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;Foggy&quot;
+        </td>
+      </tr><tr>
+        <td>
+          15
+        </td>
+        <td>
+          2241
+        </td>
+        <td>
+          455
+          -
+          467
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; &quot;Drizzle&quot;
+        </td>
+      </tr><tr>
+        <td>
+          15
+        </td>
+        <td>
+          2240
+        </td>
+        <td>
+          458
+          -
+          467
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;Drizzle&quot;
+        </td>
+      </tr><tr>
+        <td>
+          16
+        </td>
+        <td>
+          2242
+        </td>
+        <td>
+          493
+          -
+          499
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;Rain&quot;
+        </td>
+      </tr><tr>
+        <td>
+          16
+        </td>
+        <td>
+          2243
+        </td>
+        <td>
+          490
+          -
+          499
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; &quot;Rain&quot;
+        </td>
+      </tr><tr>
+        <td>
+          17
+        </td>
+        <td>
+          2245
+        </td>
+        <td>
+          522
+          -
+          531
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; &quot;Snow&quot;
+        </td>
+      </tr><tr>
+        <td>
+          17
+        </td>
+        <td>
+          2244
+        </td>
+        <td>
+          525
+          -
+          531
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;Snow&quot;
+        </td>
+      </tr><tr>
+        <td>
+          18
+        </td>
+        <td>
+          2247
+        </td>
+        <td>
+          554
+          -
+          570
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; &quot;Snow grains&quot;
+        </td>
+      </tr><tr>
+        <td>
+          18
+        </td>
+        <td>
+          2246
+        </td>
+        <td>
+          557
+          -
+          570
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;Snow grains&quot;
+        </td>
+      </tr><tr>
+        <td>
+          19
+        </td>
+        <td>
+          2248
+        </td>
+        <td>
+          596
+          -
+          610
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;Rain showers&quot;
+        </td>
+      </tr><tr>
+        <td>
+          19
+        </td>
+        <td>
+          2249
+        </td>
+        <td>
+          593
+          -
+          610
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; &quot;Rain showers&quot;
+        </td>
+      </tr><tr>
+        <td>
+          20
+        </td>
+        <td>
+          2251
+        </td>
+        <td>
+          633
+          -
+          650
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; &quot;Snow showers&quot;
+        </td>
+      </tr><tr>
+        <td>
+          20
+        </td>
+        <td>
+          2250
+        </td>
+        <td>
+          636
+          -
+          650
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;Snow showers&quot;
+        </td>
+      </tr><tr>
+        <td>
+          21
+        </td>
+        <td>
+          2253
+        </td>
+        <td>
+          673
+          -
+          690
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; &quot;Thunderstorm&quot;
+        </td>
+      </tr><tr>
+        <td>
+          21
+        </td>
+        <td>
+          2252
+        </td>
+        <td>
+          676
+          -
+          690
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;Thunderstorm&quot;
+        </td>
+      </tr><tr>
+        <td>
+          22
+        </td>
+        <td>
+          2254
+        </td>
+        <td>
+          716
+          -
+          740
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;Thunderstorm with hail&quot;
+        </td>
+      </tr><tr>
+        <td>
+          22
+        </td>
+        <td>
+          2255
+        </td>
+        <td>
+          713
+          -
+          740
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; &quot;Thunderstorm with hail&quot;
+        </td>
+      </tr><tr>
+        <td>
+          23
+        </td>
+        <td>
+          2257
+        </td>
+        <td>
+          763
+          -
+          775
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; &quot;Unknown&quot;
+        </td>
+      </tr><tr>
+        <td>
+          23
+        </td>
+        <td>
+          2256
+        </td>
+        <td>
+          766
+          -
+          775
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;Unknown&quot;
+        </td>
+      </tr><tr>
+        <td>
+          25
+        </td>
+        <td>
+          2297
+        </td>
+        <td>
+          779
+          -
+          793
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          getWeather
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def getWeather
+        </td>
+      </tr><tr>
+        <td>
+          26
+        </td>
+        <td>
+          2259
+        </td>
+        <td>
+          856
+          -
+          879
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getWeather
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          client.getWeather(city)
+        </td>
+      </tr><tr>
+        <td>
+          29
+        </td>
+        <td>
+          2260
+        </td>
+        <td>
+          1002
+          -
+          1017
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          data(&quot;current&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          29
+        </td>
+        <td>
+          2261
+        </td>
+        <td>
+          1007
+          -
+          1016
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          StringSelector
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;current&quot;
+        </td>
+      </tr><tr>
+        <td>
+          29
+        </td>
+        <td>
+          2288
+        </td>
+        <td>
+          988
+          -
+          1519
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          val current = data(&quot;current&quot;)\n        val weatherCode = current(&quot;weather_code&quot;).num.toInt\n        val tempC = current(&quot;temperature_2m&quot;).num\n        val tempF = (tempC * 9 / 5) + 32\n\n        ujson.Obj(\n          &quot;city&quot; -&gt; city,\n          &quot;temperature_c&quot; -&gt; tempC.toString,\n          &quot;temperature_f&quot; -&gt; f&quot;$tempF%.1f&quot;,\n          &quot;condition&quot; -&gt; weatherCodeToDescription(weatherCode),\n          &quot;humidity&quot; -&gt; current(&quot;relative_humidity_2m&quot;).num.toString,\n          &quot;feelsLike_c&quot; -&gt; current(&quot;apparent_temperature&quot;).num.toString\n        )
+        </td>
+      </tr><tr>
+        <td>
+          30
+        </td>
+        <td>
+          2263
+        </td>
+        <td>
+          1052
+          -
+          1066
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          StringSelector
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;weather_code&quot;
+        </td>
+      </tr><tr>
+        <td>
+          30
+        </td>
+        <td>
+          2265
+        </td>
+        <td>
+          1044
+          -
+          1077
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          toInt
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          current(&quot;weather_code&quot;).num.toInt
+        </td>
+      </tr><tr>
+        <td>
+          30
+        </td>
+        <td>
+          2262
+        </td>
+        <td>
+          1044
+          -
+          1067
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          current(&quot;weather_code&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          30
+        </td>
+        <td>
+          2264
+        </td>
+        <td>
+          1044
+          -
+          1071
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          num
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          current(&quot;weather_code&quot;).num
+        </td>
+      </tr><tr>
+        <td>
+          31
+        </td>
+        <td>
+          2266
+        </td>
+        <td>
+          1098
+          -
+          1123
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          current(&quot;temperature_2m&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          31
+        </td>
+        <td>
+          2268
+        </td>
+        <td>
+          1098
+          -
+          1127
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          num
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          current(&quot;temperature_2m&quot;).num
+        </td>
+      </tr><tr>
+        <td>
+          31
+        </td>
+        <td>
+          2267
+        </td>
+        <td>
+          1106
+          -
+          1122
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          StringSelector
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;temperature_2m&quot;
+        </td>
+      </tr><tr>
+        <td>
+          32
+        </td>
+        <td>
+          2269
+        </td>
+        <td>
+          1148
+          -
+          1168
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          +
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (tempC * 9 / 5) + 32
+        </td>
+      </tr><tr>
+        <td>
+          34
+        </td>
+        <td>
+          2270
+        </td>
+        <td>
+          1178
+          -
+          1519
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          ujson.Obj(\n          &quot;city&quot; -&gt; city,\n          &quot;temperature_c&quot; -&gt; tempC.toString,\n          &quot;temperature_f&quot; -&gt; f&quot;$tempF%.1f&quot;,\n          &quot;condition&quot; -&gt; weatherCodeToDescription(weatherCode),\n          &quot;humidity&quot; -&gt; current(&quot;relative_humidity_2m&quot;).num.toString,\n          &quot;feelsLike_c&quot; -&gt; current(&quot;apparent_temperature&quot;).num.toString\n        )
+        </td>
+      </tr><tr>
+        <td>
+          35
+        </td>
+        <td>
+          2271
+        </td>
+        <td>
+          1199
+          -
+          1213
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;city&quot; -&gt; city
+        </td>
+      </tr><tr>
+        <td>
+          36
+        </td>
+        <td>
+          2272
+        </td>
+        <td>
+          1225
+          -
+          1258
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;temperature_c&quot; -&gt; tempC.toString
+        </td>
+      </tr><tr>
+        <td>
+          36
+        </td>
+        <td>
+          2274
+        </td>
+        <td>
+          1244
+          -
+          1258
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          toString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          tempC.toString
+        </td>
+      </tr><tr>
+        <td>
+          36
+        </td>
+        <td>
+          2273
+        </td>
+        <td>
+          1244
+          -
+          1258
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          tempC.toString
+        </td>
+      </tr><tr>
+        <td>
+          37
+        </td>
+        <td>
+          2275
+        </td>
+        <td>
+          1270
+          -
+          1302
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;temperature_f&quot; -&gt; f&quot;$tempF%.1f&quot;
+        </td>
+      </tr><tr>
+        <td>
+          37
+        </td>
+        <td>
+          2276
+        </td>
+        <td>
+          1289
+          -
+          1302
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          f&quot;$tempF%.1f&quot;
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          2278
+        </td>
+        <td>
+          1329
+          -
+          1366
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          weatherCodeToDescription(weatherCode)
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          2277
+        </td>
+        <td>
+          1314
+          -
+          1366
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;condition&quot; -&gt; weatherCodeToDescription(weatherCode)
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          2279
+        </td>
+        <td>
+          1329
+          -
+          1366
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          weatherCodeToDescription
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          weatherCodeToDescription(weatherCode)
+        </td>
+      </tr><tr>
+        <td>
+          39
+        </td>
+        <td>
+          2281
+        </td>
+        <td>
+          1392
+          -
+          1436
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          current(&quot;relative_humidity_2m&quot;).num.toString
+        </td>
+      </tr><tr>
+        <td>
+          39
+        </td>
+        <td>
+          2280
+        </td>
+        <td>
+          1378
+          -
+          1436
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;humidity&quot; -&gt; current(&quot;relative_humidity_2m&quot;).num.toString
+        </td>
+      </tr><tr>
+        <td>
+          39
+        </td>
+        <td>
+          2283
+        </td>
+        <td>
+          1400
+          -
+          1422
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          StringSelector
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;relative_humidity_2m&quot;
+        </td>
+      </tr><tr>
+        <td>
+          39
+        </td>
+        <td>
+          2282
+        </td>
+        <td>
+          1392
+          -
+          1436
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          toString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          current(&quot;relative_humidity_2m&quot;).num.toString
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2284
+        </td>
+        <td>
+          1448
+          -
+          1509
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;feelsLike_c&quot; -&gt; current(&quot;apparent_temperature&quot;).num.toString
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2287
+        </td>
+        <td>
+          1473
+          -
+          1495
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          StringSelector
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;apparent_temperature&quot;
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2286
+        </td>
+        <td>
+          1465
+          -
+          1509
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          toString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          current(&quot;apparent_temperature&quot;).num.toString
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2285
+        </td>
+        <td>
+          1465
+          -
+          1509
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          current(&quot;apparent_temperature&quot;).num.toString
+        </td>
+      </tr><tr>
+        <td>
+          44
+        </td>
+        <td>
+          2296
+        </td>
+        <td>
+          1555
+          -
+          1746
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.error(s&quot;Failed to fetch weather for $city: ${ex.getMessage}&quot;, ex)\n        ujson.Obj(\n          &quot;error&quot; -&gt; &quot;Failed to fetch weather data&quot;,\n          &quot;message&quot; -&gt; ex.getMessage\n        )
+        </td>
+      </tr><tr>
+        <td>
+          44
+        </td>
+        <td>
+          2290
+        </td>
+        <td>
+          1607
+          -
+          1620
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getMessage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          ex.getMessage
+        </td>
+      </tr><tr>
+        <td>
+          44
+        </td>
+        <td>
+          2289
+        </td>
+        <td>
+          1555
+          -
+          1627
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          error
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.error(s&quot;Failed to fetch weather for $city: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          45
+        </td>
+        <td>
+          2291
+        </td>
+        <td>
+          1636
+          -
+          1746
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          ujson.Obj(\n          &quot;error&quot; -&gt; &quot;Failed to fetch weather data&quot;,\n          &quot;message&quot; -&gt; ex.getMessage\n        )
+        </td>
+      </tr><tr>
+        <td>
+          46
+        </td>
+        <td>
+          2292
+        </td>
+        <td>
+          1657
+          -
+          1698
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;error&quot; -&gt; &quot;Failed to fetch weather data&quot;
+        </td>
+      </tr><tr>
+        <td>
+          47
+        </td>
+        <td>
+          2293
+        </td>
+        <td>
+          1710
+          -
+          1736
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;message&quot; -&gt; ex.getMessage
+        </td>
+      </tr><tr>
+        <td>
+          47
+        </td>
+        <td>
+          2295
+        </td>
+        <td>
+          1723
+          -
+          1736
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getMessage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          ex.getMessage
+        </td>
+      </tr><tr>
+        <td>
+          47
+        </td>
+        <td>
+          2294
+        </td>
+        <td>
+          1723
+          -
+          1736
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          ex.getMessage
+        </td>
+      </tr>
+    </table>
+          </div>
+        </div>
+      </body>
+    </html>

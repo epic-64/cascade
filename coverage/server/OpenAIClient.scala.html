@@ -1,0 +1,3874 @@
+<html>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title id="title">
+          server/OpenAIClient.scala.html
+        </title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/css/theme.default.min.css" type="text/css"/><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/js/jquery.tablesorter.min.js"></script><link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" type="text/css"/><script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script><script type="text/javascript">
+        $(document).ready(function() {$(".tablesorter").tablesorter();});
+      </script>
+        <style>
+          table.codegrid { font-family: monospace; font-size: 12px; width: auto!important; }table.statementlist { width: auto!important; font-size: 13px; } table.codegrid td { padding: 0!important; border: 0!important } table td.linenumber { width: 40px!important; } 
+        </style>
+      </head>
+      <body style="font-family: monospace;">
+        <ul class="nav nav-tabs">
+          <li>
+            <a href="#codegrid" data-toggle="tab">Codegrid</a>
+          </li>
+          <li>
+            <a href="#statementlist" data-toggle="tab">Statement List</a>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active" id="codegrid">
+            <pre style='font-size: 12pt; font-family: courier, monospace;'>1 <span style=''>package server
+</span>2 <span style=''>
+</span>3 <span style=''>import org.slf4j.LoggerFactory
+</span>4 <span style=''>import scala.concurrent.{Future, ExecutionContext}
+</span>5 <span style=''>import scala.util.Try
+</span>6 <span style=''>
+</span>7 <span style=''>// Trait to allow mocking in tests
+</span>8 <span style=''>trait OpenAIClient:
+</span>9 <span style=''>  def captionImage(apiKey: String, imageBase64: String)(using
+</span>10 <span style=''>      ec: ExecutionContext
+</span>11 <span style=''>  ): Future[String]
+</span>12 <span style=''>  def generatePromptFromWords(apiKey: String, words: Seq[String])(using ec: ExecutionContext): Future[String]
+</span>13 <span style=''>  def selectWinner(
+</span>14 <span style=''>      apiKey: String,
+</span>15 <span style=''>      originalPrompt: String,
+</span>16 <span style=''>      captions: Map[String, String]
+</span>17 <span style=''>  )(using ec: ExecutionContext): Future[String]
+</span>18 <span style=''>
+</span>19 <span style=''>object OpenAIClient:
+</span>20 <span style=''>  private val logger = </span><span style='background: #AEF1AE'>LoggerFactory.getLogger(getClass)</span><span style=''>
+</span>21 <span style=''>
+</span>22 <span style=''>  private val visionModel = </span><span style='background: #AEF1AE'>&quot;gpt-4o&quot;</span><span style=''>
+</span>23 <span style=''>  private val textModel = </span><span style='background: #AEF1AE'>&quot;gpt-4o-mini&quot;</span><span style=''>
+</span>24 <span style=''>
+</span>25 <span style=''>  // Swappable instance for testing
+</span>26 <span style=''>  @volatile private var _instance: OpenAIClient = </span><span style='background: #AEF1AE'>RealOpenAIClient()</span><span style=''>
+</span>27 <span style=''>
+</span>28 <span style=''>  // For tests only - swap the backing implementation
+</span>29 <span style=''>  </span><span style='background: #AEF1AE'>def setInstance</span><span style=''>(client: OpenAIClient): Unit =
+</span>30 <span style=''>    _instance = client
+</span>31 <span style=''>
+</span>32 <span style=''>  </span><span style='background: #AEF1AE'>def resetInstance</span><span style=''>(): Unit =
+</span>33 <span style=''>    _instance = </span><span style='background: #AEF1AE'>RealOpenAIClient()</span><span style=''>
+</span>34 <span style=''>
+</span>35 <span style=''>  // Delegate methods to the swappable instance
+</span>36 <span style=''>
+</span>37 <span style=''>  </span><span style='background: #AEF1AE'>def captionImage</span><span style=''>(apiKey: String, imageBase64: String)(using
+</span>38 <span style=''>      ec: ExecutionContext
+</span>39 <span style=''>  ): Future[String] =
+</span>40 <span style=''>    </span><span style='background: #AEF1AE'>_instance.captionImage(apiKey, imageBase64)</span><span style=''>
+</span>41 <span style=''>
+</span>42 <span style=''>  </span><span style='background: #F0ADAD'>def generatePromptFromWords</span><span style=''>(apiKey: String, words: Seq[String])(using ec: ExecutionContext): Future[String] =
+</span>43 <span style=''>    </span><span style='background: #F0ADAD'>_instance.generatePromptFromWords(apiKey, words)</span><span style=''>
+</span>44 <span style=''>
+</span>45 <span style=''>  </span><span style='background: #AEF1AE'>def selectWinner</span><span style=''>(
+</span>46 <span style=''>      apiKey: String,
+</span>47 <span style=''>      originalPrompt: String,
+</span>48 <span style=''>      captions: Map[String, String]
+</span>49 <span style=''>  )(using ec: ExecutionContext): Future[String] =
+</span>50 <span style=''>    </span><span style='background: #AEF1AE'>_instance.selectWinner(apiKey, originalPrompt, captions)</span><span style=''>
+</span>51 <span style=''>
+</span>52 <span style=''>  // Internal helper for making OpenAI requests (used by RealOpenAIClient)
+</span>53 <span style=''>  </span><span style='background: #F0ADAD'>private[server] def makeOpenAIRequest</span><span style=''>(
+</span>54 <span style=''>      url: String,
+</span>55 <span style=''>      apiKey: String,
+</span>56 <span style=''>      requestBody: ujson.Obj
+</span>57 <span style=''>  )(using ec: ExecutionContext): Future[ujson.Value] =
+</span>58 <span style=''>    </span><span style='background: #F0ADAD'>Future:
+</span>59 <span style=''></span><span style='background: #F0ADAD'>      val connection = java.net.URI.create(url).toURL.openConnection().asInstanceOf[java.net.HttpURLConnection]
+</span>60 <span style=''></span><span style='background: #F0ADAD'>
+</span>61 <span style=''></span><span style='background: #F0ADAD'>      Try:
+</span>62 <span style=''></span><span style='background: #F0ADAD'>        connection.setRequestMethod(&quot;POST&quot;)
+</span>63 <span style=''></span><span style='background: #F0ADAD'>        connection.setRequestProperty(&quot;Content-Type&quot;, &quot;application/json&quot;)
+</span>64 <span style=''></span><span style='background: #F0ADAD'>        connection.setRequestProperty(&quot;Authorization&quot;, s&quot;Bearer $apiKey&quot;)
+</span>65 <span style=''></span><span style='background: #F0ADAD'>        connection.setDoOutput(true)
+</span>66 <span style=''></span><span style='background: #F0ADAD'>        connection.setConnectTimeout(30000) // 30 seconds
+</span>67 <span style=''></span><span style='background: #F0ADAD'>        connection.setReadTimeout(30000)
+</span>68 <span style=''></span><span style='background: #F0ADAD'>
+</span>69 <span style=''></span><span style='background: #F0ADAD'>        // Write request body
+</span>70 <span style=''></span><span style='background: #F0ADAD'>        val outputStream = connection.getOutputStream
+</span>71 <span style=''></span><span style='background: #F0ADAD'>        outputStream.write(requestBody.toString.getBytes(&quot;UTF-8&quot;))
+</span>72 <span style=''></span><span style='background: #F0ADAD'>        outputStream.flush()
+</span>73 <span style=''></span><span style='background: #F0ADAD'>        outputStream.close()
+</span>74 <span style=''></span><span style='background: #F0ADAD'>
+</span>75 <span style=''></span><span style='background: #F0ADAD'>        // Read response
+</span>76 <span style=''></span><span style='background: #F0ADAD'>        val responseCode = connection.getResponseCode
+</span>77 <span style=''></span><span style='background: #F0ADAD'>        val inputStream = if responseCode &gt;= 400 then connection.getErrorStream else connection.getInputStream
+</span>78 <span style=''></span><span style='background: #F0ADAD'>        val response = scala.io.Source.fromInputStream(inputStream, &quot;UTF-8&quot;).mkString
+</span>79 <span style=''></span><span style='background: #F0ADAD'>        inputStream.close()
+</span>80 <span style=''></span><span style='background: #F0ADAD'>
+</span>81 <span style=''></span><span style='background: #F0ADAD'>        if responseCode != 200 then
+</span>82 <span style=''></span><span style='background: #F0ADAD'>          logger.error(s&quot;OpenAI API error (status $responseCode): $response&quot;)
+</span>83 <span style=''></span><span style='background: #F0ADAD'>          throw new RuntimeException(s&quot;OpenAI API request failed with status $responseCode&quot;)
+</span>84 <span style=''></span><span style='background: #F0ADAD'>
+</span>85 <span style=''></span><span style='background: #F0ADAD'>        ujson.read(response)
+</span>86 <span style=''></span><span style='background: #F0ADAD'>      .recover:
+</span>87 <span style=''></span><span style='background: #F0ADAD'>        case ex: Exception =&gt;
+</span>88 <span style=''></span><span style='background: #F0ADAD'>          logger.error(s&quot;OpenAI API request failed: ${ex.getMessage}&quot;, ex)
+</span>89 <span style=''></span><span style='background: #F0ADAD'>          throw ex
+</span>90 <span style=''></span><span style='background: #F0ADAD'>      .get</span><span style=''>
+</span>91 <span style=''>
+</span>92 <span style=''>// Real implementation that calls external APIs
+</span>93 <span style=''>class RealOpenAIClient extends OpenAIClient:
+</span>94 <span style=''>  import OpenAIClient.*
+</span>95 <span style=''>
+</span>96 <span style=''>  private val logger = </span><span style='background: #AEF1AE'>LoggerFactory.getLogger(getClass)</span><span style=''>
+</span>97 <span style=''>  private val visionModel = </span><span style='background: #AEF1AE'>&quot;gpt-4o&quot;</span><span style=''>
+</span>98 <span style=''>  private val textModel = </span><span style='background: #AEF1AE'>&quot;gpt-4o-mini&quot;</span><span style=''>
+</span>99 <span style=''>
+</span>100 <span style=''>  </span><span style='background: #F0ADAD'>def captionImage</span><span style=''>(apiKey: String, imageBase64: String)(using
+</span>101 <span style=''>      ec: ExecutionContext
+</span>102 <span style=''>  ): Future[String] =
+</span>103 <span style=''>    val url = </span><span style='background: #F0ADAD'>&quot;https://api.openai.com/v1/chat/completions&quot;</span><span style=''>
+</span>104 <span style=''>
+</span>105 <span style=''>    // Remove data URL prefix if present
+</span>106 <span style=''>    val cleanBase64 = </span><span style='background: #F0ADAD'>imageBase64.replaceFirst(&quot;^data:image/png;base64,&quot;, &quot;&quot;)</span><span style=''>
+</span>107 <span style=''>
+</span>108 <span style=''>    val promptText = </span><span style='background: #F0ADAD'>&quot;Describe this drawing in 5-10 words. Just say what it depicts. Be short and direct. Do not use quotes.&quot;</span><span style=''>
+</span>109 <span style=''>
+</span>110 <span style=''>    val requestBody = </span><span style='background: #F0ADAD'>ujson.Obj(
+</span>111 <span style=''></span><span style='background: #F0ADAD'>      &quot;model&quot; -&gt; visionModel,
+</span>112 <span style=''></span><span style='background: #F0ADAD'>      &quot;messages&quot; -&gt; ujson.Arr(
+</span>113 <span style=''></span><span style='background: #F0ADAD'>        ujson.Obj(
+</span>114 <span style=''></span><span style='background: #F0ADAD'>          &quot;role&quot; -&gt; &quot;user&quot;,
+</span>115 <span style=''></span><span style='background: #F0ADAD'>          &quot;content&quot; -&gt; ujson.Arr(
+</span>116 <span style=''></span><span style='background: #F0ADAD'>            ujson.Obj(
+</span>117 <span style=''></span><span style='background: #F0ADAD'>              &quot;type&quot; -&gt; &quot;text&quot;,
+</span>118 <span style=''></span><span style='background: #F0ADAD'>              &quot;text&quot; -&gt; promptText
+</span>119 <span style=''></span><span style='background: #F0ADAD'>            ),
+</span>120 <span style=''></span><span style='background: #F0ADAD'>            ujson.Obj(
+</span>121 <span style=''></span><span style='background: #F0ADAD'>              &quot;type&quot; -&gt; &quot;image_url&quot;,
+</span>122 <span style=''></span><span style='background: #F0ADAD'>              &quot;image_url&quot; -&gt; ujson.Obj(
+</span>123 <span style=''></span><span style='background: #F0ADAD'>                &quot;url&quot; -&gt; s&quot;data:image/png;base64,$cleanBase64&quot;
+</span>124 <span style=''></span><span style='background: #F0ADAD'>              )
+</span>125 <span style=''></span><span style='background: #F0ADAD'>            )
+</span>126 <span style=''></span><span style='background: #F0ADAD'>          )
+</span>127 <span style=''></span><span style='background: #F0ADAD'>        )
+</span>128 <span style=''></span><span style='background: #F0ADAD'>      ),
+</span>129 <span style=''></span><span style='background: #F0ADAD'>      &quot;max_tokens&quot; -&gt; 50
+</span>130 <span style=''></span><span style='background: #F0ADAD'>    )</span><span style=''>
+</span>131 <span style=''>
+</span>132 <span style=''>    </span><span style='background: #F0ADAD'>makeOpenAIRequest(url, apiKey, requestBody).map: responseJson =&gt;
+</span>133 <span style=''></span><span style='background: #F0ADAD'>      Try:
+</span>134 <span style=''></span><span style='background: #F0ADAD'>        responseJson(&quot;choices&quot;)(0)(&quot;message&quot;)(&quot;content&quot;).str
+</span>135 <span style=''></span><span style='background: #F0ADAD'>      .getOrElse:
+</span>136 <span style=''></span><span style='background: #F0ADAD'>        logger.error(s&quot;Failed to parse OpenAI caption response: $responseJson&quot;)
+</span>137 <span style=''></span><span style='background: #F0ADAD'>        &quot;Unable to caption image&quot;</span><span style=''>
+</span>138 <span style=''>
+</span>139 <span style=''>  </span><span style='background: #F0ADAD'>def generatePromptFromWords</span><span style=''>(apiKey: String, words: Seq[String])(using ec: ExecutionContext): Future[String] =
+</span>140 <span style=''>    val url = </span><span style='background: #F0ADAD'>&quot;https://api.openai.com/v1/chat/completions&quot;</span><span style=''>
+</span>141 <span style=''>
+</span>142 <span style=''>    val wordsList = </span><span style='background: #F0ADAD'>words.mkString(&quot;, &quot;)</span><span style=''>
+</span>143 <span style=''>
+</span>144 <span style=''>    val systemPrompt = </span><span style='background: #F0ADAD'>&quot;&quot;&quot;You are a creative prompt generator for a drawing game.
+</span>145 <span style=''></span><span style='background: #F0ADAD'>      |Given some random words, create a short, fun, and drawable prompt.
+</span>146 <span style=''></span><span style='background: #F0ADAD'>      |The prompt should be 3-6 words max and describe something that can be drawn.
+</span>147 <span style=''></span><span style='background: #F0ADAD'>      |Be creative and combine the words in unexpected ways!
+</span>148 <span style=''></span><span style='background: #F0ADAD'>      |Just respond with the prompt itself, no quotes or explanation.&quot;&quot;&quot;.stripMargin</span><span style=''>
+</span>149 <span style=''>
+</span>150 <span style=''>    val userPrompt = s&quot;Create a drawing prompt using these words: $wordsList&quot;
+</span>151 <span style=''>
+</span>152 <span style=''>    val requestBody = </span><span style='background: #F0ADAD'>ujson.Obj(
+</span>153 <span style=''></span><span style='background: #F0ADAD'>      &quot;model&quot; -&gt; textModel,
+</span>154 <span style=''></span><span style='background: #F0ADAD'>      &quot;messages&quot; -&gt; ujson.Arr(
+</span>155 <span style=''></span><span style='background: #F0ADAD'>        ujson.Obj(&quot;role&quot; -&gt; &quot;system&quot;, &quot;content&quot; -&gt; systemPrompt),
+</span>156 <span style=''></span><span style='background: #F0ADAD'>        ujson.Obj(&quot;role&quot; -&gt; &quot;user&quot;, &quot;content&quot; -&gt; userPrompt)
+</span>157 <span style=''></span><span style='background: #F0ADAD'>      ),
+</span>158 <span style=''></span><span style='background: #F0ADAD'>      &quot;temperature&quot; -&gt; 0.9,
+</span>159 <span style=''></span><span style='background: #F0ADAD'>      &quot;max_tokens&quot; -&gt; 30
+</span>160 <span style=''></span><span style='background: #F0ADAD'>    )</span><span style=''>
+</span>161 <span style=''>
+</span>162 <span style=''>    </span><span style='background: #F0ADAD'>makeOpenAIRequest(url, apiKey, requestBody).map: responseJson =&gt;
+</span>163 <span style=''></span><span style='background: #F0ADAD'>      Try:
+</span>164 <span style=''></span><span style='background: #F0ADAD'>        responseJson(&quot;choices&quot;)(0)(&quot;message&quot;)(&quot;content&quot;).str.trim
+</span>165 <span style=''></span><span style='background: #F0ADAD'>      .getOrElse:
+</span>166 <span style=''></span><span style='background: #F0ADAD'>        logger.error(s&quot;Failed to parse OpenAI prompt response: $responseJson&quot;)
+</span>167 <span style=''></span><span style='background: #F0ADAD'>        // Fallback to just the words
+</span>168 <span style=''></span><span style='background: #F0ADAD'>        words.mkString(&quot; &quot;)</span><span style=''>
+</span>169 <span style=''>
+</span>170 <span style=''>  </span><span style='background: #F0ADAD'>def selectWinner</span><span style=''>(
+</span>171 <span style=''>      apiKey: String,
+</span>172 <span style=''>      originalPrompt: String,
+</span>173 <span style=''>      captions: Map[String, String]
+</span>174 <span style=''>  )(using ec: ExecutionContext): Future[String] =
+</span>175 <span style=''>    val url = </span><span style='background: #F0ADAD'>&quot;https://api.openai.com/v1/chat/completions&quot;</span><span style=''>
+</span>176 <span style=''>
+</span>177 <span style=''>    val captionsList = </span><span style='background: #F0ADAD'>captions.map((name, caption) =&gt; s&quot;- $name: \&quot;$caption\&quot;&quot;).mkString(&quot;\n&quot;)</span><span style=''>
+</span>178 <span style=''>
+</span>179 <span style=''>    val systemPrompt = </span><span style='background: #F0ADAD'>&quot;&quot;&quot;You are a judge for a drawing game.
+</span>180 <span style=''></span><span style='background: #F0ADAD'>      |Players drew an image based on a secret prompt. An AI then captioned each drawing without knowing the prompt.
+</span>181 <span style=''></span><span style='background: #F0ADAD'>      |Your job is to pick the winner whose drawing (as interpreted by the AI caption) best matches the original prompt.
+</span>182 <span style=''></span><span style='background: #F0ADAD'>      |
+</span>183 <span style=''></span><span style='background: #F0ADAD'>      |Respond with ONLY the winner's name, nothing else.&quot;&quot;&quot;.stripMargin</span><span style=''>
+</span>184 <span style=''>
+</span>185 <span style=''>    val userPrompt = </span><span style='background: #F0ADAD'>s&quot;&quot;&quot;The secret prompt was: &quot;$originalPrompt&quot;
+</span>186 <span style=''></span><span style='background: #F0ADAD'>      |
+</span>187 <span style=''></span><span style='background: #F0ADAD'>      |Here are the AI-generated captions for each player's drawing:
+</span>188 <span style=''></span><span style='background: #F0ADAD'>      |$captionsList
+</span>189 <span style=''></span><span style='background: #F0ADAD'>      |
+</span>190 <span style=''></span><span style='background: #F0ADAD'>      |Pick the winner.&quot;&quot;&quot;.stripMargin</span><span style=''>
+</span>191 <span style=''>
+</span>192 <span style=''>    val requestBody = </span><span style='background: #F0ADAD'>ujson.Obj(
+</span>193 <span style=''></span><span style='background: #F0ADAD'>      &quot;model&quot; -&gt; textModel,
+</span>194 <span style=''></span><span style='background: #F0ADAD'>      &quot;messages&quot; -&gt; ujson.Arr(
+</span>195 <span style=''></span><span style='background: #F0ADAD'>        ujson.Obj(&quot;role&quot; -&gt; &quot;system&quot;, &quot;content&quot; -&gt; systemPrompt),
+</span>196 <span style=''></span><span style='background: #F0ADAD'>        ujson.Obj(&quot;role&quot; -&gt; &quot;user&quot;, &quot;content&quot; -&gt; userPrompt)
+</span>197 <span style=''></span><span style='background: #F0ADAD'>      ),
+</span>198 <span style=''></span><span style='background: #F0ADAD'>      &quot;temperature&quot; -&gt; 0.7,
+</span>199 <span style=''></span><span style='background: #F0ADAD'>      &quot;max_tokens&quot; -&gt; 50
+</span>200 <span style=''></span><span style='background: #F0ADAD'>    )</span><span style=''>
+</span>201 <span style=''>
+</span>202 <span style=''>    </span><span style='background: #F0ADAD'>makeOpenAIRequest(url, apiKey, requestBody).map: responseJson =&gt;
+</span>203 <span style=''></span><span style='background: #F0ADAD'>      Try:
+</span>204 <span style=''></span><span style='background: #F0ADAD'>        responseJson(&quot;choices&quot;)(0)(&quot;message&quot;)(&quot;content&quot;).str.trim
+</span>205 <span style=''></span><span style='background: #F0ADAD'>      .getOrElse:
+</span>206 <span style=''></span><span style='background: #F0ADAD'>        logger.error(s&quot;Failed to parse OpenAI winner response: $responseJson&quot;)
+</span>207 <span style=''></span><span style='background: #F0ADAD'>        // Fallback: return first player name
+</span>208 <span style=''></span><span style='background: #F0ADAD'>        captions.keys.headOption.getOrElse(&quot;Unknown&quot;)</span><span style=''>
+</span></pre>
+          </div>
+          <div class="tab-pane" id="statementlist">
+            <table cellspacing="0" cellpadding="0" class="table statementlist">
+      <tr>
+        <th>Line</th>
+        <th>Stmt Id</th>
+        <th>Pos</th>
+        <th>Tree</th>
+        <th>Symbol</th>
+        <th>Tests</th>
+        <th>Code</th>
+      </tr><tr>
+        <td>
+          20
+        </td>
+        <td>
+          1456
+        </td>
+        <td>
+          620
+          -
+          628
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getClass
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          getClass
+        </td>
+      </tr><tr>
+        <td>
+          20
+        </td>
+        <td>
+          1455
+        </td>
+        <td>
+          596
+          -
+          629
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getLogger
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          LoggerFactory.getLogger(getClass)
+        </td>
+      </tr><tr>
+        <td>
+          22
+        </td>
+        <td>
+          1457
+        </td>
+        <td>
+          659
+          -
+          667
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;gpt-4o&quot;
+        </td>
+      </tr><tr>
+        <td>
+          23
+        </td>
+        <td>
+          1458
+        </td>
+        <td>
+          694
+          -
+          707
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;gpt-4o-mini&quot;
+        </td>
+      </tr><tr>
+        <td>
+          26
+        </td>
+        <td>
+          1459
+        </td>
+        <td>
+          795
+          -
+          813
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;init&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          RealOpenAIClient()
+        </td>
+      </tr><tr>
+        <td>
+          29
+        </td>
+        <td>
+          1460
+        </td>
+        <td>
+          871
+          -
+          886
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          setInstance
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def setInstance
+        </td>
+      </tr><tr>
+        <td>
+          32
+        </td>
+        <td>
+          1462
+        </td>
+        <td>
+          943
+          -
+          960
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          resetInstance
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def resetInstance
+        </td>
+      </tr><tr>
+        <td>
+          33
+        </td>
+        <td>
+          1461
+        </td>
+        <td>
+          987
+          -
+          1005
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;init&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          RealOpenAIClient()
+        </td>
+      </tr><tr>
+        <td>
+          37
+        </td>
+        <td>
+          1464
+        </td>
+        <td>
+          1058
+          -
+          1074
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          captionImage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def captionImage
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          1463
+        </td>
+        <td>
+          1171
+          -
+          1214
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          captionImage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          _instance.captionImage(apiKey, imageBase64)
+        </td>
+      </tr><tr>
+        <td>
+          42
+        </td>
+        <td>
+          1466
+        </td>
+        <td>
+          1218
+          -
+          1245
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          generatePromptFromWords
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def generatePromptFromWords
+        </td>
+      </tr><tr>
+        <td>
+          43
+        </td>
+        <td>
+          1465
+        </td>
+        <td>
+          1332
+          -
+          1380
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          generatePromptFromWords
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          _instance.generatePromptFromWords(apiKey, words)
+        </td>
+      </tr><tr>
+        <td>
+          45
+        </td>
+        <td>
+          1468
+        </td>
+        <td>
+          1384
+          -
+          1400
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          selectWinner
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def selectWinner
+        </td>
+      </tr><tr>
+        <td>
+          50
+        </td>
+        <td>
+          1467
+        </td>
+        <td>
+          1544
+          -
+          1600
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          selectWinner
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          _instance.selectWinner(apiKey, originalPrompt, captions)
+        </td>
+      </tr><tr>
+        <td>
+          53
+        </td>
+        <td>
+          1506
+        </td>
+        <td>
+          1679
+          -
+          1716
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          makeOpenAIRequest
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          private[server] def makeOpenAIRequest
+        </td>
+      </tr><tr>
+        <td>
+          58
+        </td>
+        <td>
+          1469
+        </td>
+        <td>
+          1847
+          -
+          3210
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Future:\n      val connection = java.net.URI.create(url).toURL.openConnection().asInstanceOf[java.net.HttpURLConnection]\n\n      Try:\n        connection.setRequestMethod(&quot;POST&quot;)\n        connection.setRequestProperty(&quot;Content-Type&quot;, &quot;application/json&quot;)\n        connection.setRequestProperty(&quot;Authorization&quot;, s&quot;Bearer $apiKey&quot;)\n        connection.setDoOutput(true)\n        connection.setConnectTimeout(30000) // 30 seconds\n        connection.setReadTimeout(30000)\n\n        // Write request body\n        val outputStream = connection.getOutputStream\n        outputStream.write(requestBody.toString.getBytes(&quot;UTF-8&quot;))\n        outputStream.flush()\n        outputStream.close()\n\n        // Read response\n        val responseCode = connection.getResponseCode\n        val inputStream = if responseCode &gt;= 400 then connection.getErrorStream else connection.getInputStream\n        val response = scala.io.Source.fromInputStream(inputStream, &quot;UTF-8&quot;).mkString\n        inputStream.close()\n\n        if responseCode != 200 then\n          logger.error(s&quot;OpenAI API error (status $responseCode): $response&quot;)\n          throw new RuntimeException(s&quot;OpenAI API request failed with status $responseCode&quot;)\n\n        ujson.read(response)\n      .recover:\n        case ex: Exception =&gt;\n          logger.error(s&quot;OpenAI API request failed: ${ex.getMessage}&quot;, ex)\n          throw ex\n      .get
+        </td>
+      </tr><tr>
+        <td>
+          59
+        </td>
+        <td>
+          1470
+        </td>
+        <td>
+          1878
+          -
+          1925
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          openConnection
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          java.net.URI.create(url).toURL.openConnection()
+        </td>
+      </tr><tr>
+        <td>
+          62
+        </td>
+        <td>
+          1472
+        </td>
+        <td>
+          1987
+          -
+          2022
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          setRequestMethod
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connection.setRequestMethod(&quot;POST&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          63
+        </td>
+        <td>
+          1473
+        </td>
+        <td>
+          2031
+          -
+          2096
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          setRequestProperty
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connection.setRequestProperty(&quot;Content-Type&quot;, &quot;application/json&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          64
+        </td>
+        <td>
+          1474
+        </td>
+        <td>
+          2105
+          -
+          2170
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          setRequestProperty
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connection.setRequestProperty(&quot;Authorization&quot;, s&quot;Bearer $apiKey&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          64
+        </td>
+        <td>
+          1475
+        </td>
+        <td>
+          2135
+          -
+          2150
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;Authorization&quot;
+        </td>
+      </tr><tr>
+        <td>
+          65
+        </td>
+        <td>
+          1476
+        </td>
+        <td>
+          2179
+          -
+          2207
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          setDoOutput
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connection.setDoOutput(true)
+        </td>
+      </tr><tr>
+        <td>
+          66
+        </td>
+        <td>
+          1477
+        </td>
+        <td>
+          2216
+          -
+          2251
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          setConnectTimeout
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connection.setConnectTimeout(30000)
+        </td>
+      </tr><tr>
+        <td>
+          67
+        </td>
+        <td>
+          1478
+        </td>
+        <td>
+          2274
+          -
+          2306
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          setReadTimeout
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connection.setReadTimeout(30000)
+        </td>
+      </tr><tr>
+        <td>
+          70
+        </td>
+        <td>
+          1479
+        </td>
+        <td>
+          2365
+          -
+          2391
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getOutputStream
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connection.getOutputStream
+        </td>
+      </tr><tr>
+        <td>
+          71
+        </td>
+        <td>
+          1481
+        </td>
+        <td>
+          2419
+          -
+          2457
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getBytes
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          requestBody.toString.getBytes(&quot;UTF-8&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          71
+        </td>
+        <td>
+          1480
+        </td>
+        <td>
+          2400
+          -
+          2458
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          write
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          outputStream.write(requestBody.toString.getBytes(&quot;UTF-8&quot;))
+        </td>
+      </tr><tr>
+        <td>
+          72
+        </td>
+        <td>
+          1482
+        </td>
+        <td>
+          2467
+          -
+          2487
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          flush
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          outputStream.flush()
+        </td>
+      </tr><tr>
+        <td>
+          73
+        </td>
+        <td>
+          1483
+        </td>
+        <td>
+          2496
+          -
+          2516
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          close
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          outputStream.close()
+        </td>
+      </tr><tr>
+        <td>
+          76
+        </td>
+        <td>
+          1484
+        </td>
+        <td>
+          2570
+          -
+          2596
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getResponseCode
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connection.getResponseCode
+        </td>
+      </tr><tr>
+        <td>
+          77
+        </td>
+        <td>
+          1485
+        </td>
+        <td>
+          2626
+          -
+          2645
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &gt;=
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          responseCode &gt;= 400
+        </td>
+      </tr><tr>
+        <td>
+          77
+        </td>
+        <td>
+          1488
+        </td>
+        <td>
+          2682
+          -
+          2707
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getInputStream
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connection.getInputStream
+        </td>
+      </tr><tr>
+        <td>
+          77
+        </td>
+        <td>
+          1487
+        </td>
+        <td>
+          2651
+          -
+          2676
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getErrorStream
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connection.getErrorStream
+        </td>
+      </tr><tr>
+        <td>
+          77
+        </td>
+        <td>
+          1486
+        </td>
+        <td>
+          2651
+          -
+          2676
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getErrorStream
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connection.getErrorStream
+        </td>
+      </tr><tr>
+        <td>
+          77
+        </td>
+        <td>
+          1489
+        </td>
+        <td>
+          2682
+          -
+          2707
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getInputStream
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connection.getInputStream
+        </td>
+      </tr><tr>
+        <td>
+          78
+        </td>
+        <td>
+          1491
+        </td>
+        <td>
+          2731
+          -
+          2793
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          mkString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          scala.io.Source.fromInputStream(inputStream, &quot;UTF-8&quot;).mkString
+        </td>
+      </tr><tr>
+        <td>
+          78
+        </td>
+        <td>
+          1490
+        </td>
+        <td>
+          2731
+          -
+          2784
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          fromInputStream
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          scala.io.Source.fromInputStream(inputStream, &quot;UTF-8&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          79
+        </td>
+        <td>
+          1492
+        </td>
+        <td>
+          2802
+          -
+          2821
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          close
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          inputStream.close()
+        </td>
+      </tr><tr>
+        <td>
+          81
+        </td>
+        <td>
+          1493
+        </td>
+        <td>
+          2834
+          -
+          2853
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          !=
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          responseCode != 200
+        </td>
+      </tr><tr>
+        <td>
+          82
+        </td>
+        <td>
+          1494
+        </td>
+        <td>
+          2869
+          -
+          2936
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          error
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.error(s&quot;OpenAI API error (status $responseCode): $response&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          82
+        </td>
+        <td>
+          1496
+        </td>
+        <td>
+          2869
+          -
+          3029
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.error(s&quot;OpenAI API error (status $responseCode): $response&quot;)\n          throw new RuntimeException(s&quot;OpenAI API request failed with status $responseCode&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          83
+        </td>
+        <td>
+          1497
+        </td>
+        <td>
+          3029
+          -
+          3029
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          
+        </td>
+      </tr><tr>
+        <td>
+          83
+        </td>
+        <td>
+          1495
+        </td>
+        <td>
+          2947
+          -
+          3029
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          throw
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          throw new RuntimeException(s&quot;OpenAI API request failed with status $responseCode&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          85
+        </td>
+        <td>
+          1500
+        </td>
+        <td>
+          3039
+          -
+          3049
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          read$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.read
+        </td>
+      </tr><tr>
+        <td>
+          85
+        </td>
+        <td>
+          1499
+        </td>
+        <td>
+          3050
+          -
+          3058
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          fromString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          response
+        </td>
+      </tr><tr>
+        <td>
+          85
+        </td>
+        <td>
+          1498
+        </td>
+        <td>
+          3039
+          -
+          3059
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          read
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.read(response)
+        </td>
+      </tr><tr>
+        <td>
+          87
+        </td>
+        <td>
+          1471
+        </td>
+        <td>
+          1974
+          -
+          3199
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          recover
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Try:\n        connection.setRequestMethod(&quot;POST&quot;)\n        connection.setRequestProperty(&quot;Content-Type&quot;, &quot;application/json&quot;)\n        connection.setRequestProperty(&quot;Authorization&quot;, s&quot;Bearer $apiKey&quot;)\n        connection.setDoOutput(true)\n        connection.setConnectTimeout(30000) // 30 seconds\n        connection.setReadTimeout(30000)\n\n        // Write request body\n        val outputStream = connection.getOutputStream\n        outputStream.write(requestBody.toString.getBytes(&quot;UTF-8&quot;))\n        outputStream.flush()\n        outputStream.close()\n\n        // Read response\n        val responseCode = connection.getResponseCode\n        val inputStream = if responseCode &gt;= 400 then connection.getErrorStream else connection.getInputStream\n        val response = scala.io.Source.fromInputStream(inputStream, &quot;UTF-8&quot;).mkString\n        inputStream.close()\n\n        if responseCode != 200 then\n          logger.error(s&quot;OpenAI API error (status $responseCode): $response&quot;)\n          throw new RuntimeException(s&quot;OpenAI API request failed with status $responseCode&quot;)\n\n        ujson.read(response)\n      .recover:\n        case ex: Exception =&gt;\n          logger.error(s&quot;OpenAI API request failed: ${ex.getMessage}&quot;, ex)\n          throw ex
+        </td>
+      </tr><tr>
+        <td>
+          88
+        </td>
+        <td>
+          1501
+        </td>
+        <td>
+          3116
+          -
+          3180
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          error
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.error(s&quot;OpenAI API request failed: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          88
+        </td>
+        <td>
+          1502
+        </td>
+        <td>
+          3160
+          -
+          3173
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getMessage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ex.getMessage
+        </td>
+      </tr><tr>
+        <td>
+          88
+        </td>
+        <td>
+          1504
+        </td>
+        <td>
+          3116
+          -
+          3199
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.error(s&quot;OpenAI API request failed: ${ex.getMessage}&quot;, ex)\n          throw ex
+        </td>
+      </tr><tr>
+        <td>
+          89
+        </td>
+        <td>
+          1503
+        </td>
+        <td>
+          3191
+          -
+          3199
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          throw
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          throw ex
+        </td>
+      </tr><tr>
+        <td>
+          90
+        </td>
+        <td>
+          1505
+        </td>
+        <td>
+          1974
+          -
+          3210
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          get
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Try:\n        connection.setRequestMethod(&quot;POST&quot;)\n        connection.setRequestProperty(&quot;Content-Type&quot;, &quot;application/json&quot;)\n        connection.setRequestProperty(&quot;Authorization&quot;, s&quot;Bearer $apiKey&quot;)\n        connection.setDoOutput(true)\n        connection.setConnectTimeout(30000) // 30 seconds\n        connection.setReadTimeout(30000)\n\n        // Write request body\n        val outputStream = connection.getOutputStream\n        outputStream.write(requestBody.toString.getBytes(&quot;UTF-8&quot;))\n        outputStream.flush()\n        outputStream.close()\n\n        // Read response\n        val responseCode = connection.getResponseCode\n        val inputStream = if responseCode &gt;= 400 then connection.getErrorStream else connection.getInputStream\n        val response = scala.io.Source.fromInputStream(inputStream, &quot;UTF-8&quot;).mkString\n        inputStream.close()\n\n        if responseCode != 200 then\n          logger.error(s&quot;OpenAI API error (status $responseCode): $response&quot;)\n          throw new RuntimeException(s&quot;OpenAI API request failed with status $responseCode&quot;)\n\n        ujson.read(response)\n      .recover:\n        case ex: Exception =&gt;\n          logger.error(s&quot;OpenAI API request failed: ${ex.getMessage}&quot;, ex)\n          throw ex\n      .get
+        </td>
+      </tr><tr>
+        <td>
+          96
+        </td>
+        <td>
+          1508
+        </td>
+        <td>
+          3377
+          -
+          3385
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getClass
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          getClass
+        </td>
+      </tr><tr>
+        <td>
+          96
+        </td>
+        <td>
+          1507
+        </td>
+        <td>
+          3353
+          -
+          3386
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getLogger
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          LoggerFactory.getLogger(getClass)
+        </td>
+      </tr><tr>
+        <td>
+          97
+        </td>
+        <td>
+          1509
+        </td>
+        <td>
+          3415
+          -
+          3423
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;gpt-4o&quot;
+        </td>
+      </tr><tr>
+        <td>
+          98
+        </td>
+        <td>
+          1510
+        </td>
+        <td>
+          3450
+          -
+          3463
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;gpt-4o-mini&quot;
+        </td>
+      </tr><tr>
+        <td>
+          100
+        </td>
+        <td>
+          1543
+        </td>
+        <td>
+          3467
+          -
+          3483
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          captionImage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def captionImage
+        </td>
+      </tr><tr>
+        <td>
+          103
+        </td>
+        <td>
+          1511
+        </td>
+        <td>
+          3590
+          -
+          3634
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;https://api.openai.com/v1/chat/completions&quot;
+        </td>
+      </tr><tr>
+        <td>
+          106
+        </td>
+        <td>
+          1512
+        </td>
+        <td>
+          3699
+          -
+          3754
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          replaceFirst
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          imageBase64.replaceFirst(&quot;^data:image/png;base64,&quot;, &quot;&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          108
+        </td>
+        <td>
+          1513
+        </td>
+        <td>
+          3777
+          -
+          3881
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;Describe this drawing in 5-10 words. Just say what it depicts. Be short and direct. Do not use quotes.&quot;
+        </td>
+      </tr><tr>
+        <td>
+          110
+        </td>
+        <td>
+          1514
+        </td>
+        <td>
+          3905
+          -
+          4417
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.Obj(\n      &quot;model&quot; -&gt; visionModel,\n      &quot;messages&quot; -&gt; ujson.Arr(\n        ujson.Obj(\n          &quot;role&quot; -&gt; &quot;user&quot;,\n          &quot;content&quot; -&gt; ujson.Arr(\n            ujson.Obj(\n              &quot;type&quot; -&gt; &quot;text&quot;,\n              &quot;text&quot; -&gt; promptText\n            ),\n            ujson.Obj(\n              &quot;type&quot; -&gt; &quot;image_url&quot;,\n              &quot;image_url&quot; -&gt; ujson.Obj(\n                &quot;url&quot; -&gt; s&quot;data:image/png;base64,$cleanBase64&quot;\n              )\n            )\n          )\n        )\n      ),\n      &quot;max_tokens&quot; -&gt; 50\n    )
+        </td>
+      </tr><tr>
+        <td>
+          111
+        </td>
+        <td>
+          1515
+        </td>
+        <td>
+          3922
+          -
+          3944
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;model&quot; -&gt; visionModel
+        </td>
+      </tr><tr>
+        <td>
+          112
+        </td>
+        <td>
+          1517
+        </td>
+        <td>
+          3966
+          -
+          4385
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.Arr(\n        ujson.Obj(\n          &quot;role&quot; -&gt; &quot;user&quot;,\n          &quot;content&quot; -&gt; ujson.Arr(\n            ujson.Obj(\n              &quot;type&quot; -&gt; &quot;text&quot;,\n              &quot;text&quot; -&gt; promptText\n            ),\n            ujson.Obj(\n              &quot;type&quot; -&gt; &quot;image_url&quot;,\n              &quot;image_url&quot; -&gt; ujson.Obj(\n                &quot;url&quot; -&gt; s&quot;data:image/png;base64,$cleanBase64&quot;\n              )\n            )\n          )\n        )\n      )
+        </td>
+      </tr><tr>
+        <td>
+          112
+        </td>
+        <td>
+          1516
+        </td>
+        <td>
+          3952
+          -
+          4385
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;messages&quot; -&gt; ujson.Arr(\n        ujson.Obj(\n          &quot;role&quot; -&gt; &quot;user&quot;,\n          &quot;content&quot; -&gt; ujson.Arr(\n            ujson.Obj(\n              &quot;type&quot; -&gt; &quot;text&quot;,\n              &quot;text&quot; -&gt; promptText\n            ),\n            ujson.Obj(\n              &quot;type&quot; -&gt; &quot;image_url&quot;,\n              &quot;image_url&quot; -&gt; ujson.Obj(\n                &quot;url&quot; -&gt; s&quot;data:image/png;base64,$cleanBase64&quot;\n              )\n            )\n          )\n        )\n      )
+        </td>
+      </tr><tr>
+        <td>
+          113
+        </td>
+        <td>
+          1518
+        </td>
+        <td>
+          3985
+          -
+          4377
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.Obj(\n          &quot;role&quot; -&gt; &quot;user&quot;,\n          &quot;content&quot; -&gt; ujson.Arr(\n            ujson.Obj(\n              &quot;type&quot; -&gt; &quot;text&quot;,\n              &quot;text&quot; -&gt; promptText\n            ),\n            ujson.Obj(\n              &quot;type&quot; -&gt; &quot;image_url&quot;,\n              &quot;image_url&quot; -&gt; ujson.Obj(\n                &quot;url&quot; -&gt; s&quot;data:image/png;base64,$cleanBase64&quot;\n              )\n            )\n          )\n        )
+        </td>
+      </tr><tr>
+        <td>
+          114
+        </td>
+        <td>
+          1519
+        </td>
+        <td>
+          4006
+          -
+          4022
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;role&quot; -&gt; &quot;user&quot;
+        </td>
+      </tr><tr>
+        <td>
+          115
+        </td>
+        <td>
+          1521
+        </td>
+        <td>
+          4047
+          -
+          4367
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.Arr(\n            ujson.Obj(\n              &quot;type&quot; -&gt; &quot;text&quot;,\n              &quot;text&quot; -&gt; promptText\n            ),\n            ujson.Obj(\n              &quot;type&quot; -&gt; &quot;image_url&quot;,\n              &quot;image_url&quot; -&gt; ujson.Obj(\n                &quot;url&quot; -&gt; s&quot;data:image/png;base64,$cleanBase64&quot;\n              )\n            )\n          )
+        </td>
+      </tr><tr>
+        <td>
+          115
+        </td>
+        <td>
+          1520
+        </td>
+        <td>
+          4034
+          -
+          4367
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;content&quot; -&gt; ujson.Arr(\n            ujson.Obj(\n              &quot;type&quot; -&gt; &quot;text&quot;,\n              &quot;text&quot; -&gt; promptText\n            ),\n            ujson.Obj(\n              &quot;type&quot; -&gt; &quot;image_url&quot;,\n              &quot;image_url&quot; -&gt; ujson.Obj(\n                &quot;url&quot; -&gt; s&quot;data:image/png;base64,$cleanBase64&quot;\n              )\n            )\n          )
+        </td>
+      </tr><tr>
+        <td>
+          116
+        </td>
+        <td>
+          1522
+        </td>
+        <td>
+          4070
+          -
+          4161
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.Obj(\n              &quot;type&quot; -&gt; &quot;text&quot;,\n              &quot;text&quot; -&gt; promptText\n            )
+        </td>
+      </tr><tr>
+        <td>
+          117
+        </td>
+        <td>
+          1523
+        </td>
+        <td>
+          4095
+          -
+          4111
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;type&quot; -&gt; &quot;text&quot;
+        </td>
+      </tr><tr>
+        <td>
+          118
+        </td>
+        <td>
+          1524
+        </td>
+        <td>
+          4127
+          -
+          4147
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;text&quot; -&gt; promptText
+        </td>
+      </tr><tr>
+        <td>
+          118
+        </td>
+        <td>
+          1525
+        </td>
+        <td>
+          4137
+          -
+          4147
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          promptText
+        </td>
+      </tr><tr>
+        <td>
+          120
+        </td>
+        <td>
+          1526
+        </td>
+        <td>
+          4175
+          -
+          4355
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.Obj(\n              &quot;type&quot; -&gt; &quot;image_url&quot;,\n              &quot;image_url&quot; -&gt; ujson.Obj(\n                &quot;url&quot; -&gt; s&quot;data:image/png;base64,$cleanBase64&quot;\n              )\n            )
+        </td>
+      </tr><tr>
+        <td>
+          121
+        </td>
+        <td>
+          1527
+        </td>
+        <td>
+          4200
+          -
+          4221
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;type&quot; -&gt; &quot;image_url&quot;
+        </td>
+      </tr><tr>
+        <td>
+          122
+        </td>
+        <td>
+          1528
+        </td>
+        <td>
+          4237
+          -
+          4341
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;image_url&quot; -&gt; ujson.Obj(\n                &quot;url&quot; -&gt; s&quot;data:image/png;base64,$cleanBase64&quot;\n              )
+        </td>
+      </tr><tr>
+        <td>
+          122
+        </td>
+        <td>
+          1529
+        </td>
+        <td>
+          4252
+          -
+          4341
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.Obj(\n                &quot;url&quot; -&gt; s&quot;data:image/png;base64,$cleanBase64&quot;\n              )
+        </td>
+      </tr><tr>
+        <td>
+          123
+        </td>
+        <td>
+          1530
+        </td>
+        <td>
+          4279
+          -
+          4325
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;url&quot; -&gt; s&quot;data:image/png;base64,$cleanBase64&quot;
+        </td>
+      </tr><tr>
+        <td>
+          129
+        </td>
+        <td>
+          1532
+        </td>
+        <td>
+          4409
+          -
+          4411
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableInt
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          50
+        </td>
+      </tr><tr>
+        <td>
+          129
+        </td>
+        <td>
+          1531
+        </td>
+        <td>
+          4393
+          -
+          4411
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;max_tokens&quot; -&gt; 50
+        </td>
+      </tr><tr>
+        <td>
+          132
+        </td>
+        <td>
+          1533
+        </td>
+        <td>
+          4423
+          -
+          4691
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          map
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          makeOpenAIRequest(url, apiKey, requestBody).map: responseJson =&gt;\n      Try:\n        responseJson(&quot;choices&quot;)(0)(&quot;message&quot;)(&quot;content&quot;).str\n      .getOrElse:\n        logger.error(s&quot;Failed to parse OpenAI caption response: $responseJson&quot;)\n        &quot;Unable to caption image&quot;
+        </td>
+      </tr><tr>
+        <td>
+          134
+        </td>
+        <td>
+          1536
+        </td>
+        <td>
+          4520
+          -
+          4529
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          StringSelector
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;choices&quot;
+        </td>
+      </tr><tr>
+        <td>
+          134
+        </td>
+        <td>
+          1539
+        </td>
+        <td>
+          4545
+          -
+          4554
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          StringSelector
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;content&quot;
+        </td>
+      </tr><tr>
+        <td>
+          134
+        </td>
+        <td>
+          1535
+        </td>
+        <td>
+          4507
+          -
+          4555
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          responseJson(&quot;choices&quot;)(0)(&quot;message&quot;)(&quot;content&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          134
+        </td>
+        <td>
+          1538
+        </td>
+        <td>
+          4534
+          -
+          4543
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          StringSelector
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;message&quot;
+        </td>
+      </tr><tr>
+        <td>
+          134
+        </td>
+        <td>
+          1537
+        </td>
+        <td>
+          4531
+          -
+          4532
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          IntSelector
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          0
+        </td>
+      </tr><tr>
+        <td>
+          134
+        </td>
+        <td>
+          1540
+        </td>
+        <td>
+          4507
+          -
+          4559
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          str
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          responseJson(&quot;choices&quot;)(0)(&quot;message&quot;)(&quot;content&quot;).str
+        </td>
+      </tr><tr>
+        <td>
+          136
+        </td>
+        <td>
+          1541
+        </td>
+        <td>
+          4586
+          -
+          4657
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          error
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.error(s&quot;Failed to parse OpenAI caption response: $responseJson&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          136
+        </td>
+        <td>
+          1534
+        </td>
+        <td>
+          4494
+          -
+          4691
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getOrElse
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Try:\n        responseJson(&quot;choices&quot;)(0)(&quot;message&quot;)(&quot;content&quot;).str\n      .getOrElse:\n        logger.error(s&quot;Failed to parse OpenAI caption response: $responseJson&quot;)\n        &quot;Unable to caption image&quot;
+        </td>
+      </tr><tr>
+        <td>
+          137
+        </td>
+        <td>
+          1542
+        </td>
+        <td>
+          4666
+          -
+          4691
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;Unable to caption image&quot;
+        </td>
+      </tr><tr>
+        <td>
+          139
+        </td>
+        <td>
+          1573
+        </td>
+        <td>
+          4695
+          -
+          4722
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          generatePromptFromWords
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def generatePromptFromWords
+        </td>
+      </tr><tr>
+        <td>
+          140
+        </td>
+        <td>
+          1544
+        </td>
+        <td>
+          4819
+          -
+          4863
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;https://api.openai.com/v1/chat/completions&quot;
+        </td>
+      </tr><tr>
+        <td>
+          142
+        </td>
+        <td>
+          1545
+        </td>
+        <td>
+          4885
+          -
+          4905
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          mkString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          words.mkString(&quot;, &quot;)
+        </td>
+      </tr><tr>
+        <td>
+          144
+        </td>
+        <td>
+          1546
+        </td>
+        <td>
+          4930
+          -
+          5280
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          augmentString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;&quot;&quot;You are a creative prompt generator for a drawing game.\n      |Given some random words, create a short, fun, and drawable prompt.\n      |The prompt should be 3-6 words max and describe something that can be drawn.\n      |Be creative and combine the words in unexpected ways!\n      |Just respond with the prompt itself, no quotes or explanation.&quot;&quot;&quot;
+        </td>
+      </tr><tr>
+        <td>
+          148
+        </td>
+        <td>
+          1547
+        </td>
+        <td>
+          4930
+          -
+          5292
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          stripMargin
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;&quot;&quot;You are a creative prompt generator for a drawing game.\n      |Given some random words, create a short, fun, and drawable prompt.\n      |The prompt should be 3-6 words max and describe something that can be drawn.\n      |Be creative and combine the words in unexpected ways!\n      |Just respond with the prompt itself, no quotes or explanation.&quot;&quot;&quot;.stripMargin
+        </td>
+      </tr><tr>
+        <td>
+          152
+        </td>
+        <td>
+          1548
+        </td>
+        <td>
+          5395
+          -
+          5659
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.Obj(\n      &quot;model&quot; -&gt; textModel,\n      &quot;messages&quot; -&gt; ujson.Arr(\n        ujson.Obj(&quot;role&quot; -&gt; &quot;system&quot;, &quot;content&quot; -&gt; systemPrompt),\n        ujson.Obj(&quot;role&quot; -&gt; &quot;user&quot;, &quot;content&quot; -&gt; userPrompt)\n      ),\n      &quot;temperature&quot; -&gt; 0.9,\n      &quot;max_tokens&quot; -&gt; 30\n    )
+        </td>
+      </tr><tr>
+        <td>
+          153
+        </td>
+        <td>
+          1549
+        </td>
+        <td>
+          5412
+          -
+          5432
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;model&quot; -&gt; textModel
+        </td>
+      </tr><tr>
+        <td>
+          154
+        </td>
+        <td>
+          1551
+        </td>
+        <td>
+          5454
+          -
+          5599
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.Arr(\n        ujson.Obj(&quot;role&quot; -&gt; &quot;system&quot;, &quot;content&quot; -&gt; systemPrompt),\n        ujson.Obj(&quot;role&quot; -&gt; &quot;user&quot;, &quot;content&quot; -&gt; userPrompt)\n      )
+        </td>
+      </tr><tr>
+        <td>
+          154
+        </td>
+        <td>
+          1550
+        </td>
+        <td>
+          5440
+          -
+          5599
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;messages&quot; -&gt; ujson.Arr(\n        ujson.Obj(&quot;role&quot; -&gt; &quot;system&quot;, &quot;content&quot; -&gt; systemPrompt),\n        ujson.Obj(&quot;role&quot; -&gt; &quot;user&quot;, &quot;content&quot; -&gt; userPrompt)\n      )
+        </td>
+      </tr><tr>
+        <td>
+          155
+        </td>
+        <td>
+          1554
+        </td>
+        <td>
+          5503
+          -
+          5528
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;content&quot; -&gt; systemPrompt
+        </td>
+      </tr><tr>
+        <td>
+          155
+        </td>
+        <td>
+          1553
+        </td>
+        <td>
+          5483
+          -
+          5501
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;role&quot; -&gt; &quot;system&quot;
+        </td>
+      </tr><tr>
+        <td>
+          155
+        </td>
+        <td>
+          1555
+        </td>
+        <td>
+          5516
+          -
+          5528
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          systemPrompt
+        </td>
+      </tr><tr>
+        <td>
+          155
+        </td>
+        <td>
+          1552
+        </td>
+        <td>
+          5473
+          -
+          5529
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.Obj(&quot;role&quot; -&gt; &quot;system&quot;, &quot;content&quot; -&gt; systemPrompt)
+        </td>
+      </tr><tr>
+        <td>
+          156
+        </td>
+        <td>
+          1557
+        </td>
+        <td>
+          5549
+          -
+          5565
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;role&quot; -&gt; &quot;user&quot;
+        </td>
+      </tr><tr>
+        <td>
+          156
+        </td>
+        <td>
+          1559
+        </td>
+        <td>
+          5580
+          -
+          5590
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          userPrompt
+        </td>
+      </tr><tr>
+        <td>
+          156
+        </td>
+        <td>
+          1556
+        </td>
+        <td>
+          5539
+          -
+          5591
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.Obj(&quot;role&quot; -&gt; &quot;user&quot;, &quot;content&quot; -&gt; userPrompt)
+        </td>
+      </tr><tr>
+        <td>
+          156
+        </td>
+        <td>
+          1558
+        </td>
+        <td>
+          5567
+          -
+          5590
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;content&quot; -&gt; userPrompt
+        </td>
+      </tr><tr>
+        <td>
+          158
+        </td>
+        <td>
+          1560
+        </td>
+        <td>
+          5607
+          -
+          5627
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;temperature&quot; -&gt; 0.9
+        </td>
+      </tr><tr>
+        <td>
+          158
+        </td>
+        <td>
+          1561
+        </td>
+        <td>
+          5624
+          -
+          5627
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableDouble
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          0.9
+        </td>
+      </tr><tr>
+        <td>
+          159
+        </td>
+        <td>
+          1563
+        </td>
+        <td>
+          5651
+          -
+          5653
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableInt
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          30
+        </td>
+      </tr><tr>
+        <td>
+          159
+        </td>
+        <td>
+          1562
+        </td>
+        <td>
+          5635
+          -
+          5653
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;max_tokens&quot; -&gt; 30
+        </td>
+      </tr><tr>
+        <td>
+          162
+        </td>
+        <td>
+          1564
+        </td>
+        <td>
+          5665
+          -
+          5969
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          map
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          makeOpenAIRequest(url, apiKey, requestBody).map: responseJson =&gt;\n      Try:\n        responseJson(&quot;choices&quot;)(0)(&quot;message&quot;)(&quot;content&quot;).str.trim\n      .getOrElse:\n        logger.error(s&quot;Failed to parse OpenAI prompt response: $responseJson&quot;)\n        // Fallback to just the words\n        words.mkString(&quot; &quot;)
+        </td>
+      </tr><tr>
+        <td>
+          164
+        </td>
+        <td>
+          1569
+        </td>
+        <td>
+          5776
+          -
+          5785
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          StringSelector
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;message&quot;
+        </td>
+      </tr><tr>
+        <td>
+          164
+        </td>
+        <td>
+          1566
+        </td>
+        <td>
+          5749
+          -
+          5806
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          trim
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          responseJson(&quot;choices&quot;)(0)(&quot;message&quot;)(&quot;content&quot;).str.trim
+        </td>
+      </tr><tr>
+        <td>
+          164
+        </td>
+        <td>
+          1568
+        </td>
+        <td>
+          5773
+          -
+          5774
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          IntSelector
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          0
+        </td>
+      </tr><tr>
+        <td>
+          164
+        </td>
+        <td>
+          1567
+        </td>
+        <td>
+          5762
+          -
+          5771
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          StringSelector
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;choices&quot;
+        </td>
+      </tr><tr>
+        <td>
+          164
+        </td>
+        <td>
+          1570
+        </td>
+        <td>
+          5787
+          -
+          5796
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          StringSelector
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;content&quot;
+        </td>
+      </tr><tr>
+        <td>
+          166
+        </td>
+        <td>
+          1571
+        </td>
+        <td>
+          5833
+          -
+          5903
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          error
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.error(s&quot;Failed to parse OpenAI prompt response: $responseJson&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          166
+        </td>
+        <td>
+          1565
+        </td>
+        <td>
+          5736
+          -
+          5969
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getOrElse
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Try:\n        responseJson(&quot;choices&quot;)(0)(&quot;message&quot;)(&quot;content&quot;).str.trim\n      .getOrElse:\n        logger.error(s&quot;Failed to parse OpenAI prompt response: $responseJson&quot;)\n        // Fallback to just the words\n        words.mkString(&quot; &quot;)
+        </td>
+      </tr><tr>
+        <td>
+          168
+        </td>
+        <td>
+          1572
+        </td>
+        <td>
+          5950
+          -
+          5969
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          mkString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          words.mkString(&quot; &quot;)
+        </td>
+      </tr><tr>
+        <td>
+          170
+        </td>
+        <td>
+          1605
+        </td>
+        <td>
+          5973
+          -
+          5989
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          selectWinner
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def selectWinner
+        </td>
+      </tr><tr>
+        <td>
+          175
+        </td>
+        <td>
+          1574
+        </td>
+        <td>
+          6143
+          -
+          6187
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;https://api.openai.com/v1/chat/completions&quot;
+        </td>
+      </tr><tr>
+        <td>
+          177
+        </td>
+        <td>
+          1575
+        </td>
+        <td>
+          6212
+          -
+          6284
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          mkString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          captions.map((name, caption) =&gt; s&quot;- $name: \\&quot;$caption\\&quot;&quot;).mkString(&quot;\\n&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          179
+        </td>
+        <td>
+          1576
+        </td>
+        <td>
+          6309
+          -
+          6654
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          augmentString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;&quot;&quot;You are a judge for a drawing game.\n      |Players drew an image based on a secret prompt. An AI then captioned each drawing without knowing the prompt.\n      |Your job is to pick the winner whose drawing (as interpreted by the AI caption) best matches the original prompt.\n      |\n      |Respond with ONLY the winner's name, nothing else.&quot;&quot;&quot;
+        </td>
+      </tr><tr>
+        <td>
+          183
+        </td>
+        <td>
+          1577
+        </td>
+        <td>
+          6309
+          -
+          6666
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          stripMargin
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;&quot;&quot;You are a judge for a drawing game.\n      |Players drew an image based on a secret prompt. An AI then captioned each drawing without knowing the prompt.\n      |Your job is to pick the winner whose drawing (as interpreted by the AI caption) best matches the original prompt.\n      |\n      |Respond with ONLY the winner's name, nothing else.&quot;&quot;&quot;.stripMargin
+        </td>
+      </tr><tr>
+        <td>
+          185
+        </td>
+        <td>
+          1578
+        </td>
+        <td>
+          6689
+          -
+          6866
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          augmentString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          s&quot;&quot;&quot;The secret prompt was: &quot;$originalPrompt&quot;\n      |\n      |Here are the AI-generated captions for each player's drawing:\n      |$captionsList\n      |\n      |Pick the winner.&quot;&quot;&quot;
+        </td>
+      </tr><tr>
+        <td>
+          190
+        </td>
+        <td>
+          1579
+        </td>
+        <td>
+          6689
+          -
+          6878
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          stripMargin
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          s&quot;&quot;&quot;The secret prompt was: &quot;$originalPrompt&quot;\n      |\n      |Here are the AI-generated captions for each player's drawing:\n      |$captionsList\n      |\n      |Pick the winner.&quot;&quot;&quot;.stripMargin
+        </td>
+      </tr><tr>
+        <td>
+          192
+        </td>
+        <td>
+          1580
+        </td>
+        <td>
+          6902
+          -
+          7166
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.Obj(\n      &quot;model&quot; -&gt; textModel,\n      &quot;messages&quot; -&gt; ujson.Arr(\n        ujson.Obj(&quot;role&quot; -&gt; &quot;system&quot;, &quot;content&quot; -&gt; systemPrompt),\n        ujson.Obj(&quot;role&quot; -&gt; &quot;user&quot;, &quot;content&quot; -&gt; userPrompt)\n      ),\n      &quot;temperature&quot; -&gt; 0.7,\n      &quot;max_tokens&quot; -&gt; 50\n    )
+        </td>
+      </tr><tr>
+        <td>
+          193
+        </td>
+        <td>
+          1581
+        </td>
+        <td>
+          6919
+          -
+          6939
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;model&quot; -&gt; textModel
+        </td>
+      </tr><tr>
+        <td>
+          194
+        </td>
+        <td>
+          1583
+        </td>
+        <td>
+          6961
+          -
+          7106
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.Arr(\n        ujson.Obj(&quot;role&quot; -&gt; &quot;system&quot;, &quot;content&quot; -&gt; systemPrompt),\n        ujson.Obj(&quot;role&quot; -&gt; &quot;user&quot;, &quot;content&quot; -&gt; userPrompt)\n      )
+        </td>
+      </tr><tr>
+        <td>
+          194
+        </td>
+        <td>
+          1582
+        </td>
+        <td>
+          6947
+          -
+          7106
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;messages&quot; -&gt; ujson.Arr(\n        ujson.Obj(&quot;role&quot; -&gt; &quot;system&quot;, &quot;content&quot; -&gt; systemPrompt),\n        ujson.Obj(&quot;role&quot; -&gt; &quot;user&quot;, &quot;content&quot; -&gt; userPrompt)\n      )
+        </td>
+      </tr><tr>
+        <td>
+          195
+        </td>
+        <td>
+          1587
+        </td>
+        <td>
+          7023
+          -
+          7035
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          systemPrompt
+        </td>
+      </tr><tr>
+        <td>
+          195
+        </td>
+        <td>
+          1584
+        </td>
+        <td>
+          6980
+          -
+          7036
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.Obj(&quot;role&quot; -&gt; &quot;system&quot;, &quot;content&quot; -&gt; systemPrompt)
+        </td>
+      </tr><tr>
+        <td>
+          195
+        </td>
+        <td>
+          1586
+        </td>
+        <td>
+          7010
+          -
+          7035
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;content&quot; -&gt; systemPrompt
+        </td>
+      </tr><tr>
+        <td>
+          195
+        </td>
+        <td>
+          1585
+        </td>
+        <td>
+          6990
+          -
+          7008
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;role&quot; -&gt; &quot;system&quot;
+        </td>
+      </tr><tr>
+        <td>
+          196
+        </td>
+        <td>
+          1590
+        </td>
+        <td>
+          7074
+          -
+          7097
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;content&quot; -&gt; userPrompt
+        </td>
+      </tr><tr>
+        <td>
+          196
+        </td>
+        <td>
+          1589
+        </td>
+        <td>
+          7056
+          -
+          7072
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;role&quot; -&gt; &quot;user&quot;
+        </td>
+      </tr><tr>
+        <td>
+          196
+        </td>
+        <td>
+          1591
+        </td>
+        <td>
+          7087
+          -
+          7097
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          userPrompt
+        </td>
+      </tr><tr>
+        <td>
+          196
+        </td>
+        <td>
+          1588
+        </td>
+        <td>
+          7046
+          -
+          7098
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.Obj(&quot;role&quot; -&gt; &quot;user&quot;, &quot;content&quot; -&gt; userPrompt)
+        </td>
+      </tr><tr>
+        <td>
+          198
+        </td>
+        <td>
+          1593
+        </td>
+        <td>
+          7131
+          -
+          7134
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableDouble
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          0.7
+        </td>
+      </tr><tr>
+        <td>
+          198
+        </td>
+        <td>
+          1592
+        </td>
+        <td>
+          7114
+          -
+          7134
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;temperature&quot; -&gt; 0.7
+        </td>
+      </tr><tr>
+        <td>
+          199
+        </td>
+        <td>
+          1595
+        </td>
+        <td>
+          7158
+          -
+          7160
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableInt
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          50
+        </td>
+      </tr><tr>
+        <td>
+          199
+        </td>
+        <td>
+          1594
+        </td>
+        <td>
+          7142
+          -
+          7160
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;max_tokens&quot; -&gt; 50
+        </td>
+      </tr><tr>
+        <td>
+          202
+        </td>
+        <td>
+          1596
+        </td>
+        <td>
+          7172
+          -
+          7510
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          map
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          makeOpenAIRequest(url, apiKey, requestBody).map: responseJson =&gt;\n      Try:\n        responseJson(&quot;choices&quot;)(0)(&quot;message&quot;)(&quot;content&quot;).str.trim\n      .getOrElse:\n        logger.error(s&quot;Failed to parse OpenAI winner response: $responseJson&quot;)\n        // Fallback: return first player name\n        captions.keys.headOption.getOrElse(&quot;Unknown&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          204
+        </td>
+        <td>
+          1599
+        </td>
+        <td>
+          7269
+          -
+          7278
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          StringSelector
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;choices&quot;
+        </td>
+      </tr><tr>
+        <td>
+          204
+        </td>
+        <td>
+          1602
+        </td>
+        <td>
+          7294
+          -
+          7303
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          StringSelector
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;content&quot;
+        </td>
+      </tr><tr>
+        <td>
+          204
+        </td>
+        <td>
+          1601
+        </td>
+        <td>
+          7283
+          -
+          7292
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          StringSelector
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;message&quot;
+        </td>
+      </tr><tr>
+        <td>
+          204
+        </td>
+        <td>
+          1598
+        </td>
+        <td>
+          7256
+          -
+          7313
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          trim
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          responseJson(&quot;choices&quot;)(0)(&quot;message&quot;)(&quot;content&quot;).str.trim
+        </td>
+      </tr><tr>
+        <td>
+          204
+        </td>
+        <td>
+          1600
+        </td>
+        <td>
+          7280
+          -
+          7281
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          IntSelector
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          0
+        </td>
+      </tr><tr>
+        <td>
+          206
+        </td>
+        <td>
+          1597
+        </td>
+        <td>
+          7243
+          -
+          7510
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getOrElse
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Try:\n        responseJson(&quot;choices&quot;)(0)(&quot;message&quot;)(&quot;content&quot;).str.trim\n      .getOrElse:\n        logger.error(s&quot;Failed to parse OpenAI winner response: $responseJson&quot;)\n        // Fallback: return first player name\n        captions.keys.headOption.getOrElse(&quot;Unknown&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          206
+        </td>
+        <td>
+          1603
+        </td>
+        <td>
+          7340
+          -
+          7410
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          error
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.error(s&quot;Failed to parse OpenAI winner response: $responseJson&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          208
+        </td>
+        <td>
+          1604
+        </td>
+        <td>
+          7465
+          -
+          7510
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getOrElse
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          captions.keys.headOption.getOrElse(&quot;Unknown&quot;)
+        </td>
+      </tr>
+    </table>
+          </div>
+        </div>
+      </body>
+    </html>

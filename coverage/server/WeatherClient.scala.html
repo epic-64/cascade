@@ -1,0 +1,1757 @@
+<html>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title id="title">
+          server/WeatherClient.scala.html
+        </title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/css/theme.default.min.css" type="text/css"/><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/js/jquery.tablesorter.min.js"></script><link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" type="text/css"/><script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script><script type="text/javascript">
+        $(document).ready(function() {$(".tablesorter").tablesorter();});
+      </script>
+        <style>
+          table.codegrid { font-family: monospace; font-size: 12px; width: auto!important; }table.statementlist { width: auto!important; font-size: 13px; } table.codegrid td { padding: 0!important; border: 0!important } table td.linenumber { width: 40px!important; } 
+        </style>
+      </head>
+      <body style="font-family: monospace;">
+        <ul class="nav nav-tabs">
+          <li>
+            <a href="#codegrid" data-toggle="tab">Codegrid</a>
+          </li>
+          <li>
+            <a href="#statementlist" data-toggle="tab">Statement List</a>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active" id="codegrid">
+            <pre style='font-size: 12pt; font-family: courier, monospace;'>1 <span style=''>package server
+</span>2 <span style=''>
+</span>3 <span style=''>import scala.util.Try
+</span>4 <span style=''>
+</span>5 <span style=''>// Trait to allow mocking in tests
+</span>6 <span style=''>trait WeatherClient:
+</span>7 <span style=''>  def getWeather(city: String): Try[ujson.Value]
+</span>8 <span style=''>
+</span>9 <span style=''>// Real implementation that calls an external API
+</span>10 <span style=''>class RealWeatherClient extends WeatherClient:
+</span>11 <span style=''>  // Simple city to coordinates mapping - in production, use a geocoding API
+</span>12 <span style=''>  private val cityCoordinates = </span><span style='background: #AEF1AE'>Map(
+</span>13 <span style=''></span><span style='background: #AEF1AE'>    &quot;london&quot; -&gt; (51.5074, -0.1278),
+</span>14 <span style=''></span><span style='background: #AEF1AE'>    &quot;paris&quot; -&gt; (48.8566, 2.3522),
+</span>15 <span style=''></span><span style='background: #AEF1AE'>    &quot;newyork&quot; -&gt; (40.7128, -74.0060),
+</span>16 <span style=''></span><span style='background: #AEF1AE'>    &quot;tokyo&quot; -&gt; (35.6762, 139.6503),
+</span>17 <span style=''></span><span style='background: #AEF1AE'>    &quot;sydney&quot; -&gt; (-33.8688, 151.2093),
+</span>18 <span style=''></span><span style='background: #AEF1AE'>    &quot;berlin&quot; -&gt; (52.5200, 13.4050),
+</span>19 <span style=''></span><span style='background: #AEF1AE'>    &quot;rome&quot; -&gt; (41.9028, 12.4964),
+</span>20 <span style=''></span><span style='background: #AEF1AE'>    &quot;madrid&quot; -&gt; (40.4168, -3.7038),
+</span>21 <span style=''></span><span style='background: #AEF1AE'>    &quot;toronto&quot; -&gt; (43.6532, -79.3832),
+</span>22 <span style=''></span><span style='background: #AEF1AE'>    &quot;vancouver&quot; -&gt; (49.2827, -123.1207),
+</span>23 <span style=''></span><span style='background: #AEF1AE'>    &quot;chicago&quot; -&gt; (41.8781, -87.6298),
+</span>24 <span style=''></span><span style='background: #AEF1AE'>    &quot;losangeles&quot; -&gt; (34.0522, -118.2437),
+</span>25 <span style=''></span><span style='background: #AEF1AE'>    &quot;sanfrancisco&quot; -&gt; (37.7749, -122.4194),
+</span>26 <span style=''></span><span style='background: #AEF1AE'>    &quot;seattle&quot; -&gt; (47.6062, -122.3321),
+</span>27 <span style=''></span><span style='background: #AEF1AE'>    &quot;miami&quot; -&gt; (25.7617, -80.1918),
+</span>28 <span style=''></span><span style='background: #AEF1AE'>    &quot;boston&quot; -&gt; (42.3601, -71.0589)
+</span>29 <span style=''></span><span style='background: #AEF1AE'>  )</span><span style=''>
+</span>30 <span style=''>
+</span>31 <span style=''>  </span><span style='background: #F0ADAD'>def getWeather</span><span style=''>(city: String): Try[ujson.Value] =
+</span>32 <span style=''>    </span><span style='background: #F0ADAD'>Try:
+</span>33 <span style=''></span><span style='background: #F0ADAD'>      val normalizedCity = city.toLowerCase.replaceAll(&quot;[^a-z]&quot;, &quot;&quot;)
+</span>34 <span style=''></span><span style='background: #F0ADAD'>      val (lat, lon) = cityCoordinates.getOrElse(
+</span>35 <span style=''></span><span style='background: #F0ADAD'>        normalizedCity,
+</span>36 <span style=''></span><span style='background: #F0ADAD'>        throw new IllegalArgumentException(s&quot;City '$city' not found. Try: ${cityCoordinates.keys.mkString(&quot;, &quot;)}&quot;)
+</span>37 <span style=''></span><span style='background: #F0ADAD'>      )
+</span>38 <span style=''></span><span style='background: #F0ADAD'>
+</span>39 <span style=''></span><span style='background: #F0ADAD'>      // Using Open-Meteo API - free weather API that doesn't require API keys
+</span>40 <span style=''></span><span style='background: #F0ADAD'>      val response = requests.get(
+</span>41 <span style=''></span><span style='background: #F0ADAD'>        s&quot;https://api.open-meteo.com/v1/forecast?latitude=$lat&amp;longitude=$lon&amp;current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code&amp;temperature_unit=celsius&quot;,
+</span>42 <span style=''></span><span style='background: #F0ADAD'>        headers = Map(&quot;User-Agent&quot; -&gt; &quot;Cascade/1.0&quot;)
+</span>43 <span style=''></span><span style='background: #F0ADAD'>      )
+</span>44 <span style=''></span><span style='background: #F0ADAD'>      ujson.read(response.text())</span><span style=''>
+</span>45 <span style=''>
+</span>46 <span style=''>// Provides a given instance that can be swapped for testing
+</span>47 <span style=''>object WeatherClient:
+</span>48 <span style=''>  @volatile private var _instance: WeatherClient = </span><span style='background: #AEF1AE'>RealWeatherClient()</span><span style=''>
+</span>49 <span style=''>
+</span>50 <span style=''>  // The given delegates to the swappable instance
+</span>51 <span style=''>  given default: WeatherClient with
+</span>52 <span style=''>    </span><span style='background: #AEF1AE'>def getWeather</span><span style=''>(city: String): Try[ujson.Value] = </span><span style='background: #AEF1AE'>_instance.getWeather(city)</span><span style=''>
+</span>53 <span style=''>
+</span>54 <span style=''>  // For tests only - swap the backing implementation
+</span>55 <span style=''>  </span><span style='background: #AEF1AE'>def setInstance</span><span style=''>(client: WeatherClient): Unit =
+</span>56 <span style=''>    _instance = client
+</span>57 <span style=''>
+</span>58 <span style=''>  </span><span style='background: #AEF1AE'>def resetInstance</span><span style=''>(): Unit =
+</span>59 <span style=''>    _instance = </span><span style='background: #AEF1AE'>RealWeatherClient()</span><span style=''>
+</span></pre>
+          </div>
+          <div class="tab-pane" id="statementlist">
+            <table cellspacing="0" cellpadding="0" class="table statementlist">
+      <tr>
+        <th>Line</th>
+        <th>Stmt Id</th>
+        <th>Pos</th>
+        <th>Tree</th>
+        <th>Symbol</th>
+        <th>Tests</th>
+        <th>Code</th>
+      </tr><tr>
+        <td>
+          12
+        </td>
+        <td>
+          2163
+        </td>
+        <td>
+          351
+          -
+          961
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Map(\n    &quot;london&quot; -&gt; (51.5074, -0.1278),\n    &quot;paris&quot; -&gt; (48.8566, 2.3522),\n    &quot;newyork&quot; -&gt; (40.7128, -74.0060),\n    &quot;tokyo&quot; -&gt; (35.6762, 139.6503),\n    &quot;sydney&quot; -&gt; (-33.8688, 151.2093),\n    &quot;berlin&quot; -&gt; (52.5200, 13.4050),\n    &quot;rome&quot; -&gt; (41.9028, 12.4964),\n    &quot;madrid&quot; -&gt; (40.4168, -3.7038),\n    &quot;toronto&quot; -&gt; (43.6532, -79.3832),\n    &quot;vancouver&quot; -&gt; (49.2827, -123.1207),\n    &quot;chicago&quot; -&gt; (41.8781, -87.6298),\n    &quot;losangeles&quot; -&gt; (34.0522, -118.2437),\n    &quot;sanfrancisco&quot; -&gt; (37.7749, -122.4194),\n    &quot;seattle&quot; -&gt; (47.6062, -122.3321),\n    &quot;miami&quot; -&gt; (25.7617, -80.1918),\n    &quot;boston&quot; -&gt; (42.3601, -71.0589)\n  )
+        </td>
+      </tr><tr>
+        <td>
+          13
+        </td>
+        <td>
+          2165
+        </td>
+        <td>
+          372
+          -
+          390
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (51.5074, -0.1278)
+        </td>
+      </tr><tr>
+        <td>
+          13
+        </td>
+        <td>
+          2164
+        </td>
+        <td>
+          360
+          -
+          390
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;london&quot; -&gt; (51.5074, -0.1278)
+        </td>
+      </tr><tr>
+        <td>
+          14
+        </td>
+        <td>
+          2167
+        </td>
+        <td>
+          407
+          -
+          424
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (48.8566, 2.3522)
+        </td>
+      </tr><tr>
+        <td>
+          14
+        </td>
+        <td>
+          2166
+        </td>
+        <td>
+          396
+          -
+          424
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;paris&quot; -&gt; (48.8566, 2.3522)
+        </td>
+      </tr><tr>
+        <td>
+          15
+        </td>
+        <td>
+          2169
+        </td>
+        <td>
+          443
+          -
+          462
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (40.7128, -74.0060)
+        </td>
+      </tr><tr>
+        <td>
+          15
+        </td>
+        <td>
+          2168
+        </td>
+        <td>
+          430
+          -
+          462
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;newyork&quot; -&gt; (40.7128, -74.0060)
+        </td>
+      </tr><tr>
+        <td>
+          16
+        </td>
+        <td>
+          2170
+        </td>
+        <td>
+          468
+          -
+          498
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;tokyo&quot; -&gt; (35.6762, 139.6503)
+        </td>
+      </tr><tr>
+        <td>
+          16
+        </td>
+        <td>
+          2171
+        </td>
+        <td>
+          479
+          -
+          498
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (35.6762, 139.6503)
+        </td>
+      </tr><tr>
+        <td>
+          17
+        </td>
+        <td>
+          2173
+        </td>
+        <td>
+          516
+          -
+          536
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (-33.8688, 151.2093)
+        </td>
+      </tr><tr>
+        <td>
+          17
+        </td>
+        <td>
+          2172
+        </td>
+        <td>
+          504
+          -
+          536
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;sydney&quot; -&gt; (-33.8688, 151.2093)
+        </td>
+      </tr><tr>
+        <td>
+          18
+        </td>
+        <td>
+          2175
+        </td>
+        <td>
+          554
+          -
+          572
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (52.5200, 13.4050)
+        </td>
+      </tr><tr>
+        <td>
+          18
+        </td>
+        <td>
+          2174
+        </td>
+        <td>
+          542
+          -
+          572
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;berlin&quot; -&gt; (52.5200, 13.4050)
+        </td>
+      </tr><tr>
+        <td>
+          19
+        </td>
+        <td>
+          2176
+        </td>
+        <td>
+          578
+          -
+          606
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;rome&quot; -&gt; (41.9028, 12.4964)
+        </td>
+      </tr><tr>
+        <td>
+          19
+        </td>
+        <td>
+          2177
+        </td>
+        <td>
+          588
+          -
+          606
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (41.9028, 12.4964)
+        </td>
+      </tr><tr>
+        <td>
+          20
+        </td>
+        <td>
+          2179
+        </td>
+        <td>
+          624
+          -
+          642
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (40.4168, -3.7038)
+        </td>
+      </tr><tr>
+        <td>
+          20
+        </td>
+        <td>
+          2178
+        </td>
+        <td>
+          612
+          -
+          642
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;madrid&quot; -&gt; (40.4168, -3.7038)
+        </td>
+      </tr><tr>
+        <td>
+          21
+        </td>
+        <td>
+          2181
+        </td>
+        <td>
+          661
+          -
+          680
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (43.6532, -79.3832)
+        </td>
+      </tr><tr>
+        <td>
+          21
+        </td>
+        <td>
+          2180
+        </td>
+        <td>
+          648
+          -
+          680
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;toronto&quot; -&gt; (43.6532, -79.3832)
+        </td>
+      </tr><tr>
+        <td>
+          22
+        </td>
+        <td>
+          2182
+        </td>
+        <td>
+          686
+          -
+          721
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;vancouver&quot; -&gt; (49.2827, -123.1207)
+        </td>
+      </tr><tr>
+        <td>
+          22
+        </td>
+        <td>
+          2183
+        </td>
+        <td>
+          701
+          -
+          721
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (49.2827, -123.1207)
+        </td>
+      </tr><tr>
+        <td>
+          23
+        </td>
+        <td>
+          2185
+        </td>
+        <td>
+          740
+          -
+          759
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (41.8781, -87.6298)
+        </td>
+      </tr><tr>
+        <td>
+          23
+        </td>
+        <td>
+          2184
+        </td>
+        <td>
+          727
+          -
+          759
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;chicago&quot; -&gt; (41.8781, -87.6298)
+        </td>
+      </tr><tr>
+        <td>
+          24
+        </td>
+        <td>
+          2187
+        </td>
+        <td>
+          781
+          -
+          801
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (34.0522, -118.2437)
+        </td>
+      </tr><tr>
+        <td>
+          24
+        </td>
+        <td>
+          2186
+        </td>
+        <td>
+          765
+          -
+          801
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;losangeles&quot; -&gt; (34.0522, -118.2437)
+        </td>
+      </tr><tr>
+        <td>
+          25
+        </td>
+        <td>
+          2188
+        </td>
+        <td>
+          807
+          -
+          845
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;sanfrancisco&quot; -&gt; (37.7749, -122.4194)
+        </td>
+      </tr><tr>
+        <td>
+          25
+        </td>
+        <td>
+          2189
+        </td>
+        <td>
+          825
+          -
+          845
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (37.7749, -122.4194)
+        </td>
+      </tr><tr>
+        <td>
+          26
+        </td>
+        <td>
+          2191
+        </td>
+        <td>
+          864
+          -
+          884
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (47.6062, -122.3321)
+        </td>
+      </tr><tr>
+        <td>
+          26
+        </td>
+        <td>
+          2190
+        </td>
+        <td>
+          851
+          -
+          884
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;seattle&quot; -&gt; (47.6062, -122.3321)
+        </td>
+      </tr><tr>
+        <td>
+          27
+        </td>
+        <td>
+          2193
+        </td>
+        <td>
+          901
+          -
+          920
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (25.7617, -80.1918)
+        </td>
+      </tr><tr>
+        <td>
+          27
+        </td>
+        <td>
+          2192
+        </td>
+        <td>
+          890
+          -
+          920
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;miami&quot; -&gt; (25.7617, -80.1918)
+        </td>
+      </tr><tr>
+        <td>
+          28
+        </td>
+        <td>
+          2194
+        </td>
+        <td>
+          926
+          -
+          957
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;boston&quot; -&gt; (42.3601, -71.0589)
+        </td>
+      </tr><tr>
+        <td>
+          28
+        </td>
+        <td>
+          2195
+        </td>
+        <td>
+          938
+          -
+          957
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (42.3601, -71.0589)
+        </td>
+      </tr><tr>
+        <td>
+          31
+        </td>
+        <td>
+          2225
+        </td>
+        <td>
+          965
+          -
+          979
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          getWeather
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def getWeather
+        </td>
+      </tr><tr>
+        <td>
+          33
+        </td>
+        <td>
+          2197
+        </td>
+        <td>
+          1050
+          -
+          1091
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          replaceAll
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          city.toLowerCase.replaceAll(&quot;[^a-z]&quot;, &quot;&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          33
+        </td>
+        <td>
+          2196
+        </td>
+        <td>
+          1018
+          -
+          1681
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Try:\n      val normalizedCity = city.toLowerCase.replaceAll(&quot;[^a-z]&quot;, &quot;&quot;)\n      val (lat, lon) = cityCoordinates.getOrElse(\n        normalizedCity,\n        throw new IllegalArgumentException(s&quot;City '$city' not found. Try: ${cityCoordinates.keys.mkString(&quot;, &quot;)}&quot;)\n      )\n\n      // Using Open-Meteo API - free weather API that doesn't require API keys\n      val response = requests.get(\n        s&quot;https://api.open-meteo.com/v1/forecast?latitude=$lat&amp;longitude=$lon&amp;current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code&amp;temperature_unit=celsius&quot;,\n        headers = Map(&quot;User-Agent&quot; -&gt; &quot;Cascade/1.0&quot;)\n      )\n      ujson.read(response.text())
+        </td>
+      </tr><tr>
+        <td>
+          34
+        </td>
+        <td>
+          2200
+        </td>
+        <td>
+          1112
+          -
+          1112
+        </td>
+        <td>
+          Typed
+        </td>
+        <td>
+          $1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          
+        </td>
+      </tr><tr>
+        <td>
+          34
+        </td>
+        <td>
+          2198
+        </td>
+        <td>
+          1115
+          -
+          1288
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getOrElse
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          cityCoordinates.getOrElse(\n        normalizedCity,\n        throw new IllegalArgumentException(s&quot;City '$city' not found. Try: ${cityCoordinates.keys.mkString(&quot;, &quot;)}&quot;)\n      )
+        </td>
+      </tr><tr>
+        <td>
+          36
+        </td>
+        <td>
+          2199
+        </td>
+        <td>
+          1174
+          -
+          1280
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          throw
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          throw new IllegalArgumentException(s&quot;City '$city' not found. Try: ${cityCoordinates.keys.mkString(&quot;, &quot;)}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2215
+        </td>
+        <td>
+          1390
+          -
+          1402
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          apply$default$15
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          requests.get
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2206
+        </td>
+        <td>
+          1390
+          -
+          1402
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          apply$default$6
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          requests.get
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2209
+        </td>
+        <td>
+          1390
+          -
+          1402
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          apply$default$9
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          requests.get
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2218
+        </td>
+        <td>
+          1390
+          -
+          1402
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          apply$default$18
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          requests.get
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2203
+        </td>
+        <td>
+          1390
+          -
+          1402
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          apply$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          requests.get
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2212
+        </td>
+        <td>
+          1390
+          -
+          1402
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          apply$default$12
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          requests.get
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2211
+        </td>
+        <td>
+          1390
+          -
+          1402
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          apply$default$11
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          requests.get
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2220
+        </td>
+        <td>
+          1390
+          -
+          1647
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          requests.get(\n        s&quot;https://api.open-meteo.com/v1/forecast?latitude=$lat&amp;longitude=$lon&amp;current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code&amp;temperature_unit=celsius&quot;,\n        headers = Map(&quot;User-Agent&quot; -&gt; &quot;Cascade/1.0&quot;)\n      )
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2205
+        </td>
+        <td>
+          1390
+          -
+          1402
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          apply$default$5
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          requests.get
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2214
+        </td>
+        <td>
+          1390
+          -
+          1402
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          apply$default$14
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          requests.get
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2217
+        </td>
+        <td>
+          1390
+          -
+          1402
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          apply$default$17
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          requests.get
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2208
+        </td>
+        <td>
+          1390
+          -
+          1402
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          apply$default$8
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          requests.get
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2219
+        </td>
+        <td>
+          1390
+          -
+          1402
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          apply$default$19
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          requests.get
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2210
+        </td>
+        <td>
+          1390
+          -
+          1402
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          apply$default$10
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          requests.get
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2204
+        </td>
+        <td>
+          1390
+          -
+          1402
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          apply$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          requests.get
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2213
+        </td>
+        <td>
+          1390
+          -
+          1402
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          apply$default$13
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          requests.get
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2216
+        </td>
+        <td>
+          1390
+          -
+          1402
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          apply$default$16
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          requests.get
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2207
+        </td>
+        <td>
+          1390
+          -
+          1402
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          apply$default$7
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          requests.get
+        </td>
+      </tr><tr>
+        <td>
+          42
+        </td>
+        <td>
+          2202
+        </td>
+        <td>
+          1609
+          -
+          1638
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;User-Agent&quot; -&gt; &quot;Cascade/1.0&quot;
+        </td>
+      </tr><tr>
+        <td>
+          42
+        </td>
+        <td>
+          2201
+        </td>
+        <td>
+          1605
+          -
+          1639
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Map(&quot;User-Agent&quot; -&gt; &quot;Cascade/1.0&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          44
+        </td>
+        <td>
+          2224
+        </td>
+        <td>
+          1654
+          -
+          1664
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          read$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.read
+        </td>
+      </tr><tr>
+        <td>
+          44
+        </td>
+        <td>
+          2221
+        </td>
+        <td>
+          1654
+          -
+          1681
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          read
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.read(response.text())
+        </td>
+      </tr><tr>
+        <td>
+          44
+        </td>
+        <td>
+          2223
+        </td>
+        <td>
+          1665
+          -
+          1680
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          text
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          response.text()
+        </td>
+      </tr><tr>
+        <td>
+          44
+        </td>
+        <td>
+          2222
+        </td>
+        <td>
+          1665
+          -
+          1680
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          fromString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          response.text()
+        </td>
+      </tr><tr>
+        <td>
+          48
+        </td>
+        <td>
+          2226
+        </td>
+        <td>
+          1817
+          -
+          1836
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;init&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          RealWeatherClient()
+        </td>
+      </tr><tr>
+        <td>
+          52
+        </td>
+        <td>
+          2227
+        </td>
+        <td>
+          1978
+          -
+          2004
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getWeather
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          _instance.getWeather(city)
+        </td>
+      </tr><tr>
+        <td>
+          52
+        </td>
+        <td>
+          2228
+        </td>
+        <td>
+          1929
+          -
+          1943
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          getWeather
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def getWeather
+        </td>
+      </tr><tr>
+        <td>
+          55
+        </td>
+        <td>
+          2229
+        </td>
+        <td>
+          2062
+          -
+          2077
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          setInstance
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def setInstance
+        </td>
+      </tr><tr>
+        <td>
+          58
+        </td>
+        <td>
+          2231
+        </td>
+        <td>
+          2135
+          -
+          2152
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          resetInstance
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def resetInstance
+        </td>
+      </tr><tr>
+        <td>
+          59
+        </td>
+        <td>
+          2230
+        </td>
+        <td>
+          2179
+          -
+          2198
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;init&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          RealWeatherClient()
+        </td>
+      </tr>
+    </table>
+          </div>
+        </div>
+      </body>
+    </html>

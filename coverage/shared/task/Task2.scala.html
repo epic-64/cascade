@@ -1,0 +1,3663 @@
+<html>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title id="title">
+          shared/task/Task2.scala.html
+        </title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/css/theme.default.min.css" type="text/css"/><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/js/jquery.tablesorter.min.js"></script><link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" type="text/css"/><script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script><script type="text/javascript">
+        $(document).ready(function() {$(".tablesorter").tablesorter();});
+      </script>
+        <style>
+          table.codegrid { font-family: monospace; font-size: 12px; width: auto!important; }table.statementlist { width: auto!important; font-size: 13px; } table.codegrid td { padding: 0!important; border: 0!important } table td.linenumber { width: 40px!important; } 
+        </style>
+      </head>
+      <body style="font-family: monospace;">
+        <ul class="nav nav-tabs">
+          <li>
+            <a href="#codegrid" data-toggle="tab">Codegrid</a>
+          </li>
+          <li>
+            <a href="#statementlist" data-toggle="tab">Statement List</a>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active" id="codegrid">
+            <pre style='font-size: 12pt; font-family: courier, monospace;'>1 <span style=''>package shared.task
+</span>2 <span style=''>
+</span>3 <span style=''>import scala.annotation.tailrec
+</span>4 <span style=''>import scala.util.Try
+</span>5 <span style=''>import scala.concurrent.{Await, ExecutionContext, Future}
+</span>6 <span style=''>import scala.concurrent.duration.*
+</span>7 <span style=''>
+</span>8 <span style=''>/**
+</span>9 <span style=''> * Task with effect tracking.
+</span>10 <span style=''> *
+</span>11 <span style=''> * @tparam R The required capabilities (environment) - what this task needs to run
+</span>12 <span style=''> * @tparam A The success type
+</span>13 <span style=''> *
+</span>14 <span style=''> * Example:
+</span>15 <span style=''> *   def getUser(id: String): Task2[Database, User]
+</span>16 <span style=''> *   def log(msg: String): Task2[Logging, Unit]
+</span>17 <span style=''> *   def getUserAndLog(id: String): Task2[Database &amp; Logging, User]
+</span>18 <span style=''> */
+</span>19 <span style=''>opaque type Task2[-R, +A] = R =&gt; Result[A]
+</span>20 <span style=''>
+</span>21 <span style=''>object Task2:
+</span>22 <span style=''>  // === Constructors ===
+</span>23 <span style=''>
+</span>24 <span style=''>  /** Create a task that requires capability R */
+</span>25 <span style=''>  </span><span style='background: #AEF1AE'>def apply</span><span style=''>[R, A](f: R =&gt; Result[A]): Task2[R, A] = f
+</span>26 <span style=''>
+</span>27 <span style=''>  /** Create a task from a result (no requirements) */
+</span>28 <span style=''>  </span><span style='background: #F0ADAD'>def fromResult</span><span style=''>[A](result: Result[A]): Task2[Any, A] = _ =&gt; result
+</span>29 <span style=''>
+</span>30 <span style=''>  /** Wrap a pure value (no requirements, cannot fail) */
+</span>31 <span style=''>  </span><span style='background: #AEF1AE'>def succeed</span><span style=''>[A](a: A): Task2[Any, A] = _ =&gt; </span><span style='background: #AEF1AE'>Right(a)</span><span style=''>
+</span>32 <span style=''>
+</span>33 <span style=''>  /** Create a failed task */
+</span>34 <span style=''>  </span><span style='background: #AEF1AE'>def fail</span><span style=''>[A](context: String, cause: Any): Task2[Any, A] = _ =&gt; </span><span style='background: #AEF1AE'>Left(Fail(context, cause))</span><span style=''>
+</span>35 <span style=''>
+</span>36 <span style=''>  /** Access a capability from the environment */
+</span>37 <span style=''>  </span><span style='background: #F0ADAD'>def service</span><span style=''>[R]: Task2[R, R] = r =&gt; </span><span style='background: #F0ADAD'>Right(r)</span><span style=''>
+</span>38 <span style=''>
+</span>39 <span style=''>  /** Create a task that uses a specific service */
+</span>40 <span style=''>  </span><span style='background: #AEF1AE'>def serviceWith</span><span style=''>[R, A](f: R =&gt; A): Task2[R, A] = r =&gt; </span><span style='background: #AEF1AE'>Right(f(r))</span><span style=''>
+</span>41 <span style=''>
+</span>42 <span style=''>  /** Create a task that uses a service and may fail */
+</span>43 <span style=''>  </span><span style='background: #AEF1AE'>def serviceWithTask</span><span style=''>[R, A](f: R =&gt; Result[A]): Task2[R, A] = f
+</span>44 <span style=''>
+</span>45 <span style=''>  /** Lift a Try into a Task2 */
+</span>46 <span style=''>  </span><span style='background: #AEF1AE'>def fromTry</span><span style=''>[A](context: String)(t: =&gt; Try[A]): Task2[Any, A] = _ =&gt; </span><span style='background: #AEF1AE'>t.toResult(context)</span><span style=''>
+</span>47 <span style=''>
+</span>48 <span style=''>  /** Lift an Option into a Task2 */
+</span>49 <span style=''>  </span><span style='background: #AEF1AE'>def fromOption</span><span style=''>[A](context: String, ifNone: =&gt; Any = </span><span style='background: #F0ADAD'>&quot;not found&quot;</span><span style=''>)(o: =&gt; Option[A]): Task2[Any, A] =
+</span>50 <span style=''>    _ =&gt; </span><span style='background: #AEF1AE'>o.toResult(context, ifNone)</span><span style=''>
+</span>51 <span style=''>
+</span>52 <span style=''>  /** Lift an Either into a Task2 */
+</span>53 <span style=''>  </span><span style='background: #AEF1AE'>def fromEither</span><span style=''>[A](context: String)(e: =&gt; Either[Any, A]): Task2[Any, A] =
+</span>54 <span style=''>    _ =&gt; </span><span style='background: #AEF1AE'>e.left.map(err =&gt; Fail(context, err))</span><span style=''>
+</span>55 <span style=''>
+</span>56 <span style=''>  // === Extension methods ===
+</span>57 <span style=''>
+</span>58 <span style=''>  extension [R, A](self: Task2[R, A])
+</span>59 <span style=''>    /** Run the task with the provided environment */
+</span>60 <span style=''>    </span><span style='background: #AEF1AE'>def run</span><span style=''>(env: R): Result[A] = </span><span style='background: #AEF1AE'>self(env)</span><span style=''>
+</span>61 <span style=''>
+</span>62 <span style=''>    /** Run a task that has no requirements */
+</span>63 <span style=''>    </span><span style='background: #F0ADAD'>def runUnit</span><span style=''>(using ev: Any &lt;:&lt; R): Result[A] = </span><span style='background: #F0ADAD'>self(())</span><span style=''>
+</span>64 <span style=''>
+</span>65 <span style=''>    </span><span style='background: #AEF1AE'>def map</span><span style=''>[B](f: A =&gt; B): Task2[R, B] =
+</span>66 <span style=''>      r =&gt; </span><span style='background: #AEF1AE'>self(r).map(f)</span><span style=''>
+</span>67 <span style=''>
+</span>68 <span style=''>    </span><span style='background: #AEF1AE'>def flatMap</span><span style=''>[R1 &lt;: R, B](f: A =&gt; Task2[R1, B]): Task2[R1, B] =
+</span>69 <span style=''>      r =&gt; </span><span style='background: #AEF1AE'>self(r)</span><span style=''> match
+</span>70 <span style=''>        case Left(fail) </span><span style='background: #AEF1AE'>=&gt; Left(fail)</span><span style=''>
+</span>71 <span style=''>        case Right(a) </span><span style='background: #AEF1AE'>=&gt; f(a)(r)</span><span style=''>
+</span>72 <span style=''>
+</span>73 <span style=''>    /** Combine with another task, running them sequentially */
+</span>74 <span style=''>    </span><span style='background: #AEF1AE'>def zip</span><span style=''>[R1 &lt;: R, B](other: Task2[R1, B]): Task2[R1, (A, B)] =
+</span>75 <span style=''>      r =&gt; </span><span style='background: #AEF1AE'>for
+</span>76 <span style=''></span><span style='background: #AEF1AE'>        a &lt;- self(r)
+</span>77 <span style=''></span><span style='background: #AEF1AE'>        b &lt;- other(r)
+</span>78 <span style=''></span><span style='background: #AEF1AE'>      yield (a, b)</span><span style=''>
+</span>79 <span style=''>
+</span>80 <span style=''>    /** Combine with another task, running them in parallel */
+</span>81 <span style=''>    </span><span style='background: #AEF1AE'>def zipPar</span><span style=''>[R1 &lt;: R, B](other: Task2[R1, B])(using ExecutionContext): Task2[R1, (A, B)] =
+</span>82 <span style=''>      r =&gt;
+</span>83 <span style=''>        val futureA = </span><span style='background: #AEF1AE'>Future(self(r))</span><span style=''>
+</span>84 <span style=''>        val futureB = </span><span style='background: #AEF1AE'>Future(other(r))</span><span style=''>
+</span>85 <span style=''>        val combined = </span><span style='background: #AEF1AE'>for
+</span>86 <span style=''></span><span style='background: #AEF1AE'>          a &lt;- futureA
+</span>87 <span style=''></span><span style='background: #AEF1AE'>          b &lt;- futureB
+</span>88 <span style=''></span><span style='background: #AEF1AE'>        yield (a, b) match
+</span>89 <span style=''></span><span style='background: #AEF1AE'>          case (Right(av), Right(bv)) =&gt; Right((av, bv))
+</span>90 <span style=''></span><span style='background: #AEF1AE'>          case (Left(f), _) </span><span style='background: #F0ADAD'>=&gt; Left(f)</span><span style='background: #AEF1AE'>
+</span>91 <span style=''></span><span style='background: #AEF1AE'>          case (_, Left(f)) </span><span style='background: #F0ADAD'>=&gt; Left(f)</span><span style=''>
+</span>92 <span style=''>        </span><span style='background: #AEF1AE'>Await.result(combined, 30.seconds)</span><span style=''>
+</span>93 <span style=''>
+</span>94 <span style=''>    </span><span style='background: #AEF1AE'>def retry</span><span style=''>(attempts: Int): Task2[R, A] =
+</span>95 <span style=''>      r =&gt;
+</span>96 <span style=''>        </span><span style='background: #AEF1AE'>@tailrec
+</span>97 <span style=''></span><span style='background: #AEF1AE'>        def loop</span><span style=''>(remaining: Int): Result[A] =
+</span>98 <span style=''>          </span><span style='background: #AEF1AE'>self(r)</span><span style=''> match
+</span>99 <span style=''>            case Right(a) </span><span style='background: #AEF1AE'>=&gt; Right(a)</span><span style=''>
+</span>100 <span style=''>            case Left(f) if </span><span style='background: #AEF1AE'>remaining &gt; 1</span><span style=''> </span><span style='background: #AEF1AE'>=&gt; loop(remaining - 1)</span><span style=''>
+</span>101 <span style=''>            case Left(f) </span><span style='background: #F0ADAD'>=&gt; Left(f)</span><span style=''>
+</span>102 <span style=''>        </span><span style='background: #AEF1AE'>loop(attempts)</span><span style=''>
+</span>103 <span style=''>
+</span>104 <span style=''>    </span><span style='background: #F0ADAD'>def timeout</span><span style=''>(duration: FiniteDuration)(using ExecutionContext): Task2[R, A] =
+</span>105 <span style=''>      r =&gt;
+</span>106 <span style=''>        val future = </span><span style='background: #F0ADAD'>Future(self(r))</span><span style=''>
+</span>107 <span style=''>        </span><span style='background: #F0ADAD'>Try(Await.result(future, duration))</span><span style=''> match
+</span>108 <span style=''>          case scala.util.Success(result) </span><span style='background: #F0ADAD'>=&gt; result</span><span style=''>
+</span>109 <span style=''>          case scala.util.Failure(_: java.util.concurrent.TimeoutException) </span><span style='background: #F0ADAD'>=&gt;
+</span>110 <span style=''></span><span style='background: #F0ADAD'>            Left(Fail(&quot;timeout&quot;, s&quot;timed out after $duration&quot;))</span><span style=''>
+</span>111 <span style=''>          case scala.util.Failure(err) </span><span style='background: #F0ADAD'>=&gt;
+</span>112 <span style=''></span><span style='background: #F0ADAD'>            Left(Fail(&quot;timeout&quot;, err.getMessage))</span><span style=''>
+</span>113 <span style=''>
+</span>114 <span style=''>    /** Provide part of the environment */
+</span>115 <span style=''>    </span><span style='background: #AEF1AE'>def provide</span><span style=''>[R0](layer: R0 =&gt; R): Task2[R0, A] =
+</span>116 <span style=''>      r0 =&gt; </span><span style='background: #AEF1AE'>self(layer(r0))</span><span style=''>
+</span>117 <span style=''>
+</span>118 <span style=''>    /** Provide the entire environment, eliminating the requirement */
+</span>119 <span style=''>    </span><span style='background: #AEF1AE'>def provideEnvironment</span><span style=''>(env: R): Task2[Any, A] =
+</span>120 <span style=''>      _ =&gt; </span><span style='background: #AEF1AE'>self(env)</span><span style=''>
+</span>121 <span style=''>
+</span>122 <span style=''>    /** Recover from failures */
+</span>123 <span style=''>    </span><span style='background: #AEF1AE'>def recover</span><span style=''>(f: Fail =&gt; Result[A]): Task2[R, A] =
+</span>124 <span style=''>      r =&gt; </span><span style='background: #AEF1AE'>self(r)</span><span style=''> match
+</span>125 <span style=''>        case Left(fail) </span><span style='background: #AEF1AE'>=&gt; f(fail)</span><span style=''>
+</span>126 <span style=''>        case right </span><span style='background: #F0ADAD'>=&gt; right</span><span style=''>
+</span>127 <span style=''>
+</span>128 <span style=''>    /** Ensure cleanup runs regardless of success/failure */
+</span>129 <span style=''>    </span><span style='background: #AEF1AE'>def ensuring</span><span style=''>(cleanup: =&gt; Unit): Task2[R, A] =
+</span>130 <span style=''>      r =&gt;
+</span>131 <span style=''>        val result = </span><span style='background: #AEF1AE'>Try(self(r))</span><span style=''> match
+</span>132 <span style=''>          case scala.util.Success(res) </span><span style='background: #AEF1AE'>=&gt; res</span><span style=''>
+</span>133 <span style=''>          case scala.util.Failure(ex) =&gt;
+</span>134 <span style=''>            </span><span style='background: #F0ADAD'>cleanup
+</span>135 <span style=''></span><span style='background: #F0ADAD'>            Left(Fail(&quot;ensuring&quot;, ex.getMessage))</span><span style=''>
+</span>136 <span style=''>        cleanup
+</span>137 <span style=''>        result
+</span>138 <span style=''>
+</span>139 <span style=''>
+</span>140 <span style=''>// === Common capability traits ===
+</span>141 <span style=''>
+</span>142 <span style=''>/** Capability for logging */
+</span>143 <span style=''>trait Logs:
+</span>144 <span style=''>  def logInfo(msg: String): Unit
+</span>145 <span style=''>  def logError(fail: Fail): Unit
+</span>146 <span style=''>
+</span>147 <span style=''>object Logs:
+</span>148 <span style=''>  val console: Logs = new Logs:
+</span>149 <span style=''>    </span><span style='background: #AEF1AE'>def logInfo</span><span style=''>(msg: String): Unit = </span><span style='background: #AEF1AE'>println(s&quot;INFO: $msg&quot;)</span><span style=''>
+</span>150 <span style=''>    </span><span style='background: #F0ADAD'>def logError</span><span style=''>(fail: Fail): Unit = </span><span style='background: #F0ADAD'>println(s&quot;ERROR: $fail&quot;)</span><span style=''>
+</span>151 <span style=''>
+</span>152 <span style=''>  val silent: Logs = new Logs:
+</span>153 <span style=''>    </span><span style='background: #AEF1AE'>def logInfo</span><span style=''>(msg: String): Unit = </span><span style='background: #AEF1AE'>()</span><span style=''>
+</span>154 <span style=''>    </span><span style='background: #F0ADAD'>def logError</span><span style=''>(fail: Fail): Unit = </span><span style='background: #F0ADAD'>()</span><span style=''>
+</span>155 <span style=''>
+</span>156 <span style=''>/** Capability for timing/metrics */
+</span>157 <span style=''>trait Metrics:
+</span>158 <span style=''>  def record(name: String, durationMs: Long, success: Boolean): Unit
+</span>159 <span style=''>
+</span>160 <span style=''>object Metrics:
+</span>161 <span style=''>  val silent: Metrics = (_, _, _) =&gt; </span><span style='background: #F0ADAD'>()</span><span style=''>
+</span>162 <span style=''>  val console: Metrics = (name, ms, ok) =&gt;
+</span>163 <span style=''>    val status = if ok then </span><span style='background: #F0ADAD'>&quot;OK&quot;</span><span style=''> else </span><span style='background: #F0ADAD'>&quot;FAILED&quot;</span><span style=''>
+</span>164 <span style=''>    </span><span style='background: #F0ADAD'>println(f&quot;TIMING: $name%-30s ${ms}%6dms [$status]&quot;)</span><span style=''>
+</span>165 <span style=''>
+</span>166 <span style=''>/** Capability for clock/time */
+</span>167 <span style=''>trait Clock:
+</span>168 <span style=''>  def currentTimeMillis: Long
+</span>169 <span style=''>
+</span>170 <span style=''>object Clock:
+</span>171 <span style=''>  val system: Clock = new Clock:
+</span>172 <span style=''>    </span><span style='background: #AEF1AE'>def currentTimeMillis</span><span style=''>: Long = </span><span style='background: #AEF1AE'>System.currentTimeMillis()</span><span style=''>
+</span>173 <span style=''>
+</span>174 <span style=''>/** Capability for random numbers */
+</span>175 <span style=''>trait Random:
+</span>176 <span style=''>  def nextInt(bound: Int): Int
+</span>177 <span style=''>  def nextDouble: Double
+</span>178 <span style=''>
+</span>179 <span style=''>object Random:
+</span>180 <span style=''>  val live: Random = new Random:
+</span>181 <span style=''>    private val rng = </span><span style='background: #AEF1AE'>new scala.util.Random</span><span style=''>
+</span>182 <span style=''>    </span><span style='background: #AEF1AE'>def nextInt</span><span style=''>(bound: Int): Int = </span><span style='background: #AEF1AE'>rng.nextInt(bound)</span><span style=''>
+</span>183 <span style=''>    </span><span style='background: #F0ADAD'>def nextDouble</span><span style=''>: Double = </span><span style='background: #F0ADAD'>rng.nextDouble()</span><span style=''>
+</span>184 <span style=''>
+</span>185 <span style=''>  </span><span style='background: #AEF1AE'>def seeded</span><span style=''>(seed: Long): Random = new Random:
+</span>186 <span style=''>    private val rng = </span><span style='background: #AEF1AE'>new scala.util.Random(seed)</span><span style=''>
+</span>187 <span style=''>    </span><span style='background: #AEF1AE'>def nextInt</span><span style=''>(bound: Int): Int = </span><span style='background: #AEF1AE'>rng.nextInt(bound)</span><span style=''>
+</span>188 <span style=''>    </span><span style='background: #F0ADAD'>def nextDouble</span><span style=''>: Double = </span><span style='background: #F0ADAD'>rng.nextDouble()</span><span style=''>
+</span>189 <span style=''>
+</span>190 <span style=''>
+</span>191 <span style=''>// === Example: combining capabilities ===
+</span>192 <span style=''>
+</span>193 <span style=''>object Task2Examples:
+</span>194 <span style=''>  import Task2.*
+</span>195 <span style=''>
+</span>196 <span style=''>  // A task that needs logging
+</span>197 <span style=''>  </span><span style='background: #F0ADAD'>def logMessage</span><span style=''>(msg: String): Task2[Logs, Unit] =
+</span>198 <span style=''>    </span><span style='background: #F0ADAD'>Task2.serviceWith[Logs, Unit](_.logInfo(msg))</span><span style=''>
+</span>199 <span style=''>
+</span>200 <span style=''>  // A task that needs a clock
+</span>201 <span style=''>  </span><span style='background: #F0ADAD'>def currentTime</span><span style=''>: Task2[Clock, Long] =
+</span>202 <span style=''>    </span><span style='background: #F0ADAD'>Task2.serviceWith[Clock, Long](_.currentTimeMillis)</span><span style=''>
+</span>203 <span style=''>
+</span>204 <span style=''>  // A task that combines both - note the type!
+</span>205 <span style=''>  </span><span style='background: #F0ADAD'>def logCurrentTime</span><span style=''>: Task2[Logs &amp; Clock, Unit] =
+</span>206 <span style=''>    </span><span style='background: #F0ADAD'>for
+</span>207 <span style=''></span><span style='background: #F0ADAD'>      time &lt;- currentTime
+</span>208 <span style=''></span><span style='background: #F0ADAD'>      _ &lt;- logMessage(s&quot;Current time: $time&quot;)
+</span>209 <span style=''></span><span style='background: #F0ADAD'>    yield ()</span><span style=''>
+</span>210 <span style=''>
+</span>211 <span style=''>  // Running it:
+</span>212 <span style=''>  // val env: Logs &amp; Clock = new Logs with Clock { ... }
+</span>213 <span style=''>  // logCurrentTime.run(env)
+</span></pre>
+          </div>
+          <div class="tab-pane" id="statementlist">
+            <table cellspacing="0" cellpadding="0" class="table statementlist">
+      <tr>
+        <th>Line</th>
+        <th>Stmt Id</th>
+        <th>Pos</th>
+        <th>Tree</th>
+        <th>Symbol</th>
+        <th>Tests</th>
+        <th>Code</th>
+      </tr><tr>
+        <td>
+          25
+        </td>
+        <td>
+          15433
+        </td>
+        <td>
+          643
+          -
+          652
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def apply
+        </td>
+      </tr><tr>
+        <td>
+          28
+        </td>
+        <td>
+          15434
+        </td>
+        <td>
+          753
+          -
+          767
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          fromResult
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def fromResult
+        </td>
+      </tr><tr>
+        <td>
+          31
+        </td>
+        <td>
+          15436
+        </td>
+        <td>
+          880
+          -
+          891
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          succeed
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def succeed
+        </td>
+      </tr><tr>
+        <td>
+          31
+        </td>
+        <td>
+          15435
+        </td>
+        <td>
+          923
+          -
+          931
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Right(a)
+        </td>
+      </tr><tr>
+        <td>
+          34
+        </td>
+        <td>
+          15437
+        </td>
+        <td>
+          1028
+          -
+          1054
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Left(Fail(context, cause))
+        </td>
+      </tr><tr>
+        <td>
+          34
+        </td>
+        <td>
+          15439
+        </td>
+        <td>
+          965
+          -
+          973
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          fail
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def fail
+        </td>
+      </tr><tr>
+        <td>
+          34
+        </td>
+        <td>
+          15438
+        </td>
+        <td>
+          1033
+          -
+          1053
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Fail(context, cause)
+        </td>
+      </tr><tr>
+        <td>
+          37
+        </td>
+        <td>
+          15441
+        </td>
+        <td>
+          1108
+          -
+          1119
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          service
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def service
+        </td>
+      </tr><tr>
+        <td>
+          37
+        </td>
+        <td>
+          15440
+        </td>
+        <td>
+          1143
+          -
+          1151
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Right(r)
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          15443
+        </td>
+        <td>
+          1266
+          -
+          1270
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          f(r)
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          15442
+        </td>
+        <td>
+          1260
+          -
+          1271
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Right(f(r))
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          15444
+        </td>
+        <td>
+          1207
+          -
+          1222
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          serviceWith
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def serviceWith
+        </td>
+      </tr><tr>
+        <td>
+          43
+        </td>
+        <td>
+          15445
+        </td>
+        <td>
+          1331
+          -
+          1350
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          serviceWithTask
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def serviceWithTask
+        </td>
+      </tr><tr>
+        <td>
+          46
+        </td>
+        <td>
+          15446
+        </td>
+        <td>
+          1497
+          -
+          1516
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          toResult
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          t.toResult(context)
+        </td>
+      </tr><tr>
+        <td>
+          46
+        </td>
+        <td>
+          15447
+        </td>
+        <td>
+          1429
+          -
+          1440
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          fromTry
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def fromTry
+        </td>
+      </tr><tr>
+        <td>
+          49
+        </td>
+        <td>
+          15451
+        </td>
+        <td>
+          1609
+          -
+          1619
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          fromOption$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;not found
+        </td>
+      </tr><tr>
+        <td>
+          49
+        </td>
+        <td>
+          15450
+        </td>
+        <td>
+          1609
+          -
+          1620
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;not found&quot;
+        </td>
+      </tr><tr>
+        <td>
+          49
+        </td>
+        <td>
+          15449
+        </td>
+        <td>
+          1557
+          -
+          1571
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          fromOption
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def fromOption
+        </td>
+      </tr><tr>
+        <td>
+          50
+        </td>
+        <td>
+          15448
+        </td>
+        <td>
+          1665
+          -
+          1692
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          toResult
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          o.toResult(context, ifNone)
+        </td>
+      </tr><tr>
+        <td>
+          53
+        </td>
+        <td>
+          15454
+        </td>
+        <td>
+          1733
+          -
+          1747
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          fromEither
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def fromEither
+        </td>
+      </tr><tr>
+        <td>
+          54
+        </td>
+        <td>
+          15452
+        </td>
+        <td>
+          1816
+          -
+          1853
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          map
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          e.left.map(err =&gt; Fail(context, err))
+        </td>
+      </tr><tr>
+        <td>
+          54
+        </td>
+        <td>
+          15453
+        </td>
+        <td>
+          1834
+          -
+          1852
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Fail(context, err)
+        </td>
+      </tr><tr>
+        <td>
+          60
+        </td>
+        <td>
+          15455
+        </td>
+        <td>
+          2012
+          -
+          2021
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          self(env)
+        </td>
+      </tr><tr>
+        <td>
+          60
+        </td>
+        <td>
+          15456
+        </td>
+        <td>
+          1983
+          -
+          1990
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          run
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def run
+        </td>
+      </tr><tr>
+        <td>
+          63
+        </td>
+        <td>
+          15457
+        </td>
+        <td>
+          2120
+          -
+          2128
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          self(())
+        </td>
+      </tr><tr>
+        <td>
+          63
+        </td>
+        <td>
+          15459
+        </td>
+        <td>
+          2074
+          -
+          2085
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          runUnit
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def runUnit
+        </td>
+      </tr><tr>
+        <td>
+          63
+        </td>
+        <td>
+          15458
+        </td>
+        <td>
+          2125
+          -
+          2127
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ()
+        </td>
+      </tr><tr>
+        <td>
+          65
+        </td>
+        <td>
+          15461
+        </td>
+        <td>
+          2134
+          -
+          2141
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          map
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def map
+        </td>
+      </tr><tr>
+        <td>
+          66
+        </td>
+        <td>
+          15460
+        </td>
+        <td>
+          2182
+          -
+          2196
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          map
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          self(r).map(f)
+        </td>
+      </tr><tr>
+        <td>
+          68
+        </td>
+        <td>
+          15467
+        </td>
+        <td>
+          2202
+          -
+          2213
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          flatMap
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def flatMap
+        </td>
+      </tr><tr>
+        <td>
+          69
+        </td>
+        <td>
+          15462
+        </td>
+        <td>
+          2275
+          -
+          2282
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          self(r)
+        </td>
+      </tr><tr>
+        <td>
+          70
+        </td>
+        <td>
+          15464
+        </td>
+        <td>
+          2313
+          -
+          2326
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; Left(fail)
+        </td>
+      </tr><tr>
+        <td>
+          70
+        </td>
+        <td>
+          15463
+        </td>
+        <td>
+          2316
+          -
+          2326
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Left(fail)
+        </td>
+      </tr><tr>
+        <td>
+          71
+        </td>
+        <td>
+          15466
+        </td>
+        <td>
+          2349
+          -
+          2359
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; f(a)(r)
+        </td>
+      </tr><tr>
+        <td>
+          71
+        </td>
+        <td>
+          15465
+        </td>
+        <td>
+          2352
+          -
+          2359
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          f(a)(r)
+        </td>
+      </tr><tr>
+        <td>
+          74
+        </td>
+        <td>
+          15471
+        </td>
+        <td>
+          2429
+          -
+          2436
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          zip
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def zip
+        </td>
+      </tr><tr>
+        <td>
+          75
+        </td>
+        <td>
+          15468
+        </td>
+        <td>
+          2502
+          -
+          2567
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          flatMap
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          for\n        a &lt;- self(r)\n        b &lt;- other(r)\n      yield (a, b)
+        </td>
+      </tr><tr>
+        <td>
+          77
+        </td>
+        <td>
+          15469
+        </td>
+        <td>
+          2535
+          -
+          2567
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          map
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          b &lt;- other(r)\n      yield (a, b)
+        </td>
+      </tr><tr>
+        <td>
+          78
+        </td>
+        <td>
+          15470
+        </td>
+        <td>
+          2561
+          -
+          2567
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (a, b)
+        </td>
+      </tr><tr>
+        <td>
+          81
+        </td>
+        <td>
+          15489
+        </td>
+        <td>
+          2636
+          -
+          2646
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          zipPar
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def zipPar
+        </td>
+      </tr><tr>
+        <td>
+          83
+        </td>
+        <td>
+          15473
+        </td>
+        <td>
+          2765
+          -
+          2772
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          self(r)
+        </td>
+      </tr><tr>
+        <td>
+          83
+        </td>
+        <td>
+          15472
+        </td>
+        <td>
+          2758
+          -
+          2773
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Future(self(r))
+        </td>
+      </tr><tr>
+        <td>
+          84
+        </td>
+        <td>
+          15475
+        </td>
+        <td>
+          2803
+          -
+          2811
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          other(r)
+        </td>
+      </tr><tr>
+        <td>
+          84
+        </td>
+        <td>
+          15474
+        </td>
+        <td>
+          2796
+          -
+          2812
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Future(other(r))
+        </td>
+      </tr><tr>
+        <td>
+          85
+        </td>
+        <td>
+          15476
+        </td>
+        <td>
+          2836
+          -
+          3047
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          flatMap
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          for\n          a &lt;- futureA\n          b &lt;- futureB\n        yield (a, b) match\n          case (Right(av), Right(bv)) =&gt; Right((av, bv))\n          case (Left(f), _) =&gt; Left(f)\n          case (_, Left(f)) =&gt; Left(f)
+        </td>
+      </tr><tr>
+        <td>
+          87
+        </td>
+        <td>
+          15477
+        </td>
+        <td>
+          2873
+          -
+          3047
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          map
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          b &lt;- futureB\n        yield (a, b) match\n          case (Right(av), Right(bv)) =&gt; Right((av, bv))\n          case (Left(f), _) =&gt; Left(f)\n          case (_, Left(f)) =&gt; Left(f)
+        </td>
+      </tr><tr>
+        <td>
+          88
+        </td>
+        <td>
+          15478
+        </td>
+        <td>
+          2900
+          -
+          2906
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (a, b)
+        </td>
+      </tr><tr>
+        <td>
+          89
+        </td>
+        <td>
+          15479
+        </td>
+        <td>
+          2954
+          -
+          2969
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Right((av, bv))
+        </td>
+      </tr><tr>
+        <td>
+          89
+        </td>
+        <td>
+          15481
+        </td>
+        <td>
+          2951
+          -
+          2969
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; Right((av, bv))
+        </td>
+      </tr><tr>
+        <td>
+          89
+        </td>
+        <td>
+          15480
+        </td>
+        <td>
+          2960
+          -
+          2968
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (av, bv)
+        </td>
+      </tr><tr>
+        <td>
+          90
+        </td>
+        <td>
+          15482
+        </td>
+        <td>
+          3001
+          -
+          3008
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Left(f)
+        </td>
+      </tr><tr>
+        <td>
+          90
+        </td>
+        <td>
+          15483
+        </td>
+        <td>
+          2998
+          -
+          3008
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; Left(f)
+        </td>
+      </tr><tr>
+        <td>
+          91
+        </td>
+        <td>
+          15484
+        </td>
+        <td>
+          3040
+          -
+          3047
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Left(f)
+        </td>
+      </tr><tr>
+        <td>
+          91
+        </td>
+        <td>
+          15485
+        </td>
+        <td>
+          3037
+          -
+          3047
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; Left(f)
+        </td>
+      </tr><tr>
+        <td>
+          92
+        </td>
+        <td>
+          15488
+        </td>
+        <td>
+          3079
+          -
+          3089
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          seconds
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          30.seconds
+        </td>
+      </tr><tr>
+        <td>
+          92
+        </td>
+        <td>
+          15487
+        </td>
+        <td>
+          3079
+          -
+          3081
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          DurationInt
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          30
+        </td>
+      </tr><tr>
+        <td>
+          92
+        </td>
+        <td>
+          15486
+        </td>
+        <td>
+          3056
+          -
+          3090
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          result
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Await.result(combined, 30.seconds)
+        </td>
+      </tr><tr>
+        <td>
+          94
+        </td>
+        <td>
+          15501
+        </td>
+        <td>
+          3096
+          -
+          3105
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          retry
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def retry
+        </td>
+      </tr><tr>
+        <td>
+          97
+        </td>
+        <td>
+          15499
+        </td>
+        <td>
+          3155
+          -
+          3180
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          loop
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          @tailrec\n        def loop
+        </td>
+      </tr><tr>
+        <td>
+          98
+        </td>
+        <td>
+          15490
+        </td>
+        <td>
+          3220
+          -
+          3227
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          self(r)
+        </td>
+      </tr><tr>
+        <td>
+          99
+        </td>
+        <td>
+          15492
+        </td>
+        <td>
+          3260
+          -
+          3271
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; Right(a)
+        </td>
+      </tr><tr>
+        <td>
+          99
+        </td>
+        <td>
+          15491
+        </td>
+        <td>
+          3263
+          -
+          3271
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Right(a)
+        </td>
+      </tr><tr>
+        <td>
+          100
+        </td>
+        <td>
+          15493
+        </td>
+        <td>
+          3300
+          -
+          3313
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          remaining &gt; 1
+        </td>
+      </tr><tr>
+        <td>
+          100
+        </td>
+        <td>
+          15496
+        </td>
+        <td>
+          3314
+          -
+          3336
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; loop(remaining - 1)
+        </td>
+      </tr><tr>
+        <td>
+          100
+        </td>
+        <td>
+          15495
+        </td>
+        <td>
+          3322
+          -
+          3335
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          remaining - 1
+        </td>
+      </tr><tr>
+        <td>
+          100
+        </td>
+        <td>
+          15494
+        </td>
+        <td>
+          3317
+          -
+          3336
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          loop
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          loop(remaining - 1)
+        </td>
+      </tr><tr>
+        <td>
+          101
+        </td>
+        <td>
+          15497
+        </td>
+        <td>
+          3365
+          -
+          3372
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Left(f)
+        </td>
+      </tr><tr>
+        <td>
+          101
+        </td>
+        <td>
+          15498
+        </td>
+        <td>
+          3362
+          -
+          3372
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; Left(f)
+        </td>
+      </tr><tr>
+        <td>
+          102
+        </td>
+        <td>
+          15500
+        </td>
+        <td>
+          3381
+          -
+          3395
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          loop
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          loop(attempts)
+        </td>
+      </tr><tr>
+        <td>
+          104
+        </td>
+        <td>
+          15516
+        </td>
+        <td>
+          3401
+          -
+          3412
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          timeout
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def timeout
+        </td>
+      </tr><tr>
+        <td>
+          106
+        </td>
+        <td>
+          15502
+        </td>
+        <td>
+          3510
+          -
+          3525
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Future(self(r))
+        </td>
+      </tr><tr>
+        <td>
+          106
+        </td>
+        <td>
+          15503
+        </td>
+        <td>
+          3517
+          -
+          3524
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          self(r)
+        </td>
+      </tr><tr>
+        <td>
+          107
+        </td>
+        <td>
+          15505
+        </td>
+        <td>
+          3538
+          -
+          3568
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          result
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Await.result(future, duration)
+        </td>
+      </tr><tr>
+        <td>
+          107
+        </td>
+        <td>
+          15504
+        </td>
+        <td>
+          3534
+          -
+          3569
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Try(Await.result(future, duration))
+        </td>
+      </tr><tr>
+        <td>
+          108
+        </td>
+        <td>
+          15506
+        </td>
+        <td>
+          3618
+          -
+          3627
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; result
+        </td>
+      </tr><tr>
+        <td>
+          109
+        </td>
+        <td>
+          15510
+        </td>
+        <td>
+          3704
+          -
+          3770
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt;\n            Left(Fail(&quot;timeout&quot;, s&quot;timed out after $duration&quot;))
+        </td>
+      </tr><tr>
+        <td>
+          110
+        </td>
+        <td>
+          15508
+        </td>
+        <td>
+          3724
+          -
+          3769
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Fail(&quot;timeout&quot;, s&quot;timed out after $duration&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          110
+        </td>
+        <td>
+          15507
+        </td>
+        <td>
+          3719
+          -
+          3770
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Left(Fail(&quot;timeout&quot;, s&quot;timed out after $duration&quot;))
+        </td>
+      </tr><tr>
+        <td>
+          110
+        </td>
+        <td>
+          15509
+        </td>
+        <td>
+          3729
+          -
+          3738
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;timeout&quot;
+        </td>
+      </tr><tr>
+        <td>
+          111
+        </td>
+        <td>
+          15515
+        </td>
+        <td>
+          3810
+          -
+          3862
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt;\n            Left(Fail(&quot;timeout&quot;, err.getMessage))
+        </td>
+      </tr><tr>
+        <td>
+          112
+        </td>
+        <td>
+          15514
+        </td>
+        <td>
+          3846
+          -
+          3860
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getMessage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          err.getMessage
+        </td>
+      </tr><tr>
+        <td>
+          112
+        </td>
+        <td>
+          15511
+        </td>
+        <td>
+          3825
+          -
+          3862
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Left(Fail(&quot;timeout&quot;, err.getMessage))
+        </td>
+      </tr><tr>
+        <td>
+          112
+        </td>
+        <td>
+          15513
+        </td>
+        <td>
+          3835
+          -
+          3844
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;timeout&quot;
+        </td>
+      </tr><tr>
+        <td>
+          112
+        </td>
+        <td>
+          15512
+        </td>
+        <td>
+          3830
+          -
+          3861
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Fail(&quot;timeout&quot;, err.getMessage)
+        </td>
+      </tr><tr>
+        <td>
+          115
+        </td>
+        <td>
+          15519
+        </td>
+        <td>
+          3911
+          -
+          3922
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          provide
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def provide
+        </td>
+      </tr><tr>
+        <td>
+          116
+        </td>
+        <td>
+          15517
+        </td>
+        <td>
+          3971
+          -
+          3986
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          self(layer(r0))
+        </td>
+      </tr><tr>
+        <td>
+          116
+        </td>
+        <td>
+          15518
+        </td>
+        <td>
+          3976
+          -
+          3985
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          layer(r0)
+        </td>
+      </tr><tr>
+        <td>
+          119
+        </td>
+        <td>
+          15521
+        </td>
+        <td>
+          4063
+          -
+          4085
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          provideEnvironment
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def provideEnvironment
+        </td>
+      </tr><tr>
+        <td>
+          120
+        </td>
+        <td>
+          15520
+        </td>
+        <td>
+          4122
+          -
+          4131
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          self(env)
+        </td>
+      </tr><tr>
+        <td>
+          123
+        </td>
+        <td>
+          15526
+        </td>
+        <td>
+          4170
+          -
+          4181
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          recover
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def recover
+        </td>
+      </tr><tr>
+        <td>
+          124
+        </td>
+        <td>
+          15522
+        </td>
+        <td>
+          4230
+          -
+          4237
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          self(r)
+        </td>
+      </tr><tr>
+        <td>
+          125
+        </td>
+        <td>
+          15524
+        </td>
+        <td>
+          4268
+          -
+          4278
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; f(fail)
+        </td>
+      </tr><tr>
+        <td>
+          125
+        </td>
+        <td>
+          15523
+        </td>
+        <td>
+          4271
+          -
+          4278
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          f(fail)
+        </td>
+      </tr><tr>
+        <td>
+          126
+        </td>
+        <td>
+          15525
+        </td>
+        <td>
+          4298
+          -
+          4306
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; right
+        </td>
+      </tr><tr>
+        <td>
+          129
+        </td>
+        <td>
+          15535
+        </td>
+        <td>
+          4373
+          -
+          4385
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          ensuring
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def ensuring
+        </td>
+      </tr><tr>
+        <td>
+          131
+        </td>
+        <td>
+          15528
+        </td>
+        <td>
+          4455
+          -
+          4462
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          self(r)
+        </td>
+      </tr><tr>
+        <td>
+          131
+        </td>
+        <td>
+          15527
+        </td>
+        <td>
+          4451
+          -
+          4463
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Try(self(r))
+        </td>
+      </tr><tr>
+        <td>
+          132
+        </td>
+        <td>
+          15529
+        </td>
+        <td>
+          4509
+          -
+          4515
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; res
+        </td>
+      </tr><tr>
+        <td>
+          134
+        </td>
+        <td>
+          15534
+        </td>
+        <td>
+          4569
+          -
+          4626
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          cleanup\n            Left(Fail(&quot;ensuring&quot;, ex.getMessage))
+        </td>
+      </tr><tr>
+        <td>
+          135
+        </td>
+        <td>
+          15533
+        </td>
+        <td>
+          4611
+          -
+          4624
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getMessage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ex.getMessage
+        </td>
+      </tr><tr>
+        <td>
+          135
+        </td>
+        <td>
+          15532
+        </td>
+        <td>
+          4599
+          -
+          4609
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;ensuring&quot;
+        </td>
+      </tr><tr>
+        <td>
+          135
+        </td>
+        <td>
+          15531
+        </td>
+        <td>
+          4594
+          -
+          4625
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Fail(&quot;ensuring&quot;, ex.getMessage)
+        </td>
+      </tr><tr>
+        <td>
+          135
+        </td>
+        <td>
+          15530
+        </td>
+        <td>
+          4589
+          -
+          4626
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Left(Fail(&quot;ensuring&quot;, ex.getMessage))
+        </td>
+      </tr><tr>
+        <td>
+          149
+        </td>
+        <td>
+          15395
+        </td>
+        <td>
+          4855
+          -
+          4866
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          logInfo
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def logInfo
+        </td>
+      </tr><tr>
+        <td>
+          149
+        </td>
+        <td>
+          15394
+        </td>
+        <td>
+          4888
+          -
+          4910
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          println
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          println(s&quot;INFO: $msg&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          150
+        </td>
+        <td>
+          15397
+        </td>
+        <td>
+          4915
+          -
+          4927
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          logError
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def logError
+        </td>
+      </tr><tr>
+        <td>
+          150
+        </td>
+        <td>
+          15396
+        </td>
+        <td>
+          4948
+          -
+          4972
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          println
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          println(s&quot;ERROR: $fail&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          153
+        </td>
+        <td>
+          15398
+        </td>
+        <td>
+          5042
+          -
+          5044
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          ()
+        </td>
+      </tr><tr>
+        <td>
+          153
+        </td>
+        <td>
+          15399
+        </td>
+        <td>
+          5009
+          -
+          5020
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          logInfo
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def logInfo
+        </td>
+      </tr><tr>
+        <td>
+          154
+        </td>
+        <td>
+          15401
+        </td>
+        <td>
+          5049
+          -
+          5061
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          logError
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def logError
+        </td>
+      </tr><tr>
+        <td>
+          154
+        </td>
+        <td>
+          15400
+        </td>
+        <td>
+          5082
+          -
+          5084
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ()
+        </td>
+      </tr><tr>
+        <td>
+          161
+        </td>
+        <td>
+          15402
+        </td>
+        <td>
+          5261
+          -
+          5263
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ()
+        </td>
+      </tr><tr>
+        <td>
+          163
+        </td>
+        <td>
+          15404
+        </td>
+        <td>
+          5335
+          -
+          5339
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;OK&quot;
+        </td>
+      </tr><tr>
+        <td>
+          163
+        </td>
+        <td>
+          15403
+        </td>
+        <td>
+          5335
+          -
+          5339
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;OK&quot;
+        </td>
+      </tr><tr>
+        <td>
+          163
+        </td>
+        <td>
+          15406
+        </td>
+        <td>
+          5345
+          -
+          5353
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;FAILED&quot;
+        </td>
+      </tr><tr>
+        <td>
+          163
+        </td>
+        <td>
+          15405
+        </td>
+        <td>
+          5345
+          -
+          5353
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;FAILED&quot;
+        </td>
+      </tr><tr>
+        <td>
+          164
+        </td>
+        <td>
+          15407
+        </td>
+        <td>
+          5358
+          -
+          5409
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          println
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          println(f&quot;TIMING: $name%-30s ${ms}%6dms [$status]&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          172
+        </td>
+        <td>
+          15409
+        </td>
+        <td>
+          5539
+          -
+          5560
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          currentTimeMillis
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def currentTimeMillis
+        </td>
+      </tr><tr>
+        <td>
+          172
+        </td>
+        <td>
+          15408
+        </td>
+        <td>
+          5569
+          -
+          5595
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          currentTimeMillis
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          System.currentTimeMillis()
+        </td>
+      </tr><tr>
+        <td>
+          181
+        </td>
+        <td>
+          15410
+        </td>
+        <td>
+          5775
+          -
+          5796
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;init&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          new scala.util.Random
+        </td>
+      </tr><tr>
+        <td>
+          182
+        </td>
+        <td>
+          15412
+        </td>
+        <td>
+          5801
+          -
+          5812
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          nextInt
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def nextInt
+        </td>
+      </tr><tr>
+        <td>
+          182
+        </td>
+        <td>
+          15411
+        </td>
+        <td>
+          5832
+          -
+          5850
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          nextInt
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          rng.nextInt(bound)
+        </td>
+      </tr><tr>
+        <td>
+          183
+        </td>
+        <td>
+          15413
+        </td>
+        <td>
+          5880
+          -
+          5896
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          nextDouble
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          rng.nextDouble()
+        </td>
+      </tr><tr>
+        <td>
+          183
+        </td>
+        <td>
+          15414
+        </td>
+        <td>
+          5855
+          -
+          5869
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          nextDouble
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def nextDouble
+        </td>
+      </tr><tr>
+        <td>
+          185
+        </td>
+        <td>
+          15420
+        </td>
+        <td>
+          5900
+          -
+          5910
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          seeded
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def seeded
+        </td>
+      </tr><tr>
+        <td>
+          186
+        </td>
+        <td>
+          15415
+        </td>
+        <td>
+          5967
+          -
+          5994
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;init&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          new scala.util.Random(seed)
+        </td>
+      </tr><tr>
+        <td>
+          187
+        </td>
+        <td>
+          15416
+        </td>
+        <td>
+          6030
+          -
+          6048
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          nextInt
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          rng.nextInt(bound)
+        </td>
+      </tr><tr>
+        <td>
+          187
+        </td>
+        <td>
+          15417
+        </td>
+        <td>
+          5999
+          -
+          6010
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          nextInt
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def nextInt
+        </td>
+      </tr><tr>
+        <td>
+          188
+        </td>
+        <td>
+          15419
+        </td>
+        <td>
+          6053
+          -
+          6067
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          nextDouble
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def nextDouble
+        </td>
+      </tr><tr>
+        <td>
+          188
+        </td>
+        <td>
+          15418
+        </td>
+        <td>
+          6078
+          -
+          6094
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          nextDouble
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          rng.nextDouble()
+        </td>
+      </tr><tr>
+        <td>
+          197
+        </td>
+        <td>
+          15423
+        </td>
+        <td>
+          6214
+          -
+          6228
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          logMessage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def logMessage
+        </td>
+      </tr><tr>
+        <td>
+          198
+        </td>
+        <td>
+          15422
+        </td>
+        <td>
+          6297
+          -
+          6311
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          logInfo
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          _.logInfo(msg)
+        </td>
+      </tr><tr>
+        <td>
+          198
+        </td>
+        <td>
+          15421
+        </td>
+        <td>
+          6267
+          -
+          6312
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          serviceWith
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Task2.serviceWith[Logs, Unit](_.logInfo(msg))
+        </td>
+      </tr><tr>
+        <td>
+          201
+        </td>
+        <td>
+          15426
+        </td>
+        <td>
+          6347
+          -
+          6362
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          currentTime
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def currentTime
+        </td>
+      </tr><tr>
+        <td>
+          202
+        </td>
+        <td>
+          15425
+        </td>
+        <td>
+          6420
+          -
+          6439
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          currentTimeMillis
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          _.currentTimeMillis
+        </td>
+      </tr><tr>
+        <td>
+          202
+        </td>
+        <td>
+          15424
+        </td>
+        <td>
+          6389
+          -
+          6440
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          serviceWith
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Task2.serviceWith[Clock, Long](_.currentTimeMillis)
+        </td>
+      </tr><tr>
+        <td>
+          205
+        </td>
+        <td>
+          15432
+        </td>
+        <td>
+          6492
+          -
+          6510
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          logCurrentTime
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def logCurrentTime
+        </td>
+      </tr><tr>
+        <td>
+          206
+        </td>
+        <td>
+          15427
+        </td>
+        <td>
+          6544
+          -
+          6632
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          flatMap
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          for\n      time &lt;- currentTime\n      _ &lt;- logMessage(s&quot;Current time: $time&quot;)\n    yield ()
+        </td>
+      </tr><tr>
+        <td>
+          208
+        </td>
+        <td>
+          15428
+        </td>
+        <td>
+          6580
+          -
+          6632
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          map
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          _ &lt;- logMessage(s&quot;Current time: $time&quot;)\n    yield ()
+        </td>
+      </tr><tr>
+        <td>
+          208
+        </td>
+        <td>
+          15429
+        </td>
+        <td>
+          6585
+          -
+          6619
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          logMessage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logMessage(s&quot;Current time: $time&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          209
+        </td>
+        <td>
+          15430
+        </td>
+        <td>
+          6630
+          -
+          6632
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ()
+        </td>
+      </tr><tr>
+        <td>
+          209
+        </td>
+        <td>
+          15431
+        </td>
+        <td>
+          6630
+          -
+          6632
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ()
+        </td>
+      </tr>
+    </table>
+          </div>
+        </div>
+      </body>
+    </html>

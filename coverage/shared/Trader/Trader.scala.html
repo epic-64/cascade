@@ -1,0 +1,3362 @@
+<html>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title id="title">
+          shared/Trader/Trader.scala.html
+        </title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/css/theme.default.min.css" type="text/css"/><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/js/jquery.tablesorter.min.js"></script><link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" type="text/css"/><script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script><script type="text/javascript">
+        $(document).ready(function() {$(".tablesorter").tablesorter();});
+      </script>
+        <style>
+          table.codegrid { font-family: monospace; font-size: 12px; width: auto!important; }table.statementlist { width: auto!important; font-size: 13px; } table.codegrid td { padding: 0!important; border: 0!important } table td.linenumber { width: 40px!important; } 
+        </style>
+      </head>
+      <body style="font-family: monospace;">
+        <ul class="nav nav-tabs">
+          <li>
+            <a href="#codegrid" data-toggle="tab">Codegrid</a>
+          </li>
+          <li>
+            <a href="#statementlist" data-toggle="tab">Statement List</a>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active" id="codegrid">
+            <pre style='font-size: 12pt; font-family: courier, monospace;'>1 <span style=''>package shared.Trader
+</span>2 <span style=''>
+</span>3 <span style=''>import upickle.default.ReadWriter
+</span>4 <span style=''>
+</span>5 <span style=''>// Items - the 10 tradeable goods
+</span>6 <span style=''>enum Item derives ReadWriter:
+</span>7 <span style=''>  case Wheat, Iron, Coal, Silk, Gems, Wine, Salt, Fish, Lumber, Livestock
+</span>8 <span style=''>
+</span>9 <span style=''>object Item:
+</span>10 <span style=''>  </span><span style='background: #AEF1AE'>def basePrice</span><span style=''>(item: Item): Int = item match
+</span>11 <span style=''>    case Item.Wheat     </span><span style='background: #AEF1AE'>=&gt; 5</span><span style=''>
+</span>12 <span style=''>    case Item.Iron      </span><span style='background: #AEF1AE'>=&gt; 15</span><span style=''>
+</span>13 <span style=''>    case Item.Coal      </span><span style='background: #AEF1AE'>=&gt; 8</span><span style=''>
+</span>14 <span style=''>    case Item.Silk      </span><span style='background: #AEF1AE'>=&gt; 40</span><span style=''>
+</span>15 <span style=''>    case Item.Gems      </span><span style='background: #AEF1AE'>=&gt; 80</span><span style=''>
+</span>16 <span style=''>    case Item.Wine      </span><span style='background: #AEF1AE'>=&gt; 20</span><span style=''>
+</span>17 <span style=''>    case Item.Salt      </span><span style='background: #AEF1AE'>=&gt; 6</span><span style=''>
+</span>18 <span style=''>    case Item.Fish      </span><span style='background: #AEF1AE'>=&gt; 4</span><span style=''>
+</span>19 <span style=''>    case Item.Lumber    </span><span style='background: #AEF1AE'>=&gt; 10</span><span style=''>
+</span>20 <span style=''>    case Item.Livestock </span><span style='background: #AEF1AE'>=&gt; 25</span><span style=''>
+</span>21 <span style=''>
+</span>22 <span style=''>  </span><span style='background: #AEF1AE'>def weight</span><span style=''>(item: Item): Int = item match
+</span>23 <span style=''>    case Item.Wheat     </span><span style='background: #AEF1AE'>=&gt; 20</span><span style=''>
+</span>24 <span style=''>    case Item.Iron      </span><span style='background: #AEF1AE'>=&gt; 50</span><span style=''>
+</span>25 <span style=''>    case Item.Coal      </span><span style='background: #F0ADAD'>=&gt; 40</span><span style=''>
+</span>26 <span style=''>    case Item.Silk      </span><span style='background: #AEF1AE'>=&gt; 5</span><span style=''>
+</span>27 <span style=''>    case Item.Gems      </span><span style='background: #AEF1AE'>=&gt; 2</span><span style=''>
+</span>28 <span style=''>    case Item.Wine      </span><span style='background: #F0ADAD'>=&gt; 15</span><span style=''>
+</span>29 <span style=''>    case Item.Salt      </span><span style='background: #F0ADAD'>=&gt; 25</span><span style=''>
+</span>30 <span style=''>    case Item.Fish      </span><span style='background: #F0ADAD'>=&gt; 15</span><span style=''>
+</span>31 <span style=''>    case Item.Lumber    </span><span style='background: #F0ADAD'>=&gt; 60</span><span style=''>
+</span>32 <span style=''>    case Item.Livestock </span><span style='background: #AEF1AE'>=&gt; 100</span><span style=''>
+</span>33 <span style=''>
+</span>34 <span style=''>  val all: List[Item] = </span><span style='background: #AEF1AE'>Item.values.toList</span><span style=''>
+</span>35 <span style=''>
+</span>36 <span style=''>// Supply/Demand levels
+</span>37 <span style=''>enum SupplyLevel derives ReadWriter:
+</span>38 <span style=''>  case Abundant, Normal, Scarce
+</span>39 <span style=''>
+</span>40 <span style=''>object SupplyLevel:
+</span>41 <span style=''>  </span><span style='background: #AEF1AE'>def modifier</span><span style=''>(level: SupplyLevel): Double = level match
+</span>42 <span style=''>    case SupplyLevel.Abundant </span><span style='background: #AEF1AE'>=&gt; 0.6</span><span style=''>
+</span>43 <span style=''>    case SupplyLevel.Normal   </span><span style='background: #AEF1AE'>=&gt; 1.0</span><span style=''>
+</span>44 <span style=''>    case SupplyLevel.Scarce   </span><span style='background: #AEF1AE'>=&gt; 1.5</span><span style=''>
+</span>45 <span style=''>
+</span>46 <span style=''>enum DemandLevel derives ReadWriter:
+</span>47 <span style=''>  case Low, Normal, High
+</span>48 <span style=''>
+</span>49 <span style=''>object DemandLevel:
+</span>50 <span style=''>  </span><span style='background: #AEF1AE'>def modifier</span><span style=''>(level: DemandLevel): Double = level match
+</span>51 <span style=''>    case DemandLevel.Low    </span><span style='background: #AEF1AE'>=&gt; 0.7</span><span style=''>
+</span>52 <span style=''>    case DemandLevel.Normal </span><span style='background: #AEF1AE'>=&gt; 1.0</span><span style=''>
+</span>53 <span style=''>    case DemandLevel.High   </span><span style='background: #AEF1AE'>=&gt; 1.4</span><span style=''>
+</span>54 <span style=''>
+</span>55 <span style=''>// Seasons
+</span>56 <span style=''>enum Season derives ReadWriter:
+</span>57 <span style=''>  case Spring, Summer, Autumn, Winter
+</span>58 <span style=''>
+</span>59 <span style=''>object Season:
+</span>60 <span style=''>  </span><span style='background: #AEF1AE'>def modifier</span><span style=''>(season: Season, item: Item): Double = </span><span style='background: #AEF1AE'>(season, item)</span><span style=''> match
+</span>61 <span style=''>    case (Season.Spring, Item.Wheat)     </span><span style='background: #AEF1AE'>=&gt; 1.2</span><span style=''>
+</span>62 <span style=''>    case (Season.Spring, Item.Wine)      </span><span style='background: #AEF1AE'>=&gt; 0.9</span><span style=''>
+</span>63 <span style=''>    case (Season.Summer, Item.Fish)      </span><span style='background: #F0ADAD'>=&gt; 1.3</span><span style=''>
+</span>64 <span style=''>    case (Season.Summer, Item.Salt)      </span><span style='background: #F0ADAD'>=&gt; 0.8</span><span style=''>
+</span>65 <span style=''>    case (Season.Autumn, Item.Wine)      </span><span style='background: #F0ADAD'>=&gt; 1.3</span><span style=''>
+</span>66 <span style=''>    case (Season.Autumn, Item.Wheat)     </span><span style='background: #F0ADAD'>=&gt; 1.1</span><span style=''>
+</span>67 <span style=''>    case (Season.Winter, Item.Coal)      </span><span style='background: #AEF1AE'>=&gt; 1.4</span><span style=''>
+</span>68 <span style=''>    case (Season.Winter, Item.Livestock) </span><span style='background: #F0ADAD'>=&gt; 1.2</span><span style=''>
+</span>69 <span style=''>    case _                               </span><span style='background: #AEF1AE'>=&gt; 1.0</span><span style=''>
+</span>70 <span style=''>
+</span>71 <span style=''>  </span><span style='background: #AEF1AE'>def next</span><span style=''>(season: Season): Season = season match
+</span>72 <span style=''>    case Season.Spring </span><span style='background: #AEF1AE'>=&gt; Season.Summer</span><span style=''>
+</span>73 <span style=''>    case Season.Summer </span><span style='background: #AEF1AE'>=&gt; Season.Autumn</span><span style=''>
+</span>74 <span style=''>    case Season.Autumn </span><span style='background: #AEF1AE'>=&gt; Season.Winter</span><span style=''>
+</span>75 <span style=''>    case Season.Winter </span><span style='background: #AEF1AE'>=&gt; Season.Spring</span><span style=''>
+</span>76 <span style=''>
+</span>77 <span style=''>// City identifiers
+</span>78 <span style=''>enum CityId derives ReadWriter:
+</span>79 <span style=''>  case Northport, Ironforge, Crystalpeak, Wheatholm, Riverdale,
+</span>80 <span style=''>    Silkwood, Saltmarsh, Vineyard, Timberfall
+</span>81 <span style=''>
+</span>82 <span style=''>// City market conditions
+</span>83 <span style=''>case class CityMarket(
+</span>84 <span style=''>    supply: Map[Item, SupplyLevel],
+</span>85 <span style=''>    demand: Map[Item, DemandLevel]
+</span>86 <span style=''>) derives ReadWriter
+</span>87 <span style=''>
+</span>88 <span style=''>// City data
+</span>89 <span style=''>case class City(
+</span>90 <span style=''>    id: CityId,
+</span>91 <span style=''>    name: String,
+</span>92 <span style=''>    market: CityMarket,
+</span>93 <span style=''>    position: (Int, Int) // Grid position (row, col) for distance calculation
+</span>94 <span style=''>) derives ReadWriter
+</span>95 <span style=''>
+</span>96 <span style=''>// Player inventory
+</span>97 <span style=''>case class Inventory(
+</span>98 <span style=''>    items: Map[Item, Int] // Item -&gt; quantity
+</span>99 <span style=''>) derives ReadWriter:
+</span>100 <span style=''>  </span><span style='background: #AEF1AE'>def totalWeight</span><span style=''>: Int =
+</span>101 <span style=''>    </span><span style='background: #AEF1AE'>items.map((item, qty) =&gt; Item.weight(item) * qty).sum</span><span style=''>
+</span>102 <span style=''>
+</span>103 <span style=''>  </span><span style='background: #AEF1AE'>def add</span><span style=''>(item: Item, qty: Int): Inventory =
+</span>104 <span style=''>    </span><span style='background: #AEF1AE'>copy(items = items.updated(item, items.getOrElse(item, 0) + qty))</span><span style=''>
+</span>105 <span style=''>
+</span>106 <span style=''>  </span><span style='background: #AEF1AE'>def remove</span><span style=''>(item: Item, qty: Int): Option[Inventory] =
+</span>107 <span style=''>    val current = </span><span style='background: #AEF1AE'>items.getOrElse(item, 0)</span><span style=''>
+</span>108 <span style=''>    if </span><span style='background: #AEF1AE'>current &gt;= qty</span><span style=''> then
+</span>109 <span style=''>      </span><span style='background: #AEF1AE'>val newQty = current - qty
+</span>110 <span style=''></span><span style='background: #AEF1AE'>      val newItems = if newQty == 0 then </span><span style='background: #F0ADAD'>items - item</span><span style='background: #AEF1AE'> else items.updated(item, newQty)
+</span>111 <span style=''></span><span style='background: #AEF1AE'>      Some(copy(items = newItems))</span><span style=''>
+</span>112 <span style=''>    else </span><span style='background: #F0ADAD'>None</span><span style=''>
+</span>113 <span style=''>
+</span>114 <span style=''>  </span><span style='background: #AEF1AE'>def getQuantity</span><span style=''>(item: Item): Int = </span><span style='background: #AEF1AE'>items.getOrElse(item, 0)</span><span style=''>
+</span>115 <span style=''>
+</span>116 <span style=''>object Inventory:
+</span>117 <span style=''>  val empty: Inventory = </span><span style='background: #AEF1AE'>Inventory(Map.empty)</span><span style=''>
+</span>118 <span style=''>
+</span>119 <span style=''>// Player state
+</span>120 <span style=''>case class Player(
+</span>121 <span style=''>    gold: Int,
+</span>122 <span style=''>    inventory: Inventory,
+</span>123 <span style=''>    carriageLevel: Int,
+</span>124 <span style=''>    currentCity: CityId
+</span>125 <span style=''>) derives ReadWriter:
+</span>126 <span style=''>  </span><span style='background: #AEF1AE'>def carriageCapacity</span><span style=''>: Int = </span><span style='background: #AEF1AE'>200 + (carriageLevel - 1) * 50</span><span style=''>
+</span>127 <span style=''>  </span><span style='background: #AEF1AE'>def availableCapacity</span><span style=''>: Int = </span><span style='background: #AEF1AE'>carriageCapacity - inventory.totalWeight</span><span style=''>
+</span>128 <span style=''>  </span><span style='background: #AEF1AE'>def upgradesCost</span><span style=''>: Int = </span><span style='background: #AEF1AE'>100 * math.pow(2, carriageLevel - 1).toInt</span><span style=''>
+</span>129 <span style=''>
+</span>130 <span style=''>// Full game state
+</span>131 <span style=''>case class TraderGame(
+</span>132 <span style=''>    player: Player,
+</span>133 <span style=''>    cities: Map[CityId, City],
+</span>134 <span style=''>    turn: Int,
+</span>135 <span style=''>    season: Season,
+</span>136 <span style=''>    visitedCities: Set[CityId], // Cities visited this season (market info revealed)
+</span>137 <span style=''>    log: List[String], // Recent actions/events (newest first)
+</span>138 <span style=''>    lastEncounter: Option[BanditEncounter] = </span><span style='background: #AEF1AE'>None /</span><span style=''>/ Most recent encounter for UI display
+</span>139 <span style=''>) derives ReadWriter:
+</span>140 <span style=''>  </span><span style='background: #AEF1AE'>def currentCity</span><span style=''>: City = </span><span style='background: #AEF1AE'>cities(player.currentCity)</span><span style=''>
+</span>141 <span style=''>  // Current city is always considered visited (you can see the market you're in)
+</span>142 <span style=''>  </span><span style='background: #F0ADAD'>def isCityVisited</span><span style=''>(cityId: CityId): Boolean =
+</span>143 <span style=''>    </span><span style='background: #F0ADAD'>cityId == player.currentCity || visitedCities.contains(cityId)</span><span style=''>
+</span>144 <span style=''>
+</span>145 <span style=''>object TraderGame:
+</span>146 <span style=''>  val MaxLogEntries: Int = </span><span style='background: #AEF1AE'>20</span><span style=''>
+</span>147 <span style=''>
+</span>148 <span style=''>// Risk system types
+</span>149 <span style=''>
+</span>150 <span style=''>/** Possible outcomes when traveling - includes safe arrival and bandit encounters */
+</span>151 <span style=''>enum EncounterOutcome derives ReadWriter:
+</span>152 <span style=''>  case Unscathed // Safe arrival, no bandits
+</span>153 <span style=''>  case Escaped // Got away clean
+</span>154 <span style=''>  case Toll(goldLost: Int) // Paid off the bandits
+</span>155 <span style=''>  case Robbery(itemsLost: Map[Item, Int]) // Lost some cargo
+</span>156 <span style=''>  case DevastatingLoss(itemsLost: Map[Item, Int], goldLost: Int) // Major loss
+</span>157 <span style=''>
+</span>158 <span style=''>/** Risk calculation result for current cargo */
+</span>159 <span style=''>case class RiskAssessment(
+</span>160 <span style=''>    cargoValue: Int,
+</span>161 <span style=''>    cargoWeight: Int,
+</span>162 <span style=''>    valuePerKg: Double,
+</span>163 <span style=''>    riskScore: Double,
+</span>164 <span style=''>    encounterChance: Double // 0.0 to 1.0
+</span>165 <span style=''>) derives ReadWriter
+</span>166 <span style=''>
+</span>167 <span style=''>object RiskAssessment:
+</span>168 <span style=''>  val safe: RiskAssessment = </span><span style='background: #AEF1AE'>RiskAssessment(0, 0, 0.0, 0.0, 0.0)</span><span style=''>
+</span>169 <span style=''>
+</span>170 <span style=''>/** Encounter event for logging/display */
+</span>171 <span style=''>case class BanditEncounter(
+</span>172 <span style=''>    outcome: EncounterOutcome,
+</span>173 <span style=''>    fromCity: CityId,
+</span>174 <span style=''>    toCity: CityId,
+</span>175 <span style=''>    turn: Int
+</span>176 <span style=''>) derives ReadWriter
+</span></pre>
+          </div>
+          <div class="tab-pane" id="statementlist">
+            <table cellspacing="0" cellpadding="0" class="table statementlist">
+      <tr>
+        <th>Line</th>
+        <th>Stmt Id</th>
+        <th>Pos</th>
+        <th>Tree</th>
+        <th>Symbol</th>
+        <th>Tests</th>
+        <th>Code</th>
+      </tr><tr>
+        <td>
+          10
+        </td>
+        <td>
+          6759
+        </td>
+        <td>
+          212
+          -
+          225
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          basePrice
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def basePrice
+        </td>
+      </tr><tr>
+        <td>
+          11
+        </td>
+        <td>
+          6740
+        </td>
+        <td>
+          280
+          -
+          284
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 5
+        </td>
+      </tr><tr>
+        <td>
+          11
+        </td>
+        <td>
+          6739
+        </td>
+        <td>
+          283
+          -
+          284
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          5
+        </td>
+      </tr><tr>
+        <td>
+          12
+        </td>
+        <td>
+          6742
+        </td>
+        <td>
+          309
+          -
+          314
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 15
+        </td>
+      </tr><tr>
+        <td>
+          12
+        </td>
+        <td>
+          6741
+        </td>
+        <td>
+          312
+          -
+          314
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          15
+        </td>
+      </tr><tr>
+        <td>
+          13
+        </td>
+        <td>
+          6743
+        </td>
+        <td>
+          342
+          -
+          343
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          8
+        </td>
+      </tr><tr>
+        <td>
+          13
+        </td>
+        <td>
+          6744
+        </td>
+        <td>
+          339
+          -
+          343
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 8
+        </td>
+      </tr><tr>
+        <td>
+          14
+        </td>
+        <td>
+          6746
+        </td>
+        <td>
+          368
+          -
+          373
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 40
+        </td>
+      </tr><tr>
+        <td>
+          14
+        </td>
+        <td>
+          6745
+        </td>
+        <td>
+          371
+          -
+          373
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          40
+        </td>
+      </tr><tr>
+        <td>
+          15
+        </td>
+        <td>
+          6748
+        </td>
+        <td>
+          398
+          -
+          403
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 80
+        </td>
+      </tr><tr>
+        <td>
+          15
+        </td>
+        <td>
+          6747
+        </td>
+        <td>
+          401
+          -
+          403
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          80
+        </td>
+      </tr><tr>
+        <td>
+          16
+        </td>
+        <td>
+          6749
+        </td>
+        <td>
+          431
+          -
+          433
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          20
+        </td>
+      </tr><tr>
+        <td>
+          16
+        </td>
+        <td>
+          6750
+        </td>
+        <td>
+          428
+          -
+          433
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 20
+        </td>
+      </tr><tr>
+        <td>
+          17
+        </td>
+        <td>
+          6752
+        </td>
+        <td>
+          458
+          -
+          462
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 6
+        </td>
+      </tr><tr>
+        <td>
+          17
+        </td>
+        <td>
+          6751
+        </td>
+        <td>
+          461
+          -
+          462
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          6
+        </td>
+      </tr><tr>
+        <td>
+          18
+        </td>
+        <td>
+          6754
+        </td>
+        <td>
+          487
+          -
+          491
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 4
+        </td>
+      </tr><tr>
+        <td>
+          18
+        </td>
+        <td>
+          6753
+        </td>
+        <td>
+          490
+          -
+          491
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          4
+        </td>
+      </tr><tr>
+        <td>
+          19
+        </td>
+        <td>
+          6755
+        </td>
+        <td>
+          519
+          -
+          521
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          10
+        </td>
+      </tr><tr>
+        <td>
+          19
+        </td>
+        <td>
+          6756
+        </td>
+        <td>
+          516
+          -
+          521
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 10
+        </td>
+      </tr><tr>
+        <td>
+          20
+        </td>
+        <td>
+          6758
+        </td>
+        <td>
+          546
+          -
+          551
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 25
+        </td>
+      </tr><tr>
+        <td>
+          20
+        </td>
+        <td>
+          6757
+        </td>
+        <td>
+          549
+          -
+          551
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          25
+        </td>
+      </tr><tr>
+        <td>
+          22
+        </td>
+        <td>
+          6780
+        </td>
+        <td>
+          555
+          -
+          565
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          weight
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def weight
+        </td>
+      </tr><tr>
+        <td>
+          23
+        </td>
+        <td>
+          6761
+        </td>
+        <td>
+          620
+          -
+          625
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 20
+        </td>
+      </tr><tr>
+        <td>
+          23
+        </td>
+        <td>
+          6760
+        </td>
+        <td>
+          623
+          -
+          625
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          20
+        </td>
+      </tr><tr>
+        <td>
+          24
+        </td>
+        <td>
+          6763
+        </td>
+        <td>
+          650
+          -
+          655
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 50
+        </td>
+      </tr><tr>
+        <td>
+          24
+        </td>
+        <td>
+          6762
+        </td>
+        <td>
+          653
+          -
+          655
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          50
+        </td>
+      </tr><tr>
+        <td>
+          25
+        </td>
+        <td>
+          6764
+        </td>
+        <td>
+          683
+          -
+          685
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          40
+        </td>
+      </tr><tr>
+        <td>
+          25
+        </td>
+        <td>
+          6765
+        </td>
+        <td>
+          680
+          -
+          685
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; 40
+        </td>
+      </tr><tr>
+        <td>
+          26
+        </td>
+        <td>
+          6767
+        </td>
+        <td>
+          710
+          -
+          714
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 5
+        </td>
+      </tr><tr>
+        <td>
+          26
+        </td>
+        <td>
+          6766
+        </td>
+        <td>
+          713
+          -
+          714
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          5
+        </td>
+      </tr><tr>
+        <td>
+          27
+        </td>
+        <td>
+          6769
+        </td>
+        <td>
+          739
+          -
+          743
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 2
+        </td>
+      </tr><tr>
+        <td>
+          27
+        </td>
+        <td>
+          6768
+        </td>
+        <td>
+          742
+          -
+          743
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          2
+        </td>
+      </tr><tr>
+        <td>
+          28
+        </td>
+        <td>
+          6770
+        </td>
+        <td>
+          771
+          -
+          773
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          15
+        </td>
+      </tr><tr>
+        <td>
+          28
+        </td>
+        <td>
+          6771
+        </td>
+        <td>
+          768
+          -
+          773
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; 15
+        </td>
+      </tr><tr>
+        <td>
+          29
+        </td>
+        <td>
+          6773
+        </td>
+        <td>
+          798
+          -
+          803
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; 25
+        </td>
+      </tr><tr>
+        <td>
+          29
+        </td>
+        <td>
+          6772
+        </td>
+        <td>
+          801
+          -
+          803
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          25
+        </td>
+      </tr><tr>
+        <td>
+          30
+        </td>
+        <td>
+          6775
+        </td>
+        <td>
+          828
+          -
+          833
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; 15
+        </td>
+      </tr><tr>
+        <td>
+          30
+        </td>
+        <td>
+          6774
+        </td>
+        <td>
+          831
+          -
+          833
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          15
+        </td>
+      </tr><tr>
+        <td>
+          31
+        </td>
+        <td>
+          6776
+        </td>
+        <td>
+          861
+          -
+          863
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          60
+        </td>
+      </tr><tr>
+        <td>
+          31
+        </td>
+        <td>
+          6777
+        </td>
+        <td>
+          858
+          -
+          863
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; 60
+        </td>
+      </tr><tr>
+        <td>
+          32
+        </td>
+        <td>
+          6779
+        </td>
+        <td>
+          888
+          -
+          894
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 100
+        </td>
+      </tr><tr>
+        <td>
+          32
+        </td>
+        <td>
+          6778
+        </td>
+        <td>
+          891
+          -
+          894
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          100
+        </td>
+      </tr><tr>
+        <td>
+          34
+        </td>
+        <td>
+          6782
+        </td>
+        <td>
+          920
+          -
+          931
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          values
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Item.values
+        </td>
+      </tr><tr>
+        <td>
+          34
+        </td>
+        <td>
+          6781
+        </td>
+        <td>
+          920
+          -
+          931
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          wrapRefArray
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Item.values
+        </td>
+      </tr><tr>
+        <td>
+          34
+        </td>
+        <td>
+          6783
+        </td>
+        <td>
+          920
+          -
+          938
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          toList
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Item.values.toList
+        </td>
+      </tr><tr>
+        <td>
+          41
+        </td>
+        <td>
+          6790
+        </td>
+        <td>
+          1056
+          -
+          1068
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          modifier
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def modifier
+        </td>
+      </tr><tr>
+        <td>
+          42
+        </td>
+        <td>
+          6785
+        </td>
+        <td>
+          1141
+          -
+          1147
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 0.6
+        </td>
+      </tr><tr>
+        <td>
+          42
+        </td>
+        <td>
+          6784
+        </td>
+        <td>
+          1144
+          -
+          1147
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          0.6
+        </td>
+      </tr><tr>
+        <td>
+          43
+        </td>
+        <td>
+          6787
+        </td>
+        <td>
+          1178
+          -
+          1184
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 1.0
+        </td>
+      </tr><tr>
+        <td>
+          43
+        </td>
+        <td>
+          6786
+        </td>
+        <td>
+          1181
+          -
+          1184
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          1.0
+        </td>
+      </tr><tr>
+        <td>
+          44
+        </td>
+        <td>
+          6788
+        </td>
+        <td>
+          1218
+          -
+          1221
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          1.5
+        </td>
+      </tr><tr>
+        <td>
+          44
+        </td>
+        <td>
+          6789
+        </td>
+        <td>
+          1215
+          -
+          1221
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 1.5
+        </td>
+      </tr><tr>
+        <td>
+          50
+        </td>
+        <td>
+          6797
+        </td>
+        <td>
+          1308
+          -
+          1320
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          modifier
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def modifier
+        </td>
+      </tr><tr>
+        <td>
+          51
+        </td>
+        <td>
+          6791
+        </td>
+        <td>
+          1394
+          -
+          1397
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          0.7
+        </td>
+      </tr><tr>
+        <td>
+          51
+        </td>
+        <td>
+          6792
+        </td>
+        <td>
+          1391
+          -
+          1397
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 0.7
+        </td>
+      </tr><tr>
+        <td>
+          52
+        </td>
+        <td>
+          6794
+        </td>
+        <td>
+          1426
+          -
+          1432
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 1.0
+        </td>
+      </tr><tr>
+        <td>
+          52
+        </td>
+        <td>
+          6793
+        </td>
+        <td>
+          1429
+          -
+          1432
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          1.0
+        </td>
+      </tr><tr>
+        <td>
+          53
+        </td>
+        <td>
+          6796
+        </td>
+        <td>
+          1461
+          -
+          1467
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 1.4
+        </td>
+      </tr><tr>
+        <td>
+          53
+        </td>
+        <td>
+          6795
+        </td>
+        <td>
+          1464
+          -
+          1467
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          1.4
+        </td>
+      </tr><tr>
+        <td>
+          60
+        </td>
+        <td>
+          6817
+        </td>
+        <td>
+          1568
+          -
+          1580
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          modifier
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def modifier
+        </td>
+      </tr><tr>
+        <td>
+          60
+        </td>
+        <td>
+          6798
+        </td>
+        <td>
+          1619
+          -
+          1633
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (season, item)
+        </td>
+      </tr><tr>
+        <td>
+          61
+        </td>
+        <td>
+          6800
+        </td>
+        <td>
+          1681
+          -
+          1687
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 1.2
+        </td>
+      </tr><tr>
+        <td>
+          61
+        </td>
+        <td>
+          6799
+        </td>
+        <td>
+          1684
+          -
+          1687
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          1.2
+        </td>
+      </tr><tr>
+        <td>
+          62
+        </td>
+        <td>
+          6802
+        </td>
+        <td>
+          1729
+          -
+          1735
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 0.9
+        </td>
+      </tr><tr>
+        <td>
+          62
+        </td>
+        <td>
+          6801
+        </td>
+        <td>
+          1732
+          -
+          1735
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          0.9
+        </td>
+      </tr><tr>
+        <td>
+          63
+        </td>
+        <td>
+          6803
+        </td>
+        <td>
+          1780
+          -
+          1783
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          1.3
+        </td>
+      </tr><tr>
+        <td>
+          63
+        </td>
+        <td>
+          6804
+        </td>
+        <td>
+          1777
+          -
+          1783
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; 1.3
+        </td>
+      </tr><tr>
+        <td>
+          64
+        </td>
+        <td>
+          6806
+        </td>
+        <td>
+          1825
+          -
+          1831
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; 0.8
+        </td>
+      </tr><tr>
+        <td>
+          64
+        </td>
+        <td>
+          6805
+        </td>
+        <td>
+          1828
+          -
+          1831
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          0.8
+        </td>
+      </tr><tr>
+        <td>
+          65
+        </td>
+        <td>
+          6808
+        </td>
+        <td>
+          1873
+          -
+          1879
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; 1.3
+        </td>
+      </tr><tr>
+        <td>
+          65
+        </td>
+        <td>
+          6807
+        </td>
+        <td>
+          1876
+          -
+          1879
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          1.3
+        </td>
+      </tr><tr>
+        <td>
+          66
+        </td>
+        <td>
+          6809
+        </td>
+        <td>
+          1924
+          -
+          1927
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          1.1
+        </td>
+      </tr><tr>
+        <td>
+          66
+        </td>
+        <td>
+          6810
+        </td>
+        <td>
+          1921
+          -
+          1927
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; 1.1
+        </td>
+      </tr><tr>
+        <td>
+          67
+        </td>
+        <td>
+          6812
+        </td>
+        <td>
+          1969
+          -
+          1975
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 1.4
+        </td>
+      </tr><tr>
+        <td>
+          67
+        </td>
+        <td>
+          6811
+        </td>
+        <td>
+          1972
+          -
+          1975
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          1.4
+        </td>
+      </tr><tr>
+        <td>
+          68
+        </td>
+        <td>
+          6814
+        </td>
+        <td>
+          2017
+          -
+          2023
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; 1.2
+        </td>
+      </tr><tr>
+        <td>
+          68
+        </td>
+        <td>
+          6813
+        </td>
+        <td>
+          2020
+          -
+          2023
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          1.2
+        </td>
+      </tr><tr>
+        <td>
+          69
+        </td>
+        <td>
+          6815
+        </td>
+        <td>
+          2068
+          -
+          2071
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          1.0
+        </td>
+      </tr><tr>
+        <td>
+          69
+        </td>
+        <td>
+          6816
+        </td>
+        <td>
+          2065
+          -
+          2071
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; 1.0
+        </td>
+      </tr><tr>
+        <td>
+          71
+        </td>
+        <td>
+          6822
+        </td>
+        <td>
+          2075
+          -
+          2083
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          next
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def next
+        </td>
+      </tr><tr>
+        <td>
+          72
+        </td>
+        <td>
+          6818
+        </td>
+        <td>
+          2146
+          -
+          2162
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; Season.Summer
+        </td>
+      </tr><tr>
+        <td>
+          73
+        </td>
+        <td>
+          6819
+        </td>
+        <td>
+          2186
+          -
+          2202
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; Season.Autumn
+        </td>
+      </tr><tr>
+        <td>
+          74
+        </td>
+        <td>
+          6820
+        </td>
+        <td>
+          2226
+          -
+          2242
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; Season.Winter
+        </td>
+      </tr><tr>
+        <td>
+          75
+        </td>
+        <td>
+          6821
+        </td>
+        <td>
+          2266
+          -
+          2282
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; Season.Spring
+        </td>
+      </tr><tr>
+        <td>
+          100
+        </td>
+        <td>
+          6825
+        </td>
+        <td>
+          2889
+          -
+          2904
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          totalWeight
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def totalWeight
+        </td>
+      </tr><tr>
+        <td>
+          101
+        </td>
+        <td>
+          6824
+        </td>
+        <td>
+          2941
+          -
+          2964
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          *
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Item.weight(item) * qty
+        </td>
+      </tr><tr>
+        <td>
+          101
+        </td>
+        <td>
+          6823
+        </td>
+        <td>
+          2916
+          -
+          2969
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          sum
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          items.map((item, qty) =&gt; Item.weight(item) * qty).sum
+        </td>
+      </tr><tr>
+        <td>
+          103
+        </td>
+        <td>
+          6829
+        </td>
+        <td>
+          2973
+          -
+          2980
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          add
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def add
+        </td>
+      </tr><tr>
+        <td>
+          104
+        </td>
+        <td>
+          6827
+        </td>
+        <td>
+          3033
+          -
+          3084
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          updated
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          items.updated(item, items.getOrElse(item, 0) + qty)
+        </td>
+      </tr><tr>
+        <td>
+          104
+        </td>
+        <td>
+          6826
+        </td>
+        <td>
+          3020
+          -
+          3085
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          copy(items = items.updated(item, items.getOrElse(item, 0) + qty))
+        </td>
+      </tr><tr>
+        <td>
+          104
+        </td>
+        <td>
+          6828
+        </td>
+        <td>
+          3053
+          -
+          3083
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          +
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          items.getOrElse(item, 0) + qty
+        </td>
+      </tr><tr>
+        <td>
+          106
+        </td>
+        <td>
+          6842
+        </td>
+        <td>
+          3089
+          -
+          3099
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          remove
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def remove
+        </td>
+      </tr><tr>
+        <td>
+          107
+        </td>
+        <td>
+          6830
+        </td>
+        <td>
+          3161
+          -
+          3185
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getOrElse
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          items.getOrElse(item, 0)
+        </td>
+      </tr><tr>
+        <td>
+          108
+        </td>
+        <td>
+          6831
+        </td>
+        <td>
+          3193
+          -
+          3207
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &gt;=
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          current &gt;= qty
+        </td>
+      </tr><tr>
+        <td>
+          109
+        </td>
+        <td>
+          6832
+        </td>
+        <td>
+          3232
+          -
+          3245
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          current - qty
+        </td>
+      </tr><tr>
+        <td>
+          109
+        </td>
+        <td>
+          6840
+        </td>
+        <td>
+          3219
+          -
+          3367
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          val newQty = current - qty\n      val newItems = if newQty == 0 then items - item else items.updated(item, newQty)\n      Some(copy(items = newItems))
+        </td>
+      </tr><tr>
+        <td>
+          110
+        </td>
+        <td>
+          6833
+        </td>
+        <td>
+          3270
+          -
+          3281
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          ==
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          newQty == 0
+        </td>
+      </tr><tr>
+        <td>
+          110
+        </td>
+        <td>
+          6835
+        </td>
+        <td>
+          3287
+          -
+          3299
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          items - item
+        </td>
+      </tr><tr>
+        <td>
+          110
+        </td>
+        <td>
+          6834
+        </td>
+        <td>
+          3287
+          -
+          3299
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          items - item
+        </td>
+      </tr><tr>
+        <td>
+          110
+        </td>
+        <td>
+          6837
+        </td>
+        <td>
+          3305
+          -
+          3332
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          updated
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          items.updated(item, newQty)
+        </td>
+      </tr><tr>
+        <td>
+          110
+        </td>
+        <td>
+          6836
+        </td>
+        <td>
+          3305
+          -
+          3332
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          updated
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          items.updated(item, newQty)
+        </td>
+      </tr><tr>
+        <td>
+          111
+        </td>
+        <td>
+          6839
+        </td>
+        <td>
+          3344
+          -
+          3366
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          copy(items = newItems)
+        </td>
+      </tr><tr>
+        <td>
+          111
+        </td>
+        <td>
+          6838
+        </td>
+        <td>
+          3339
+          -
+          3367
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Some(copy(items = newItems))
+        </td>
+      </tr><tr>
+        <td>
+          112
+        </td>
+        <td>
+          6841
+        </td>
+        <td>
+          3377
+          -
+          3381
+        </td>
+        <td>
+          Ident
+        </td>
+        <td>
+          None
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          None
+        </td>
+      </tr><tr>
+        <td>
+          114
+        </td>
+        <td>
+          6844
+        </td>
+        <td>
+          3385
+          -
+          3400
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          getQuantity
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def getQuantity
+        </td>
+      </tr><tr>
+        <td>
+          114
+        </td>
+        <td>
+          6843
+        </td>
+        <td>
+          3420
+          -
+          3444
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getOrElse
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          items.getOrElse(item, 0)
+        </td>
+      </tr><tr>
+        <td>
+          117
+        </td>
+        <td>
+          6846
+        </td>
+        <td>
+          3499
+          -
+          3508
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          empty
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Map.empty
+        </td>
+      </tr><tr>
+        <td>
+          117
+        </td>
+        <td>
+          6845
+        </td>
+        <td>
+          3489
+          -
+          3509
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Inventory(Map.empty)
+        </td>
+      </tr><tr>
+        <td>
+          126
+        </td>
+        <td>
+          6848
+        </td>
+        <td>
+          3687
+          -
+          3690
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          200
+        </td>
+      </tr><tr>
+        <td>
+          126
+        </td>
+        <td>
+          6850
+        </td>
+        <td>
+          3659
+          -
+          3679
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          carriageCapacity
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def carriageCapacity
+        </td>
+      </tr><tr>
+        <td>
+          126
+        </td>
+        <td>
+          6847
+        </td>
+        <td>
+          3687
+          -
+          3717
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          +
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          200 + (carriageLevel - 1) * 50
+        </td>
+      </tr><tr>
+        <td>
+          126
+        </td>
+        <td>
+          6849
+        </td>
+        <td>
+          3693
+          -
+          3717
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          *
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (carriageLevel - 1) * 50
+        </td>
+      </tr><tr>
+        <td>
+          127
+        </td>
+        <td>
+          6851
+        </td>
+        <td>
+          3749
+          -
+          3789
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          carriageCapacity - inventory.totalWeight
+        </td>
+      </tr><tr>
+        <td>
+          127
+        </td>
+        <td>
+          6853
+        </td>
+        <td>
+          3720
+          -
+          3741
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          availableCapacity
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def availableCapacity
+        </td>
+      </tr><tr>
+        <td>
+          127
+        </td>
+        <td>
+          6852
+        </td>
+        <td>
+          3768
+          -
+          3789
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          totalWeight
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          inventory.totalWeight
+        </td>
+      </tr><tr>
+        <td>
+          128
+        </td>
+        <td>
+          6857
+        </td>
+        <td>
+          3831
+          -
+          3832
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          2
+        </td>
+      </tr><tr>
+        <td>
+          128
+        </td>
+        <td>
+          6860
+        </td>
+        <td>
+          3822
+          -
+          3858
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          toInt
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          math.pow(2, carriageLevel - 1).toInt
+        </td>
+      </tr><tr>
+        <td>
+          128
+        </td>
+        <td>
+          6859
+        </td>
+        <td>
+          3834
+          -
+          3851
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          carriageLevel - 1
+        </td>
+      </tr><tr>
+        <td>
+          128
+        </td>
+        <td>
+          6856
+        </td>
+        <td>
+          3822
+          -
+          3852
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          pow
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          math.pow(2, carriageLevel - 1)
+        </td>
+      </tr><tr>
+        <td>
+          128
+        </td>
+        <td>
+          6858
+        </td>
+        <td>
+          3834
+          -
+          3851
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          int2double
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          carriageLevel - 1
+        </td>
+      </tr><tr>
+        <td>
+          128
+        </td>
+        <td>
+          6861
+        </td>
+        <td>
+          3792
+          -
+          3808
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          upgradesCost
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def upgradesCost
+        </td>
+      </tr><tr>
+        <td>
+          128
+        </td>
+        <td>
+          6855
+        </td>
+        <td>
+          3816
+          -
+          3819
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          100
+        </td>
+      </tr><tr>
+        <td>
+          128
+        </td>
+        <td>
+          6854
+        </td>
+        <td>
+          3816
+          -
+          3858
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          *
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          100 * math.pow(2, carriageLevel - 1).toInt
+        </td>
+      </tr><tr>
+        <td>
+          138
+        </td>
+        <td>
+          6867
+        </td>
+        <td>
+          4181
+          -
+          4187
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          $lessinit$greater$default$7
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          None /
+        </td>
+      </tr><tr>
+        <td>
+          140
+        </td>
+        <td>
+          6862
+        </td>
+        <td>
+          4274
+          -
+          4300
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          cities(player.currentCity)
+        </td>
+      </tr><tr>
+        <td>
+          140
+        </td>
+        <td>
+          6863
+        </td>
+        <td>
+          4250
+          -
+          4265
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          currentCity
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def currentCity
+        </td>
+      </tr><tr>
+        <td>
+          142
+        </td>
+        <td>
+          6866
+        </td>
+        <td>
+          4385
+          -
+          4402
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          isCityVisited
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def isCityVisited
+        </td>
+      </tr><tr>
+        <td>
+          143
+        </td>
+        <td>
+          6865
+        </td>
+        <td>
+          4466
+          -
+          4496
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          contains
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          visitedCities.contains(cityId)
+        </td>
+      </tr><tr>
+        <td>
+          143
+        </td>
+        <td>
+          6864
+        </td>
+        <td>
+          4434
+          -
+          4496
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          ||
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          cityId == player.currentCity || visitedCities.contains(cityId)
+        </td>
+      </tr><tr>
+        <td>
+          146
+        </td>
+        <td>
+          6868
+        </td>
+        <td>
+          4544
+          -
+          4546
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          20
+        </td>
+      </tr><tr>
+        <td>
+          168
+        </td>
+        <td>
+          6869
+        </td>
+        <td>
+          5250
+          -
+          5285
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          RiskAssessment(0, 0, 0.0, 0.0, 0.0)
+        </td>
+      </tr>
+    </table>
+          </div>
+        </div>
+      </body>
+    </html>
