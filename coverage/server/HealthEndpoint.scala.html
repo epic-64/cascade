@@ -1,0 +1,1128 @@
+<html>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title id="title">
+          server/HealthEndpoint.scala.html
+        </title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/css/theme.default.min.css" type="text/css"/><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/js/jquery.tablesorter.min.js"></script><link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" type="text/css"/><script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script><script type="text/javascript">
+        $(document).ready(function() {$(".tablesorter").tablesorter();});
+      </script>
+        <style>
+          table.codegrid { font-family: monospace; font-size: 12px; width: auto!important; }table.statementlist { width: auto!important; font-size: 13px; } table.codegrid td { padding: 0!important; border: 0!important } table td.linenumber { width: 40px!important; } 
+        </style>
+      </head>
+      <body style="font-family: monospace;">
+        <ul class="nav nav-tabs">
+          <li>
+            <a href="#codegrid" data-toggle="tab">Codegrid</a>
+          </li>
+          <li>
+            <a href="#statementlist" data-toggle="tab">Statement List</a>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active" id="codegrid">
+            <pre style='font-size: 12pt; font-family: courier, monospace;'>1 <span style=''>package server
+</span>2 <span style=''>
+</span>3 <span style=''>object HealthEndpoint:
+</span>4 <span style=''>  </span><span style='background: #AEF1AE'>def health</span><span style=''>(startTime: Long): ujson.Value =
+</span>5 <span style=''>    val runtime = </span><span style='background: #AEF1AE'>Runtime.getRuntime</span><span style=''>
+</span>6 <span style=''>    val uptimeMs = </span><span style='background: #AEF1AE'>System.currentTimeMillis() - startTime</span><span style=''>
+</span>7 <span style=''>    val uptimeSeconds = </span><span style='background: #AEF1AE'>uptimeMs / 1000</span><span style=''>
+</span>8 <span style=''>    val uptimeMinutes = </span><span style='background: #AEF1AE'>uptimeSeconds / 60</span><span style=''>
+</span>9 <span style=''>    val uptimeHours = </span><span style='background: #AEF1AE'>uptimeMinutes / 60</span><span style=''>
+</span>10 <span style=''>
+</span>11 <span style=''>    </span><span style='background: #AEF1AE'>ujson.Obj(
+</span>12 <span style=''></span><span style='background: #AEF1AE'>      &quot;status&quot; -&gt; &quot;healthy&quot;,
+</span>13 <span style=''></span><span style='background: #AEF1AE'>      &quot;uptime&quot; -&gt; ujson.Obj(
+</span>14 <span style=''></span><span style='background: #AEF1AE'>        &quot;milliseconds&quot; -&gt; uptimeMs,
+</span>15 <span style=''></span><span style='background: #AEF1AE'>        &quot;seconds&quot; -&gt; uptimeSeconds,
+</span>16 <span style=''></span><span style='background: #AEF1AE'>        &quot;formatted&quot; -&gt; f&quot;${uptimeHours}h ${uptimeMinutes % 60}m ${uptimeSeconds % 60}s&quot;
+</span>17 <span style=''></span><span style='background: #AEF1AE'>      ),
+</span>18 <span style=''></span><span style='background: #AEF1AE'>      &quot;memory&quot; -&gt; ujson.Obj(
+</span>19 <span style=''></span><span style='background: #AEF1AE'>        &quot;total&quot; -&gt; runtime.totalMemory(),
+</span>20 <span style=''></span><span style='background: #AEF1AE'>        &quot;free&quot; -&gt; runtime.freeMemory(),
+</span>21 <span style=''></span><span style='background: #AEF1AE'>        &quot;used&quot; -&gt; (runtime.totalMemory() - runtime.freeMemory()),
+</span>22 <span style=''></span><span style='background: #AEF1AE'>        &quot;max&quot; -&gt; runtime.maxMemory()
+</span>23 <span style=''></span><span style='background: #AEF1AE'>      ),
+</span>24 <span style=''></span><span style='background: #AEF1AE'>      &quot;system&quot; -&gt; ujson.Obj(
+</span>25 <span style=''></span><span style='background: #AEF1AE'>        &quot;availableProcessors&quot; -&gt; runtime.availableProcessors(),
+</span>26 <span style=''></span><span style='background: #AEF1AE'>        &quot;javaVersion&quot; -&gt; System.getProperty(&quot;java.version&quot;),
+</span>27 <span style=''></span><span style='background: #AEF1AE'>        &quot;scalaVersion&quot; -&gt; scala.util.Properties.versionNumberString
+</span>28 <span style=''></span><span style='background: #AEF1AE'>      ),
+</span>29 <span style=''></span><span style='background: #AEF1AE'>      &quot;timestamp&quot; -&gt; System.currentTimeMillis()
+</span>30 <span style=''></span><span style='background: #AEF1AE'>    )</span><span style=''>
+</span></pre>
+          </div>
+          <div class="tab-pane" id="statementlist">
+            <table cellspacing="0" cellpadding="0" class="table statementlist">
+      <tr>
+        <th>Line</th>
+        <th>Stmt Id</th>
+        <th>Pos</th>
+        <th>Tree</th>
+        <th>Symbol</th>
+        <th>Tests</th>
+        <th>Code</th>
+      </tr><tr>
+        <td>
+          4
+        </td>
+        <td>
+          1454
+        </td>
+        <td>
+          41
+          -
+          51
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          health
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def health
+        </td>
+      </tr><tr>
+        <td>
+          5
+        </td>
+        <td>
+          1411
+        </td>
+        <td>
+          102
+          -
+          120
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getRuntime
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Runtime.getRuntime
+        </td>
+      </tr><tr>
+        <td>
+          6
+        </td>
+        <td>
+          1412
+        </td>
+        <td>
+          140
+          -
+          178
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          System.currentTimeMillis() - startTime
+        </td>
+      </tr><tr>
+        <td>
+          7
+        </td>
+        <td>
+          1413
+        </td>
+        <td>
+          203
+          -
+          218
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          /
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          uptimeMs / 1000
+        </td>
+      </tr><tr>
+        <td>
+          8
+        </td>
+        <td>
+          1414
+        </td>
+        <td>
+          243
+          -
+          261
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          /
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          uptimeSeconds / 60
+        </td>
+      </tr><tr>
+        <td>
+          9
+        </td>
+        <td>
+          1415
+        </td>
+        <td>
+          284
+          -
+          302
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          /
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          uptimeMinutes / 60
+        </td>
+      </tr><tr>
+        <td>
+          11
+        </td>
+        <td>
+          1416
+        </td>
+        <td>
+          308
+          -
+          1053
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          ujson.Obj(\n      &quot;status&quot; -&gt; &quot;healthy&quot;,\n      &quot;uptime&quot; -&gt; ujson.Obj(\n        &quot;milliseconds&quot; -&gt; uptimeMs,\n        &quot;seconds&quot; -&gt; uptimeSeconds,\n        &quot;formatted&quot; -&gt; f&quot;${uptimeHours}h ${uptimeMinutes % 60}m ${uptimeSeconds % 60}s&quot;\n      ),\n      &quot;memory&quot; -&gt; ujson.Obj(\n        &quot;total&quot; -&gt; runtime.totalMemory(),\n        &quot;free&quot; -&gt; runtime.freeMemory(),\n        &quot;used&quot; -&gt; (runtime.totalMemory() - runtime.freeMemory()),\n        &quot;max&quot; -&gt; runtime.maxMemory()\n      ),\n      &quot;system&quot; -&gt; ujson.Obj(\n        &quot;availableProcessors&quot; -&gt; runtime.availableProcessors(),\n        &quot;javaVersion&quot; -&gt; System.getProperty(&quot;java.version&quot;),\n        &quot;scalaVersion&quot; -&gt; scala.util.Properties.versionNumberString\n      ),\n      &quot;timestamp&quot; -&gt; System.currentTimeMillis()\n    )
+        </td>
+      </tr><tr>
+        <td>
+          12
+        </td>
+        <td>
+          1417
+        </td>
+        <td>
+          325
+          -
+          346
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;status&quot; -&gt; &quot;healthy&quot;
+        </td>
+      </tr><tr>
+        <td>
+          13
+        </td>
+        <td>
+          1419
+        </td>
+        <td>
+          366
+          -
+          544
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          ujson.Obj(\n        &quot;milliseconds&quot; -&gt; uptimeMs,\n        &quot;seconds&quot; -&gt; uptimeSeconds,\n        &quot;formatted&quot; -&gt; f&quot;${uptimeHours}h ${uptimeMinutes % 60}m ${uptimeSeconds % 60}s&quot;\n      )
+        </td>
+      </tr><tr>
+        <td>
+          13
+        </td>
+        <td>
+          1418
+        </td>
+        <td>
+          354
+          -
+          544
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;uptime&quot; -&gt; ujson.Obj(\n        &quot;milliseconds&quot; -&gt; uptimeMs,\n        &quot;seconds&quot; -&gt; uptimeSeconds,\n        &quot;formatted&quot; -&gt; f&quot;${uptimeHours}h ${uptimeMinutes % 60}m ${uptimeSeconds % 60}s&quot;\n      )
+        </td>
+      </tr><tr>
+        <td>
+          14
+        </td>
+        <td>
+          1420
+        </td>
+        <td>
+          385
+          -
+          411
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;milliseconds&quot; -&gt; uptimeMs
+        </td>
+      </tr><tr>
+        <td>
+          15
+        </td>
+        <td>
+          1422
+        </td>
+        <td>
+          434
+          -
+          447
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableLong
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          uptimeSeconds
+        </td>
+      </tr><tr>
+        <td>
+          15
+        </td>
+        <td>
+          1421
+        </td>
+        <td>
+          421
+          -
+          447
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;seconds&quot; -&gt; uptimeSeconds
+        </td>
+      </tr><tr>
+        <td>
+          16
+        </td>
+        <td>
+          1423
+        </td>
+        <td>
+          457
+          -
+          536
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;formatted&quot; -&gt; f&quot;${uptimeHours}h ${uptimeMinutes % 60}m ${uptimeSeconds % 60}s&quot;
+        </td>
+      </tr><tr>
+        <td>
+          16
+        </td>
+        <td>
+          1425
+        </td>
+        <td>
+          492
+          -
+          510
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          %
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          uptimeMinutes % 60
+        </td>
+      </tr><tr>
+        <td>
+          16
+        </td>
+        <td>
+          1424
+        </td>
+        <td>
+          472
+          -
+          536
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          f&quot;${uptimeHours}h ${uptimeMinutes % 60}m ${uptimeSeconds % 60}s&quot;
+        </td>
+      </tr><tr>
+        <td>
+          16
+        </td>
+        <td>
+          1426
+        </td>
+        <td>
+          515
+          -
+          533
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          %
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          uptimeSeconds % 60
+        </td>
+      </tr><tr>
+        <td>
+          18
+        </td>
+        <td>
+          1428
+        </td>
+        <td>
+          564
+          -
+          767
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          ujson.Obj(\n        &quot;total&quot; -&gt; runtime.totalMemory(),\n        &quot;free&quot; -&gt; runtime.freeMemory(),\n        &quot;used&quot; -&gt; (runtime.totalMemory() - runtime.freeMemory()),\n        &quot;max&quot; -&gt; runtime.maxMemory()\n      )
+        </td>
+      </tr><tr>
+        <td>
+          18
+        </td>
+        <td>
+          1427
+        </td>
+        <td>
+          552
+          -
+          767
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;memory&quot; -&gt; ujson.Obj(\n        &quot;total&quot; -&gt; runtime.totalMemory(),\n        &quot;free&quot; -&gt; runtime.freeMemory(),\n        &quot;used&quot; -&gt; (runtime.totalMemory() - runtime.freeMemory()),\n        &quot;max&quot; -&gt; runtime.maxMemory()\n      )
+        </td>
+      </tr><tr>
+        <td>
+          19
+        </td>
+        <td>
+          1429
+        </td>
+        <td>
+          583
+          -
+          615
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;total&quot; -&gt; runtime.totalMemory()
+        </td>
+      </tr><tr>
+        <td>
+          19
+        </td>
+        <td>
+          1430
+        </td>
+        <td>
+          594
+          -
+          615
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          totalMemory
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          runtime.totalMemory()
+        </td>
+      </tr><tr>
+        <td>
+          20
+        </td>
+        <td>
+          1432
+        </td>
+        <td>
+          635
+          -
+          655
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableLong
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          runtime.freeMemory()
+        </td>
+      </tr><tr>
+        <td>
+          20
+        </td>
+        <td>
+          1431
+        </td>
+        <td>
+          625
+          -
+          655
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;free&quot; -&gt; runtime.freeMemory()
+        </td>
+      </tr><tr>
+        <td>
+          20
+        </td>
+        <td>
+          1433
+        </td>
+        <td>
+          635
+          -
+          655
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          freeMemory
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          runtime.freeMemory()
+        </td>
+      </tr><tr>
+        <td>
+          21
+        </td>
+        <td>
+          1434
+        </td>
+        <td>
+          665
+          -
+          720
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;used&quot; -&gt; (runtime.totalMemory() - runtime.freeMemory()
+        </td>
+      </tr><tr>
+        <td>
+          21
+        </td>
+        <td>
+          1437
+        </td>
+        <td>
+          700
+          -
+          720
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          freeMemory
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          runtime.freeMemory()
+        </td>
+      </tr><tr>
+        <td>
+          21
+        </td>
+        <td>
+          1436
+        </td>
+        <td>
+          676
+          -
+          720
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          runtime.totalMemory() - runtime.freeMemory()
+        </td>
+      </tr><tr>
+        <td>
+          21
+        </td>
+        <td>
+          1435
+        </td>
+        <td>
+          676
+          -
+          720
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableLong
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          runtime.totalMemory() - runtime.freeMemory()
+        </td>
+      </tr><tr>
+        <td>
+          22
+        </td>
+        <td>
+          1438
+        </td>
+        <td>
+          731
+          -
+          759
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;max&quot; -&gt; runtime.maxMemory()
+        </td>
+      </tr><tr>
+        <td>
+          22
+        </td>
+        <td>
+          1440
+        </td>
+        <td>
+          740
+          -
+          759
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          maxMemory
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          runtime.maxMemory()
+        </td>
+      </tr><tr>
+        <td>
+          22
+        </td>
+        <td>
+          1439
+        </td>
+        <td>
+          740
+          -
+          759
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableLong
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          runtime.maxMemory()
+        </td>
+      </tr><tr>
+        <td>
+          24
+        </td>
+        <td>
+          1441
+        </td>
+        <td>
+          775
+          -
+          998
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;system&quot; -&gt; ujson.Obj(\n        &quot;availableProcessors&quot; -&gt; runtime.availableProcessors(),\n        &quot;javaVersion&quot; -&gt; System.getProperty(&quot;java.version&quot;),\n        &quot;scalaVersion&quot; -&gt; scala.util.Properties.versionNumberString\n      )
+        </td>
+      </tr><tr>
+        <td>
+          24
+        </td>
+        <td>
+          1442
+        </td>
+        <td>
+          787
+          -
+          998
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          ujson.Obj(\n        &quot;availableProcessors&quot; -&gt; runtime.availableProcessors(),\n        &quot;javaVersion&quot; -&gt; System.getProperty(&quot;java.version&quot;),\n        &quot;scalaVersion&quot; -&gt; scala.util.Properties.versionNumberString\n      )
+        </td>
+      </tr><tr>
+        <td>
+          25
+        </td>
+        <td>
+          1443
+        </td>
+        <td>
+          806
+          -
+          860
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;availableProcessors&quot; -&gt; runtime.availableProcessors()
+        </td>
+      </tr><tr>
+        <td>
+          25
+        </td>
+        <td>
+          1444
+        </td>
+        <td>
+          831
+          -
+          860
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          availableProcessors
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          runtime.availableProcessors()
+        </td>
+      </tr><tr>
+        <td>
+          26
+        </td>
+        <td>
+          1447
+        </td>
+        <td>
+          887
+          -
+          921
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getProperty
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          System.getProperty(&quot;java.version&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          26
+        </td>
+        <td>
+          1446
+        </td>
+        <td>
+          887
+          -
+          921
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          System.getProperty(&quot;java.version&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          26
+        </td>
+        <td>
+          1445
+        </td>
+        <td>
+          870
+          -
+          921
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;javaVersion&quot; -&gt; System.getProperty(&quot;java.version&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          27
+        </td>
+        <td>
+          1450
+        </td>
+        <td>
+          949
+          -
+          990
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          versionNumberString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          scala.util.Properties.versionNumberString
+        </td>
+      </tr><tr>
+        <td>
+          27
+        </td>
+        <td>
+          1449
+        </td>
+        <td>
+          949
+          -
+          990
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          scala.util.Properties.versionNumberString
+        </td>
+      </tr><tr>
+        <td>
+          27
+        </td>
+        <td>
+          1448
+        </td>
+        <td>
+          931
+          -
+          990
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;scalaVersion&quot; -&gt; scala.util.Properties.versionNumberString
+        </td>
+      </tr><tr>
+        <td>
+          29
+        </td>
+        <td>
+          1452
+        </td>
+        <td>
+          1021
+          -
+          1047
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          JsonableLong
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          System.currentTimeMillis()
+        </td>
+      </tr><tr>
+        <td>
+          29
+        </td>
+        <td>
+          1451
+        </td>
+        <td>
+          1006
+          -
+          1047
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;timestamp&quot; -&gt; System.currentTimeMillis()
+        </td>
+      </tr><tr>
+        <td>
+          29
+        </td>
+        <td>
+          1453
+        </td>
+        <td>
+          1021
+          -
+          1047
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          currentTimeMillis
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          System.currentTimeMillis()
+        </td>
+      </tr>
+    </table>
+          </div>
+        </div>
+      </body>
+    </html>

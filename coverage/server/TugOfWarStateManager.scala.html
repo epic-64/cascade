@@ -1,0 +1,2064 @@
+<html>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title id="title">
+          server/TugOfWarStateManager.scala.html
+        </title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/css/theme.default.min.css" type="text/css"/><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/js/jquery.tablesorter.min.js"></script><link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" type="text/css"/><script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script><script type="text/javascript">
+        $(document).ready(function() {$(".tablesorter").tablesorter();});
+      </script>
+        <style>
+          table.codegrid { font-family: monospace; font-size: 12px; width: auto!important; }table.statementlist { width: auto!important; font-size: 13px; } table.codegrid td { padding: 0!important; border: 0!important } table td.linenumber { width: 40px!important; } 
+        </style>
+      </head>
+      <body style="font-family: monospace;">
+        <ul class="nav nav-tabs">
+          <li>
+            <a href="#codegrid" data-toggle="tab">Codegrid</a>
+          </li>
+          <li>
+            <a href="#statementlist" data-toggle="tab">Statement List</a>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active" id="codegrid">
+            <pre style='font-size: 12pt; font-family: courier, monospace;'>1 <span style=''>package server
+</span>2 <span style=''>
+</span>3 <span style=''>import org.slf4j.LoggerFactory
+</span>4 <span style=''>
+</span>5 <span style=''>/** Manages game state separately from WebSocket handling - enables testing */
+</span>6 <span style=''>class TugOfWarStateManager:
+</span>7 <span style=''>  private val logger = </span><span style='background: #AEF1AE'>LoggerFactory.getLogger(getClass)</span><span style=''>
+</span>8 <span style=''>
+</span>9 <span style=''>  private val games = </span><span style='background: #AEF1AE'>java.util.concurrent.ConcurrentHashMap[String, shared.TugOfWar.TugOfWarGame]()</span><span style=''>
+</span>10 <span style=''>  private val gameConnections = </span><span style='background: #AEF1AE'>java.util.concurrent.ConcurrentHashMap[String, java.util.Set[cask.WsChannelActor]]()</span><span style=''>
+</span>11 <span style=''>  private val playerToGame = </span><span style='background: #AEF1AE'>java.util.concurrent.ConcurrentHashMap[cask.WsChannelActor, (String, String)]()</span><span style=''>
+</span>12 <span style=''>
+</span>13 <span style=''>  </span><span style='background: #AEF1AE'>def getGame</span><span style=''>(gameId: String): Option[shared.TugOfWar.TugOfWarGame] =
+</span>14 <span style=''>    </span><span style='background: #AEF1AE'>Option(games.get(gameId))</span><span style=''>
+</span>15 <span style=''>
+</span>16 <span style=''>  </span><span style='background: #AEF1AE'>def createGame</span><span style=''>(
+</span>17 <span style=''>      gameId: String,
+</span>18 <span style=''>      roundsToWin: Int,
+</span>19 <span style=''>      timeLimitSeconds: Int = </span><span style='background: #F0ADAD'>shared.TugOfWar.TugOfWar.DefaultTim</span><span style=''>eLimitSeconds
+</span>20 <span style=''>  ): shared.TugOfWar.TugOfWarGame =
+</span>21 <span style=''>    val game = </span><span style='background: #AEF1AE'>shared.TugOfWar.TugOfWar.createGame(gameId, roundsToWin, timeLimitSeconds)</span><span style=''>
+</span>22 <span style=''>    </span><span style='background: #AEF1AE'>games.put(gameId, game)</span><span style=''>
+</span>23 <span style=''>    </span><span style='background: #AEF1AE'>gameConnections.computeIfAbsent(
+</span>24 <span style=''></span><span style='background: #AEF1AE'>      gameId,
+</span>25 <span style=''></span><span style='background: #AEF1AE'>      _ =&gt; </span><span style='background: #F0ADAD'>java.util.concurrent.ConcurrentHashMap.newKeySet[cask.WsChannelActor]()</span><span style='background: #AEF1AE'>
+</span>26 <span style=''></span><span style='background: #AEF1AE'>    )</span><span style=''>
+</span>27 <span style=''>    game
+</span>28 <span style=''>
+</span>29 <span style=''>  </span><span style='background: #AEF1AE'>def updateGame</span><span style=''>(gameId: String, game: shared.TugOfWar.TugOfWarGame): Unit =
+</span>30 <span style=''>    </span><span style='background: #AEF1AE'>games.put(gameId, game)</span><span style=''>
+</span>31 <span style=''>
+</span>32 <span style=''>  </span><span style='background: #F0ADAD'>def getOrCreateGame</span><span style=''>(gameId: String, roundsToWin: Int): shared.TugOfWar.TugOfWarGame =
+</span>33 <span style=''>    </span><span style='background: #F0ADAD'>games.computeIfAbsent(gameId, _ =&gt; shared.TugOfWar.TugOfWar.createGame(gameId, roundsToWin))</span><span style=''>
+</span>34 <span style=''>
+</span>35 <span style=''>  </span><span style='background: #AEF1AE'>def getGameConnectionCount</span><span style=''>(gameId: String): Int =
+</span>36 <span style=''>    </span><span style='background: #AEF1AE'>Option(gameConnections.get(gameId)).map(_.size()).getOrElse(0)</span><span style=''>
+</span>37 <span style=''>
+</span>38 <span style=''>  </span><span style='background: #AEF1AE'>def addConnection</span><span style=''>(gameId: String, channel: cask.WsChannelActor): Unit =
+</span>39 <span style=''>    val connections = </span><span style='background: #AEF1AE'>gameConnections.computeIfAbsent(
+</span>40 <span style=''></span><span style='background: #AEF1AE'>      gameId,
+</span>41 <span style=''></span><span style='background: #AEF1AE'>      _ =&gt; java.util.concurrent.ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
+</span>42 <span style=''></span><span style='background: #AEF1AE'>    )</span><span style=''>
+</span>43 <span style=''>    </span><span style='background: #AEF1AE'>connections.add(channel)</span><span style=''>
+</span>44 <span style=''>
+</span>45 <span style=''>  </span><span style='background: #AEF1AE'>def removeConnection</span><span style=''>(gameId: String, channel: cask.WsChannelActor): Unit =
+</span>46 <span style=''>    </span><span style='background: #AEF1AE'>Option(gameConnections.get(gameId)).foreach(_.remove(channel))</span><span style=''>
+</span>47 <span style=''>
+</span>48 <span style=''>  </span><span style='background: #AEF1AE'>def getConnections</span><span style=''>(gameId: String): java.util.Set[cask.WsChannelActor] =
+</span>49 <span style=''>    </span><span style='background: #AEF1AE'>gameConnections.get(gameId)</span><span style=''>
+</span>50 <span style=''>
+</span>51 <span style=''>  </span><span style='background: #AEF1AE'>def registerPlayer</span><span style=''>(channel: cask.WsChannelActor, gameId: String, playerId: String): Unit =
+</span>52 <span style=''>    </span><span style='background: #AEF1AE'>playerToGame.put(channel, (gameId, playerId))</span><span style=''>
+</span>53 <span style=''>
+</span>54 <span style=''>  </span><span style='background: #AEF1AE'>def getPlayerInfo</span><span style=''>(channel: cask.WsChannelActor): Option[(String, String)] =
+</span>55 <span style=''>    </span><span style='background: #AEF1AE'>Option(playerToGame.get(channel))</span><span style=''>
+</span>56 <span style=''>
+</span>57 <span style=''>  </span><span style='background: #AEF1AE'>def unregisterPlayer</span><span style=''>(channel: cask.WsChannelActor): Unit =
+</span>58 <span style=''>    </span><span style='background: #AEF1AE'>playerToGame.remove(channel)</span><span style=''>
+</span>59 <span style=''>
+</span>60 <span style=''>  </span><span style='background: #F0ADAD'>def cleanupGame</span><span style=''>(gameId: String): Unit =
+</span>61 <span style=''>    import scala.jdk.CollectionConverters.*
+</span>62 <span style=''>
+</span>63 <span style=''>    </span><span style='background: #F0ADAD'>games.remove(gameId)</span><span style=''>
+</span>64 <span style=''>    </span><span style='background: #F0ADAD'>gameConnections.remove(gameId)</span><span style=''>
+</span>65 <span style=''>
+</span>66 <span style=''>    // Remove all player-to-game mappings for this game
+</span>67 <span style=''>    </span><span style='background: #F0ADAD'>playerToGame.asScala.foreach:
+</span>68 <span style=''></span><span style='background: #F0ADAD'>      case (channel, (gId, _)) if gId == gameId =&gt;
+</span>69 <span style=''></span><span style='background: #F0ADAD'>        playerToGame.remove(channel)
+</span>70 <span style=''></span><span style='background: #F0ADAD'>      case _ =&gt;</span><span style=''>
+</span>71 <span style=''>
+</span>72 <span style=''>    </span><span style='background: #F0ADAD'>logger.info(s&quot;Cleaned up TugOfWar game $gameId&quot;)</span><span style=''>
+</span>73 <span style=''>
+</span>74 <span style=''>  </span><span style='background: #F0ADAD'>def cleanupEmptyGames</span><span style=''>(): Int =
+</span>75 <span style=''>    import scala.jdk.CollectionConverters.*
+</span>76 <span style=''>
+</span>77 <span style=''>    // First, clean up disconnected players in all games
+</span>78 <span style=''>    </span><span style='background: #F0ADAD'>games.asScala.foreach:
+</span>79 <span style=''></span><span style='background: #F0ADAD'>      case (gameId, game) =&gt;
+</span>80 <span style=''></span><span style='background: #F0ADAD'>        val cleanedGame = shared.TugOfWar.TugOfWar.cleanupDisconnectedPlayers(game)
+</span>81 <span style=''></span><span style='background: #F0ADAD'>        if cleanedGame.players.size != game.players.size then
+</span>82 <span style=''></span><span style='background: #F0ADAD'>          games.put(gameId, cleanedGame)
+</span>83 <span style=''></span><span style='background: #F0ADAD'>          logger.info(
+</span>84 <span style=''></span><span style='background: #F0ADAD'>            s&quot;Cleaned up ${game.players.size - cleanedGame.players.size} disconnected player(s) from TugOfWar game $gameId&quot;
+</span>85 <span style=''></span><span style='background: #F0ADAD'>          )</span><span style=''>
+</span>86 <span style=''>
+</span>87 <span style=''>    val gamesToCleanup = </span><span style='background: #F0ADAD'>gameConnections.asScala
+</span>88 <span style=''></span><span style='background: #F0ADAD'>      .filter:
+</span>89 <span style=''></span><span style='background: #F0ADAD'>        case (gameId, connections) =&gt; connections.isEmpty
+</span>90 <span style=''></span><span style='background: #F0ADAD'>      .keys
+</span>91 <span style=''></span><span style='background: #F0ADAD'>      .toList</span><span style=''>
+</span>92 <span style=''>
+</span>93 <span style=''>    </span><span style='background: #F0ADAD'>gamesToCleanup.foreach(cleanupGame)</span><span style=''>
+</span>94 <span style=''>
+</span>95 <span style=''>    if </span><span style='background: #F0ADAD'>gamesToCleanup.nonEmpty</span><span style=''> then
+</span>96 <span style=''>      </span><span style='background: #F0ADAD'>logger.info(s&quot;Periodic cleanup: removed ${gamesToCleanup.size} empty TugOfWar game(s)&quot;)</span><span style=''>
+</span>97 <span style=''>
+</span>98 <span style=''>    </span><span style='background: #F0ADAD'>gamesToCleanup.size</span><span style=''>
+</span>99 <span style=''>
+</span>100 <span style=''>  </span><span style='background: #F0ADAD'>def getAllGames</span><span style=''>: Map[String, shared.TugOfWar.TugOfWarGame] =
+</span>101 <span style=''>    import scala.jdk.CollectionConverters.*
+</span>102 <span style=''>    </span><span style='background: #F0ADAD'>games.asScala.toMap</span><span style=''>
+</span></pre>
+          </div>
+          <div class="tab-pane" id="statementlist">
+            <table cellspacing="0" cellpadding="0" class="table statementlist">
+      <tr>
+        <th>Line</th>
+        <th>Stmt Id</th>
+        <th>Pos</th>
+        <th>Tree</th>
+        <th>Symbol</th>
+        <th>Tests</th>
+        <th>Code</th>
+      </tr><tr>
+        <td>
+          7
+        </td>
+        <td>
+          2078
+        </td>
+        <td>
+          202
+          -
+          210
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getClass
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          getClass
+        </td>
+      </tr><tr>
+        <td>
+          7
+        </td>
+        <td>
+          2077
+        </td>
+        <td>
+          178
+          -
+          211
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getLogger
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          LoggerFactory.getLogger(getClass)
+        </td>
+      </tr><tr>
+        <td>
+          9
+        </td>
+        <td>
+          2079
+        </td>
+        <td>
+          235
+          -
+          313
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;init&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          java.util.concurrent.ConcurrentHashMap[String, shared.TugOfWar.TugOfWarGame]()
+        </td>
+      </tr><tr>
+        <td>
+          10
+        </td>
+        <td>
+          2080
+        </td>
+        <td>
+          346
+          -
+          430
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;init&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          java.util.concurrent.ConcurrentHashMap[String, java.util.Set[cask.WsChannelActor]]()
+        </td>
+      </tr><tr>
+        <td>
+          11
+        </td>
+        <td>
+          2081
+        </td>
+        <td>
+          460
+          -
+          539
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;init&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          java.util.concurrent.ConcurrentHashMap[cask.WsChannelActor, (String, String)]()
+        </td>
+      </tr><tr>
+        <td>
+          13
+        </td>
+        <td>
+          2084
+        </td>
+        <td>
+          543
+          -
+          554
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          getGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def getGame
+        </td>
+      </tr><tr>
+        <td>
+          14
+        </td>
+        <td>
+          2083
+        </td>
+        <td>
+          622
+          -
+          639
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          get
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          games.get(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          14
+        </td>
+        <td>
+          2082
+        </td>
+        <td>
+          615
+          -
+          640
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Option(games.get(gameId))
+        </td>
+      </tr><tr>
+        <td>
+          16
+        </td>
+        <td>
+          2089
+        </td>
+        <td>
+          644
+          -
+          658
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          createGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def createGame
+        </td>
+      </tr><tr>
+        <td>
+          19
+        </td>
+        <td>
+          2090
+        </td>
+        <td>
+          736
+          -
+          771
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          createGame$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          shared.TugOfWar.TugOfWar.DefaultTim
+        </td>
+      </tr><tr>
+        <td>
+          21
+        </td>
+        <td>
+          2085
+        </td>
+        <td>
+          836
+          -
+          910
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          createGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          shared.TugOfWar.TugOfWar.createGame(gameId, roundsToWin, timeLimitSeconds)
+        </td>
+      </tr><tr>
+        <td>
+          22
+        </td>
+        <td>
+          2086
+        </td>
+        <td>
+          915
+          -
+          938
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          put
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          games.put(gameId, game)
+        </td>
+      </tr><tr>
+        <td>
+          23
+        </td>
+        <td>
+          2087
+        </td>
+        <td>
+          943
+          -
+          1078
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          computeIfAbsent
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameConnections.computeIfAbsent(\n      gameId,\n      _ =&gt; java.util.concurrent.ConcurrentHashMap.newKeySet[cask.WsChannelActor]()\n    )
+        </td>
+      </tr><tr>
+        <td>
+          25
+        </td>
+        <td>
+          2088
+        </td>
+        <td>
+          1001
+          -
+          1072
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          newKeySet
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          java.util.concurrent.ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
+        </td>
+      </tr><tr>
+        <td>
+          29
+        </td>
+        <td>
+          2092
+        </td>
+        <td>
+          1091
+          -
+          1105
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          updateGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def updateGame
+        </td>
+      </tr><tr>
+        <td>
+          30
+        </td>
+        <td>
+          2091
+        </td>
+        <td>
+          1170
+          -
+          1193
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          put
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          games.put(gameId, game)
+        </td>
+      </tr><tr>
+        <td>
+          32
+        </td>
+        <td>
+          2096
+        </td>
+        <td>
+          1197
+          -
+          1216
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          getOrCreateGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def getOrCreateGame
+        </td>
+      </tr><tr>
+        <td>
+          33
+        </td>
+        <td>
+          2093
+        </td>
+        <td>
+          1287
+          -
+          1379
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          computeIfAbsent
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          games.computeIfAbsent(gameId, _ =&gt; shared.TugOfWar.TugOfWar.createGame(gameId, roundsToWin))
+        </td>
+      </tr><tr>
+        <td>
+          33
+        </td>
+        <td>
+          2095
+        </td>
+        <td>
+          1322
+          -
+          1357
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          createGame$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          shared.TugOfWar.TugOfWar.createGame
+        </td>
+      </tr><tr>
+        <td>
+          33
+        </td>
+        <td>
+          2094
+        </td>
+        <td>
+          1322
+          -
+          1378
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          createGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          shared.TugOfWar.TugOfWar.createGame(gameId, roundsToWin)
+        </td>
+      </tr><tr>
+        <td>
+          35
+        </td>
+        <td>
+          2100
+        </td>
+        <td>
+          1383
+          -
+          1409
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          getGameConnectionCount
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def getGameConnectionCount
+        </td>
+      </tr><tr>
+        <td>
+          36
+        </td>
+        <td>
+          2098
+        </td>
+        <td>
+          1444
+          -
+          1471
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          get
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameConnections.get(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          36
+        </td>
+        <td>
+          2097
+        </td>
+        <td>
+          1437
+          -
+          1499
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getOrElse
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Option(gameConnections.get(gameId)).map(_.size()).getOrElse(0)
+        </td>
+      </tr><tr>
+        <td>
+          36
+        </td>
+        <td>
+          2099
+        </td>
+        <td>
+          1477
+          -
+          1485
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          size
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          _.size()
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          2104
+        </td>
+        <td>
+          1503
+          -
+          1520
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          addConnection
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def addConnection
+        </td>
+      </tr><tr>
+        <td>
+          39
+        </td>
+        <td>
+          2101
+        </td>
+        <td>
+          1597
+          -
+          1732
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          computeIfAbsent
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameConnections.computeIfAbsent(\n      gameId,\n      _ =&gt; java.util.concurrent.ConcurrentHashMap.newKeySet[cask.WsChannelActor]()\n    )
+        </td>
+      </tr><tr>
+        <td>
+          41
+        </td>
+        <td>
+          2102
+        </td>
+        <td>
+          1655
+          -
+          1726
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          newKeySet
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          java.util.concurrent.ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
+        </td>
+      </tr><tr>
+        <td>
+          43
+        </td>
+        <td>
+          2103
+        </td>
+        <td>
+          1737
+          -
+          1761
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          add
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          connections.add(channel)
+        </td>
+      </tr><tr>
+        <td>
+          45
+        </td>
+        <td>
+          2108
+        </td>
+        <td>
+          1765
+          -
+          1785
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          removeConnection
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def removeConnection
+        </td>
+      </tr><tr>
+        <td>
+          46
+        </td>
+        <td>
+          2105
+        </td>
+        <td>
+          1844
+          -
+          1906
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foreach
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Option(gameConnections.get(gameId)).foreach(_.remove(channel))
+        </td>
+      </tr><tr>
+        <td>
+          46
+        </td>
+        <td>
+          2107
+        </td>
+        <td>
+          1888
+          -
+          1905
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          remove
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          _.remove(channel)
+        </td>
+      </tr><tr>
+        <td>
+          46
+        </td>
+        <td>
+          2106
+        </td>
+        <td>
+          1851
+          -
+          1878
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          get
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameConnections.get(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          48
+        </td>
+        <td>
+          2110
+        </td>
+        <td>
+          1910
+          -
+          1928
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          getConnections
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def getConnections
+        </td>
+      </tr><tr>
+        <td>
+          49
+        </td>
+        <td>
+          2109
+        </td>
+        <td>
+          1987
+          -
+          2014
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          get
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          gameConnections.get(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          51
+        </td>
+        <td>
+          2113
+        </td>
+        <td>
+          2018
+          -
+          2036
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          registerPlayer
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def registerPlayer
+        </td>
+      </tr><tr>
+        <td>
+          52
+        </td>
+        <td>
+          2111
+        </td>
+        <td>
+          2113
+          -
+          2158
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          put
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          playerToGame.put(channel, (gameId, playerId))
+        </td>
+      </tr><tr>
+        <td>
+          52
+        </td>
+        <td>
+          2112
+        </td>
+        <td>
+          2139
+          -
+          2157
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (gameId, playerId)
+        </td>
+      </tr><tr>
+        <td>
+          54
+        </td>
+        <td>
+          2116
+        </td>
+        <td>
+          2162
+          -
+          2179
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          getPlayerInfo
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def getPlayerInfo
+        </td>
+      </tr><tr>
+        <td>
+          55
+        </td>
+        <td>
+          2115
+        </td>
+        <td>
+          2249
+          -
+          2274
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          get
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          playerToGame.get(channel)
+        </td>
+      </tr><tr>
+        <td>
+          55
+        </td>
+        <td>
+          2114
+        </td>
+        <td>
+          2242
+          -
+          2275
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Option(playerToGame.get(channel))
+        </td>
+      </tr><tr>
+        <td>
+          57
+        </td>
+        <td>
+          2118
+        </td>
+        <td>
+          2279
+          -
+          2299
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          unregisterPlayer
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def unregisterPlayer
+        </td>
+      </tr><tr>
+        <td>
+          58
+        </td>
+        <td>
+          2117
+        </td>
+        <td>
+          2342
+          -
+          2370
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          remove
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          playerToGame.remove(channel)
+        </td>
+      </tr><tr>
+        <td>
+          60
+        </td>
+        <td>
+          2128
+        </td>
+        <td>
+          2374
+          -
+          2389
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          cleanupGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def cleanupGame
+        </td>
+      </tr><tr>
+        <td>
+          63
+        </td>
+        <td>
+          2119
+        </td>
+        <td>
+          2463
+          -
+          2483
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          remove
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          games.remove(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          64
+        </td>
+        <td>
+          2120
+        </td>
+        <td>
+          2488
+          -
+          2518
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          remove
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          gameConnections.remove(gameId)
+        </td>
+      </tr><tr>
+        <td>
+          68
+        </td>
+        <td>
+          2122
+        </td>
+        <td>
+          2644
+          -
+          2657
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          ==
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          gId == gameId
+        </td>
+      </tr><tr>
+        <td>
+          68
+        </td>
+        <td>
+          2121
+        </td>
+        <td>
+          2580
+          -
+          2713
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foreach
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          playerToGame.asScala.foreach:\n      case (channel, (gId, _)) if gId == gameId =&gt;\n        playerToGame.remove(channel)\n      case _ =&gt;
+        </td>
+      </tr><tr>
+        <td>
+          68
+        </td>
+        <td>
+          2124
+        </td>
+        <td>
+          2658
+          -
+          2697
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt;\n        playerToGame.remove(channel)
+        </td>
+      </tr><tr>
+        <td>
+          69
+        </td>
+        <td>
+          2123
+        </td>
+        <td>
+          2669
+          -
+          2697
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          remove
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          playerToGame.remove(channel)
+        </td>
+      </tr><tr>
+        <td>
+          70
+        </td>
+        <td>
+          2125
+        </td>
+        <td>
+          2711
+          -
+          2713
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt;
+        </td>
+      </tr><tr>
+        <td>
+          70
+        </td>
+        <td>
+          2126
+        </td>
+        <td>
+          2711
+          -
+          2713
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt;
+        </td>
+      </tr><tr>
+        <td>
+          72
+        </td>
+        <td>
+          2127
+        </td>
+        <td>
+          2719
+          -
+          2767
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.info(s&quot;Cleaned up TugOfWar game $gameId&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          74
+        </td>
+        <td>
+          2154
+        </td>
+        <td>
+          2771
+          -
+          2792
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          cleanupEmptyGames
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def cleanupEmptyGames
+        </td>
+      </tr><tr>
+        <td>
+          79
+        </td>
+        <td>
+          2129
+        </td>
+        <td>
+          2908
+          -
+          3305
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foreach
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          games.asScala.foreach:\n      case (gameId, game) =&gt;\n        val cleanedGame = shared.TugOfWar.TugOfWar.cleanupDisconnectedPlayers(game)\n        if cleanedGame.players.size != game.players.size then\n          games.put(gameId, cleanedGame)\n          logger.info(\n            s&quot;Cleaned up ${game.players.size - cleanedGame.players.size} disconnected player(s) from TugOfWar game $gameId&quot;\n          )
+        </td>
+      </tr><tr>
+        <td>
+          80
+        </td>
+        <td>
+          2140
+        </td>
+        <td>
+          2968
+          -
+          3305
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          val cleanedGame = shared.TugOfWar.TugOfWar.cleanupDisconnectedPlayers(game)\n        if cleanedGame.players.size != game.players.size then\n          games.put(gameId, cleanedGame)\n          logger.info(\n            s&quot;Cleaned up ${game.players.size - cleanedGame.players.size} disconnected player(s) from TugOfWar game $gameId&quot;\n          )
+        </td>
+      </tr><tr>
+        <td>
+          80
+        </td>
+        <td>
+          2131
+        </td>
+        <td>
+          2986
+          -
+          3037
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          cleanupDisconnectedPlayers$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          shared.TugOfWar.TugOfWar.cleanupDisconnectedPlayers
+        </td>
+      </tr><tr>
+        <td>
+          80
+        </td>
+        <td>
+          2130
+        </td>
+        <td>
+          2986
+          -
+          3043
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          cleanupDisconnectedPlayers
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          shared.TugOfWar.TugOfWar.cleanupDisconnectedPlayers(game)
+        </td>
+      </tr><tr>
+        <td>
+          81
+        </td>
+        <td>
+          2133
+        </td>
+        <td>
+          3083
+          -
+          3100
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          size
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.players.size
+        </td>
+      </tr><tr>
+        <td>
+          81
+        </td>
+        <td>
+          2132
+        </td>
+        <td>
+          3055
+          -
+          3100
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          !=
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          cleanedGame.players.size != game.players.size
+        </td>
+      </tr><tr>
+        <td>
+          82
+        </td>
+        <td>
+          2138
+        </td>
+        <td>
+          3116
+          -
+          3305
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          games.put(gameId, cleanedGame)\n          logger.info(\n            s&quot;Cleaned up ${game.players.size - cleanedGame.players.size} disconnected player(s) from TugOfWar game $gameId&quot;\n          )
+        </td>
+      </tr><tr>
+        <td>
+          82
+        </td>
+        <td>
+          2134
+        </td>
+        <td>
+          3116
+          -
+          3146
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          put
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          games.put(gameId, cleanedGame)
+        </td>
+      </tr><tr>
+        <td>
+          83
+        </td>
+        <td>
+          2135
+        </td>
+        <td>
+          3157
+          -
+          3305
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.info(\n            s&quot;Cleaned up ${game.players.size - cleanedGame.players.size} disconnected player(s) from TugOfWar game $gameId&quot;\n          )
+        </td>
+      </tr><tr>
+        <td>
+          84
+        </td>
+        <td>
+          2137
+        </td>
+        <td>
+          3217
+          -
+          3241
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          size
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          cleanedGame.players.size
+        </td>
+      </tr><tr>
+        <td>
+          84
+        </td>
+        <td>
+          2136
+        </td>
+        <td>
+          3197
+          -
+          3241
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.players.size - cleanedGame.players.size
+        </td>
+      </tr><tr>
+        <td>
+          85
+        </td>
+        <td>
+          2139
+        </td>
+        <td>
+          3305
+          -
+          3305
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          
+        </td>
+      </tr><tr>
+        <td>
+          89
+        </td>
+        <td>
+          2143
+        </td>
+        <td>
+          3406
+          -
+          3428
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; connections.isEmpty
+        </td>
+      </tr><tr>
+        <td>
+          89
+        </td>
+        <td>
+          2142
+        </td>
+        <td>
+          3409
+          -
+          3428
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          isEmpty
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connections.isEmpty
+        </td>
+      </tr><tr>
+        <td>
+          89
+        </td>
+        <td>
+          2141
+        </td>
+        <td>
+          3332
+          -
+          3428
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          filter
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          gameConnections.asScala\n      .filter:\n        case (gameId, connections) =&gt; connections.isEmpty
+        </td>
+      </tr><tr>
+        <td>
+          90
+        </td>
+        <td>
+          2144
+        </td>
+        <td>
+          3332
+          -
+          3440
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          keys
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          gameConnections.asScala\n      .filter:\n        case (gameId, connections) =&gt; connections.isEmpty\n      .keys
+        </td>
+      </tr><tr>
+        <td>
+          91
+        </td>
+        <td>
+          2145
+        </td>
+        <td>
+          3332
+          -
+          3454
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          toList
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          gameConnections.asScala\n      .filter:\n        case (gameId, connections) =&gt; connections.isEmpty\n      .keys\n      .toList
+        </td>
+      </tr><tr>
+        <td>
+          93
+        </td>
+        <td>
+          2147
+        </td>
+        <td>
+          3483
+          -
+          3494
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          cleanupGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          cleanupGame
+        </td>
+      </tr><tr>
+        <td>
+          93
+        </td>
+        <td>
+          2146
+        </td>
+        <td>
+          3460
+          -
+          3495
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foreach
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          gamesToCleanup.foreach(cleanupGame)
+        </td>
+      </tr><tr>
+        <td>
+          95
+        </td>
+        <td>
+          2148
+        </td>
+        <td>
+          3504
+          -
+          3527
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          nonEmpty
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          gamesToCleanup.nonEmpty
+        </td>
+      </tr><tr>
+        <td>
+          96
+        </td>
+        <td>
+          2149
+        </td>
+        <td>
+          3539
+          -
+          3626
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.info(s&quot;Periodic cleanup: removed ${gamesToCleanup.size} empty TugOfWar game(s)&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          96
+        </td>
+        <td>
+          2152
+        </td>
+        <td>
+          3626
+          -
+          3626
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          
+        </td>
+      </tr><tr>
+        <td>
+          96
+        </td>
+        <td>
+          2151
+        </td>
+        <td>
+          3539
+          -
+          3626
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.info(s&quot;Periodic cleanup: removed ${gamesToCleanup.size} empty TugOfWar game(s)&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          96
+        </td>
+        <td>
+          2150
+        </td>
+        <td>
+          3581
+          -
+          3600
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          size
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          gamesToCleanup.size
+        </td>
+      </tr><tr>
+        <td>
+          98
+        </td>
+        <td>
+          2153
+        </td>
+        <td>
+          3632
+          -
+          3651
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          size
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          gamesToCleanup.size
+        </td>
+      </tr><tr>
+        <td>
+          100
+        </td>
+        <td>
+          2156
+        </td>
+        <td>
+          3655
+          -
+          3670
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          getAllGames
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def getAllGames
+        </td>
+      </tr><tr>
+        <td>
+          102
+        </td>
+        <td>
+          2155
+        </td>
+        <td>
+          3764
+          -
+          3783
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          toMap
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          games.asScala.toMap
+        </td>
+      </tr>
+    </table>
+          </div>
+        </div>
+      </body>
+    </html>

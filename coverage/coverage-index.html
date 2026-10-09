@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Project Metrics - Cascade</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+    h1 { color: #333; }
+    h2 { color: #555; margin-top: 30px; }
+    .metrics-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin: 20px 0; }
+    .metric-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+    .metric-row:last-child { border-bottom: none; }
+    .metric-label { color: #666; }
+    .metric-value { font-weight: bold; color: #333; }
+    .metric-total { background: #f0f0f0; margin-top: 10px; padding: 10px; border-radius: 4px; }
+    .coverage-link { margin: 20px 0; }
+    .coverage-link a { font-size: 18px; color: #0366d6; text-decoration: none; }
+    .coverage-link a:hover { text-decoration: underline; }
+    .back-link { margin-top: 30px; }
+    .back-link a { color: #0366d6; text-decoration: none; }
+    .back-link a:hover { text-decoration: underline; }
+    .badges { margin: 20px 0; }
+    .badges img { margin-right: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Cascade Project Metrics</h1>
+  
+  <div class="badges">
+    <img src="coverage-badge.svg" alt="Coverage Badge">
+    <img src="loc-badge.svg" alt="Lines of Code Badge">
+  </div>
+
+  <div class="metrics-container">
+    <h2>Code Coverage</h2>
+    <div class="metric-row">
+      <span class="metric-label">Overall Coverage:</span>
+      <span class="metric-value">53.08%</span>
+    </div>
+    <p style="color: #666; font-size: 14px;">Includes JVM-specific and shared code.</p>
+    <div class="coverage-link">
+      <a href="index.html">→ View Detailed Coverage Report</a>
+    </div>
+  </div>
+
+  <div class="metrics-container">
+    <h2>Lines of Code</h2>
+    <div class="metric-row">
+      <span class="metric-label">Scala (Application):</span>
+      <span class="metric-value">27341 lines</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Scala (Tests):</span>
+      <span class="metric-value">6911 lines</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">HTML:</span>
+      <span class="metric-value">590 lines</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">CSS:</span>
+      <span class="metric-value">12349 lines</span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-label">Build (SBT):</span>
+      <span class="metric-value">89 lines</span>
+    </div>
+    <div class="metric-row metric-total">
+      <span class="metric-label"><strong>Total:</strong></span>
+      <span class="metric-value">47280 lines</span>
+    </div>
+  </div>
+
+  <div class="back-link">
+    <a href="https://github.com/epic-64/cascade">← Back to Source Code</a>
+  </div>
+</body>
+</html>

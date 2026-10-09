@@ -1,0 +1,675 @@
+<html>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title id="title">
+          shared/session/PlayerConnection.scala.html
+        </title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/css/theme.default.min.css" type="text/css"/><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/js/jquery.tablesorter.min.js"></script><link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" type="text/css"/><script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script><script type="text/javascript">
+        $(document).ready(function() {$(".tablesorter").tablesorter();});
+      </script>
+        <style>
+          table.codegrid { font-family: monospace; font-size: 12px; width: auto!important; }table.statementlist { width: auto!important; font-size: 13px; } table.codegrid td { padding: 0!important; border: 0!important } table td.linenumber { width: 40px!important; } 
+        </style>
+      </head>
+      <body style="font-family: monospace;">
+        <ul class="nav nav-tabs">
+          <li>
+            <a href="#codegrid" data-toggle="tab">Codegrid</a>
+          </li>
+          <li>
+            <a href="#statementlist" data-toggle="tab">Statement List</a>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active" id="codegrid">
+            <pre style='font-size: 12pt; font-family: courier, monospace;'>1 <span style=''>package shared.session
+</span>2 <span style=''>
+</span>3 <span style=''>/** Trait for entities that track connection state. Used by player models in games to support reconnection.
+</span>4 <span style=''>  */
+</span>5 <span style=''>trait PlayerConnection:
+</span>6 <span style=''>  def connected: Boolean
+</span>7 <span style=''>  def disconnectedAt: Option[Long]
+</span>8 <span style=''>
+</span>9 <span style=''>/** Operations for checking player connection state and grace periods */
+</span>10 <span style=''>object PlayerConnectionOps:
+</span>11 <span style=''>
+</span>12 <span style=''>  /** Default grace period for reconnection (60 seconds) */
+</span>13 <span style=''>  val DefaultGracePeriodMs: Long = </span><span style='background: #AEF1AE'>60000</span><span style=''>
+</span>14 <span style=''>
+</span>15 <span style=''>  /** Check if a player can rejoin within the grace period.
+</span>16 <span style=''>    *
+</span>17 <span style=''>    * @param player
+</span>18 <span style=''>    *   The player connection state
+</span>19 <span style=''>    * @param gracePeriodMs
+</span>20 <span style=''>    *   How long after disconnect a player can rejoin
+</span>21 <span style=''>    * @return
+</span>22 <span style=''>    *   true if player can rejoin
+</span>23 <span style=''>    */
+</span>24 <span style=''>  </span><span style='background: #AEF1AE'>def canRejoin</span><span style=''>(player: PlayerConnection, gracePeriodMs: Long = </span><span style='background: #AEF1AE'>DefaultGr</span><span style=''>acePeriodMs): Boolean =
+</span>25 <span style=''>    </span><span style='background: #AEF1AE'>player.disconnectedAt</span><span style=''> match
+</span>26 <span style=''>      case Some(disconnectTime) =&gt;
+</span>27 <span style=''>        </span><span style='background: #AEF1AE'>val elapsed = System.currentTimeMillis() - disconnectTime
+</span>28 <span style=''></span><span style='background: #AEF1AE'>        elapsed &lt; gracePeriodMs</span><span style=''>
+</span>29 <span style=''>      case None </span><span style='background: #AEF1AE'>=&gt;
+</span>30 <span style=''></span><span style='background: #AEF1AE'>        // Player is still connected or never disconnected
+</span>31 <span style=''></span><span style='background: #AEF1AE'>        true</span><span style=''>
+</span>32 <span style=''>
+</span>33 <span style=''>  /** Check if a player's disconnect time has exceeded the grace period. Useful for cleanup operations.
+</span>34 <span style=''>    *
+</span>35 <span style=''>    * @param player
+</span>36 <span style=''>    *   The player connection state
+</span>37 <span style=''>    * @param gracePeriodMs
+</span>38 <span style=''>    *   How long after disconnect before considered expired
+</span>39 <span style=''>    * @return
+</span>40 <span style=''>    *   true if grace period has expired
+</span>41 <span style=''>    */
+</span>42 <span style=''>  </span><span style='background: #AEF1AE'>def isGracePeriodExpired</span><span style=''>(player: PlayerConnection, gracePeriodMs: Long = </span><span style='background: #AEF1AE'>DefaultGracePeriodMs</span><span style=''>): Boolean =
+</span>43 <span style=''>    </span><span style='background: #AEF1AE'>player.disconnectedAt</span><span style=''> match
+</span>44 <span style=''>      case Some(disconnectTime) =&gt;
+</span>45 <span style=''>        </span><span style='background: #AEF1AE'>val elapsed = System.currentTimeMillis() - disconnectTime
+</span>46 <span style=''></span><span style='background: #AEF1AE'>        elapsed &gt;= gracePeriodMs</span><span style=''>
+</span>47 <span style=''>      case None </span><span style='background: #AEF1AE'>=&gt; false</span><span style=''>
+</span>48 <span style=''>
+</span>49 <span style=''>  /** Helper to mark a player as disconnected. Returns the values to set on the player model.
+</span>50 <span style=''>    */
+</span>51 <span style=''>  </span><span style='background: #AEF1AE'>def disconnectValues</span><span style=''>: (Boolean, Option[Long]) =
+</span>52 <span style=''>    </span><span style='background: #AEF1AE'>(false, Some(System.currentTimeMillis()))</span><span style=''>
+</span>53 <span style=''>
+</span>54 <span style=''>  /** Helper to mark a player as reconnected. Returns the values to set on the player model.
+</span>55 <span style=''>    */
+</span>56 <span style=''>  </span><span style='background: #AEF1AE'>def reconnectValues</span><span style=''>: (Boolean, Option[Long]) =
+</span>57 <span style=''>    </span><span style='background: #AEF1AE'>(true, None)</span><span style=''>
+</span></pre>
+          </div>
+          <div class="tab-pane" id="statementlist">
+            <table cellspacing="0" cellpadding="0" class="table statementlist">
+      <tr>
+        <th>Line</th>
+        <th>Stmt Id</th>
+        <th>Pos</th>
+        <th>Tree</th>
+        <th>Symbol</th>
+        <th>Tests</th>
+        <th>Code</th>
+      </tr><tr>
+        <td>
+          13
+        </td>
+        <td>
+          15193
+        </td>
+        <td>
+          419
+          -
+          424
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          60000
+        </td>
+      </tr><tr>
+        <td>
+          24
+        </td>
+        <td>
+          15201
+        </td>
+        <td>
+          748
+          -
+          757
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          canRejoin$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          DefaultGr
+        </td>
+      </tr><tr>
+        <td>
+          24
+        </td>
+        <td>
+          15200
+        </td>
+        <td>
+          686
+          -
+          699
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          canRejoin
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def canRejoin
+        </td>
+      </tr><tr>
+        <td>
+          25
+        </td>
+        <td>
+          15194
+        </td>
+        <td>
+          785
+          -
+          806
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          disconnectedAt
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          player.disconnectedAt
+        </td>
+      </tr><tr>
+        <td>
+          27
+        </td>
+        <td>
+          15197
+        </td>
+        <td>
+          856
+          -
+          945
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          val elapsed = System.currentTimeMillis() - disconnectTime\n        elapsed &lt; gracePeriodMs
+        </td>
+      </tr><tr>
+        <td>
+          27
+        </td>
+        <td>
+          15195
+        </td>
+        <td>
+          870
+          -
+          913
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          System.currentTimeMillis() - disconnectTime
+        </td>
+      </tr><tr>
+        <td>
+          28
+        </td>
+        <td>
+          15196
+        </td>
+        <td>
+          922
+          -
+          945
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          elapsed &lt; gracePeriodMs
+        </td>
+      </tr><tr>
+        <td>
+          29
+        </td>
+        <td>
+          15199
+        </td>
+        <td>
+          962
+          -
+          1036
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt;\n        // Player is still connected or never disconnected\n        true
+        </td>
+      </tr><tr>
+        <td>
+          31
+        </td>
+        <td>
+          15198
+        </td>
+        <td>
+          1032
+          -
+          1036
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          true
+        </td>
+      </tr><tr>
+        <td>
+          42
+        </td>
+        <td>
+          15209
+        </td>
+        <td>
+          1428
+          -
+          1448
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          isGracePeriodExpired$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          DefaultGracePeriodMs
+        </td>
+      </tr><tr>
+        <td>
+          42
+        </td>
+        <td>
+          15208
+        </td>
+        <td>
+          1355
+          -
+          1379
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          isGracePeriodExpired
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def isGracePeriodExpired
+        </td>
+      </tr><tr>
+        <td>
+          43
+        </td>
+        <td>
+          15202
+        </td>
+        <td>
+          1465
+          -
+          1486
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          disconnectedAt
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          player.disconnectedAt
+        </td>
+      </tr><tr>
+        <td>
+          45
+        </td>
+        <td>
+          15203
+        </td>
+        <td>
+          1550
+          -
+          1593
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          System.currentTimeMillis() - disconnectTime
+        </td>
+      </tr><tr>
+        <td>
+          45
+        </td>
+        <td>
+          15205
+        </td>
+        <td>
+          1536
+          -
+          1626
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          val elapsed = System.currentTimeMillis() - disconnectTime\n        elapsed &gt;= gracePeriodMs
+        </td>
+      </tr><tr>
+        <td>
+          46
+        </td>
+        <td>
+          15204
+        </td>
+        <td>
+          1602
+          -
+          1626
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &gt;=
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          elapsed &gt;= gracePeriodMs
+        </td>
+      </tr><tr>
+        <td>
+          47
+        </td>
+        <td>
+          15206
+        </td>
+        <td>
+          1646
+          -
+          1651
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          false
+        </td>
+      </tr><tr>
+        <td>
+          47
+        </td>
+        <td>
+          15207
+        </td>
+        <td>
+          1643
+          -
+          1651
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; false
+        </td>
+      </tr><tr>
+        <td>
+          51
+        </td>
+        <td>
+          15214
+        </td>
+        <td>
+          1756
+          -
+          1776
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          disconnectValues
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def disconnectValues
+        </td>
+      </tr><tr>
+        <td>
+          52
+        </td>
+        <td>
+          15210
+        </td>
+        <td>
+          1808
+          -
+          1849
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (false, Some(System.currentTimeMillis()))
+        </td>
+      </tr><tr>
+        <td>
+          52
+        </td>
+        <td>
+          15212
+        </td>
+        <td>
+          1816
+          -
+          1848
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Some(System.currentTimeMillis())
+        </td>
+      </tr><tr>
+        <td>
+          52
+        </td>
+        <td>
+          15211
+        </td>
+        <td>
+          1809
+          -
+          1814
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          false
+        </td>
+      </tr><tr>
+        <td>
+          52
+        </td>
+        <td>
+          15213
+        </td>
+        <td>
+          1821
+          -
+          1847
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          currentTimeMillis
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          System.currentTimeMillis()
+        </td>
+      </tr><tr>
+        <td>
+          56
+        </td>
+        <td>
+          15216
+        </td>
+        <td>
+          1953
+          -
+          1972
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          reconnectValues
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def reconnectValues
+        </td>
+      </tr><tr>
+        <td>
+          57
+        </td>
+        <td>
+          15215
+        </td>
+        <td>
+          2004
+          -
+          2016
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (true, None)
+        </td>
+      </tr>
+    </table>
+          </div>
+        </div>
+      </body>
+    </html>

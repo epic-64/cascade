@@ -1,0 +1,1064 @@
+<html>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title id="title">
+          server/CounterHandler.scala.html
+        </title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/css/theme.default.min.css" type="text/css"/><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/js/jquery.tablesorter.min.js"></script><link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" type="text/css"/><script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script><script type="text/javascript">
+        $(document).ready(function() {$(".tablesorter").tablesorter();});
+      </script>
+        <style>
+          table.codegrid { font-family: monospace; font-size: 12px; width: auto!important; }table.statementlist { width: auto!important; font-size: 13px; } table.codegrid td { padding: 0!important; border: 0!important } table td.linenumber { width: 40px!important; } 
+        </style>
+      </head>
+      <body style="font-family: monospace;">
+        <ul class="nav nav-tabs">
+          <li>
+            <a href="#codegrid" data-toggle="tab">Codegrid</a>
+          </li>
+          <li>
+            <a href="#statementlist" data-toggle="tab">Statement List</a>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active" id="codegrid">
+            <pre style='font-size: 12pt; font-family: courier, monospace;'>1 <span style=''>package server
+</span>2 <span style=''>
+</span>3 <span style=''>import org.slf4j.LoggerFactory
+</span>4 <span style=''>import scala.util.Try
+</span>5 <span style=''>import castor.Context.Simple.global
+</span>6 <span style=''>
+</span>7 <span style=''>object CounterHandler:
+</span>8 <span style=''>  private val logger = </span><span style='background: #AEF1AE'>LoggerFactory.getLogger(getClass)</span><span style=''>
+</span>9 <span style=''>
+</span>10 <span style=''>  // Castor context for WebSocket operations
+</span>11 <span style=''>  given castor.Context = global
+</span>12 <span style=''>
+</span>13 <span style=''>  // Cask logger for WebSocket operations
+</span>14 <span style=''>  given cask.util.Logger = cask.util.Logger.Console.globalLogger
+</span>15 <span style=''>
+</span>16 <span style=''>  // Counter state - using AtomicInteger for thread-safe operations
+</span>17 <span style=''>  private val counter = </span><span style='background: #AEF1AE'>new java.util.concurrent.atomic.AtomicInteger(0)</span><span style=''>
+</span>18 <span style=''>
+</span>19 <span style=''>  // WebSocket connections for broadcasting counter updates
+</span>20 <span style=''>  // Using concurrent collection for thread safety
+</span>21 <span style=''>  private val wsConnections = </span><span style='background: #AEF1AE'>java.util.concurrent.ConcurrentHashMap.newKeySet[cask.WsChannelActor]()</span><span style=''>
+</span>22 <span style=''>
+</span>23 <span style=''>  </span><span style='background: #AEF1AE'>def getCounter</span><span style=''>(): Int = </span><span style='background: #AEF1AE'>counter.get()</span><span style=''>
+</span>24 <span style=''>
+</span>25 <span style=''>  </span><span style='background: #AEF1AE'>def incrementCounter</span><span style=''>(): Int =
+</span>26 <span style=''>    val newValue = </span><span style='background: #AEF1AE'>counter.incrementAndGet()</span><span style=''>
+</span>27 <span style=''>    </span><span style='background: #AEF1AE'>broadcastCounter()</span><span style=''>
+</span>28 <span style=''>    newValue
+</span>29 <span style=''>
+</span>30 <span style=''>  </span><span style='background: #AEF1AE'>def decrementCounter</span><span style=''>(): Int =
+</span>31 <span style=''>    val newValue = </span><span style='background: #AEF1AE'>counter.decrementAndGet()</span><span style=''>
+</span>32 <span style=''>    </span><span style='background: #AEF1AE'>broadcastCounter()</span><span style=''>
+</span>33 <span style=''>    newValue
+</span>34 <span style=''>
+</span>35 <span style=''>  </span><span style='background: #AEF1AE'>def handleWebSocket</span><span style=''>(): cask.WebsocketResult =
+</span>36 <span style=''>    </span><span style='background: #AEF1AE'>cask.WsHandler: channel =&gt;
+</span>37 <span style=''></span><span style='background: #AEF1AE'>      // Add new connection
+</span>38 <span style=''></span><span style='background: #AEF1AE'>      wsConnections.add(channel)
+</span>39 <span style=''></span><span style='background: #AEF1AE'>      logger.info(s&quot;WebSocket client connected. Total connections: ${wsConnections.size}&quot;)
+</span>40 <span style=''></span><span style='background: #AEF1AE'>
+</span>41 <span style=''></span><span style='background: #AEF1AE'>      // Send current counter value to newly connected client
+</span>42 <span style=''></span><span style='background: #AEF1AE'>      channel.send(cask.Ws.Text(counter.get().toString))
+</span>43 <span style=''></span><span style='background: #AEF1AE'>
+</span>44 <span style=''></span><span style='background: #AEF1AE'>      // Handle incoming messages
+</span>45 <span style=''></span><span style='background: #AEF1AE'>      cask.WsActor:
+</span>46 <span style=''></span><span style='background: #AEF1AE'>        case cask.Ws.Text(msg) </span><span style='background: #F0ADAD'>=&gt;
+</span>47 <span style=''></span><span style='background: #F0ADAD'>          logger.debug(s&quot;WebSocket received message: $msg&quot;)</span><span style='background: #AEF1AE'>
+</span>48 <span style=''></span><span style='background: #AEF1AE'>
+</span>49 <span style=''></span><span style='background: #AEF1AE'>        case cask.Ws.Close(_, _) =&gt;
+</span>50 <span style=''></span><span style='background: #AEF1AE'>          wsConnections.remove(channel)
+</span>51 <span style=''></span><span style='background: #AEF1AE'>          logger.info(s&quot;WebSocket client disconnected. Total connections: ${wsConnections.size}&quot;)
+</span>52 <span style=''></span><span style='background: #AEF1AE'>
+</span>53 <span style=''></span><span style='background: #AEF1AE'>        case cask.Ws.Error(ex) =&gt;
+</span>54 <span style=''></span><span style='background: #AEF1AE'>          </span><span style='background: #F0ADAD'>wsConnections.remove(channel)
+</span>55 <span style=''></span><span style='background: #F0ADAD'>          logger.error(s&quot;WebSocket error: ${ex.getMessage}&quot;, ex)</span><span style=''>
+</span>56 <span style=''>
+</span>57 <span style=''>  </span><span style='background: #AEF1AE'>private def broadcastCounter</span><span style=''>(): Unit =
+</span>58 <span style=''>    val message = </span><span style='background: #AEF1AE'>cask.Ws.Text(counter.get().toString)</span><span style=''>
+</span>59 <span style=''>    import scala.jdk.CollectionConverters.*
+</span>60 <span style=''>    </span><span style='background: #AEF1AE'>wsConnections.asScala.foreach: channel =&gt;
+</span>61 <span style=''></span><span style='background: #AEF1AE'>      Try(channel.send(message)).recover:
+</span>62 <span style=''></span><span style='background: #AEF1AE'>        case ex </span><span style='background: #F0ADAD'>=&gt; logger.warn(s&quot;Failed to send WebSocket message to client: ${ex.getMessage}&quot;)</span><span style=''>
+</span></pre>
+          </div>
+          <div class="tab-pane" id="statementlist">
+            <table cellspacing="0" cellpadding="0" class="table statementlist">
+      <tr>
+        <th>Line</th>
+        <th>Stmt Id</th>
+        <th>Pos</th>
+        <th>Tree</th>
+        <th>Symbol</th>
+        <th>Tests</th>
+        <th>Code</th>
+      </tr><tr>
+        <td>
+          8
+        </td>
+        <td>
+          660
+        </td>
+        <td>
+          176
+          -
+          184
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getClass
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          getClass
+        </td>
+      </tr><tr>
+        <td>
+          8
+        </td>
+        <td>
+          659
+        </td>
+        <td>
+          152
+          -
+          185
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getLogger
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          LoggerFactory.getLogger(getClass)
+        </td>
+      </tr><tr>
+        <td>
+          17
+        </td>
+        <td>
+          661
+        </td>
+        <td>
+          465
+          -
+          513
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;init&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          new java.util.concurrent.atomic.AtomicInteger(0)
+        </td>
+      </tr><tr>
+        <td>
+          21
+        </td>
+        <td>
+          662
+        </td>
+        <td>
+          656
+          -
+          727
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          newKeySet
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          java.util.concurrent.ConcurrentHashMap.newKeySet[cask.WsChannelActor]()
+        </td>
+      </tr><tr>
+        <td>
+          23
+        </td>
+        <td>
+          663
+        </td>
+        <td>
+          755
+          -
+          768
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          get
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          counter.get()
+        </td>
+      </tr><tr>
+        <td>
+          23
+        </td>
+        <td>
+          664
+        </td>
+        <td>
+          731
+          -
+          745
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          getCounter
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def getCounter
+        </td>
+      </tr><tr>
+        <td>
+          25
+        </td>
+        <td>
+          667
+        </td>
+        <td>
+          772
+          -
+          792
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          incrementCounter
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def incrementCounter
+        </td>
+      </tr><tr>
+        <td>
+          26
+        </td>
+        <td>
+          665
+        </td>
+        <td>
+          821
+          -
+          846
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          incrementAndGet
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          counter.incrementAndGet()
+        </td>
+      </tr><tr>
+        <td>
+          27
+        </td>
+        <td>
+          666
+        </td>
+        <td>
+          851
+          -
+          869
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          broadcastCounter
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          broadcastCounter()
+        </td>
+      </tr><tr>
+        <td>
+          30
+        </td>
+        <td>
+          670
+        </td>
+        <td>
+          886
+          -
+          906
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          decrementCounter
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def decrementCounter
+        </td>
+      </tr><tr>
+        <td>
+          31
+        </td>
+        <td>
+          668
+        </td>
+        <td>
+          935
+          -
+          960
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          decrementAndGet
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          counter.decrementAndGet()
+        </td>
+      </tr><tr>
+        <td>
+          32
+        </td>
+        <td>
+          669
+        </td>
+        <td>
+          965
+          -
+          983
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          broadcastCounter
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          broadcastCounter()
+        </td>
+      </tr><tr>
+        <td>
+          35
+        </td>
+        <td>
+          689
+        </td>
+        <td>
+          1000
+          -
+          1019
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          handleWebSocket
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def handleWebSocket
+        </td>
+      </tr><tr>
+        <td>
+          36
+        </td>
+        <td>
+          671
+        </td>
+        <td>
+          1050
+          -
+          1812
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          cask.WsHandler: channel =&gt;\n      // Add new connection\n      wsConnections.add(channel)\n      logger.info(s&quot;WebSocket client connected. Total connections: ${wsConnections.size}&quot;)\n\n      // Send current counter value to newly connected client\n      channel.send(cask.Ws.Text(counter.get().toString))\n\n      // Handle incoming messages\n      cask.WsActor:\n        case cask.Ws.Text(msg) =&gt;\n          logger.debug(s&quot;WebSocket received message: $msg&quot;)\n\n        case cask.Ws.Close(_, _) =&gt;\n          wsConnections.remove(channel)\n          logger.info(s&quot;WebSocket client disconnected. Total connections: ${wsConnections.size}&quot;)\n\n        case cask.Ws.Error(ex) =&gt;\n          wsConnections.remove(channel)\n          logger.error(s&quot;WebSocket error: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          672
+        </td>
+        <td>
+          1111
+          -
+          1137
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          add
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          wsConnections.add(channel)
+        </td>
+      </tr><tr>
+        <td>
+          39
+        </td>
+        <td>
+          674
+        </td>
+        <td>
+          1207
+          -
+          1225
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          size
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          wsConnections.size
+        </td>
+      </tr><tr>
+        <td>
+          39
+        </td>
+        <td>
+          673
+        </td>
+        <td>
+          1144
+          -
+          1228
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(s&quot;WebSocket client connected. Total connections: ${wsConnections.size}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          42
+        </td>
+        <td>
+          675
+        </td>
+        <td>
+          1298
+          -
+          1348
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          send
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          channel.send(cask.Ws.Text(counter.get().toString))
+        </td>
+      </tr><tr>
+        <td>
+          42
+        </td>
+        <td>
+          677
+        </td>
+        <td>
+          1324
+          -
+          1346
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          toString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          counter.get().toString
+        </td>
+      </tr><tr>
+        <td>
+          42
+        </td>
+        <td>
+          676
+        </td>
+        <td>
+          1311
+          -
+          1347
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          cask.Ws.Text(counter.get().toString)
+        </td>
+      </tr><tr>
+        <td>
+          45
+        </td>
+        <td>
+          678
+        </td>
+        <td>
+          1390
+          -
+          1812
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          cask.WsActor:\n        case cask.Ws.Text(msg) =&gt;\n          logger.debug(s&quot;WebSocket received message: $msg&quot;)\n\n        case cask.Ws.Close(_, _) =&gt;\n          wsConnections.remove(channel)\n          logger.info(s&quot;WebSocket client disconnected. Total connections: ${wsConnections.size}&quot;)\n\n        case cask.Ws.Error(ex) =&gt;\n          wsConnections.remove(channel)\n          logger.error(s&quot;WebSocket error: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          46
+        </td>
+        <td>
+          680
+        </td>
+        <td>
+          1435
+          -
+          1497
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt;\n          logger.debug(s&quot;WebSocket received message: $msg&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          47
+        </td>
+        <td>
+          679
+        </td>
+        <td>
+          1448
+          -
+          1497
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          debug
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.debug(s&quot;WebSocket received message: $msg&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          50
+        </td>
+        <td>
+          681
+        </td>
+        <td>
+          1545
+          -
+          1574
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          remove
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          wsConnections.remove(channel)
+        </td>
+      </tr><tr>
+        <td>
+          50
+        </td>
+        <td>
+          684
+        </td>
+        <td>
+          1545
+          -
+          1672
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          wsConnections.remove(channel)\n          logger.info(s&quot;WebSocket client disconnected. Total connections: ${wsConnections.size}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          51
+        </td>
+        <td>
+          683
+        </td>
+        <td>
+          1651
+          -
+          1669
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          size
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          wsConnections.size
+        </td>
+      </tr><tr>
+        <td>
+          51
+        </td>
+        <td>
+          682
+        </td>
+        <td>
+          1585
+          -
+          1672
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          logger.info(s&quot;WebSocket client disconnected. Total connections: ${wsConnections.size}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          54
+        </td>
+        <td>
+          685
+        </td>
+        <td>
+          1718
+          -
+          1747
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          remove
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          wsConnections.remove(channel)
+        </td>
+      </tr><tr>
+        <td>
+          54
+        </td>
+        <td>
+          688
+        </td>
+        <td>
+          1718
+          -
+          1812
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          wsConnections.remove(channel)\n          logger.error(s&quot;WebSocket error: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          55
+        </td>
+        <td>
+          687
+        </td>
+        <td>
+          1792
+          -
+          1805
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getMessage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ex.getMessage
+        </td>
+      </tr><tr>
+        <td>
+          55
+        </td>
+        <td>
+          686
+        </td>
+        <td>
+          1758
+          -
+          1812
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          error
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.error(s&quot;WebSocket error: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          57
+        </td>
+        <td>
+          698
+        </td>
+        <td>
+          1816
+          -
+          1844
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          broadcastCounter
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          private def broadcastCounter
+        </td>
+      </tr><tr>
+        <td>
+          58
+        </td>
+        <td>
+          690
+        </td>
+        <td>
+          1873
+          -
+          1909
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          cask.Ws.Text(counter.get().toString)
+        </td>
+      </tr><tr>
+        <td>
+          58
+        </td>
+        <td>
+          691
+        </td>
+        <td>
+          1886
+          -
+          1908
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          toString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          counter.get().toString
+        </td>
+      </tr><tr>
+        <td>
+          60
+        </td>
+        <td>
+          692
+        </td>
+        <td>
+          1958
+          -
+          2137
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foreach
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          wsConnections.asScala.foreach: channel =&gt;\n      Try(channel.send(message)).recover:\n        case ex =&gt; logger.warn(s&quot;Failed to send WebSocket message to client: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          61
+        </td>
+        <td>
+          694
+        </td>
+        <td>
+          2010
+          -
+          2031
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          send
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          channel.send(message)
+        </td>
+      </tr><tr>
+        <td>
+          62
+        </td>
+        <td>
+          696
+        </td>
+        <td>
+          2121
+          -
+          2134
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getMessage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ex.getMessage
+        </td>
+      </tr><tr>
+        <td>
+          62
+        </td>
+        <td>
+          693
+        </td>
+        <td>
+          2006
+          -
+          2137
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          recover
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Try(channel.send(message)).recover:\n        case ex =&gt; logger.warn(s&quot;Failed to send WebSocket message to client: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          62
+        </td>
+        <td>
+          695
+        </td>
+        <td>
+          2061
+          -
+          2137
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          warn
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.warn(s&quot;Failed to send WebSocket message to client: ${ex.getMessage}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          62
+        </td>
+        <td>
+          697
+        </td>
+        <td>
+          2058
+          -
+          2137
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; logger.warn(s&quot;Failed to send WebSocket message to client: ${ex.getMessage}&quot;)
+        </td>
+      </tr>
+    </table>
+          </div>
+        </div>
+      </body>
+    </html>

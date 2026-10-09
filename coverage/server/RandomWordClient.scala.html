@@ -1,0 +1,1278 @@
+<html>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title id="title">
+          server/RandomWordClient.scala.html
+        </title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/css/theme.default.min.css" type="text/css"/><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/js/jquery.tablesorter.min.js"></script><link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" type="text/css"/><script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script><script type="text/javascript">
+        $(document).ready(function() {$(".tablesorter").tablesorter();});
+      </script>
+        <style>
+          table.codegrid { font-family: monospace; font-size: 12px; width: auto!important; }table.statementlist { width: auto!important; font-size: 13px; } table.codegrid td { padding: 0!important; border: 0!important } table td.linenumber { width: 40px!important; } 
+        </style>
+      </head>
+      <body style="font-family: monospace;">
+        <ul class="nav nav-tabs">
+          <li>
+            <a href="#codegrid" data-toggle="tab">Codegrid</a>
+          </li>
+          <li>
+            <a href="#statementlist" data-toggle="tab">Statement List</a>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active" id="codegrid">
+            <pre style='font-size: 12pt; font-family: courier, monospace;'>1 <span style=''>package server
+</span>2 <span style=''>
+</span>3 <span style=''>import org.slf4j.LoggerFactory
+</span>4 <span style=''>import scala.concurrent.{Future, ExecutionContext}
+</span>5 <span style=''>import scala.util.Try
+</span>6 <span style=''>
+</span>7 <span style=''>// Trait to allow mocking in tests
+</span>8 <span style=''>trait RandomWordClient:
+</span>9 <span style=''>  def fetchRandomWords(count: Int = </span><span style='background: #F0ADAD'>2)(using ec: Exe</span><span style=''>cutionContext): Future[Seq[String]]
+</span>10 <span style=''>
+</span>11 <span style=''>object RandomWordClient:
+</span>12 <span style=''>  private val logger = </span><span style='background: #AEF1AE'>LoggerFactory.getLogger(getClass)</span><span style=''>
+</span>13 <span style=''>
+</span>14 <span style=''>  // Swappable instance for testing
+</span>15 <span style=''>  @volatile private var _instance: RandomWordClient = </span><span style='background: #AEF1AE'>RealRandomWordClient()</span><span style=''>
+</span>16 <span style=''>
+</span>17 <span style=''>  // For tests only - swap the backing implementation
+</span>18 <span style=''>  </span><span style='background: #AEF1AE'>def setInstance</span><span style=''>(client: RandomWordClient): Unit =
+</span>19 <span style=''>    _instance = client
+</span>20 <span style=''>
+</span>21 <span style=''>  </span><span style='background: #AEF1AE'>def resetInstance</span><span style=''>(): Unit =
+</span>22 <span style=''>    _instance = </span><span style='background: #AEF1AE'>RealRandomWordClient()</span><span style=''>
+</span>23 <span style=''>
+</span>24 <span style=''>  // Delegate method to the swappable instance
+</span>25 <span style=''>  </span><span style='background: #F0ADAD'>def fetchRandomWords</span><span style=''>(count: Int = </span><span style='background: #F0ADAD'>2)(using ec: Exe</span><span style=''>cutionContext): Future[Seq[String]] =
+</span>26 <span style=''>    </span><span style='background: #F0ADAD'>_instance.fetchRandomWords(count)</span><span style=''>
+</span>27 <span style=''>
+</span>28 <span style=''>// Real implementation that calls external API
+</span>29 <span style=''>class RealRandomWordClient extends RandomWordClient:
+</span>30 <span style=''>  private val logger = </span><span style='background: #AEF1AE'>LoggerFactory.getLogger(getClass)</span><span style=''>
+</span>31 <span style=''>
+</span>32 <span style=''>  /** Fetch random words from the random word API */
+</span>33 <span style=''>  </span><span style='background: #F0ADAD'>def fetchRandomWords</span><span style=''>(count: Int = </span><span style='background: #F0ADAD'>2)(using ec: Exe</span><span style=''>cutionContext): Future[Seq[String]] =
+</span>34 <span style=''>    </span><span style='background: #F0ADAD'>Future:
+</span>35 <span style=''></span><span style='background: #F0ADAD'>      val url = s&quot;https://random-word-api.herokuapp.com/word?number=$count&quot;
+</span>36 <span style=''></span><span style='background: #F0ADAD'>      val connection = java.net.URI.create(url).toURL.openConnection().asInstanceOf[java.net.HttpURLConnection]
+</span>37 <span style=''></span><span style='background: #F0ADAD'>
+</span>38 <span style=''></span><span style='background: #F0ADAD'>      Try:
+</span>39 <span style=''></span><span style='background: #F0ADAD'>        connection.setRequestMethod(&quot;GET&quot;)
+</span>40 <span style=''></span><span style='background: #F0ADAD'>        connection.setConnectTimeout(10000)
+</span>41 <span style=''></span><span style='background: #F0ADAD'>        connection.setReadTimeout(10000)
+</span>42 <span style=''></span><span style='background: #F0ADAD'>
+</span>43 <span style=''></span><span style='background: #F0ADAD'>        val responseCode = connection.getResponseCode
+</span>44 <span style=''></span><span style='background: #F0ADAD'>        val inputStream = if responseCode &gt;= 400 then connection.getErrorStream else connection.getInputStream
+</span>45 <span style=''></span><span style='background: #F0ADAD'>        val response = scala.io.Source.fromInputStream(inputStream, &quot;UTF-8&quot;).mkString
+</span>46 <span style=''></span><span style='background: #F0ADAD'>        inputStream.close()
+</span>47 <span style=''></span><span style='background: #F0ADAD'>
+</span>48 <span style=''></span><span style='background: #F0ADAD'>        if responseCode != 200 then
+</span>49 <span style=''></span><span style='background: #F0ADAD'>          logger.error(s&quot;Random word API error (status $responseCode): $response&quot;)
+</span>50 <span style=''></span><span style='background: #F0ADAD'>          throw new RuntimeException(s&quot;Random word API request failed with status $responseCode&quot;)
+</span>51 <span style=''></span><span style='background: #F0ADAD'>
+</span>52 <span style=''></span><span style='background: #F0ADAD'>        // Parse JSON array like [&quot;word1&quot;, &quot;word2&quot;]
+</span>53 <span style=''></span><span style='background: #F0ADAD'>        val words = ujson.read(response).arr.map(_.str).toSeq
+</span>54 <span style=''></span><span style='background: #F0ADAD'>        logger.info(s&quot;Fetched random words: ${words.mkString(&quot;, &quot;)}&quot;)
+</span>55 <span style=''></span><span style='background: #F0ADAD'>        words
+</span>56 <span style=''></span><span style='background: #F0ADAD'>      .recover:
+</span>57 <span style=''></span><span style='background: #F0ADAD'>        case ex: Exception =&gt;
+</span>58 <span style=''></span><span style='background: #F0ADAD'>          logger.error(s&quot;Random word API request failed: ${ex.getMessage}&quot;, ex)
+</span>59 <span style=''></span><span style='background: #F0ADAD'>          throw ex
+</span>60 <span style=''></span><span style='background: #F0ADAD'>      .get</span><span style=''>
+</span></pre>
+          </div>
+          <div class="tab-pane" id="statementlist">
+            <table cellspacing="0" cellpadding="0" class="table statementlist">
+      <tr>
+        <th>Line</th>
+        <th>Stmt Id</th>
+        <th>Pos</th>
+        <th>Tree</th>
+        <th>Symbol</th>
+        <th>Tests</th>
+        <th>Code</th>
+      </tr><tr>
+        <td>
+          9
+        </td>
+        <td>
+          1607
+        </td>
+        <td>
+          216
+          -
+          232
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          fetchRandomWords$default$1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          2)(using ec: Exe
+        </td>
+      </tr><tr>
+        <td>
+          9
+        </td>
+        <td>
+          1606
+        </td>
+        <td>
+          216
+          -
+          217
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          2
+        </td>
+      </tr><tr>
+        <td>
+          12
+        </td>
+        <td>
+          1608
+        </td>
+        <td>
+          317
+          -
+          350
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getLogger
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          LoggerFactory.getLogger(getClass)
+        </td>
+      </tr><tr>
+        <td>
+          12
+        </td>
+        <td>
+          1609
+        </td>
+        <td>
+          341
+          -
+          349
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getClass
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          getClass
+        </td>
+      </tr><tr>
+        <td>
+          15
+        </td>
+        <td>
+          1610
+        </td>
+        <td>
+          442
+          -
+          464
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;init&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          RealRandomWordClient()
+        </td>
+      </tr><tr>
+        <td>
+          18
+        </td>
+        <td>
+          1611
+        </td>
+        <td>
+          522
+          -
+          537
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          setInstance
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def setInstance
+        </td>
+      </tr><tr>
+        <td>
+          21
+        </td>
+        <td>
+          1613
+        </td>
+        <td>
+          598
+          -
+          615
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          resetInstance
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def resetInstance
+        </td>
+      </tr><tr>
+        <td>
+          22
+        </td>
+        <td>
+          1612
+        </td>
+        <td>
+          642
+          -
+          664
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;init&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          RealRandomWordClient()
+        </td>
+      </tr><tr>
+        <td>
+          25
+        </td>
+        <td>
+          1617
+        </td>
+        <td>
+          749
+          -
+          765
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          fetchRandomWords$default$1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          2)(using ec: Exe
+        </td>
+      </tr><tr>
+        <td>
+          25
+        </td>
+        <td>
+          1616
+        </td>
+        <td>
+          749
+          -
+          750
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          2
+        </td>
+      </tr><tr>
+        <td>
+          25
+        </td>
+        <td>
+          1615
+        </td>
+        <td>
+          715
+          -
+          735
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          fetchRandomWords
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def fetchRandomWords
+        </td>
+      </tr><tr>
+        <td>
+          26
+        </td>
+        <td>
+          1614
+        </td>
+        <td>
+          807
+          -
+          840
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          fetchRandomWords
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          _instance.fetchRandomWords(count)
+        </td>
+      </tr><tr>
+        <td>
+          30
+        </td>
+        <td>
+          1619
+        </td>
+        <td>
+          989
+          -
+          997
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getClass
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          getClass
+        </td>
+      </tr><tr>
+        <td>
+          30
+        </td>
+        <td>
+          1618
+        </td>
+        <td>
+          965
+          -
+          998
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getLogger
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          LoggerFactory.getLogger(getClass)
+        </td>
+      </tr><tr>
+        <td>
+          33
+        </td>
+        <td>
+          1653
+        </td>
+        <td>
+          1089
+          -
+          1090
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          2
+        </td>
+      </tr><tr>
+        <td>
+          33
+        </td>
+        <td>
+          1652
+        </td>
+        <td>
+          1055
+          -
+          1075
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          fetchRandomWords
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def fetchRandomWords
+        </td>
+      </tr><tr>
+        <td>
+          33
+        </td>
+        <td>
+          1654
+        </td>
+        <td>
+          1089
+          -
+          1105
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          fetchRandomWords$default$1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          2)(using ec: Exe
+        </td>
+      </tr><tr>
+        <td>
+          34
+        </td>
+        <td>
+          1620
+        </td>
+        <td>
+          1147
+          -
+          2335
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Future:\n      val url = s&quot;https://random-word-api.herokuapp.com/word?number=$count&quot;\n      val connection = java.net.URI.create(url).toURL.openConnection().asInstanceOf[java.net.HttpURLConnection]\n\n      Try:\n        connection.setRequestMethod(&quot;GET&quot;)\n        connection.setConnectTimeout(10000)\n        connection.setReadTimeout(10000)\n\n        val responseCode = connection.getResponseCode\n        val inputStream = if responseCode &gt;= 400 then connection.getErrorStream else connection.getInputStream\n        val response = scala.io.Source.fromInputStream(inputStream, &quot;UTF-8&quot;).mkString\n        inputStream.close()\n\n        if responseCode != 200 then\n          logger.error(s&quot;Random word API error (status $responseCode): $response&quot;)\n          throw new RuntimeException(s&quot;Random word API request failed with status $responseCode&quot;)\n\n        // Parse JSON array like [&quot;word1&quot;, &quot;word2&quot;]\n        val words = ujson.read(response).arr.map(_.str).toSeq\n        logger.info(s&quot;Fetched random words: ${words.mkString(&quot;, &quot;)}&quot;)\n        words\n      .recover:\n        case ex: Exception =&gt;\n          logger.error(s&quot;Random word API request failed: ${ex.getMessage}&quot;, ex)\n          throw ex\n      .get
+        </td>
+      </tr><tr>
+        <td>
+          36
+        </td>
+        <td>
+          1621
+        </td>
+        <td>
+          1254
+          -
+          1301
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          openConnection
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          java.net.URI.create(url).toURL.openConnection()
+        </td>
+      </tr><tr>
+        <td>
+          39
+        </td>
+        <td>
+          1623
+        </td>
+        <td>
+          1363
+          -
+          1397
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          setRequestMethod
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connection.setRequestMethod(&quot;GET&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          1624
+        </td>
+        <td>
+          1406
+          -
+          1441
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          setConnectTimeout
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connection.setConnectTimeout(10000)
+        </td>
+      </tr><tr>
+        <td>
+          41
+        </td>
+        <td>
+          1625
+        </td>
+        <td>
+          1450
+          -
+          1482
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          setReadTimeout
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connection.setReadTimeout(10000)
+        </td>
+      </tr><tr>
+        <td>
+          43
+        </td>
+        <td>
+          1626
+        </td>
+        <td>
+          1511
+          -
+          1537
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getResponseCode
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connection.getResponseCode
+        </td>
+      </tr><tr>
+        <td>
+          44
+        </td>
+        <td>
+          1629
+        </td>
+        <td>
+          1592
+          -
+          1617
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getErrorStream
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connection.getErrorStream
+        </td>
+      </tr><tr>
+        <td>
+          44
+        </td>
+        <td>
+          1628
+        </td>
+        <td>
+          1592
+          -
+          1617
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getErrorStream
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connection.getErrorStream
+        </td>
+      </tr><tr>
+        <td>
+          44
+        </td>
+        <td>
+          1631
+        </td>
+        <td>
+          1623
+          -
+          1648
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getInputStream
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connection.getInputStream
+        </td>
+      </tr><tr>
+        <td>
+          44
+        </td>
+        <td>
+          1627
+        </td>
+        <td>
+          1567
+          -
+          1586
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &gt;=
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          responseCode &gt;= 400
+        </td>
+      </tr><tr>
+        <td>
+          44
+        </td>
+        <td>
+          1630
+        </td>
+        <td>
+          1623
+          -
+          1648
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getInputStream
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          connection.getInputStream
+        </td>
+      </tr><tr>
+        <td>
+          45
+        </td>
+        <td>
+          1632
+        </td>
+        <td>
+          1672
+          -
+          1725
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          fromInputStream
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          scala.io.Source.fromInputStream(inputStream, &quot;UTF-8&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          45
+        </td>
+        <td>
+          1633
+        </td>
+        <td>
+          1672
+          -
+          1734
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          mkString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          scala.io.Source.fromInputStream(inputStream, &quot;UTF-8&quot;).mkString
+        </td>
+      </tr><tr>
+        <td>
+          46
+        </td>
+        <td>
+          1634
+        </td>
+        <td>
+          1743
+          -
+          1762
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          close
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          inputStream.close()
+        </td>
+      </tr><tr>
+        <td>
+          48
+        </td>
+        <td>
+          1635
+        </td>
+        <td>
+          1775
+          -
+          1794
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          !=
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          responseCode != 200
+        </td>
+      </tr><tr>
+        <td>
+          49
+        </td>
+        <td>
+          1638
+        </td>
+        <td>
+          1810
+          -
+          1980
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.error(s&quot;Random word API error (status $responseCode): $response&quot;)\n          throw new RuntimeException(s&quot;Random word API request failed with status $responseCode&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          49
+        </td>
+        <td>
+          1636
+        </td>
+        <td>
+          1810
+          -
+          1882
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          error
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.error(s&quot;Random word API error (status $responseCode): $response&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          50
+        </td>
+        <td>
+          1637
+        </td>
+        <td>
+          1893
+          -
+          1980
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          throw
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          throw new RuntimeException(s&quot;Random word API request failed with status $responseCode&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          50
+        </td>
+        <td>
+          1639
+        </td>
+        <td>
+          1980
+          -
+          1980
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          
+        </td>
+      </tr><tr>
+        <td>
+          53
+        </td>
+        <td>
+          1641
+        </td>
+        <td>
+          2065
+          -
+          2073
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          fromString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          response
+        </td>
+      </tr><tr>
+        <td>
+          53
+        </td>
+        <td>
+          1644
+        </td>
+        <td>
+          2054
+          -
+          2095
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          toSeq
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.read(response).arr.map(_.str).toSeq
+        </td>
+      </tr><tr>
+        <td>
+          53
+        </td>
+        <td>
+          1643
+        </td>
+        <td>
+          2083
+          -
+          2088
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          str
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          _.str
+        </td>
+      </tr><tr>
+        <td>
+          53
+        </td>
+        <td>
+          1640
+        </td>
+        <td>
+          2054
+          -
+          2089
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          map
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.read(response).arr.map(_.str)
+        </td>
+      </tr><tr>
+        <td>
+          53
+        </td>
+        <td>
+          1642
+        </td>
+        <td>
+          2054
+          -
+          2064
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          read$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ujson.read
+        </td>
+      </tr><tr>
+        <td>
+          54
+        </td>
+        <td>
+          1646
+        </td>
+        <td>
+          2142
+          -
+          2162
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          mkString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          words.mkString(&quot;, &quot;)
+        </td>
+      </tr><tr>
+        <td>
+          54
+        </td>
+        <td>
+          1645
+        </td>
+        <td>
+          2104
+          -
+          2165
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          info
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.info(s&quot;Fetched random words: ${words.mkString(&quot;, &quot;)}&quot;)
+        </td>
+      </tr><tr>
+        <td>
+          57
+        </td>
+        <td>
+          1622
+        </td>
+        <td>
+          1350
+          -
+          2324
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          recover
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Try:\n        connection.setRequestMethod(&quot;GET&quot;)\n        connection.setConnectTimeout(10000)\n        connection.setReadTimeout(10000)\n\n        val responseCode = connection.getResponseCode\n        val inputStream = if responseCode &gt;= 400 then connection.getErrorStream else connection.getInputStream\n        val response = scala.io.Source.fromInputStream(inputStream, &quot;UTF-8&quot;).mkString\n        inputStream.close()\n\n        if responseCode != 200 then\n          logger.error(s&quot;Random word API error (status $responseCode): $response&quot;)\n          throw new RuntimeException(s&quot;Random word API request failed with status $responseCode&quot;)\n\n        // Parse JSON array like [&quot;word1&quot;, &quot;word2&quot;]\n        val words = ujson.read(response).arr.map(_.str).toSeq\n        logger.info(s&quot;Fetched random words: ${words.mkString(&quot;, &quot;)}&quot;)\n        words\n      .recover:\n        case ex: Exception =&gt;\n          logger.error(s&quot;Random word API request failed: ${ex.getMessage}&quot;, ex)\n          throw ex
+        </td>
+      </tr><tr>
+        <td>
+          58
+        </td>
+        <td>
+          1647
+        </td>
+        <td>
+          2236
+          -
+          2305
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          error
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.error(s&quot;Random word API request failed: ${ex.getMessage}&quot;, ex)
+        </td>
+      </tr><tr>
+        <td>
+          58
+        </td>
+        <td>
+          1650
+        </td>
+        <td>
+          2236
+          -
+          2324
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          logger.error(s&quot;Random word API request failed: ${ex.getMessage}&quot;, ex)\n          throw ex
+        </td>
+      </tr><tr>
+        <td>
+          58
+        </td>
+        <td>
+          1648
+        </td>
+        <td>
+          2285
+          -
+          2298
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getMessage
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          ex.getMessage
+        </td>
+      </tr><tr>
+        <td>
+          59
+        </td>
+        <td>
+          1649
+        </td>
+        <td>
+          2316
+          -
+          2324
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          throw
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          throw ex
+        </td>
+      </tr><tr>
+        <td>
+          60
+        </td>
+        <td>
+          1651
+        </td>
+        <td>
+          1350
+          -
+          2335
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          get
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Try:\n        connection.setRequestMethod(&quot;GET&quot;)\n        connection.setConnectTimeout(10000)\n        connection.setReadTimeout(10000)\n\n        val responseCode = connection.getResponseCode\n        val inputStream = if responseCode &gt;= 400 then connection.getErrorStream else connection.getInputStream\n        val response = scala.io.Source.fromInputStream(inputStream, &quot;UTF-8&quot;).mkString\n        inputStream.close()\n\n        if responseCode != 200 then\n          logger.error(s&quot;Random word API error (status $responseCode): $response&quot;)\n          throw new RuntimeException(s&quot;Random word API request failed with status $responseCode&quot;)\n\n        // Parse JSON array like [&quot;word1&quot;, &quot;word2&quot;]\n        val words = ujson.read(response).arr.map(_.str).toSeq\n        logger.info(s&quot;Fetched random words: ${words.mkString(&quot;, &quot;)}&quot;)\n        words\n      .recover:\n        case ex: Exception =&gt;\n          logger.error(s&quot;Random word API request failed: ${ex.getMessage}&quot;, ex)\n          throw ex\n      .get
+        </td>
+      </tr>
+    </table>
+          </div>
+        </div>
+      </body>
+    </html>

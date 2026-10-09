@@ -1,0 +1,149 @@
+<html>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title id="title">
+          shared/TugOfWar/GameMessages.scala.html
+        </title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/css/theme.default.min.css" type="text/css"/><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/js/jquery.tablesorter.min.js"></script><link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" type="text/css"/><script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script><script type="text/javascript">
+        $(document).ready(function() {$(".tablesorter").tablesorter();});
+      </script>
+        <style>
+          table.codegrid { font-family: monospace; font-size: 12px; width: auto!important; }table.statementlist { width: auto!important; font-size: 13px; } table.codegrid td { padding: 0!important; border: 0!important } table td.linenumber { width: 40px!important; } 
+        </style>
+      </head>
+      <body style="font-family: monospace;">
+        <ul class="nav nav-tabs">
+          <li>
+            <a href="#codegrid" data-toggle="tab">Codegrid</a>
+          </li>
+          <li>
+            <a href="#statementlist" data-toggle="tab">Statement List</a>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active" id="codegrid">
+            <pre style='font-size: 12pt; font-family: courier, monospace;'>1 <span style=''>package shared.TugOfWar
+</span>2 <span style=''>
+</span>3 <span style=''>import upickle.default.*
+</span>4 <span style=''>
+</span>5 <span style=''>// Client -&gt; Server messages
+</span>6 <span style=''>sealed trait ClientMessage
+</span>7 <span style=''>
+</span>8 <span style=''>object ClientMessage:
+</span>9 <span style=''>  given ReadWriter[ClientMessage] = </span><span style='background: #AEF1AE'>ReadWriter.merge(
+</span>10 <span style=''></span><span style='background: #AEF1AE'>    macroRW[JoinMessage],
+</span>11 <span style=''></span><span style='background: #AEF1AE'>    macroRW[CreateMessage],
+</span>12 <span style=''></span><span style='background: #AEF1AE'>    macroRW[RejoinMessage],
+</span>13 <span style=''></span><span style='background: #AEF1AE'>    macroRW[SelectTeamMessage],
+</span>14 <span style=''></span><span style='background: #AEF1AE'>    macroRW[ConfigureMessage],
+</span>15 <span style=''></span><span style='background: #AEF1AE'>    macroRW[StartMessage],
+</span>16 <span style=''></span><span style='background: #AEF1AE'>    macroRW[ClickMessage],
+</span>17 <span style=''></span><span style='background: #AEF1AE'>    macroRW[NextRoundMessage],
+</span>18 <span style=''></span><span style='background: #AEF1AE'>    macroRW[PingMessage],
+</span>19 <span style=''></span><span style='background: #AEF1AE'>    macroRW[LeaveMessage]
+</span>20 <span style=''></span><span style='background: #AEF1AE'>  )</span><span style=''>
+</span>21 <span style=''>
+</span>22 <span style=''>case class JoinMessage(playerName: String) extends ClientMessage derives ReadWriter
+</span>23 <span style=''>case class CreateMessage(playerName: String, roundsToWin: Int, timeLimitSeconds: Int) extends ClientMessage
+</span>24 <span style=''>    derives ReadWriter
+</span>25 <span style=''>case class RejoinMessage(playerId: String, gameId: String) extends ClientMessage derives ReadWriter
+</span>26 <span style=''>case class SelectTeamMessage(team: Team) extends ClientMessage derives ReadWriter
+</span>27 <span style=''>case class ConfigureMessage(roundsToWin: Int, timeLimitSeconds: Int) extends ClientMessage derives ReadWriter
+</span>28 <span style=''>case class StartMessage() extends ClientMessage derives ReadWriter
+</span>29 <span style=''>case class ClickMessage() extends ClientMessage derives ReadWriter
+</span>30 <span style=''>case class NextRoundMessage() extends ClientMessage derives ReadWriter
+</span>31 <span style=''>case class PingMessage() extends ClientMessage derives ReadWriter
+</span>32 <span style=''>case class LeaveMessage() extends ClientMessage derives ReadWriter
+</span>33 <span style=''>
+</span>34 <span style=''>// Server -&gt; Client messages
+</span>35 <span style=''>sealed trait ServerMessage
+</span>36 <span style=''>
+</span>37 <span style=''>object ServerMessage:
+</span>38 <span style=''>  given ReadWriter[ServerMessage] = </span><span style='background: #AEF1AE'>ReadWriter.merge(
+</span>39 <span style=''></span><span style='background: #AEF1AE'>    macroRW[GameUpdateMessage],
+</span>40 <span style=''></span><span style='background: #AEF1AE'>    macroRW[JoinedMessage],
+</span>41 <span style=''></span><span style='background: #AEF1AE'>    macroRW[RejoinFailedMessage],
+</span>42 <span style=''></span><span style='background: #AEF1AE'>    macroRW[PositionUpdateMessage],
+</span>43 <span style=''></span><span style='background: #AEF1AE'>    macroRW[TimerUpdateMessage],
+</span>44 <span style=''></span><span style='background: #AEF1AE'>    macroRW[CountdownUpdateMessage],
+</span>45 <span style=''></span><span style='background: #AEF1AE'>    macroRW[RoundEndMessage],
+</span>46 <span style=''></span><span style='background: #AEF1AE'>    macroRW[GameEndMessage],
+</span>47 <span style=''></span><span style='background: #AEF1AE'>    macroRW[ErrorMessage]
+</span>48 <span style=''></span><span style='background: #AEF1AE'>  )</span><span style=''>
+</span>49 <span style=''>
+</span>50 <span style=''>case class GameUpdateMessage(game: TugOfWarGame) extends ServerMessage derives ReadWriter
+</span>51 <span style=''>case class JoinedMessage(playerId: String, gameId: String) extends ServerMessage derives ReadWriter
+</span>52 <span style=''>case class RejoinFailedMessage(reason: String) extends ServerMessage derives ReadWriter
+</span>53 <span style=''>case class PositionUpdateMessage(position: Int, redClicks: Int, blueClicks: Int) extends ServerMessage
+</span>54 <span style=''>    derives ReadWriter
+</span>55 <span style=''>case class TimerUpdateMessage(secondsRemaining: Int) extends ServerMessage derives ReadWriter
+</span>56 <span style=''>case class CountdownUpdateMessage(secondsRemaining: Int) extends ServerMessage derives ReadWriter
+</span>57 <span style=''>case class RoundEndMessage(winner: Team, result: RoundResult) extends ServerMessage derives ReadWriter
+</span>58 <span style=''>case class GameEndMessage(winner: Team, redRoundsWon: Int, blueRoundsWon: Int) extends ServerMessage derives ReadWriter
+</span>59 <span style=''>case class ErrorMessage(message: String) extends ServerMessage derives ReadWriter
+</span></pre>
+          </div>
+          <div class="tab-pane" id="statementlist">
+            <table cellspacing="0" cellpadding="0" class="table statementlist">
+      <tr>
+        <th>Line</th>
+        <th>Stmt Id</th>
+        <th>Pos</th>
+        <th>Tree</th>
+        <th>Symbol</th>
+        <th>Tests</th>
+        <th>Code</th>
+      </tr><tr>
+        <td>
+          9
+        </td>
+        <td>
+          7459
+        </td>
+        <td>
+          166
+          -
+          469
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          merge
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          ReadWriter.merge(\n    macroRW[JoinMessage],\n    macroRW[CreateMessage],\n    macroRW[RejoinMessage],\n    macroRW[SelectTeamMessage],\n    macroRW[ConfigureMessage],\n    macroRW[StartMessage],\n    macroRW[ClickMessage],\n    macroRW[NextRoundMessage],\n    macroRW[PingMessage],\n    macroRW[LeaveMessage]\n  )
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          7460
+        </td>
+        <td>
+          1432
+          -
+          1738
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          merge
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          ReadWriter.merge(\n    macroRW[GameUpdateMessage],\n    macroRW[JoinedMessage],\n    macroRW[RejoinFailedMessage],\n    macroRW[PositionUpdateMessage],\n    macroRW[TimerUpdateMessage],\n    macroRW[CountdownUpdateMessage],\n    macroRW[RoundEndMessage],\n    macroRW[GameEndMessage],\n    macroRW[ErrorMessage]\n  )
+        </td>
+      </tr>
+    </table>
+          </div>
+        </div>
+      </body>
+    </html>

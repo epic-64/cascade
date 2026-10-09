@@ -1,0 +1,5263 @@
+<html>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title id="title">
+          shared/Trader/TraderRisk.scala.html
+        </title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/css/theme.default.min.css" type="text/css"/><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/js/jquery.tablesorter.min.js"></script><link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" type="text/css"/><script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script><script type="text/javascript">
+        $(document).ready(function() {$(".tablesorter").tablesorter();});
+      </script>
+        <style>
+          table.codegrid { font-family: monospace; font-size: 12px; width: auto!important; }table.statementlist { width: auto!important; font-size: 13px; } table.codegrid td { padding: 0!important; border: 0!important } table td.linenumber { width: 40px!important; } 
+        </style>
+      </head>
+      <body style="font-family: monospace;">
+        <ul class="nav nav-tabs">
+          <li>
+            <a href="#codegrid" data-toggle="tab">Codegrid</a>
+          </li>
+          <li>
+            <a href="#statementlist" data-toggle="tab">Statement List</a>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active" id="codegrid">
+            <pre style='font-size: 12pt; font-family: courier, monospace;'>1 <span style=''>package shared.Trader
+</span>2 <span style=''>
+</span>3 <span style=''>import scala.util.Random
+</span>4 <span style=''>
+</span>5 <span style=''>/** Risk system for Trader game.
+</span>6 <span style=''>  *
+</span>7 <span style=''>  * High-value cargo attracts bandits. The risk scales with value per kg:
+</span>8 <span style=''>  *   - Gems (40 g/kg) = very high risk
+</span>9 <span style=''>  *   - Bulk goods (&lt;1 g/kg) = essentially safe
+</span>10 <span style=''>  *   - Mixed cargo = proportionally reduced risk
+</span>11 <span style=''>  */
+</span>12 <span style=''>object TraderRisk:
+</span>13 <span style=''>
+</span>14 <span style=''>  // Risk formula constants (can be tuned for balance)
+</span>15 <span style=''>  private val BaseDivisor: Double = </span><span style='background: #AEF1AE'>10.0</span><span style=''> // Higher = lower risk overall
+</span>16 <span style=''>  private val RiskExponent: Double = </span><span style='background: #AEF1AE'>1.5</span><span style=''> // Higher = steeper penalty for high-value cargo
+</span>17 <span style=''>  private val EncounterMultiplier: Double = </span><span style='background: #AEF1AE'>0.1</span><span style=''> // Higher = more frequent encounters
+</span>18 <span style=''>  private val EncounterCap: Double = </span><span style='background: #AEF1AE'>0.8</span><span style=''> // Maximum encounter chance (80%)
+</span>19 <span style=''>
+</span>20 <span style=''>  /** Calculate the risk assessment for current cargo. Uses item base prices (not market prices) for consistent risk
+</span>21 <span style=''>    * calculation.
+</span>22 <span style=''>    */
+</span>23 <span style=''>  </span><span style='background: #AEF1AE'>def assessRisk</span><span style=''>(inventory: Inventory): RiskAssessment =
+</span>24 <span style=''>    val totalWeight = </span><span style='background: #AEF1AE'>inventory.totalWeight</span><span style=''>
+</span>25 <span style=''>
+</span>26 <span style=''>    if </span><span style='background: #AEF1AE'>totalWeight == 0</span><span style=''> then
+</span>27 <span style=''>      </span><span style='background: #AEF1AE'>RiskAssessment.safe</span><span style=''>
+</span>28 <span style=''>    else
+</span>29 <span style=''>      </span><span style='background: #AEF1AE'>val totalValue = inventory.items.map { (item, qty) =&gt;
+</span>30 <span style=''></span><span style='background: #AEF1AE'>        Item.basePrice(item) * qty
+</span>31 <span style=''></span><span style='background: #AEF1AE'>      }.sum
+</span>32 <span style=''></span><span style='background: #AEF1AE'>
+</span>33 <span style=''></span><span style='background: #AEF1AE'>      val valuePerKg = totalValue.toDouble / totalWeight
+</span>34 <span style=''></span><span style='background: #AEF1AE'>      val riskScore = math.pow(valuePerKg / BaseDivisor, RiskExponent)
+</span>35 <span style=''></span><span style='background: #AEF1AE'>      val encounterChance = math.min(riskScore * EncounterMultiplier, EncounterCap)
+</span>36 <span style=''></span><span style='background: #AEF1AE'>
+</span>37 <span style=''></span><span style='background: #AEF1AE'>      RiskAssessment(totalValue, totalWeight, valuePerKg, riskScore, encounterChance)</span><span style=''>
+</span>38 <span style=''>
+</span>39 <span style=''>  /** Roll for a bandit encounter during travel. Returns None if no encounter, Some(outcome) if bandits strike.
+</span>40 <span style=''>    */
+</span>41 <span style=''>  </span><span style='background: #AEF1AE'>def rollEncounter</span><span style=''>(risk: RiskAssessment, rng: Random): Option[EncounterOutcome] =
+</span>42 <span style=''>    if </span><span style='background: #AEF1AE'>risk.encounterChance &lt;= 0.0</span><span style=''> then </span><span style='background: #AEF1AE'>None</span><span style=''>
+</span>43 <span style=''>    else </span><span style='background: #AEF1AE'>if rng.nextDouble() &gt;= risk.encounterChance then None
+</span>44 <span style=''></span><span style='background: #AEF1AE'>    else Some(resolveEncounter(risk, rng))</span><span style=''>
+</span>45 <span style=''>
+</span>46 <span style=''>  /** Determine the outcome of a bandit encounter.
+</span>47 <span style=''>    *
+</span>48 <span style=''>    * Probability distribution:
+</span>49 <span style=''>    *   - 20% Escaped (no loss)
+</span>50 <span style=''>    *   - 40% Toll (10-20% cargo value in gold)
+</span>51 <span style=''>    *   - 25% Robbery (30-50% of highest-value items)
+</span>52 <span style=''>    *   - 15% Devastating Loss (50-80% of all cargo)
+</span>53 <span style=''>    */
+</span>54 <span style=''>  </span><span style='background: #AEF1AE'>private def resolveEncounter</span><span style=''>(risk: RiskAssessment, rng: Random): EncounterOutcome =
+</span>55 <span style=''>    val roll = </span><span style='background: #AEF1AE'>rng.nextInt(100)</span><span style=''>
+</span>56 <span style=''>    if </span><span style='background: #AEF1AE'>roll &lt; 20</span><span style=''> then
+</span>57 <span style=''>      </span><span style='background: #AEF1AE'>EncounterOutcome.Escaped</span><span style=''>
+</span>58 <span style=''>    else </span><span style='background: #AEF1AE'>if roll &lt; 60 then
+</span>59 <span style=''></span><span style='background: #AEF1AE'>      val lossPercent = 0.10 + rng.nextDouble() * 0.10 // 10-20%
+</span>60 <span style=''></span><span style='background: #AEF1AE'>      val goldLost = math.max(1, (risk.cargoValue * lossPercent).toInt)
+</span>61 <span style=''></span><span style='background: #AEF1AE'>      EncounterOutcome.Toll(goldLost)
+</span>62 <span style=''></span><span style='background: #AEF1AE'>    else if roll &lt; 85 then
+</span>63 <span style=''></span><span style='background: #AEF1AE'>      EncounterOutcome.Robbery(Map.empty) // Placeholder - calculated in applyEncounter
+</span>64 <span style=''></span><span style='background: #AEF1AE'>    else
+</span>65 <span style=''></span><span style='background: #AEF1AE'>      EncounterOutcome.DevastatingLoss(Map.empty, 0)</span><span style=''> // Placeholder - calculated in applyEncounter
+</span>66 <span style=''>
+</span>67 <span style=''>  /** Apply encounter outcome to game state. Returns updated game with losses applied and log entry added.
+</span>68 <span style=''>    */
+</span>69 <span style=''>  </span><span style='background: #AEF1AE'>def applyEncounter</span><span style=''>(
+</span>70 <span style=''>      game: TraderGame,
+</span>71 <span style=''>      outcome: EncounterOutcome,
+</span>72 <span style=''>      fromCity: CityId,
+</span>73 <span style=''>      toCity: CityId,
+</span>74 <span style=''>      rng: Random
+</span>75 <span style=''>  ): TraderGame =
+</span>76 <span style=''>    val turn = game.turn
+</span>77 <span style=''>
+</span>78 <span style=''>    outcome match
+</span>79 <span style=''>      case EncounterOutcome.Unscathed =&gt;
+</span>80 <span style=''>        // Safe arrival - this case is handled in TraderLogic.travel directly
+</span>81 <span style=''>        // but we include it here for completeness
+</span>82 <span style=''>        </span><span style='background: #F0ADAD'>val encounter = BanditEncounter(EncounterOutcome.Unscathed, fromCity, toCity, turn)
+</span>83 <span style=''></span><span style='background: #F0ADAD'>        game.copy(lastEncounter = Some(encounter))</span><span style=''>
+</span>84 <span style=''>
+</span>85 <span style=''>      case EncounterOutcome.Escaped =&gt;
+</span>86 <span style=''>        </span><span style='background: #AEF1AE'>val encounter = BanditEncounter(EncounterOutcome.Escaped, fromCity, toCity, turn)
+</span>87 <span style=''></span><span style='background: #AEF1AE'>        val logEntry = &quot;⚔️ Bandits attacked but you escaped unharmed!&quot;
+</span>88 <span style=''></span><span style='background: #AEF1AE'>        game.copy(
+</span>89 <span style=''></span><span style='background: #AEF1AE'>          lastEncounter = Some(encounter),
+</span>90 <span style=''></span><span style='background: #AEF1AE'>          log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)
+</span>91 <span style=''></span><span style='background: #AEF1AE'>        )</span><span style=''>
+</span>92 <span style=''>
+</span>93 <span style=''>      case EncounterOutcome.Toll(goldLost) =&gt;
+</span>94 <span style=''>        </span><span style='background: #AEF1AE'>val actualLoss = math.min(goldLost, game.player.gold)
+</span>95 <span style=''></span><span style='background: #AEF1AE'>        val actualOutcome = EncounterOutcome.Toll(actualLoss)
+</span>96 <span style=''></span><span style='background: #AEF1AE'>        val encounter = BanditEncounter(actualOutcome, fromCity, toCity, turn)
+</span>97 <span style=''></span><span style='background: #AEF1AE'>        val newPlayer = game.player.copy(gold = game.player.gold - actualLoss)
+</span>98 <span style=''></span><span style='background: #AEF1AE'>        val logEntry = s&quot;⚔️ Bandits demanded a toll! Lost ${actualLoss}g&quot;
+</span>99 <span style=''></span><span style='background: #AEF1AE'>        game.copy(
+</span>100 <span style=''></span><span style='background: #AEF1AE'>          player = newPlayer,
+</span>101 <span style=''></span><span style='background: #AEF1AE'>          lastEncounter = Some(encounter),
+</span>102 <span style=''></span><span style='background: #AEF1AE'>          log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)
+</span>103 <span style=''></span><span style='background: #AEF1AE'>        )</span><span style=''>
+</span>104 <span style=''>
+</span>105 <span style=''>      case EncounterOutcome.Robbery(_) =&gt;
+</span>106 <span style=''>        // Calculate actual robbery: 30-50% of highest-value items
+</span>107 <span style=''>        </span><span style='background: #AEF1AE'>val lossPercent = 0.30 + rng.nextDouble() * 0.20
+</span>108 <span style=''></span><span style='background: #AEF1AE'>        val itemsLost = calculateRobbery(game.player.inventory, lossPercent, rng)
+</span>109 <span style=''></span><span style='background: #AEF1AE'>        val actualOutcome = EncounterOutcome.Robbery(itemsLost)
+</span>110 <span style=''></span><span style='background: #AEF1AE'>        val encounter = BanditEncounter(actualOutcome, fromCity, toCity, turn)
+</span>111 <span style=''></span><span style='background: #AEF1AE'>        val newInventory = removeItems(game.player.inventory, itemsLost)
+</span>112 <span style=''></span><span style='background: #AEF1AE'>        val newPlayer = game.player.copy(inventory = newInventory)
+</span>113 <span style=''></span><span style='background: #AEF1AE'>        val lostItemsDesc = formatItemsLost(itemsLost)
+</span>114 <span style=''></span><span style='background: #AEF1AE'>        val logEntry = s&quot;⚔️ Bandits robbed your cargo! Lost $lostItemsDesc&quot;
+</span>115 <span style=''></span><span style='background: #AEF1AE'>        game.copy(
+</span>116 <span style=''></span><span style='background: #AEF1AE'>          player = newPlayer,
+</span>117 <span style=''></span><span style='background: #AEF1AE'>          lastEncounter = Some(encounter),
+</span>118 <span style=''></span><span style='background: #AEF1AE'>          log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)
+</span>119 <span style=''></span><span style='background: #AEF1AE'>        )</span><span style=''>
+</span>120 <span style=''>
+</span>121 <span style=''>      case EncounterOutcome.DevastatingLoss(_, _) =&gt;
+</span>122 <span style=''>        // Calculate devastating loss: 50-80% of all cargo + some gold
+</span>123 <span style=''>        </span><span style='background: #AEF1AE'>val lossPercent = 0.50 + rng.nextDouble() * 0.30
+</span>124 <span style=''></span><span style='background: #AEF1AE'>        val itemsLost = calculateDevastatingLoss(game.player.inventory, lossPercent, rng)
+</span>125 <span style=''></span><span style='background: #AEF1AE'>        val goldLost = math.min((game.player.gold * 0.2).toInt, game.player.gold)
+</span>126 <span style=''></span><span style='background: #AEF1AE'>        val actualOutcome = EncounterOutcome.DevastatingLoss(itemsLost, goldLost)
+</span>127 <span style=''></span><span style='background: #AEF1AE'>        val encounter = BanditEncounter(actualOutcome, fromCity, toCity, turn)
+</span>128 <span style=''></span><span style='background: #AEF1AE'>        val newInventory = removeItems(game.player.inventory, itemsLost)
+</span>129 <span style=''></span><span style='background: #AEF1AE'>        val newPlayer = game.player.copy(
+</span>130 <span style=''></span><span style='background: #AEF1AE'>          gold = game.player.gold - goldLost,
+</span>131 <span style=''></span><span style='background: #AEF1AE'>          inventory = newInventory
+</span>132 <span style=''></span><span style='background: #AEF1AE'>        )
+</span>133 <span style=''></span><span style='background: #AEF1AE'>        val lostItemsDesc = formatItemsLost(itemsLost)
+</span>134 <span style=''></span><span style='background: #AEF1AE'>        val goldDesc = if goldLost &gt; 0 then s&quot; and ${goldLost}g&quot; else </span><span style='background: #F0ADAD'>&quot;&quot;</span><span style='background: #AEF1AE'>
+</span>135 <span style=''></span><span style='background: #AEF1AE'>        val logEntry = s&quot;⚔️ Devastating bandit attack! Lost $lostItemsDesc$goldDesc&quot;
+</span>136 <span style=''></span><span style='background: #AEF1AE'>        game.copy(
+</span>137 <span style=''></span><span style='background: #AEF1AE'>          player = newPlayer,
+</span>138 <span style=''></span><span style='background: #AEF1AE'>          lastEncounter = Some(encounter),
+</span>139 <span style=''></span><span style='background: #AEF1AE'>          log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)
+</span>140 <span style=''></span><span style='background: #AEF1AE'>        )</span><span style=''>
+</span>141 <span style=''>
+</span>142 <span style=''>  /** Calculate which items are lost in a robbery. Targets highest value-per-kg items first.
+</span>143 <span style=''>    */
+</span>144 <span style=''>  </span><span style='background: #AEF1AE'>private def calculateRobbery</span><span style=''>(
+</span>145 <span style=''>      inventory: Inventory,
+</span>146 <span style=''>      lossPercent: Double,
+</span>147 <span style=''>      rng: Random
+</span>148 <span style=''>  ): Map[Item, Int] =
+</span>149 <span style=''>    val itemsByValue = </span><span style='background: #AEF1AE'>inventory.items.toList
+</span>150 <span style=''></span><span style='background: #AEF1AE'>      .sortBy((item, _) =&gt; -Item.basePrice(item).toDouble / Item.weight(item))</span><span style=''>
+</span>151 <span style=''>
+</span>152 <span style=''>    val totalValue = </span><span style='background: #AEF1AE'>inventory.items.map((item, qty) =&gt; Item.basePrice(item) * qty).sum</span><span style=''>
+</span>153 <span style=''>    val targetLossValue = </span><span style='background: #AEF1AE'>(totalValue * lossPercent).toInt</span><span style=''>
+</span>154 <span style=''>
+</span>155 <span style=''>    var lostValue = </span><span style='background: #AEF1AE'>0</span><span style=''>
+</span>156 <span style=''>    var result = </span><span style='background: #AEF1AE'>Map.empty</span><span style=''>[Item, Int]
+</span>157 <span style=''>
+</span>158 <span style=''>    </span><span style='background: #AEF1AE'>itemsByValue.foreach { (item, qty) =&gt;
+</span>159 <span style=''></span><span style='background: #AEF1AE'>      if lostValue &lt; targetLossValue &amp;&amp; qty &gt; 0 then
+</span>160 <span style=''></span><span style='background: #AEF1AE'>        val itemValue = Item.basePrice(item)
+</span>161 <span style=''></span><span style='background: #AEF1AE'>        val maxToLose = math.ceil((targetLossValue - lostValue).toDouble / itemValue).toInt
+</span>162 <span style=''></span><span style='background: #AEF1AE'>        val qtyToLose = math.min(maxToLose, qty)
+</span>163 <span style=''></span><span style='background: #AEF1AE'>        if qtyToLose &gt; 0 then
+</span>164 <span style=''></span><span style='background: #AEF1AE'>          result = result.updated(item, qtyToLose)
+</span>165 <span style=''></span><span style='background: #AEF1AE'>          lostValue += qtyToLose * itemValue
+</span>166 <span style=''></span><span style='background: #AEF1AE'>    }</span><span style=''>
+</span>167 <span style=''>
+</span>168 <span style=''>    result
+</span>169 <span style=''>
+</span>170 <span style=''>  /** Calculate which items are lost in a devastating attack. Loses a percentage of ALL items.
+</span>171 <span style=''>    */
+</span>172 <span style=''>  </span><span style='background: #AEF1AE'>private def calculateDevastatingLoss</span><span style=''>(
+</span>173 <span style=''>      inventory: Inventory,
+</span>174 <span style=''>      lossPercent: Double,
+</span>175 <span style=''>      rng: Random
+</span>176 <span style=''>  ): Map[Item, Int] =
+</span>177 <span style=''>    </span><span style='background: #AEF1AE'>inventory.items.map { (item, qty) =&gt;
+</span>178 <span style=''></span><span style='background: #AEF1AE'>      val qtyToLose = math.max(1, (qty * lossPercent).toInt)
+</span>179 <span style=''></span><span style='background: #AEF1AE'>      item -&gt; math.min(qtyToLose, qty)
+</span>180 <span style=''></span><span style='background: #AEF1AE'>    }.filter((_, qty) =&gt; qty &gt; 0)</span><span style=''>
+</span>181 <span style=''>
+</span>182 <span style=''>  /** Remove items from inventory */
+</span>183 <span style=''>  </span><span style='background: #AEF1AE'>private def removeItems</span><span style=''>(inventory: Inventory, itemsToRemove: Map[Item, Int]): Inventory =
+</span>184 <span style=''>    </span><span style='background: #AEF1AE'>itemsToRemove.foldLeft(inventory) { case (inv, (item, qty)) =&gt;
+</span>185 <span style=''></span><span style='background: #AEF1AE'>      inv.remove(item, qty).getOrElse(inv)
+</span>186 <span style=''></span><span style='background: #AEF1AE'>    }</span><span style=''>
+</span>187 <span style=''>
+</span>188 <span style=''>  /** Format lost items for log display */
+</span>189 <span style=''>  </span><span style='background: #AEF1AE'>private def formatItemsLost</span><span style=''>(items: Map[Item, Int]): String =
+</span>190 <span style=''>    if </span><span style='background: #AEF1AE'>items.isEmpty</span><span style=''> then </span><span style='background: #F0ADAD'>&quot;nothing&quot;</span><span style=''>
+</span>191 <span style=''>    else </span><span style='background: #AEF1AE'>items.map((item, qty) =&gt; s&quot;$qty ${item.toString}&quot;).mkString(&quot;, &quot;)</span><span style=''>
+</span>192 <span style=''>
+</span>193 <span style=''>  /** Get risk level description for UI */
+</span>194 <span style=''>  </span><span style='background: #AEF1AE'>def getRiskLevel</span><span style=''>(risk: RiskAssessment): String =
+</span>195 <span style=''>    if </span><span style='background: #AEF1AE'>risk.encounterChance &lt; 0.01</span><span style=''> then </span><span style='background: #AEF1AE'>&quot;Safe&quot;</span><span style=''>
+</span>196 <span style=''>    else </span><span style='background: #AEF1AE'>if risk.encounterChance &lt; 0.20 then </span><span style='background: #F0ADAD'>&quot;Low&quot;</span><span style='background: #AEF1AE'>
+</span>197 <span style=''></span><span style='background: #AEF1AE'>    else if risk.encounterChance &lt; 0.50 then </span><span style='background: #F0ADAD'>&quot;Moderate&quot;</span><span style='background: #AEF1AE'>
+</span>198 <span style=''></span><span style='background: #AEF1AE'>    else if risk.encounterChance &lt; 0.70 then </span><span style='background: #F0ADAD'>&quot;High&quot;</span><span style='background: #AEF1AE'>
+</span>199 <span style=''></span><span style='background: #AEF1AE'>    else &quot;Extreme&quot;</span><span style=''>
+</span>200 <span style=''>
+</span>201 <span style=''>  /** Get risk color class for UI styling */
+</span>202 <span style=''>  </span><span style='background: #F0ADAD'>def getRiskColor</span><span style=''>(risk: RiskAssessment): String =
+</span>203 <span style=''>    if </span><span style='background: #F0ADAD'>risk.encounterChance &lt; 0.20</span><span style=''> then </span><span style='background: #F0ADAD'>&quot;risk-safe&quot;</span><span style=''>
+</span>204 <span style=''>    else </span><span style='background: #F0ADAD'>if risk.encounterChance &lt; 0.50 then &quot;risk-moderate&quot;
+</span>205 <span style=''></span><span style='background: #F0ADAD'>    else &quot;risk-dangerous&quot;</span><span style=''>
+</span></pre>
+          </div>
+          <div class="tab-pane" id="statementlist">
+            <table cellspacing="0" cellpadding="0" class="table statementlist">
+      <tr>
+        <th>Line</th>
+        <th>Stmt Id</th>
+        <th>Pos</th>
+        <th>Tree</th>
+        <th>Symbol</th>
+        <th>Tests</th>
+        <th>Code</th>
+      </tr><tr>
+        <td>
+          15
+        </td>
+        <td>
+          7250
+        </td>
+        <td>
+          414
+          -
+          418
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          10.0
+        </td>
+      </tr><tr>
+        <td>
+          16
+        </td>
+        <td>
+          7251
+        </td>
+        <td>
+          487
+          -
+          490
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          1.5
+        </td>
+      </tr><tr>
+        <td>
+          17
+        </td>
+        <td>
+          7252
+        </td>
+        <td>
+          584
+          -
+          587
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          0.1
+        </td>
+      </tr><tr>
+        <td>
+          18
+        </td>
+        <td>
+          7253
+        </td>
+        <td>
+          662
+          -
+          665
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          0.8
+        </td>
+      </tr><tr>
+        <td>
+          23
+        </td>
+        <td>
+          7266
+        </td>
+        <td>
+          846
+          -
+          860
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          assessRisk
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def assessRisk
+        </td>
+      </tr><tr>
+        <td>
+          24
+        </td>
+        <td>
+          7254
+        </td>
+        <td>
+          923
+          -
+          944
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          totalWeight
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          inventory.totalWeight
+        </td>
+      </tr><tr>
+        <td>
+          26
+        </td>
+        <td>
+          7255
+        </td>
+        <td>
+          953
+          -
+          969
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          ==
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          totalWeight == 0
+        </td>
+      </tr><tr>
+        <td>
+          27
+        </td>
+        <td>
+          7256
+        </td>
+        <td>
+          981
+          -
+          1000
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          safe
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          RiskAssessment.safe
+        </td>
+      </tr><tr>
+        <td>
+          29
+        </td>
+        <td>
+          7257
+        </td>
+        <td>
+          1033
+          -
+          1116
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          sum
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          inventory.items.map { (item, qty) =&gt;\n        Item.basePrice(item) * qty\n      }.sum
+        </td>
+      </tr><tr>
+        <td>
+          29
+        </td>
+        <td>
+          7265
+        </td>
+        <td>
+          1016
+          -
+          1416
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          val totalValue = inventory.items.map { (item, qty) =&gt;\n        Item.basePrice(item) * qty\n      }.sum\n\n      val valuePerKg = totalValue.toDouble / totalWeight\n      val riskScore = math.pow(valuePerKg / BaseDivisor, RiskExponent)\n      val encounterChance = math.min(riskScore * EncounterMultiplier, EncounterCap)\n\n      RiskAssessment(totalValue, totalWeight, valuePerKg, riskScore, encounterChance)
+        </td>
+      </tr><tr>
+        <td>
+          30
+        </td>
+        <td>
+          7258
+        </td>
+        <td>
+          1078
+          -
+          1104
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          *
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Item.basePrice(item) * qty
+        </td>
+      </tr><tr>
+        <td>
+          33
+        </td>
+        <td>
+          7259
+        </td>
+        <td>
+          1141
+          -
+          1174
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          /
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          totalValue.toDouble / totalWeight
+        </td>
+      </tr><tr>
+        <td>
+          34
+        </td>
+        <td>
+          7261
+        </td>
+        <td>
+          1206
+          -
+          1230
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          /
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          valuePerKg / BaseDivisor
+        </td>
+      </tr><tr>
+        <td>
+          34
+        </td>
+        <td>
+          7260
+        </td>
+        <td>
+          1197
+          -
+          1245
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          pow
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          math.pow(valuePerKg / BaseDivisor, RiskExponent)
+        </td>
+      </tr><tr>
+        <td>
+          35
+        </td>
+        <td>
+          7263
+        </td>
+        <td>
+          1283
+          -
+          1314
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          *
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          riskScore * EncounterMultiplier
+        </td>
+      </tr><tr>
+        <td>
+          35
+        </td>
+        <td>
+          7262
+        </td>
+        <td>
+          1274
+          -
+          1329
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          min
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          math.min(riskScore * EncounterMultiplier, EncounterCap)
+        </td>
+      </tr><tr>
+        <td>
+          37
+        </td>
+        <td>
+          7264
+        </td>
+        <td>
+          1337
+          -
+          1416
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          RiskAssessment(totalValue, totalWeight, valuePerKg, riskScore, encounterChance)
+        </td>
+      </tr><tr>
+        <td>
+          41
+        </td>
+        <td>
+          7275
+        </td>
+        <td>
+          1539
+          -
+          1556
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          rollEncounter
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def rollEncounter
+        </td>
+      </tr><tr>
+        <td>
+          42
+        </td>
+        <td>
+          7268
+        </td>
+        <td>
+          1660
+          -
+          1664
+        </td>
+        <td>
+          Ident
+        </td>
+        <td>
+          None
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          None
+        </td>
+      </tr><tr>
+        <td>
+          42
+        </td>
+        <td>
+          7267
+        </td>
+        <td>
+          1627
+          -
+          1654
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;=
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          risk.encounterChance &lt;= 0.0
+        </td>
+      </tr><tr>
+        <td>
+          43
+        </td>
+        <td>
+          7269
+        </td>
+        <td>
+          1677
+          -
+          1717
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &gt;=
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          rng.nextDouble() &gt;= risk.encounterChance
+        </td>
+      </tr><tr>
+        <td>
+          43
+        </td>
+        <td>
+          7274
+        </td>
+        <td>
+          1674
+          -
+          1770
+        </td>
+        <td>
+          If
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          if rng.nextDouble() &gt;= risk.encounterChance then None\n    else Some(resolveEncounter(risk, rng))
+        </td>
+      </tr><tr>
+        <td>
+          43
+        </td>
+        <td>
+          7270
+        </td>
+        <td>
+          1723
+          -
+          1727
+        </td>
+        <td>
+          Ident
+        </td>
+        <td>
+          None
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          None
+        </td>
+      </tr><tr>
+        <td>
+          44
+        </td>
+        <td>
+          7272
+        </td>
+        <td>
+          1742
+          -
+          1769
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          resolveEncounter
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          resolveEncounter(risk, rng)
+        </td>
+      </tr><tr>
+        <td>
+          44
+        </td>
+        <td>
+          7271
+        </td>
+        <td>
+          1737
+          -
+          1770
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Some(resolveEncounter(risk, rng))
+        </td>
+      </tr><tr>
+        <td>
+          44
+        </td>
+        <td>
+          7273
+        </td>
+        <td>
+          1737
+          -
+          1770
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Some(resolveEncounter(risk, rng))
+        </td>
+      </tr><tr>
+        <td>
+          54
+        </td>
+        <td>
+          7299
+        </td>
+        <td>
+          2057
+          -
+          2085
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          resolveEncounter
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          private def resolveEncounter
+        </td>
+      </tr><tr>
+        <td>
+          55
+        </td>
+        <td>
+          7276
+        </td>
+        <td>
+          2156
+          -
+          2172
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          nextInt
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          rng.nextInt(100)
+        </td>
+      </tr><tr>
+        <td>
+          56
+        </td>
+        <td>
+          7277
+        </td>
+        <td>
+          2180
+          -
+          2189
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          roll &lt; 20
+        </td>
+      </tr><tr>
+        <td>
+          57
+        </td>
+        <td>
+          7278
+        </td>
+        <td>
+          2201
+          -
+          2225
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          Escaped
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          EncounterOutcome.Escaped
+        </td>
+      </tr><tr>
+        <td>
+          58
+        </td>
+        <td>
+          7298
+        </td>
+        <td>
+          2235
+          -
+          2604
+        </td>
+        <td>
+          If
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          if roll &lt; 60 then\n      val lossPercent = 0.10 + rng.nextDouble() * 0.10 // 10-20%\n      val goldLost = math.max(1, (risk.cargoValue * lossPercent).toInt)\n      EncounterOutcome.Toll(goldLost)\n    else if roll &lt; 85 then\n      EncounterOutcome.Robbery(Map.empty) // Placeholder - calculated in applyEncounter\n    else\n      EncounterOutcome.DevastatingLoss(Map.empty, 0)
+        </td>
+      </tr><tr>
+        <td>
+          58
+        </td>
+        <td>
+          7279
+        </td>
+        <td>
+          2238
+          -
+          2247
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          roll &lt; 60
+        </td>
+      </tr><tr>
+        <td>
+          59
+        </td>
+        <td>
+          7281
+        </td>
+        <td>
+          2277
+          -
+          2281
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          0.10
+        </td>
+      </tr><tr>
+        <td>
+          59
+        </td>
+        <td>
+          7280
+        </td>
+        <td>
+          2277
+          -
+          2307
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          +
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          0.10 + rng.nextDouble() * 0.10
+        </td>
+      </tr><tr>
+        <td>
+          59
+        </td>
+        <td>
+          7288
+        </td>
+        <td>
+          2259
+          -
+          2427
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          val lossPercent = 0.10 + rng.nextDouble() * 0.10 // 10-20%\n      val goldLost = math.max(1, (risk.cargoValue * lossPercent).toInt)\n      EncounterOutcome.Toll(goldLost)
+        </td>
+      </tr><tr>
+        <td>
+          59
+        </td>
+        <td>
+          7282
+        </td>
+        <td>
+          2284
+          -
+          2307
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          *
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          rng.nextDouble() * 0.10
+        </td>
+      </tr><tr>
+        <td>
+          60
+        </td>
+        <td>
+          7284
+        </td>
+        <td>
+          2348
+          -
+          2349
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          1
+        </td>
+      </tr><tr>
+        <td>
+          60
+        </td>
+        <td>
+          7283
+        </td>
+        <td>
+          2339
+          -
+          2389
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          max
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          math.max(1, (risk.cargoValue * lossPercent).toInt)
+        </td>
+      </tr><tr>
+        <td>
+          60
+        </td>
+        <td>
+          7286
+        </td>
+        <td>
+          2351
+          -
+          2388
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          toInt
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (risk.cargoValue * lossPercent).toInt
+        </td>
+      </tr><tr>
+        <td>
+          60
+        </td>
+        <td>
+          7285
+        </td>
+        <td>
+          2352
+          -
+          2381
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          *
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          risk.cargoValue * lossPercent
+        </td>
+      </tr><tr>
+        <td>
+          61
+        </td>
+        <td>
+          7287
+        </td>
+        <td>
+          2396
+          -
+          2427
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          EncounterOutcome.Toll(goldLost)
+        </td>
+      </tr><tr>
+        <td>
+          62
+        </td>
+        <td>
+          7289
+        </td>
+        <td>
+          2440
+          -
+          2449
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          roll &lt; 85
+        </td>
+      </tr><tr>
+        <td>
+          62
+        </td>
+        <td>
+          7297
+        </td>
+        <td>
+          2437
+          -
+          2604
+        </td>
+        <td>
+          If
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          if roll &lt; 85 then\n      EncounterOutcome.Robbery(Map.empty) // Placeholder - calculated in applyEncounter\n    else\n      EncounterOutcome.DevastatingLoss(Map.empty, 0)
+        </td>
+      </tr><tr>
+        <td>
+          63
+        </td>
+        <td>
+          7290
+        </td>
+        <td>
+          2461
+          -
+          2496
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          EncounterOutcome.Robbery(Map.empty)
+        </td>
+      </tr><tr>
+        <td>
+          63
+        </td>
+        <td>
+          7292
+        </td>
+        <td>
+          2461
+          -
+          2496
+        </td>
+        <td>
+          Typed
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          EncounterOutcome.Robbery(Map.empty)
+        </td>
+      </tr><tr>
+        <td>
+          63
+        </td>
+        <td>
+          7291
+        </td>
+        <td>
+          2486
+          -
+          2495
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          empty
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Map.empty
+        </td>
+      </tr><tr>
+        <td>
+          65
+        </td>
+        <td>
+          7293
+        </td>
+        <td>
+          2558
+          -
+          2604
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          EncounterOutcome.DevastatingLoss(Map.empty, 0)
+        </td>
+      </tr><tr>
+        <td>
+          65
+        </td>
+        <td>
+          7296
+        </td>
+        <td>
+          2558
+          -
+          2604
+        </td>
+        <td>
+          Typed
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          EncounterOutcome.DevastatingLoss(Map.empty, 0)
+        </td>
+      </tr><tr>
+        <td>
+          65
+        </td>
+        <td>
+          7295
+        </td>
+        <td>
+          2602
+          -
+          2603
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          0
+        </td>
+      </tr><tr>
+        <td>
+          65
+        </td>
+        <td>
+          7294
+        </td>
+        <td>
+          2591
+          -
+          2600
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          empty
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Map.empty
+        </td>
+      </tr><tr>
+        <td>
+          69
+        </td>
+        <td>
+          7384
+        </td>
+        <td>
+          2768
+          -
+          2786
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          applyEncounter
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def applyEncounter
+        </td>
+      </tr><tr>
+        <td>
+          82
+        </td>
+        <td>
+          7300
+        </td>
+        <td>
+          3165
+          -
+          3232
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          BanditEncounter(EncounterOutcome.Unscathed, fromCity, toCity, turn)
+        </td>
+      </tr><tr>
+        <td>
+          82
+        </td>
+        <td>
+          7309
+        </td>
+        <td>
+          3149
+          -
+          3283
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          val encounter = BanditEncounter(EncounterOutcome.Unscathed, fromCity, toCity, turn)\n        game.copy(lastEncounter = Some(encounter))
+        </td>
+      </tr><tr>
+        <td>
+          83
+        </td>
+        <td>
+          7302
+        </td>
+        <td>
+          3241
+          -
+          3250
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          83
+        </td>
+        <td>
+          7305
+        </td>
+        <td>
+          3241
+          -
+          3250
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          83
+        </td>
+        <td>
+          7308
+        </td>
+        <td>
+          3267
+          -
+          3282
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Some(encounter)
+        </td>
+      </tr><tr>
+        <td>
+          83
+        </td>
+        <td>
+          7307
+        </td>
+        <td>
+          3241
+          -
+          3250
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$6
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          83
+        </td>
+        <td>
+          7301
+        </td>
+        <td>
+          3241
+          -
+          3283
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy(lastEncounter = Some(encounter))
+        </td>
+      </tr><tr>
+        <td>
+          83
+        </td>
+        <td>
+          7304
+        </td>
+        <td>
+          3241
+          -
+          3250
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          83
+        </td>
+        <td>
+          7306
+        </td>
+        <td>
+          3241
+          -
+          3250
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$5
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          83
+        </td>
+        <td>
+          7303
+        </td>
+        <td>
+          3241
+          -
+          3250
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          86
+        </td>
+        <td>
+          7320
+        </td>
+        <td>
+          3332
+          -
+          3626
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          val encounter = BanditEncounter(EncounterOutcome.Escaped, fromCity, toCity, turn)\n        val logEntry = &quot;⚔️ Bandits attacked but you escaped unharmed!&quot;\n        game.copy(\n          lastEncounter = Some(encounter),\n          log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)\n        )
+        </td>
+      </tr><tr>
+        <td>
+          86
+        </td>
+        <td>
+          7310
+        </td>
+        <td>
+          3348
+          -
+          3413
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          BanditEncounter(EncounterOutcome.Escaped, fromCity, toCity, turn)
+        </td>
+      </tr><tr>
+        <td>
+          87
+        </td>
+        <td>
+          7311
+        </td>
+        <td>
+          3437
+          -
+          3484
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;⚔️ Bandits attacked but you escaped unharmed!&quot;
+        </td>
+      </tr><tr>
+        <td>
+          88
+        </td>
+        <td>
+          7314
+        </td>
+        <td>
+          3493
+          -
+          3502
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          88
+        </td>
+        <td>
+          7317
+        </td>
+        <td>
+          3493
+          -
+          3502
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          88
+        </td>
+        <td>
+          7316
+        </td>
+        <td>
+          3493
+          -
+          3502
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          88
+        </td>
+        <td>
+          7319
+        </td>
+        <td>
+          3493
+          -
+          3626
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy(\n          lastEncounter = Some(encounter),\n          log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)\n        )
+        </td>
+      </tr><tr>
+        <td>
+          88
+        </td>
+        <td>
+          7315
+        </td>
+        <td>
+          3493
+          -
+          3502
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          88
+        </td>
+        <td>
+          7318
+        </td>
+        <td>
+          3493
+          -
+          3502
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$5
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          89
+        </td>
+        <td>
+          7312
+        </td>
+        <td>
+          3530
+          -
+          3545
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Some(encounter)
+        </td>
+      </tr><tr>
+        <td>
+          90
+        </td>
+        <td>
+          7313
+        </td>
+        <td>
+          3563
+          -
+          3616
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          take
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (logEntry :: game.log).take(TraderGame.MaxLogEntries)
+        </td>
+      </tr><tr>
+        <td>
+          94
+        </td>
+        <td>
+          7336
+        </td>
+        <td>
+          3682
+          -
+          4201
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          val actualLoss = math.min(goldLost, game.player.gold)\n        val actualOutcome = EncounterOutcome.Toll(actualLoss)\n        val encounter = BanditEncounter(actualOutcome, fromCity, toCity, turn)\n        val newPlayer = game.player.copy(gold = game.player.gold - actualLoss)\n        val logEntry = s&quot;⚔️ Bandits demanded a toll! Lost ${actualLoss}g&quot;\n        game.copy(\n          player = newPlayer,\n          lastEncounter = Some(encounter),\n          log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)\n        )
+        </td>
+      </tr><tr>
+        <td>
+          94
+        </td>
+        <td>
+          7321
+        </td>
+        <td>
+          3699
+          -
+          3735
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          min
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          math.min(goldLost, game.player.gold)
+        </td>
+      </tr><tr>
+        <td>
+          95
+        </td>
+        <td>
+          7322
+        </td>
+        <td>
+          3764
+          -
+          3797
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          EncounterOutcome.Toll(actualLoss)
+        </td>
+      </tr><tr>
+        <td>
+          96
+        </td>
+        <td>
+          7323
+        </td>
+        <td>
+          3822
+          -
+          3876
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          BanditEncounter(actualOutcome, fromCity, toCity, turn)
+        </td>
+      </tr><tr>
+        <td>
+          97
+        </td>
+        <td>
+          7326
+        </td>
+        <td>
+          3901
+          -
+          3917
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.player.copy
+        </td>
+      </tr><tr>
+        <td>
+          97
+        </td>
+        <td>
+          7325
+        </td>
+        <td>
+          3925
+          -
+          3954
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.player.gold - actualLoss
+        </td>
+      </tr><tr>
+        <td>
+          97
+        </td>
+        <td>
+          7328
+        </td>
+        <td>
+          3901
+          -
+          3917
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.player.copy
+        </td>
+      </tr><tr>
+        <td>
+          97
+        </td>
+        <td>
+          7324
+        </td>
+        <td>
+          3901
+          -
+          3955
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.player.copy(gold = game.player.gold - actualLoss)
+        </td>
+      </tr><tr>
+        <td>
+          97
+        </td>
+        <td>
+          7327
+        </td>
+        <td>
+          3901
+          -
+          3917
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.player.copy
+        </td>
+      </tr><tr>
+        <td>
+          99
+        </td>
+        <td>
+          7332
+        </td>
+        <td>
+          4038
+          -
+          4047
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          99
+        </td>
+        <td>
+          7335
+        </td>
+        <td>
+          4038
+          -
+          4201
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy(\n          player = newPlayer,\n          lastEncounter = Some(encounter),\n          log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)\n        )
+        </td>
+      </tr><tr>
+        <td>
+          99
+        </td>
+        <td>
+          7334
+        </td>
+        <td>
+          4038
+          -
+          4047
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$5
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          99
+        </td>
+        <td>
+          7331
+        </td>
+        <td>
+          4038
+          -
+          4047
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          99
+        </td>
+        <td>
+          7333
+        </td>
+        <td>
+          4038
+          -
+          4047
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          101
+        </td>
+        <td>
+          7329
+        </td>
+        <td>
+          4105
+          -
+          4120
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Some(encounter)
+        </td>
+      </tr><tr>
+        <td>
+          102
+        </td>
+        <td>
+          7330
+        </td>
+        <td>
+          4138
+          -
+          4191
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          take
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (logEntry :: game.log).take(TraderGame.MaxLogEntries)
+        </td>
+      </tr><tr>
+        <td>
+          107
+        </td>
+        <td>
+          7356
+        </td>
+        <td>
+          4320
+          -
+          5036
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          val lossPercent = 0.30 + rng.nextDouble() * 0.20\n        val itemsLost = calculateRobbery(game.player.inventory, lossPercent, rng)\n        val actualOutcome = EncounterOutcome.Robbery(itemsLost)\n        val encounter = BanditEncounter(actualOutcome, fromCity, toCity, turn)\n        val newInventory = removeItems(game.player.inventory, itemsLost)\n        val newPlayer = game.player.copy(inventory = newInventory)\n        val lostItemsDesc = formatItemsLost(itemsLost)\n        val logEntry = s&quot;⚔️ Bandits robbed your cargo! Lost $lostItemsDesc&quot;\n        game.copy(\n          player = newPlayer,\n          lastEncounter = Some(encounter),\n          log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)\n        )
+        </td>
+      </tr><tr>
+        <td>
+          107
+        </td>
+        <td>
+          7338
+        </td>
+        <td>
+          4338
+          -
+          4342
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          0.30
+        </td>
+      </tr><tr>
+        <td>
+          107
+        </td>
+        <td>
+          7337
+        </td>
+        <td>
+          4338
+          -
+          4368
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          +
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          0.30 + rng.nextDouble() * 0.20
+        </td>
+      </tr><tr>
+        <td>
+          107
+        </td>
+        <td>
+          7339
+        </td>
+        <td>
+          4345
+          -
+          4368
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          *
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          rng.nextDouble() * 0.20
+        </td>
+      </tr><tr>
+        <td>
+          108
+        </td>
+        <td>
+          7340
+        </td>
+        <td>
+          4393
+          -
+          4450
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          calculateRobbery
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          calculateRobbery(game.player.inventory, lossPercent, rng)
+        </td>
+      </tr><tr>
+        <td>
+          109
+        </td>
+        <td>
+          7341
+        </td>
+        <td>
+          4479
+          -
+          4514
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          EncounterOutcome.Robbery(itemsLost)
+        </td>
+      </tr><tr>
+        <td>
+          110
+        </td>
+        <td>
+          7342
+        </td>
+        <td>
+          4539
+          -
+          4593
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          BanditEncounter(actualOutcome, fromCity, toCity, turn)
+        </td>
+      </tr><tr>
+        <td>
+          111
+        </td>
+        <td>
+          7343
+        </td>
+        <td>
+          4621
+          -
+          4666
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          removeItems
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          removeItems(game.player.inventory, itemsLost)
+        </td>
+      </tr><tr>
+        <td>
+          112
+        </td>
+        <td>
+          7347
+        </td>
+        <td>
+          4691
+          -
+          4707
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.player.copy
+        </td>
+      </tr><tr>
+        <td>
+          112
+        </td>
+        <td>
+          7344
+        </td>
+        <td>
+          4691
+          -
+          4733
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.player.copy(inventory = newInventory)
+        </td>
+      </tr><tr>
+        <td>
+          112
+        </td>
+        <td>
+          7346
+        </td>
+        <td>
+          4691
+          -
+          4707
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.player.copy
+        </td>
+      </tr><tr>
+        <td>
+          112
+        </td>
+        <td>
+          7345
+        </td>
+        <td>
+          4691
+          -
+          4707
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.player.copy
+        </td>
+      </tr><tr>
+        <td>
+          113
+        </td>
+        <td>
+          7348
+        </td>
+        <td>
+          4762
+          -
+          4788
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          formatItemsLost
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          formatItemsLost(itemsLost)
+        </td>
+      </tr><tr>
+        <td>
+          115
+        </td>
+        <td>
+          7353
+        </td>
+        <td>
+          4873
+          -
+          4882
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          115
+        </td>
+        <td>
+          7352
+        </td>
+        <td>
+          4873
+          -
+          4882
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          115
+        </td>
+        <td>
+          7355
+        </td>
+        <td>
+          4873
+          -
+          5036
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy(\n          player = newPlayer,\n          lastEncounter = Some(encounter),\n          log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)\n        )
+        </td>
+      </tr><tr>
+        <td>
+          115
+        </td>
+        <td>
+          7351
+        </td>
+        <td>
+          4873
+          -
+          4882
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          115
+        </td>
+        <td>
+          7354
+        </td>
+        <td>
+          4873
+          -
+          4882
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$5
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          117
+        </td>
+        <td>
+          7349
+        </td>
+        <td>
+          4940
+          -
+          4955
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Some(encounter)
+        </td>
+      </tr><tr>
+        <td>
+          118
+        </td>
+        <td>
+          7350
+        </td>
+        <td>
+          4973
+          -
+          5026
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          take
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (logEntry :: game.log).take(TraderGame.MaxLogEntries)
+        </td>
+      </tr><tr>
+        <td>
+          123
+        </td>
+        <td>
+          7383
+        </td>
+        <td>
+          5170
+          -
+          6142
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          val lossPercent = 0.50 + rng.nextDouble() * 0.30\n        val itemsLost = calculateDevastatingLoss(game.player.inventory, lossPercent, rng)\n        val goldLost = math.min((game.player.gold * 0.2).toInt, game.player.gold)\n        val actualOutcome = EncounterOutcome.DevastatingLoss(itemsLost, goldLost)\n        val encounter = BanditEncounter(actualOutcome, fromCity, toCity, turn)\n        val newInventory = removeItems(game.player.inventory, itemsLost)\n        val newPlayer = game.player.copy(\n          gold = game.player.gold - goldLost,\n          inventory = newInventory\n        )\n        val lostItemsDesc = formatItemsLost(itemsLost)\n        val goldDesc = if goldLost &gt; 0 then s&quot; and ${goldLost}g&quot; else &quot;&quot;\n        val logEntry = s&quot;⚔️ Devastating bandit attack! Lost $lostItemsDesc$goldDesc&quot;\n        game.copy(\n          player = newPlayer,\n          lastEncounter = Some(encounter),\n          log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)\n        )
+        </td>
+      </tr><tr>
+        <td>
+          123
+        </td>
+        <td>
+          7359
+        </td>
+        <td>
+          5195
+          -
+          5218
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          *
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          rng.nextDouble() * 0.30
+        </td>
+      </tr><tr>
+        <td>
+          123
+        </td>
+        <td>
+          7358
+        </td>
+        <td>
+          5188
+          -
+          5192
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          0.50
+        </td>
+      </tr><tr>
+        <td>
+          123
+        </td>
+        <td>
+          7357
+        </td>
+        <td>
+          5188
+          -
+          5218
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          +
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          0.50 + rng.nextDouble() * 0.30
+        </td>
+      </tr><tr>
+        <td>
+          124
+        </td>
+        <td>
+          7360
+        </td>
+        <td>
+          5243
+          -
+          5308
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          calculateDevastatingLoss
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          calculateDevastatingLoss(game.player.inventory, lossPercent, rng)
+        </td>
+      </tr><tr>
+        <td>
+          125
+        </td>
+        <td>
+          7362
+        </td>
+        <td>
+          5342
+          -
+          5364
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          *
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.player.gold * 0.2
+        </td>
+      </tr><tr>
+        <td>
+          125
+        </td>
+        <td>
+          7361
+        </td>
+        <td>
+          5332
+          -
+          5390
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          min
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          math.min((game.player.gold * 0.2).toInt, game.player.gold)
+        </td>
+      </tr><tr>
+        <td>
+          125
+        </td>
+        <td>
+          7363
+        </td>
+        <td>
+          5341
+          -
+          5371
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          toInt
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (game.player.gold * 0.2).toInt
+        </td>
+      </tr><tr>
+        <td>
+          126
+        </td>
+        <td>
+          7364
+        </td>
+        <td>
+          5419
+          -
+          5472
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          EncounterOutcome.DevastatingLoss(itemsLost, goldLost)
+        </td>
+      </tr><tr>
+        <td>
+          127
+        </td>
+        <td>
+          7365
+        </td>
+        <td>
+          5497
+          -
+          5551
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          BanditEncounter(actualOutcome, fromCity, toCity, turn)
+        </td>
+      </tr><tr>
+        <td>
+          128
+        </td>
+        <td>
+          7366
+        </td>
+        <td>
+          5579
+          -
+          5624
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          removeItems
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          removeItems(game.player.inventory, itemsLost)
+        </td>
+      </tr><tr>
+        <td>
+          129
+        </td>
+        <td>
+          7367
+        </td>
+        <td>
+          5649
+          -
+          5757
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.player.copy(\n          gold = game.player.gold - goldLost,\n          inventory = newInventory\n        )
+        </td>
+      </tr><tr>
+        <td>
+          129
+        </td>
+        <td>
+          7370
+        </td>
+        <td>
+          5649
+          -
+          5665
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.player.copy
+        </td>
+      </tr><tr>
+        <td>
+          129
+        </td>
+        <td>
+          7369
+        </td>
+        <td>
+          5649
+          -
+          5665
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.player.copy
+        </td>
+      </tr><tr>
+        <td>
+          130
+        </td>
+        <td>
+          7368
+        </td>
+        <td>
+          5684
+          -
+          5711
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.player.gold - goldLost
+        </td>
+      </tr><tr>
+        <td>
+          133
+        </td>
+        <td>
+          7371
+        </td>
+        <td>
+          5786
+          -
+          5812
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          formatItemsLost
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          formatItemsLost(itemsLost)
+        </td>
+      </tr><tr>
+        <td>
+          134
+        </td>
+        <td>
+          7374
+        </td>
+        <td>
+          5883
+          -
+          5885
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;&quot;
+        </td>
+      </tr><tr>
+        <td>
+          134
+        </td>
+        <td>
+          7373
+        </td>
+        <td>
+          5857
+          -
+          5877
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          s
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          s&quot; and ${goldLost}g&quot;
+        </td>
+      </tr><tr>
+        <td>
+          134
+        </td>
+        <td>
+          7375
+        </td>
+        <td>
+          5883
+          -
+          5885
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;&quot;
+        </td>
+      </tr><tr>
+        <td>
+          134
+        </td>
+        <td>
+          7372
+        </td>
+        <td>
+          5839
+          -
+          5851
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          goldLost &gt; 0
+        </td>
+      </tr><tr>
+        <td>
+          136
+        </td>
+        <td>
+          7380
+        </td>
+        <td>
+          5979
+          -
+          5988
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          136
+        </td>
+        <td>
+          7379
+        </td>
+        <td>
+          5979
+          -
+          5988
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          136
+        </td>
+        <td>
+          7382
+        </td>
+        <td>
+          5979
+          -
+          6142
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy(\n          player = newPlayer,\n          lastEncounter = Some(encounter),\n          log = (logEntry :: game.log).take(TraderGame.MaxLogEntries)\n        )
+        </td>
+      </tr><tr>
+        <td>
+          136
+        </td>
+        <td>
+          7378
+        </td>
+        <td>
+          5979
+          -
+          5988
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          136
+        </td>
+        <td>
+          7381
+        </td>
+        <td>
+          5979
+          -
+          5988
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$5
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          138
+        </td>
+        <td>
+          7376
+        </td>
+        <td>
+          6046
+          -
+          6061
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Some(encounter)
+        </td>
+      </tr><tr>
+        <td>
+          139
+        </td>
+        <td>
+          7377
+        </td>
+        <td>
+          6079
+          -
+          6132
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          take
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (logEntry :: game.log).take(TraderGame.MaxLogEntries)
+        </td>
+      </tr><tr>
+        <td>
+          144
+        </td>
+        <td>
+          7410
+        </td>
+        <td>
+          6246
+          -
+          6274
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          calculateRobbery
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          private def calculateRobbery
+        </td>
+      </tr><tr>
+        <td>
+          149
+        </td>
+        <td>
+          7385
+        </td>
+        <td>
+          6394
+          -
+          6495
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          sortBy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          inventory.items.toList\n      .sortBy((item, _) =&gt; -Item.basePrice(item).toDouble / Item.weight(item))
+        </td>
+      </tr><tr>
+        <td>
+          150
+        </td>
+        <td>
+          7386
+        </td>
+        <td>
+          6444
+          -
+          6494
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          /
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          -Item.basePrice(item).toDouble / Item.weight(item)
+        </td>
+      </tr><tr>
+        <td>
+          150
+        </td>
+        <td>
+          7387
+        </td>
+        <td>
+          6477
+          -
+          6494
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          weight
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Item.weight(item)
+        </td>
+      </tr><tr>
+        <td>
+          152
+        </td>
+        <td>
+          7389
+        </td>
+        <td>
+          6553
+          -
+          6579
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          *
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Item.basePrice(item) * qty
+        </td>
+      </tr><tr>
+        <td>
+          152
+        </td>
+        <td>
+          7388
+        </td>
+        <td>
+          6518
+          -
+          6584
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          sum
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          inventory.items.map((item, qty) =&gt; Item.basePrice(item) * qty).sum
+        </td>
+      </tr><tr>
+        <td>
+          153
+        </td>
+        <td>
+          7391
+        </td>
+        <td>
+          6611
+          -
+          6643
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          toInt
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (totalValue * lossPercent).toInt
+        </td>
+      </tr><tr>
+        <td>
+          153
+        </td>
+        <td>
+          7390
+        </td>
+        <td>
+          6612
+          -
+          6636
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          *
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          totalValue * lossPercent
+        </td>
+      </tr><tr>
+        <td>
+          155
+        </td>
+        <td>
+          7392
+        </td>
+        <td>
+          6665
+          -
+          6666
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          0
+        </td>
+      </tr><tr>
+        <td>
+          156
+        </td>
+        <td>
+          7393
+        </td>
+        <td>
+          6684
+          -
+          6693
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          empty
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Map.empty
+        </td>
+      </tr><tr>
+        <td>
+          158
+        </td>
+        <td>
+          7394
+        </td>
+        <td>
+          6710
+          -
+          7118
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foreach
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          itemsByValue.foreach { (item, qty) =&gt;\n      if lostValue &lt; targetLossValue &amp;&amp; qty &gt; 0 then\n        val itemValue = Item.basePrice(item)\n        val maxToLose = math.ceil((targetLossValue - lostValue).toDouble / itemValue).toInt\n        val qtyToLose = math.min(maxToLose, qty)\n        if qtyToLose &gt; 0 then\n          result = result.updated(item, qtyToLose)\n          lostValue += qtyToLose * itemValue\n    }
+        </td>
+      </tr><tr>
+        <td>
+          159
+        </td>
+        <td>
+          7395
+        </td>
+        <td>
+          6757
+          -
+          6795
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &amp;&amp;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          lostValue &lt; targetLossValue &amp;&amp; qty &gt; 0
+        </td>
+      </tr><tr>
+        <td>
+          159
+        </td>
+        <td>
+          7396
+        </td>
+        <td>
+          6788
+          -
+          6795
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          qty &gt; 0
+        </td>
+      </tr><tr>
+        <td>
+          160
+        </td>
+        <td>
+          7397
+        </td>
+        <td>
+          6825
+          -
+          6845
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          basePrice
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Item.basePrice(item)
+        </td>
+      </tr><tr>
+        <td>
+          160
+        </td>
+        <td>
+          7408
+        </td>
+        <td>
+          6809
+          -
+          7112
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          val itemValue = Item.basePrice(item)\n        val maxToLose = math.ceil((targetLossValue - lostValue).toDouble / itemValue).toInt\n        val qtyToLose = math.min(maxToLose, qty)\n        if qtyToLose &gt; 0 then\n          result = result.updated(item, qtyToLose)\n          lostValue += qtyToLose * itemValue
+        </td>
+      </tr><tr>
+        <td>
+          161
+        </td>
+        <td>
+          7398
+        </td>
+        <td>
+          6870
+          -
+          6931
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          ceil
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          math.ceil((targetLossValue - lostValue).toDouble / itemValue)
+        </td>
+      </tr><tr>
+        <td>
+          161
+        </td>
+        <td>
+          7400
+        </td>
+        <td>
+          6870
+          -
+          6937
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          toInt
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          math.ceil((targetLossValue - lostValue).toDouble / itemValue).toInt
+        </td>
+      </tr><tr>
+        <td>
+          161
+        </td>
+        <td>
+          7399
+        </td>
+        <td>
+          6880
+          -
+          6930
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          /
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (targetLossValue - lostValue).toDouble / itemValue
+        </td>
+      </tr><tr>
+        <td>
+          162
+        </td>
+        <td>
+          7401
+        </td>
+        <td>
+          6962
+          -
+          6986
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          min
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          math.min(maxToLose, qty)
+        </td>
+      </tr><tr>
+        <td>
+          163
+        </td>
+        <td>
+          7402
+        </td>
+        <td>
+          6998
+          -
+          7011
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          qtyToLose &gt; 0
+        </td>
+      </tr><tr>
+        <td>
+          164
+        </td>
+        <td>
+          7403
+        </td>
+        <td>
+          7036
+          -
+          7067
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          updated
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          result.updated(item, qtyToLose)
+        </td>
+      </tr><tr>
+        <td>
+          164
+        </td>
+        <td>
+          7406
+        </td>
+        <td>
+          7027
+          -
+          7112
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          result = result.updated(item, qtyToLose)\n          lostValue += qtyToLose * itemValue
+        </td>
+      </tr><tr>
+        <td>
+          165
+        </td>
+        <td>
+          7407
+        </td>
+        <td>
+          7112
+          -
+          7112
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          
+        </td>
+      </tr><tr>
+        <td>
+          165
+        </td>
+        <td>
+          7404
+        </td>
+        <td>
+          7078
+          -
+          7112
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          +
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          lostValue += qtyToLose * itemValue
+        </td>
+      </tr><tr>
+        <td>
+          165
+        </td>
+        <td>
+          7409
+        </td>
+        <td>
+          7112
+          -
+          7112
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          
+        </td>
+      </tr><tr>
+        <td>
+          165
+        </td>
+        <td>
+          7405
+        </td>
+        <td>
+          7091
+          -
+          7112
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          *
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          qtyToLose * itemValue
+        </td>
+      </tr><tr>
+        <td>
+          172
+        </td>
+        <td>
+          7419
+        </td>
+        <td>
+          7236
+          -
+          7272
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          calculateDevastatingLoss
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          private def calculateDevastatingLoss
+        </td>
+      </tr><tr>
+        <td>
+          178
+        </td>
+        <td>
+          7413
+        </td>
+        <td>
+          7441
+          -
+          7442
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          1
+        </td>
+      </tr><tr>
+        <td>
+          178
+        </td>
+        <td>
+          7412
+        </td>
+        <td>
+          7432
+          -
+          7470
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          max
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          math.max(1, (qty * lossPercent).toInt)
+        </td>
+      </tr><tr>
+        <td>
+          178
+        </td>
+        <td>
+          7415
+        </td>
+        <td>
+          7444
+          -
+          7469
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          toInt
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (qty * lossPercent).toInt
+        </td>
+      </tr><tr>
+        <td>
+          178
+        </td>
+        <td>
+          7414
+        </td>
+        <td>
+          7445
+          -
+          7462
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          *
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          qty * lossPercent
+        </td>
+      </tr><tr>
+        <td>
+          179
+        </td>
+        <td>
+          7416
+        </td>
+        <td>
+          7477
+          -
+          7509
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          item -&gt; math.min(qtyToLose, qty)
+        </td>
+      </tr><tr>
+        <td>
+          179
+        </td>
+        <td>
+          7417
+        </td>
+        <td>
+          7485
+          -
+          7509
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          min
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          math.min(qtyToLose, qty)
+        </td>
+      </tr><tr>
+        <td>
+          180
+        </td>
+        <td>
+          7418
+        </td>
+        <td>
+          7535
+          -
+          7542
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          qty &gt; 0
+        </td>
+      </tr><tr>
+        <td>
+          180
+        </td>
+        <td>
+          7411
+        </td>
+        <td>
+          7373
+          -
+          7543
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          filter
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          inventory.items.map { (item, qty) =&gt;\n      val qtyToLose = math.max(1, (qty * lossPercent).toInt)\n      item -&gt; math.min(qtyToLose, qty)\n    }.filter((_, qty) =&gt; qty &gt; 0)
+        </td>
+      </tr><tr>
+        <td>
+          183
+        </td>
+        <td>
+          7423
+        </td>
+        <td>
+          7584
+          -
+          7607
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          removeItems
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          private def removeItems
+        </td>
+      </tr><tr>
+        <td>
+          184
+        </td>
+        <td>
+          7422
+        </td>
+        <td>
+          7738
+          -
+          7783
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt;\n      inv.remove(item, qty).getOrElse(inv)
+        </td>
+      </tr><tr>
+        <td>
+          184
+        </td>
+        <td>
+          7420
+        </td>
+        <td>
+          7678
+          -
+          7789
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          foldLeft
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          itemsToRemove.foldLeft(inventory) { case (inv, (item, qty)) =&gt;\n      inv.remove(item, qty).getOrElse(inv)\n    }
+        </td>
+      </tr><tr>
+        <td>
+          185
+        </td>
+        <td>
+          7421
+        </td>
+        <td>
+          7747
+          -
+          7783
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          getOrElse
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          inv.remove(item, qty).getOrElse(inv)
+        </td>
+      </tr><tr>
+        <td>
+          189
+        </td>
+        <td>
+          7430
+        </td>
+        <td>
+          7836
+          -
+          7863
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          formatItemsLost
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          private def formatItemsLost
+        </td>
+      </tr><tr>
+        <td>
+          190
+        </td>
+        <td>
+          7425
+        </td>
+        <td>
+          7923
+          -
+          7932
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;nothing&quot;
+        </td>
+      </tr><tr>
+        <td>
+          190
+        </td>
+        <td>
+          7424
+        </td>
+        <td>
+          7904
+          -
+          7917
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          isEmpty
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          items.isEmpty
+        </td>
+      </tr><tr>
+        <td>
+          190
+        </td>
+        <td>
+          7426
+        </td>
+        <td>
+          7923
+          -
+          7932
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;nothing&quot;
+        </td>
+      </tr><tr>
+        <td>
+          191
+        </td>
+        <td>
+          7428
+        </td>
+        <td>
+          7976
+          -
+          7989
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          toString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          item.toString
+        </td>
+      </tr><tr>
+        <td>
+          191
+        </td>
+        <td>
+          7427
+        </td>
+        <td>
+          7942
+          -
+          8007
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          mkString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          items.map((item, qty) =&gt; s&quot;$qty ${item.toString}&quot;).mkString(&quot;, &quot;)
+        </td>
+      </tr><tr>
+        <td>
+          191
+        </td>
+        <td>
+          7429
+        </td>
+        <td>
+          7942
+          -
+          8007
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          mkString
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          items.map((item, qty) =&gt; s&quot;$qty ${item.toString}&quot;).mkString(&quot;, &quot;)
+        </td>
+      </tr><tr>
+        <td>
+          194
+        </td>
+        <td>
+          7448
+        </td>
+        <td>
+          8054
+          -
+          8070
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          getRiskLevel
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def getRiskLevel
+        </td>
+      </tr><tr>
+        <td>
+          195
+        </td>
+        <td>
+          7431
+        </td>
+        <td>
+          8110
+          -
+          8137
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          risk.encounterChance &lt; 0.01
+        </td>
+      </tr><tr>
+        <td>
+          195
+        </td>
+        <td>
+          7433
+        </td>
+        <td>
+          8143
+          -
+          8149
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;Safe&quot;
+        </td>
+      </tr><tr>
+        <td>
+          195
+        </td>
+        <td>
+          7432
+        </td>
+        <td>
+          8143
+          -
+          8149
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;Safe&quot;
+        </td>
+      </tr><tr>
+        <td>
+          196
+        </td>
+        <td>
+          7434
+        </td>
+        <td>
+          8162
+          -
+          8189
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          risk.encounterChance &lt; 0.20
+        </td>
+      </tr><tr>
+        <td>
+          196
+        </td>
+        <td>
+          7436
+        </td>
+        <td>
+          8195
+          -
+          8200
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;Low&quot;
+        </td>
+      </tr><tr>
+        <td>
+          196
+        </td>
+        <td>
+          7435
+        </td>
+        <td>
+          8195
+          -
+          8200
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;Low&quot;
+        </td>
+      </tr><tr>
+        <td>
+          196
+        </td>
+        <td>
+          7447
+        </td>
+        <td>
+          8159
+          -
+          8327
+        </td>
+        <td>
+          If
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          if risk.encounterChance &lt; 0.20 then &quot;Low&quot;\n    else if risk.encounterChance &lt; 0.50 then &quot;Moderate&quot;\n    else if risk.encounterChance &lt; 0.70 then &quot;High&quot;\n    else &quot;Extreme&quot;
+        </td>
+      </tr><tr>
+        <td>
+          197
+        </td>
+        <td>
+          7437
+        </td>
+        <td>
+          8213
+          -
+          8240
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          risk.encounterChance &lt; 0.50
+        </td>
+      </tr><tr>
+        <td>
+          197
+        </td>
+        <td>
+          7446
+        </td>
+        <td>
+          8210
+          -
+          8327
+        </td>
+        <td>
+          If
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          if risk.encounterChance &lt; 0.50 then &quot;Moderate&quot;\n    else if risk.encounterChance &lt; 0.70 then &quot;High&quot;\n    else &quot;Extreme&quot;
+        </td>
+      </tr><tr>
+        <td>
+          197
+        </td>
+        <td>
+          7439
+        </td>
+        <td>
+          8246
+          -
+          8256
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;Moderate&quot;
+        </td>
+      </tr><tr>
+        <td>
+          197
+        </td>
+        <td>
+          7438
+        </td>
+        <td>
+          8246
+          -
+          8256
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;Moderate&quot;
+        </td>
+      </tr><tr>
+        <td>
+          198
+        </td>
+        <td>
+          7440
+        </td>
+        <td>
+          8269
+          -
+          8296
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          risk.encounterChance &lt; 0.70
+        </td>
+      </tr><tr>
+        <td>
+          198
+        </td>
+        <td>
+          7445
+        </td>
+        <td>
+          8266
+          -
+          8327
+        </td>
+        <td>
+          If
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          if risk.encounterChance &lt; 0.70 then &quot;High&quot;\n    else &quot;Extreme&quot;
+        </td>
+      </tr><tr>
+        <td>
+          198
+        </td>
+        <td>
+          7442
+        </td>
+        <td>
+          8302
+          -
+          8308
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;High&quot;
+        </td>
+      </tr><tr>
+        <td>
+          198
+        </td>
+        <td>
+          7441
+        </td>
+        <td>
+          8302
+          -
+          8308
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;High&quot;
+        </td>
+      </tr><tr>
+        <td>
+          199
+        </td>
+        <td>
+          7443
+        </td>
+        <td>
+          8318
+          -
+          8327
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;Extreme&quot;
+        </td>
+      </tr><tr>
+        <td>
+          199
+        </td>
+        <td>
+          7444
+        </td>
+        <td>
+          8318
+          -
+          8327
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;Extreme&quot;
+        </td>
+      </tr><tr>
+        <td>
+          202
+        </td>
+        <td>
+          7458
+        </td>
+        <td>
+          8376
+          -
+          8392
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          getRiskColor
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def getRiskColor
+        </td>
+      </tr><tr>
+        <td>
+          203
+        </td>
+        <td>
+          7449
+        </td>
+        <td>
+          8432
+          -
+          8459
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          risk.encounterChance &lt; 0.20
+        </td>
+      </tr><tr>
+        <td>
+          203
+        </td>
+        <td>
+          7451
+        </td>
+        <td>
+          8465
+          -
+          8476
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;risk-safe&quot;
+        </td>
+      </tr><tr>
+        <td>
+          203
+        </td>
+        <td>
+          7450
+        </td>
+        <td>
+          8465
+          -
+          8476
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;risk-safe&quot;
+        </td>
+      </tr><tr>
+        <td>
+          204
+        </td>
+        <td>
+          7452
+        </td>
+        <td>
+          8489
+          -
+          8516
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          risk.encounterChance &lt; 0.50
+        </td>
+      </tr><tr>
+        <td>
+          204
+        </td>
+        <td>
+          7454
+        </td>
+        <td>
+          8522
+          -
+          8537
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;risk-moderate&quot;
+        </td>
+      </tr><tr>
+        <td>
+          204
+        </td>
+        <td>
+          7457
+        </td>
+        <td>
+          8486
+          -
+          8563
+        </td>
+        <td>
+          If
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          if risk.encounterChance &lt; 0.50 then &quot;risk-moderate&quot;\n    else &quot;risk-dangerous&quot;
+        </td>
+      </tr><tr>
+        <td>
+          204
+        </td>
+        <td>
+          7453
+        </td>
+        <td>
+          8522
+          -
+          8537
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;risk-moderate&quot;
+        </td>
+      </tr><tr>
+        <td>
+          205
+        </td>
+        <td>
+          7455
+        </td>
+        <td>
+          8547
+          -
+          8563
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;risk-dangerous&quot;
+        </td>
+      </tr><tr>
+        <td>
+          205
+        </td>
+        <td>
+          7456
+        </td>
+        <td>
+          8547
+          -
+          8563
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          &quot;risk-dangerous&quot;
+        </td>
+      </tr>
+    </table>
+          </div>
+        </div>
+      </body>
+    </html>

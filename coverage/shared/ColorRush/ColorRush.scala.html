@@ -1,0 +1,4394 @@
+<html>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title id="title">
+          shared/ColorRush/ColorRush.scala.html
+        </title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/css/theme.default.min.css" type="text/css"/><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.20.1/js/jquery.tablesorter.min.js"></script><link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" type="text/css"/><script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script><script type="text/javascript">
+        $(document).ready(function() {$(".tablesorter").tablesorter();});
+      </script>
+        <style>
+          table.codegrid { font-family: monospace; font-size: 12px; width: auto!important; }table.statementlist { width: auto!important; font-size: 13px; } table.codegrid td { padding: 0!important; border: 0!important } table td.linenumber { width: 40px!important; } 
+        </style>
+      </head>
+      <body style="font-family: monospace;">
+        <ul class="nav nav-tabs">
+          <li>
+            <a href="#codegrid" data-toggle="tab">Codegrid</a>
+          </li>
+          <li>
+            <a href="#statementlist" data-toggle="tab">Statement List</a>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active" id="codegrid">
+            <pre style='font-size: 12pt; font-family: courier, monospace;'>1 <span style=''>package shared.ColorRush
+</span>2 <span style=''>
+</span>3 <span style=''>import upickle.default.ReadWriter
+</span>4 <span style=''>import shared.session.{PlayerConnection, PlayerConnectionOps}
+</span>5 <span style=''>
+</span>6 <span style=''>// Color Rush - Fast-paced multiplayer color matching game
+</span>7 <span style=''>
+</span>8 <span style=''>enum GameStatus derives ReadWriter:
+</span>9 <span style=''>  case Waiting, Playing, RoundEnd, GameOver
+</span>10 <span style=''>
+</span>11 <span style=''>case class ColorRushGame(
+</span>12 <span style=''>    gameId: String,
+</span>13 <span style=''>    players: Map[String, PlayerState],
+</span>14 <span style=''>    currentRound: Option[Round],
+</span>15 <span style=''>    roundNumber: Int,
+</span>16 <span style=''>    totalRounds: Int,
+</span>17 <span style=''>    status: GameStatus
+</span>18 <span style=''>) derives ReadWriter
+</span>19 <span style=''>
+</span>20 <span style=''>case class PlayerState(
+</span>21 <span style=''>    playerId: String,
+</span>22 <span style=''>    name: String,
+</span>23 <span style=''>    score: Int,
+</span>24 <span style=''>    roundsWon: Int,
+</span>25 <span style=''>    connected: Boolean = </span><span style='background: #AEF1AE'>true,
+</span>26 <span style=''>    disconnectedAt: Option[Long] = </span><span style='background: #AEF1AE'>None
+</span>27 <span style=''></span><span style='background: #AEF1AE'>)</span><span style=''> extends PlayerConnection derives ReadWriter
+</span>28 <span style=''>
+</span>29 <span style=''>case class Round(
+</span>30 <span style=''>    targetColor: String, // Hex color code
+</span>31 <span style=''>    colorOptions: Vector[String], // 6 color options in a grid
+</span>32 <span style=''>    startTime: Long
+</span>33 <span style=''>) derives ReadWriter
+</span>34 <span style=''>
+</span>35 <span style=''>object ColorRush:
+</span>36 <span style=''>  val colors = </span><span style='background: #AEF1AE'>Vector(
+</span>37 <span style=''></span><span style='background: #AEF1AE'>    &quot;#FF6B6B&quot;,
+</span>38 <span style=''></span><span style='background: #AEF1AE'>    &quot;#4ECDC4&quot;,
+</span>39 <span style=''></span><span style='background: #AEF1AE'>    &quot;#45B7D1&quot;,
+</span>40 <span style=''></span><span style='background: #AEF1AE'>    &quot;#FFA07A&quot;,
+</span>41 <span style=''></span><span style='background: #AEF1AE'>    &quot;#98D8C8&quot;,
+</span>42 <span style=''></span><span style='background: #AEF1AE'>    &quot;#F7DC6F&quot;,
+</span>43 <span style=''></span><span style='background: #AEF1AE'>    &quot;#BB8FCE&quot;,
+</span>44 <span style=''></span><span style='background: #AEF1AE'>    &quot;#85C1E2&quot;,
+</span>45 <span style=''></span><span style='background: #AEF1AE'>    &quot;#F8B195&quot;,
+</span>46 <span style=''></span><span style='background: #AEF1AE'>    &quot;#C06C84&quot;,
+</span>47 <span style=''></span><span style='background: #AEF1AE'>    &quot;#6C5B7B&quot;,
+</span>48 <span style=''></span><span style='background: #AEF1AE'>    &quot;#355C7D&quot;
+</span>49 <span style=''></span><span style='background: #AEF1AE'>  )</span><span style=''>
+</span>50 <span style=''>
+</span>51 <span style=''>  </span><span style='background: #AEF1AE'>def createGame</span><span style=''>(gameId: String, totalRounds: Int): ColorRushGame =
+</span>52 <span style=''>    </span><span style='background: #AEF1AE'>ColorRushGame(gameId, Map.empty, None, 0, totalRounds, GameStatus.Waiting)</span><span style=''>
+</span>53 <span style=''>
+</span>54 <span style=''>  </span><span style='background: #AEF1AE'>def addPlayer</span><span style=''>(game: ColorRushGame, playerId: String, playerName: String): ColorRushGame =
+</span>55 <span style=''>    val player = </span><span style='background: #AEF1AE'>PlayerState(playerId, playerName, 0, 0, connected = true, disconnectedAt = None)</span><span style=''>
+</span>56 <span style=''>    </span><span style='background: #AEF1AE'>game.copy(players = game.players + (playerId -&gt; player))</span><span style=''>
+</span>57 <span style=''>
+</span>58 <span style=''>  </span><span style='background: #F0ADAD'>def removePlayer</span><span style=''>(game: ColorRushGame, playerId: String): ColorRushGame =
+</span>59 <span style=''>    </span><span style='background: #F0ADAD'>game.copy(players = game.players - playerId)</span><span style=''>
+</span>60 <span style=''>
+</span>61 <span style=''>  /** Mark a player as disconnected instead of removing them */
+</span>62 <span style=''>  </span><span style='background: #F0ADAD'>def disconnectPlayer</span><span style=''>(game: ColorRushGame, playerId: String): ColorRushGame =
+</span>63 <span style=''>    </span><span style='background: #F0ADAD'>game.players.get(playerId)</span><span style=''> match
+</span>64 <span style=''>      case Some(player) =&gt;
+</span>65 <span style=''>        </span><span style='background: #F0ADAD'>val disconnectedPlayer = player.copy(connected = false, disconnectedAt = Some(System.currentTimeMillis()))
+</span>66 <span style=''></span><span style='background: #F0ADAD'>        game.copy(players = game.players + (playerId -&gt; disconnectedPlayer))</span><span style=''>
+</span>67 <span style=''>      case None </span><span style='background: #F0ADAD'>=&gt; game</span><span style=''>
+</span>68 <span style=''>
+</span>69 <span style=''>  /** Reconnect a previously disconnected player */
+</span>70 <span style=''>  </span><span style='background: #F0ADAD'>def reconnectPlayer</span><span style=''>(game: ColorRushGame, playerId: String): Option[ColorRushGame] =
+</span>71 <span style=''>    </span><span style='background: #F0ADAD'>game.players.get(playerId).map: player =&gt;
+</span>72 <span style=''></span><span style='background: #F0ADAD'>      val reconnectedPlayer = player.copy(connected = true, disconnectedAt = None)
+</span>73 <span style=''></span><span style='background: #F0ADAD'>      game.copy(players = game.players + (playerId -&gt; reconnectedPlayer))</span><span style=''>
+</span>74 <span style=''>
+</span>75 <span style=''>  /** Check if a player can rejoin (exists and within grace period) */
+</span>76 <span style=''>  </span><span style='background: #F0ADAD'>def canRejoin</span><span style=''>(
+</span>77 <span style=''>      game: ColorRushGame,
+</span>78 <span style=''>      playerId: String,
+</span>79 <span style=''>      gracePeriodMs: Long = </span><span style='background: #F0ADAD'>PlayerConnectionOps.DefaultGr</span><span style=''>acePeriodMs
+</span>80 <span style=''>  ): Boolean =
+</span>81 <span style=''>    </span><span style='background: #F0ADAD'>game.players.get(playerId).exists(PlayerConnectionOps.canRejoin(_, gracePeriodMs))</span><span style=''>
+</span>82 <span style=''>
+</span>83 <span style=''>  /** Remove players who have been disconnected longer than the grace period */
+</span>84 <span style=''>  </span><span style='background: #AEF1AE'>def cleanupDisconnectedPlayers</span><span style=''>(
+</span>85 <span style=''>      game: ColorRushGame,
+</span>86 <span style=''>      gracePeriodMs: Long = </span><span style='background: #AEF1AE'>PlayerConnectionOps.DefaultGracePeriodMs
+</span>87 <span style=''></span><span style='background: #AEF1AE'>  ): </span><span style=''>ColorRushGame =
+</span>88 <span style=''>    val activePlayers = </span><span style='background: #AEF1AE'>game.players.filterNot:
+</span>89 <span style=''></span><span style='background: #AEF1AE'>      case (_, player) </span><span style='background: #F0ADAD'>=&gt; PlayerConnectionOps.isGracePeriodExpired(player, gracePeriodMs)</span><span style=''>
+</span>90 <span style=''>    </span><span style='background: #AEF1AE'>game.copy(players = activePlayers)</span><span style=''>
+</span>91 <span style=''>
+</span>92 <span style=''>  </span><span style='background: #AEF1AE'>def startNewRound</span><span style=''>(game: ColorRushGame): ColorRushGame =
+</span>93 <span style=''>    import scala.util.Random
+</span>94 <span style=''>    val target = </span><span style='background: #AEF1AE'>colors(Random.nextInt(colors.length))</span><span style=''>
+</span>95 <span style=''>    val otherColors = </span><span style='background: #AEF1AE'>colors.filterNot(_ == target)</span><span style=''>
+</span>96 <span style=''>    val shuffled = </span><span style='background: #AEF1AE'>Random.shuffle(otherColors).take(5)</span><span style=''>
+</span>97 <span style=''>    val allColors = </span><span style='background: #AEF1AE'>Random.shuffle(shuffled :+ target)</span><span style=''>
+</span>98 <span style=''>
+</span>99 <span style=''>    val round = </span><span style='background: #AEF1AE'>Round(target, allColors, System.currentTimeMillis())</span><span style=''>
+</span>100 <span style=''>    </span><span style='background: #AEF1AE'>game.copy(
+</span>101 <span style=''></span><span style='background: #AEF1AE'>      currentRound = Some(round),
+</span>102 <span style=''></span><span style='background: #AEF1AE'>      roundNumber = game.roundNumber + 1,
+</span>103 <span style=''></span><span style='background: #AEF1AE'>      status = GameStatus.Playing
+</span>104 <span style=''></span><span style='background: #AEF1AE'>    )</span><span style=''>
+</span>105 <span style=''>
+</span>106 <span style=''>  </span><span style='background: #AEF1AE'>def handleColorClick</span><span style=''>(
+</span>107 <span style=''>      game: ColorRushGame,
+</span>108 <span style=''>      playerId: String,
+</span>109 <span style=''>      color: String,
+</span>110 <span style=''>      clickTime: Long
+</span>111 <span style=''>  ): (ColorRushGame, Option[(String, String, Int)]) = // (playerId, playerName, points)
+</span>112 <span style=''>    // Only process clicks during active gameplay
+</span>113 <span style=''>    if </span><span style='background: #AEF1AE'>game.status != GameStatus.Playing</span><span style=''> then
+</span>114 <span style=''>      </span><span style='background: #F0ADAD'>return (game, None)</span><span style=''>
+</span>115 <span style=''>
+</span>116 <span style=''>    game.currentRound match
+</span>117 <span style=''>      case None </span><span style='background: #F0ADAD'>=&gt; (game, None)</span><span style=''>
+</span>118 <span style=''>      case Some(round) </span><span style='background: #AEF1AE'>=&gt;
+</span>119 <span style=''></span><span style='background: #AEF1AE'>        if color == round.targetColor then
+</span>120 <span style=''></span><span style='background: #AEF1AE'>          val timeElapsed = clickTime - round.startTime
+</span>121 <span style=''></span><span style='background: #AEF1AE'>          val speedBonus =
+</span>122 <span style=''></span><span style='background: #AEF1AE'>            if timeElapsed &lt; 1000 then 50
+</span>123 <span style=''></span><span style='background: #AEF1AE'>            else </span><span style='background: #F0ADAD'>if timeElapsed &lt; 2000 then 30
+</span>124 <span style=''></span><span style='background: #F0ADAD'>            else if timeElapsed &lt; 3000 then 10
+</span>125 <span style=''></span><span style='background: #F0ADAD'>            else 0</span><span style='background: #AEF1AE'>
+</span>126 <span style=''></span><span style='background: #AEF1AE'>          val points = 100 + speedBonus
+</span>127 <span style=''></span><span style='background: #AEF1AE'>
+</span>128 <span style=''></span><span style='background: #AEF1AE'>          val updatedPlayer = game.players.get(playerId).map: p =&gt;
+</span>129 <span style=''></span><span style='background: #AEF1AE'>            p.copy(score = p.score + points, roundsWon = p.roundsWon + 1)
+</span>130 <span style=''></span><span style='background: #AEF1AE'>
+</span>131 <span style=''></span><span style='background: #AEF1AE'>          val updatedGame = updatedPlayer match
+</span>132 <span style=''></span><span style='background: #AEF1AE'>            case Some(p) =&gt; game.copy(
+</span>133 <span style=''></span><span style='background: #AEF1AE'>                players = game.players + (playerId -&gt; p),
+</span>134 <span style=''></span><span style='background: #AEF1AE'>                status = GameStatus.RoundEnd
+</span>135 <span style=''></span><span style='background: #AEF1AE'>              )
+</span>136 <span style=''></span><span style='background: #AEF1AE'>            case None </span><span style='background: #F0ADAD'>=&gt; game</span><span style='background: #AEF1AE'>
+</span>137 <span style=''></span><span style='background: #AEF1AE'>
+</span>138 <span style=''></span><span style='background: #AEF1AE'>          (updatedGame, updatedPlayer.map(p =&gt; (playerId, p.name, points)))
+</span>139 <span style=''></span><span style='background: #AEF1AE'>        else
+</span>140 <span style=''></span><span style='background: #AEF1AE'>          </span><span style='background: #F0ADAD'>(game, None)</span><span style=''>
+</span>141 <span style=''>
+</span>142 <span style=''>  </span><span style='background: #AEF1AE'>def shouldEndGame</span><span style=''>(game: ColorRushGame): Boolean =
+</span>143 <span style=''>    </span><span style='background: #AEF1AE'>game.roundNumber &gt;= game.totalRounds || game.players.isEmpty</span><span style=''>
+</span>144 <span style=''>
+</span>145 <span style=''>  </span><span style='background: #F0ADAD'>def getWinner</span><span style=''>(game: ColorRushGame): Option[PlayerState] =
+</span>146 <span style=''>    </span><span style='background: #F0ADAD'>game.players.values.toSeq.sortBy(-_.score).headOption</span><span style=''>
+</span>147 <span style=''>
+</span>148 <span style=''>  </span><span style='background: #AEF1AE'>def advanceFromRoundEnd</span><span style=''>(game: ColorRushGame): ColorRushGame =
+</span>149 <span style=''>    if </span><span style='background: #AEF1AE'>shouldEndGame(game)</span><span style=''> then
+</span>150 <span style=''>      </span><span style='background: #F0ADAD'>game.copy(status = GameStatus.GameOver)</span><span style=''>
+</span>151 <span style=''>    else
+</span>152 <span style=''>      </span><span style='background: #AEF1AE'>startNewRound(game)</span><span style=''>
+</span></pre>
+          </div>
+          <div class="tab-pane" id="statementlist">
+            <table cellspacing="0" cellpadding="0" class="table statementlist">
+      <tr>
+        <th>Line</th>
+        <th>Stmt Id</th>
+        <th>Pos</th>
+        <th>Tree</th>
+        <th>Symbol</th>
+        <th>Tests</th>
+        <th>Code</th>
+      </tr><tr>
+        <td>
+          25
+        </td>
+        <td>
+          2475
+        </td>
+        <td>
+          596
+          -
+          600
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          true
+        </td>
+      </tr><tr>
+        <td>
+          25
+        </td>
+        <td>
+          2476
+        </td>
+        <td>
+          596
+          -
+          602
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          $lessinit$greater$default$5
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          true,\n
+        </td>
+      </tr><tr>
+        <td>
+          26
+        </td>
+        <td>
+          2477
+        </td>
+        <td>
+          637
+          -
+          643
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          $lessinit$greater$default$6
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          None\n)
+        </td>
+      </tr><tr>
+        <td>
+          36
+        </td>
+        <td>
+          2478
+        </td>
+        <td>
+          888
+          -
+          1078
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Vector(\n    &quot;#FF6B6B&quot;,\n    &quot;#4ECDC4&quot;,\n    &quot;#45B7D1&quot;,\n    &quot;#FFA07A&quot;,\n    &quot;#98D8C8&quot;,\n    &quot;#F7DC6F&quot;,\n    &quot;#BB8FCE&quot;,\n    &quot;#85C1E2&quot;,\n    &quot;#F8B195&quot;,\n    &quot;#C06C84&quot;,\n    &quot;#6C5B7B&quot;,\n    &quot;#355C7D&quot;\n  )
+        </td>
+      </tr><tr>
+        <td>
+          37
+        </td>
+        <td>
+          2479
+        </td>
+        <td>
+          900
+          -
+          909
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;#FF6B6B&quot;
+        </td>
+      </tr><tr>
+        <td>
+          38
+        </td>
+        <td>
+          2480
+        </td>
+        <td>
+          915
+          -
+          924
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;#4ECDC4&quot;
+        </td>
+      </tr><tr>
+        <td>
+          39
+        </td>
+        <td>
+          2481
+        </td>
+        <td>
+          930
+          -
+          939
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;#45B7D1&quot;
+        </td>
+      </tr><tr>
+        <td>
+          40
+        </td>
+        <td>
+          2482
+        </td>
+        <td>
+          945
+          -
+          954
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;#FFA07A&quot;
+        </td>
+      </tr><tr>
+        <td>
+          41
+        </td>
+        <td>
+          2483
+        </td>
+        <td>
+          960
+          -
+          969
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;#98D8C8&quot;
+        </td>
+      </tr><tr>
+        <td>
+          42
+        </td>
+        <td>
+          2484
+        </td>
+        <td>
+          975
+          -
+          984
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;#F7DC6F&quot;
+        </td>
+      </tr><tr>
+        <td>
+          43
+        </td>
+        <td>
+          2485
+        </td>
+        <td>
+          990
+          -
+          999
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;#BB8FCE&quot;
+        </td>
+      </tr><tr>
+        <td>
+          44
+        </td>
+        <td>
+          2486
+        </td>
+        <td>
+          1005
+          -
+          1014
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;#85C1E2&quot;
+        </td>
+      </tr><tr>
+        <td>
+          45
+        </td>
+        <td>
+          2487
+        </td>
+        <td>
+          1020
+          -
+          1029
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;#F8B195&quot;
+        </td>
+      </tr><tr>
+        <td>
+          46
+        </td>
+        <td>
+          2488
+        </td>
+        <td>
+          1035
+          -
+          1044
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;#C06C84&quot;
+        </td>
+      </tr><tr>
+        <td>
+          47
+        </td>
+        <td>
+          2489
+        </td>
+        <td>
+          1050
+          -
+          1059
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;#6C5B7B&quot;
+        </td>
+      </tr><tr>
+        <td>
+          48
+        </td>
+        <td>
+          2490
+        </td>
+        <td>
+          1065
+          -
+          1074
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          &quot;#355C7D&quot;
+        </td>
+      </tr><tr>
+        <td>
+          51
+        </td>
+        <td>
+          2494
+        </td>
+        <td>
+          1082
+          -
+          1096
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          createGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def createGame
+        </td>
+      </tr><tr>
+        <td>
+          52
+        </td>
+        <td>
+          2493
+        </td>
+        <td>
+          1191
+          -
+          1192
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          0
+        </td>
+      </tr><tr>
+        <td>
+          52
+        </td>
+        <td>
+          2492
+        </td>
+        <td>
+          1174
+          -
+          1183
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          empty
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Map.empty
+        </td>
+      </tr><tr>
+        <td>
+          52
+        </td>
+        <td>
+          2491
+        </td>
+        <td>
+          1152
+          -
+          1226
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          ColorRushGame(gameId, Map.empty, None, 0, totalRounds, GameStatus.Waiting)
+        </td>
+      </tr><tr>
+        <td>
+          54
+        </td>
+        <td>
+          2507
+        </td>
+        <td>
+          1230
+          -
+          1243
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          addPlayer
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def addPlayer
+        </td>
+      </tr><tr>
+        <td>
+          55
+        </td>
+        <td>
+          2496
+        </td>
+        <td>
+          1371
+          -
+          1372
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          0
+        </td>
+      </tr><tr>
+        <td>
+          55
+        </td>
+        <td>
+          2495
+        </td>
+        <td>
+          1337
+          -
+          1417
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          PlayerState(playerId, playerName, 0, 0, connected = true, disconnectedAt = None)
+        </td>
+      </tr><tr>
+        <td>
+          55
+        </td>
+        <td>
+          2498
+        </td>
+        <td>
+          1389
+          -
+          1393
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          true
+        </td>
+      </tr><tr>
+        <td>
+          55
+        </td>
+        <td>
+          2497
+        </td>
+        <td>
+          1374
+          -
+          1375
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          0
+        </td>
+      </tr><tr>
+        <td>
+          56
+        </td>
+        <td>
+          2505
+        </td>
+        <td>
+          1422
+          -
+          1431
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$6
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          56
+        </td>
+        <td>
+          2499
+        </td>
+        <td>
+          1442
+          -
+          1476
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          +
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.players + (playerId -&gt; player
+        </td>
+      </tr><tr>
+        <td>
+          56
+        </td>
+        <td>
+          2502
+        </td>
+        <td>
+          1422
+          -
+          1431
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          56
+        </td>
+        <td>
+          2501
+        </td>
+        <td>
+          1422
+          -
+          1431
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          56
+        </td>
+        <td>
+          2504
+        </td>
+        <td>
+          1422
+          -
+          1431
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$5
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          56
+        </td>
+        <td>
+          2506
+        </td>
+        <td>
+          1422
+          -
+          1478
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy(players = game.players + (playerId -&gt; player))
+        </td>
+      </tr><tr>
+        <td>
+          56
+        </td>
+        <td>
+          2500
+        </td>
+        <td>
+          1458
+          -
+          1476
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          playerId -&gt; player
+        </td>
+      </tr><tr>
+        <td>
+          56
+        </td>
+        <td>
+          2503
+        </td>
+        <td>
+          1422
+          -
+          1431
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          58
+        </td>
+        <td>
+          2515
+        </td>
+        <td>
+          1482
+          -
+          1498
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          removePlayer
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def removePlayer
+        </td>
+      </tr><tr>
+        <td>
+          59
+        </td>
+        <td>
+          2511
+        </td>
+        <td>
+          1559
+          -
+          1568
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          59
+        </td>
+        <td>
+          2514
+        </td>
+        <td>
+          1559
+          -
+          1603
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy(players = game.players - playerId)
+        </td>
+      </tr><tr>
+        <td>
+          59
+        </td>
+        <td>
+          2508
+        </td>
+        <td>
+          1579
+          -
+          1602
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.players - playerId
+        </td>
+      </tr><tr>
+        <td>
+          59
+        </td>
+        <td>
+          2510
+        </td>
+        <td>
+          1559
+          -
+          1568
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          59
+        </td>
+        <td>
+          2513
+        </td>
+        <td>
+          1559
+          -
+          1568
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$6
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          59
+        </td>
+        <td>
+          2509
+        </td>
+        <td>
+          1559
+          -
+          1568
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          59
+        </td>
+        <td>
+          2512
+        </td>
+        <td>
+          1559
+          -
+          1568
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$5
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          62
+        </td>
+        <td>
+          2535
+        </td>
+        <td>
+          1671
+          -
+          1691
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          disconnectPlayer
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def disconnectPlayer
+        </td>
+      </tr><tr>
+        <td>
+          63
+        </td>
+        <td>
+          2516
+        </td>
+        <td>
+          1752
+          -
+          1778
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          get
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.players.get(playerId)
+        </td>
+      </tr><tr>
+        <td>
+          65
+        </td>
+        <td>
+          2520
+        </td>
+        <td>
+          1845
+          -
+          1856
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          player.copy
+        </td>
+      </tr><tr>
+        <td>
+          65
+        </td>
+        <td>
+          2523
+        </td>
+        <td>
+          1845
+          -
+          1926
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          player.copy(connected = false, disconnectedAt = Some(System.currentTimeMillis()))
+        </td>
+      </tr><tr>
+        <td>
+          65
+        </td>
+        <td>
+          2517
+        </td>
+        <td>
+          1893
+          -
+          1925
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          Some(System.currentTimeMillis())
+        </td>
+      </tr><tr>
+        <td>
+          65
+        </td>
+        <td>
+          2519
+        </td>
+        <td>
+          1845
+          -
+          1856
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          player.copy
+        </td>
+      </tr><tr>
+        <td>
+          65
+        </td>
+        <td>
+          2522
+        </td>
+        <td>
+          1845
+          -
+          1856
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          player.copy
+        </td>
+      </tr><tr>
+        <td>
+          65
+        </td>
+        <td>
+          2524
+        </td>
+        <td>
+          1869
+          -
+          1874
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          false
+        </td>
+      </tr><tr>
+        <td>
+          65
+        </td>
+        <td>
+          2533
+        </td>
+        <td>
+          1820
+          -
+          2003
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          val disconnectedPlayer = player.copy(connected = false, disconnectedAt = Some(System.currentTimeMillis()))\n        game.copy(players = game.players + (playerId -&gt; disconnectedPlayer))
+        </td>
+      </tr><tr>
+        <td>
+          65
+        </td>
+        <td>
+          2518
+        </td>
+        <td>
+          1898
+          -
+          1924
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          currentTimeMillis
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          System.currentTimeMillis()
+        </td>
+      </tr><tr>
+        <td>
+          65
+        </td>
+        <td>
+          2521
+        </td>
+        <td>
+          1845
+          -
+          1856
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          player.copy
+        </td>
+      </tr><tr>
+        <td>
+          66
+        </td>
+        <td>
+          2529
+        </td>
+        <td>
+          1935
+          -
+          1944
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          66
+        </td>
+        <td>
+          2532
+        </td>
+        <td>
+          1935
+          -
+          2003
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy(players = game.players + (playerId -&gt; disconnectedPlayer))
+        </td>
+      </tr><tr>
+        <td>
+          66
+        </td>
+        <td>
+          2526
+        </td>
+        <td>
+          1971
+          -
+          2001
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          playerId -&gt; disconnectedPlayer
+        </td>
+      </tr><tr>
+        <td>
+          66
+        </td>
+        <td>
+          2528
+        </td>
+        <td>
+          1935
+          -
+          1944
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          66
+        </td>
+        <td>
+          2531
+        </td>
+        <td>
+          1935
+          -
+          1944
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$6
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          66
+        </td>
+        <td>
+          2525
+        </td>
+        <td>
+          1955
+          -
+          2001
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          +
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.players + (playerId -&gt; disconnectedPlayer
+        </td>
+      </tr><tr>
+        <td>
+          66
+        </td>
+        <td>
+          2527
+        </td>
+        <td>
+          1935
+          -
+          1944
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          66
+        </td>
+        <td>
+          2530
+        </td>
+        <td>
+          1935
+          -
+          1944
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$5
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          67
+        </td>
+        <td>
+          2534
+        </td>
+        <td>
+          2020
+          -
+          2027
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; game
+        </td>
+      </tr><tr>
+        <td>
+          70
+        </td>
+        <td>
+          2551
+        </td>
+        <td>
+          2083
+          -
+          2102
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          reconnectPlayer
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def reconnectPlayer
+        </td>
+      </tr><tr>
+        <td>
+          71
+        </td>
+        <td>
+          2536
+        </td>
+        <td>
+          2171
+          -
+          2369
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          map
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.players.get(playerId).map: player =&gt;\n      val reconnectedPlayer = player.copy(connected = true, disconnectedAt = None)\n      game.copy(players = game.players + (playerId -&gt; reconnectedPlayer))
+        </td>
+      </tr><tr>
+        <td>
+          72
+        </td>
+        <td>
+          2538
+        </td>
+        <td>
+          2243
+          -
+          2254
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          player.copy
+        </td>
+      </tr><tr>
+        <td>
+          72
+        </td>
+        <td>
+          2541
+        </td>
+        <td>
+          2243
+          -
+          2254
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          player.copy
+        </td>
+      </tr><tr>
+        <td>
+          72
+        </td>
+        <td>
+          2537
+        </td>
+        <td>
+          2243
+          -
+          2295
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          player.copy(connected = true, disconnectedAt = None)
+        </td>
+      </tr><tr>
+        <td>
+          72
+        </td>
+        <td>
+          2540
+        </td>
+        <td>
+          2243
+          -
+          2254
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          player.copy
+        </td>
+      </tr><tr>
+        <td>
+          72
+        </td>
+        <td>
+          2542
+        </td>
+        <td>
+          2267
+          -
+          2271
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          true
+        </td>
+      </tr><tr>
+        <td>
+          72
+        </td>
+        <td>
+          2539
+        </td>
+        <td>
+          2243
+          -
+          2254
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          player.copy
+        </td>
+      </tr><tr>
+        <td>
+          73
+        </td>
+        <td>
+          2547
+        </td>
+        <td>
+          2302
+          -
+          2311
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          73
+        </td>
+        <td>
+          2550
+        </td>
+        <td>
+          2302
+          -
+          2369
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy(players = game.players + (playerId -&gt; reconnectedPlayer))
+        </td>
+      </tr><tr>
+        <td>
+          73
+        </td>
+        <td>
+          2544
+        </td>
+        <td>
+          2338
+          -
+          2367
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          playerId -&gt; reconnectedPlayer
+        </td>
+      </tr><tr>
+        <td>
+          73
+        </td>
+        <td>
+          2543
+        </td>
+        <td>
+          2322
+          -
+          2367
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          +
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.players + (playerId -&gt; reconnectedPlayer
+        </td>
+      </tr><tr>
+        <td>
+          73
+        </td>
+        <td>
+          2546
+        </td>
+        <td>
+          2302
+          -
+          2311
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          73
+        </td>
+        <td>
+          2549
+        </td>
+        <td>
+          2302
+          -
+          2311
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$6
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          73
+        </td>
+        <td>
+          2545
+        </td>
+        <td>
+          2302
+          -
+          2311
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          73
+        </td>
+        <td>
+          2548
+        </td>
+        <td>
+          2302
+          -
+          2311
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$5
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          76
+        </td>
+        <td>
+          2554
+        </td>
+        <td>
+          2444
+          -
+          2457
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          canRejoin
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def canRejoin
+        </td>
+      </tr><tr>
+        <td>
+          79
+        </td>
+        <td>
+          2555
+        </td>
+        <td>
+          2538
+          -
+          2567
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          canRejoin$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          PlayerConnectionOps.DefaultGr
+        </td>
+      </tr><tr>
+        <td>
+          81
+        </td>
+        <td>
+          2553
+        </td>
+        <td>
+          2632
+          -
+          2679
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          canRejoin
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          PlayerConnectionOps.canRejoin(_, gracePeriodMs)
+        </td>
+      </tr><tr>
+        <td>
+          81
+        </td>
+        <td>
+          2552
+        </td>
+        <td>
+          2598
+          -
+          2680
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          exists
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.players.get(playerId).exists(PlayerConnectionOps.canRejoin(_, gracePeriodMs))
+        </td>
+      </tr><tr>
+        <td>
+          84
+        </td>
+        <td>
+          2565
+        </td>
+        <td>
+          2764
+          -
+          2794
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          cleanupDisconnectedPlayers
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def cleanupDisconnectedPlayers
+        </td>
+      </tr><tr>
+        <td>
+          86
+        </td>
+        <td>
+          2566
+        </td>
+        <td>
+          2851
+          -
+          2897
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          cleanupDisconnectedPlayers$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          PlayerConnectionOps.DefaultGracePeriodMs\n  ): 
+        </td>
+      </tr><tr>
+        <td>
+          89
+        </td>
+        <td>
+          2556
+        </td>
+        <td>
+          2937
+          -
+          3050
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          filterNot
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.players.filterNot:\n      case (_, player) =&gt; PlayerConnectionOps.isGracePeriodExpired(player, gracePeriodMs)
+        </td>
+      </tr><tr>
+        <td>
+          89
+        </td>
+        <td>
+          2558
+        </td>
+        <td>
+          2984
+          -
+          3050
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; PlayerConnectionOps.isGracePeriodExpired(player, gracePeriodMs)
+        </td>
+      </tr><tr>
+        <td>
+          89
+        </td>
+        <td>
+          2557
+        </td>
+        <td>
+          2987
+          -
+          3050
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          isGracePeriodExpired
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          PlayerConnectionOps.isGracePeriodExpired(player, gracePeriodMs)
+        </td>
+      </tr><tr>
+        <td>
+          90
+        </td>
+        <td>
+          2559
+        </td>
+        <td>
+          3055
+          -
+          3089
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy(players = activePlayers)
+        </td>
+      </tr><tr>
+        <td>
+          90
+        </td>
+        <td>
+          2562
+        </td>
+        <td>
+          3055
+          -
+          3064
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          90
+        </td>
+        <td>
+          2561
+        </td>
+        <td>
+          3055
+          -
+          3064
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          90
+        </td>
+        <td>
+          2564
+        </td>
+        <td>
+          3055
+          -
+          3064
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$6
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          90
+        </td>
+        <td>
+          2560
+        </td>
+        <td>
+          3055
+          -
+          3064
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          90
+        </td>
+        <td>
+          2563
+        </td>
+        <td>
+          3055
+          -
+          3064
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$5
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          92
+        </td>
+        <td>
+          2583
+        </td>
+        <td>
+          3093
+          -
+          3110
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          startNewRound
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def startNewRound
+        </td>
+      </tr><tr>
+        <td>
+          94
+        </td>
+        <td>
+          2568
+        </td>
+        <td>
+          3202
+          -
+          3231
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          nextInt
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Random.nextInt(colors.length)
+        </td>
+      </tr><tr>
+        <td>
+          94
+        </td>
+        <td>
+          2567
+        </td>
+        <td>
+          3195
+          -
+          3232
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          colors(Random.nextInt(colors.length))
+        </td>
+      </tr><tr>
+        <td>
+          94
+        </td>
+        <td>
+          2569
+        </td>
+        <td>
+          3217
+          -
+          3230
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          length
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          colors.length
+        </td>
+      </tr><tr>
+        <td>
+          95
+        </td>
+        <td>
+          2571
+        </td>
+        <td>
+          3272
+          -
+          3283
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          ==
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          _ == target
+        </td>
+      </tr><tr>
+        <td>
+          95
+        </td>
+        <td>
+          2570
+        </td>
+        <td>
+          3255
+          -
+          3284
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          filterNot
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          colors.filterNot(_ == target)
+        </td>
+      </tr><tr>
+        <td>
+          96
+        </td>
+        <td>
+          2572
+        </td>
+        <td>
+          3304
+          -
+          3339
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          take
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Random.shuffle(otherColors).take(5)
+        </td>
+      </tr><tr>
+        <td>
+          97
+        </td>
+        <td>
+          2574
+        </td>
+        <td>
+          3375
+          -
+          3393
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          :+
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          shuffled :+ target
+        </td>
+      </tr><tr>
+        <td>
+          97
+        </td>
+        <td>
+          2573
+        </td>
+        <td>
+          3360
+          -
+          3394
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          shuffle
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Random.shuffle(shuffled :+ target)
+        </td>
+      </tr><tr>
+        <td>
+          99
+        </td>
+        <td>
+          2576
+        </td>
+        <td>
+          3437
+          -
+          3463
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          currentTimeMillis
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          System.currentTimeMillis()
+        </td>
+      </tr><tr>
+        <td>
+          99
+        </td>
+        <td>
+          2575
+        </td>
+        <td>
+          3412
+          -
+          3464
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Round(target, allColors, System.currentTimeMillis())
+        </td>
+      </tr><tr>
+        <td>
+          100
+        </td>
+        <td>
+          2580
+        </td>
+        <td>
+          3469
+          -
+          3478
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          100
+        </td>
+        <td>
+          2579
+        </td>
+        <td>
+          3469
+          -
+          3478
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          100
+        </td>
+        <td>
+          2582
+        </td>
+        <td>
+          3469
+          -
+          3595
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy(\n      currentRound = Some(round),\n      roundNumber = game.roundNumber + 1,\n      status = GameStatus.Playing\n    )
+        </td>
+      </tr><tr>
+        <td>
+          100
+        </td>
+        <td>
+          2581
+        </td>
+        <td>
+          3469
+          -
+          3478
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$5
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          101
+        </td>
+        <td>
+          2577
+        </td>
+        <td>
+          3501
+          -
+          3512
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          Some(round)
+        </td>
+      </tr><tr>
+        <td>
+          102
+        </td>
+        <td>
+          2578
+        </td>
+        <td>
+          3534
+          -
+          3554
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          +
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.roundNumber + 1
+        </td>
+      </tr><tr>
+        <td>
+          106
+        </td>
+        <td>
+          2631
+        </td>
+        <td>
+          3599
+          -
+          3619
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          handleColorClick
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def handleColorClick
+        </td>
+      </tr><tr>
+        <td>
+          113
+        </td>
+        <td>
+          2584
+        </td>
+        <td>
+          3860
+          -
+          3893
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          !=
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.status != GameStatus.Playing
+        </td>
+      </tr><tr>
+        <td>
+          114
+        </td>
+        <td>
+          2586
+        </td>
+        <td>
+          3905
+          -
+          3924
+        </td>
+        <td>
+          Return
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          return (game, None)
+        </td>
+      </tr><tr>
+        <td>
+          114
+        </td>
+        <td>
+          2585
+        </td>
+        <td>
+          3912
+          -
+          3924
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          (game, None)
+        </td>
+      </tr><tr>
+        <td>
+          114
+        </td>
+        <td>
+          2587
+        </td>
+        <td>
+          3924
+          -
+          3924
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          
+        </td>
+      </tr><tr>
+        <td>
+          117
+        </td>
+        <td>
+          2589
+        </td>
+        <td>
+          3970
+          -
+          3985
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; (game, None)
+        </td>
+      </tr><tr>
+        <td>
+          117
+        </td>
+        <td>
+          2588
+        </td>
+        <td>
+          3973
+          -
+          3985
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          (game, None)
+        </td>
+      </tr><tr>
+        <td>
+          118
+        </td>
+        <td>
+          2630
+        </td>
+        <td>
+          4009
+          -
+          4824
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt;\n        if color == round.targetColor then\n          val timeElapsed = clickTime - round.startTime\n          val speedBonus =\n            if timeElapsed &lt; 1000 then 50\n            else if timeElapsed &lt; 2000 then 30\n            else if timeElapsed &lt; 3000 then 10\n            else 0\n          val points = 100 + speedBonus\n\n          val updatedPlayer = game.players.get(playerId).map: p =&gt;\n            p.copy(score = p.score + points, roundsWon = p.roundsWon + 1)\n\n          val updatedGame = updatedPlayer match\n            case Some(p) =&gt; game.copy(\n                players = game.players + (playerId -&gt; p),\n                status = GameStatus.RoundEnd\n              )\n            case None =&gt; game\n\n          (updatedGame, updatedPlayer.map(p =&gt; (playerId, p.name, points)))\n        else\n          (game, None)
+        </td>
+      </tr><tr>
+        <td>
+          119
+        </td>
+        <td>
+          2590
+        </td>
+        <td>
+          4023
+          -
+          4049
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          ==
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          color == round.targetColor
+        </td>
+      </tr><tr>
+        <td>
+          120
+        </td>
+        <td>
+          2591
+        </td>
+        <td>
+          4083
+          -
+          4110
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          clickTime - round.startTime
+        </td>
+      </tr><tr>
+        <td>
+          120
+        </td>
+        <td>
+          2627
+        </td>
+        <td>
+          4065
+          -
+          4788
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          val timeElapsed = clickTime - round.startTime\n          val speedBonus =\n            if timeElapsed &lt; 1000 then 50\n            else if timeElapsed &lt; 2000 then 30\n            else if timeElapsed &lt; 3000 then 10\n            else 0\n          val points = 100 + speedBonus\n\n          val updatedPlayer = game.players.get(playerId).map: p =&gt;\n            p.copy(score = p.score + points, roundsWon = p.roundsWon + 1)\n\n          val updatedGame = updatedPlayer match\n            case Some(p) =&gt; game.copy(\n                players = game.players + (playerId -&gt; p),\n                status = GameStatus.RoundEnd\n              )\n            case None =&gt; game\n\n          (updatedGame, updatedPlayer.map(p =&gt; (playerId, p.name, points)))
+        </td>
+      </tr><tr>
+        <td>
+          122
+        </td>
+        <td>
+          2592
+        </td>
+        <td>
+          4153
+          -
+          4171
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          timeElapsed &lt; 1000
+        </td>
+      </tr><tr>
+        <td>
+          122
+        </td>
+        <td>
+          2594
+        </td>
+        <td>
+          4177
+          -
+          4179
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          50
+        </td>
+      </tr><tr>
+        <td>
+          122
+        </td>
+        <td>
+          2593
+        </td>
+        <td>
+          4177
+          -
+          4179
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          50
+        </td>
+      </tr><tr>
+        <td>
+          123
+        </td>
+        <td>
+          2595
+        </td>
+        <td>
+          4200
+          -
+          4218
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          timeElapsed &lt; 2000
+        </td>
+      </tr><tr>
+        <td>
+          123
+        </td>
+        <td>
+          2604
+        </td>
+        <td>
+          4197
+          -
+          4292
+        </td>
+        <td>
+          If
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          if timeElapsed &lt; 2000 then 30\n            else if timeElapsed &lt; 3000 then 10\n            else 0
+        </td>
+      </tr><tr>
+        <td>
+          123
+        </td>
+        <td>
+          2597
+        </td>
+        <td>
+          4224
+          -
+          4226
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          30
+        </td>
+      </tr><tr>
+        <td>
+          123
+        </td>
+        <td>
+          2596
+        </td>
+        <td>
+          4224
+          -
+          4226
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          30
+        </td>
+      </tr><tr>
+        <td>
+          124
+        </td>
+        <td>
+          2598
+        </td>
+        <td>
+          4247
+          -
+          4265
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          &lt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          timeElapsed &lt; 3000
+        </td>
+      </tr><tr>
+        <td>
+          124
+        </td>
+        <td>
+          2603
+        </td>
+        <td>
+          4244
+          -
+          4292
+        </td>
+        <td>
+          If
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          if timeElapsed &lt; 3000 then 10\n            else 0
+        </td>
+      </tr><tr>
+        <td>
+          124
+        </td>
+        <td>
+          2600
+        </td>
+        <td>
+          4271
+          -
+          4273
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          10
+        </td>
+      </tr><tr>
+        <td>
+          124
+        </td>
+        <td>
+          2599
+        </td>
+        <td>
+          4271
+          -
+          4273
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          10
+        </td>
+      </tr><tr>
+        <td>
+          125
+        </td>
+        <td>
+          2601
+        </td>
+        <td>
+          4291
+          -
+          4292
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          0
+        </td>
+      </tr><tr>
+        <td>
+          125
+        </td>
+        <td>
+          2602
+        </td>
+        <td>
+          4291
+          -
+          4292
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          0
+        </td>
+      </tr><tr>
+        <td>
+          126
+        </td>
+        <td>
+          2606
+        </td>
+        <td>
+          4316
+          -
+          4319
+        </td>
+        <td>
+          Literal
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          100
+        </td>
+      </tr><tr>
+        <td>
+          126
+        </td>
+        <td>
+          2605
+        </td>
+        <td>
+          4316
+          -
+          4332
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          +
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          100 + speedBonus
+        </td>
+      </tr><tr>
+        <td>
+          128
+        </td>
+        <td>
+          2607
+        </td>
+        <td>
+          4364
+          -
+          4474
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          map
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.players.get(playerId).map: p =&gt;\n            p.copy(score = p.score + points, roundsWon = p.roundsWon + 1)
+        </td>
+      </tr><tr>
+        <td>
+          129
+        </td>
+        <td>
+          2610
+        </td>
+        <td>
+          4413
+          -
+          4419
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          p.copy
+        </td>
+      </tr><tr>
+        <td>
+          129
+        </td>
+        <td>
+          2613
+        </td>
+        <td>
+          4413
+          -
+          4419
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$6
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          p.copy
+        </td>
+      </tr><tr>
+        <td>
+          129
+        </td>
+        <td>
+          2612
+        </td>
+        <td>
+          4413
+          -
+          4419
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$5
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          p.copy
+        </td>
+      </tr><tr>
+        <td>
+          129
+        </td>
+        <td>
+          2609
+        </td>
+        <td>
+          4458
+          -
+          4473
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          +
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          p.roundsWon + 1
+        </td>
+      </tr><tr>
+        <td>
+          129
+        </td>
+        <td>
+          2611
+        </td>
+        <td>
+          4413
+          -
+          4419
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          p.copy
+        </td>
+      </tr><tr>
+        <td>
+          129
+        </td>
+        <td>
+          2614
+        </td>
+        <td>
+          4413
+          -
+          4474
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          p.copy(score = p.score + points, roundsWon = p.roundsWon + 1)
+        </td>
+      </tr><tr>
+        <td>
+          129
+        </td>
+        <td>
+          2608
+        </td>
+        <td>
+          4428
+          -
+          4444
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          +
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          p.score + points
+        </td>
+      </tr><tr>
+        <td>
+          132
+        </td>
+        <td>
+          2619
+        </td>
+        <td>
+          4552
+          -
+          4561
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          132
+        </td>
+        <td>
+          2622
+        </td>
+        <td>
+          4549
+          -
+          4681
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          =&gt; game.copy(\n                players = game.players + (playerId -&gt; p),\n                status = GameStatus.RoundEnd\n              )
+        </td>
+      </tr><tr>
+        <td>
+          132
+        </td>
+        <td>
+          2621
+        </td>
+        <td>
+          4552
+          -
+          4681
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy(\n                players = game.players + (playerId -&gt; p),\n                status = GameStatus.RoundEnd\n              )
+        </td>
+      </tr><tr>
+        <td>
+          132
+        </td>
+        <td>
+          2618
+        </td>
+        <td>
+          4552
+          -
+          4561
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          132
+        </td>
+        <td>
+          2617
+        </td>
+        <td>
+          4552
+          -
+          4561
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          132
+        </td>
+        <td>
+          2620
+        </td>
+        <td>
+          4552
+          -
+          4561
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$5
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          133
+        </td>
+        <td>
+          2616
+        </td>
+        <td>
+          4605
+          -
+          4618
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          -&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          playerId -&gt; p
+        </td>
+      </tr><tr>
+        <td>
+          133
+        </td>
+        <td>
+          2615
+        </td>
+        <td>
+          4589
+          -
+          4618
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          +
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.players + (playerId -&gt; p
+        </td>
+      </tr><tr>
+        <td>
+          136
+        </td>
+        <td>
+          2623
+        </td>
+        <td>
+          4704
+          -
+          4711
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          =&gt; game
+        </td>
+      </tr><tr>
+        <td>
+          138
+        </td>
+        <td>
+          2625
+        </td>
+        <td>
+          4737
+          -
+          4787
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          map
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          updatedPlayer.map(p =&gt; (playerId, p.name, points))
+        </td>
+      </tr><tr>
+        <td>
+          138
+        </td>
+        <td>
+          2624
+        </td>
+        <td>
+          4723
+          -
+          4788
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (updatedGame, updatedPlayer.map(p =&gt; (playerId, p.name, points)))
+        </td>
+      </tr><tr>
+        <td>
+          138
+        </td>
+        <td>
+          2626
+        </td>
+        <td>
+          4760
+          -
+          4786
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          (playerId, p.name, points)
+        </td>
+      </tr><tr>
+        <td>
+          140
+        </td>
+        <td>
+          2628
+        </td>
+        <td>
+          4812
+          -
+          4824
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          (game, None)
+        </td>
+      </tr><tr>
+        <td>
+          140
+        </td>
+        <td>
+          2629
+        </td>
+        <td>
+          4812
+          -
+          4824
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          apply
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          (game, None)
+        </td>
+      </tr><tr>
+        <td>
+          142
+        </td>
+        <td>
+          2634
+        </td>
+        <td>
+          4828
+          -
+          4845
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          shouldEndGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def shouldEndGame
+        </td>
+      </tr><tr>
+        <td>
+          143
+        </td>
+        <td>
+          2633
+        </td>
+        <td>
+          4922
+          -
+          4942
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          isEmpty
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.players.isEmpty
+        </td>
+      </tr><tr>
+        <td>
+          143
+        </td>
+        <td>
+          2632
+        </td>
+        <td>
+          4882
+          -
+          4942
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          ||
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          game.roundNumber &gt;= game.totalRounds || game.players.isEmpty
+        </td>
+      </tr><tr>
+        <td>
+          145
+        </td>
+        <td>
+          2638
+        </td>
+        <td>
+          4946
+          -
+          4959
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          getWinner
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          def getWinner
+        </td>
+      </tr><tr>
+        <td>
+          146
+        </td>
+        <td>
+          2637
+        </td>
+        <td>
+          5008
+          -
+          5061
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          headOption
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.players.values.toSeq.sortBy(-_.score).headOption
+        </td>
+      </tr><tr>
+        <td>
+          146
+        </td>
+        <td>
+          2636
+        </td>
+        <td>
+          5041
+          -
+          5049
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          unary_-
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          -_.score
+        </td>
+      </tr><tr>
+        <td>
+          146
+        </td>
+        <td>
+          2635
+        </td>
+        <td>
+          5008
+          -
+          5050
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          sortBy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.players.values.toSeq.sortBy(-_.score)
+        </td>
+      </tr><tr>
+        <td>
+          148
+        </td>
+        <td>
+          2649
+        </td>
+        <td>
+          5065
+          -
+          5088
+        </td>
+        <td>
+          DefDef
+        </td>
+        <td>
+          advanceFromRoundEnd
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          def advanceFromRoundEnd
+        </td>
+      </tr><tr>
+        <td>
+          149
+        </td>
+        <td>
+          2639
+        </td>
+        <td>
+          5134
+          -
+          5153
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          shouldEndGame
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          shouldEndGame(game)
+        </td>
+      </tr><tr>
+        <td>
+          150
+        </td>
+        <td>
+          2640
+        </td>
+        <td>
+          5165
+          -
+          5174
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$1
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          150
+        </td>
+        <td>
+          2643
+        </td>
+        <td>
+          5165
+          -
+          5174
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$4
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          150
+        </td>
+        <td>
+          2646
+        </td>
+        <td>
+          5165
+          -
+          5204
+        </td>
+        <td>
+          Block
+        </td>
+        <td>
+          &lt;none&gt;
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy(status = GameStatus.GameOver)
+        </td>
+      </tr><tr>
+        <td>
+          150
+        </td>
+        <td>
+          2642
+        </td>
+        <td>
+          5165
+          -
+          5174
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$3
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          150
+        </td>
+        <td>
+          2645
+        </td>
+        <td>
+          5165
+          -
+          5204
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          copy
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy(status = GameStatus.GameOver)
+        </td>
+      </tr><tr>
+        <td>
+          150
+        </td>
+        <td>
+          2644
+        </td>
+        <td>
+          5165
+          -
+          5174
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$5
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          150
+        </td>
+        <td>
+          2641
+        </td>
+        <td>
+          5165
+          -
+          5174
+        </td>
+        <td>
+          Select
+        </td>
+        <td>
+          copy$default$2
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #F0ADAD">
+          game.copy
+        </td>
+      </tr><tr>
+        <td>
+          152
+        </td>
+        <td>
+          2648
+        </td>
+        <td>
+          5220
+          -
+          5239
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          startNewRound
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          startNewRound(game)
+        </td>
+      </tr><tr>
+        <td>
+          152
+        </td>
+        <td>
+          2647
+        </td>
+        <td>
+          5220
+          -
+          5239
+        </td>
+        <td>
+          Apply
+        </td>
+        <td>
+          startNewRound
+        </td>
+        <td>
+          
+        </td>
+        <td style="background: #AEF1AE">
+          startNewRound(game)
+        </td>
+      </tr>
+    </table>
+          </div>
+        </div>
+      </body>
+    </html>
